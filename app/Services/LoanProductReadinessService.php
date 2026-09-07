@@ -86,7 +86,11 @@ class LoanProductReadinessService
             ],
             'product_specific'   => $this->localizedProductSpecific($product->code),
             'processing_time'    => $this->localizedProcessingTime($product->code),
-            'step_plan'          => collect($this->wizard->borrowerStepPlan($customer, $product))
+            'step_plan'          => collect($this->wizard->borrowerStepPlan(
+                $customer,
+                $product,
+                (float) ($product->min_amount ?? 0),
+            ))
                 ->reject(fn (array $step) => $step['key'] === 'product')
                 ->values()
                 ->all(),

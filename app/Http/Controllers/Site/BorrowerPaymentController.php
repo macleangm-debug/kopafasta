@@ -559,9 +559,9 @@ class BorrowerPaymentController extends Controller
             && filled(data_get($payment->provider_meta, 'pricing.promo_code'))) {
             $promoValue = data_get($payment->provider_meta, 'pricing.promo_code');
         }
+        // Cancel/Stop must return to the originating step — never the post-payment return_url.
         $cancelUrl = data_get($payment->provider_meta, 'apply_context.back_url')
-            ?? data_get($payment->provider_meta, 'apply_context.cancel_url')
-            ?? data_get($payment->provider_meta, 'return_url');
+            ?? data_get($payment->provider_meta, 'apply_context.cancel_url');
         $applyReward = $request->boolean('apply_reward')
             || (bool) data_get($payment->provider_meta, 'pricing.apply_reward');
         if ($payment->customer && CustomerPaymentService::supportsCodeDiscounts($payment->payment_type)) {
@@ -655,15 +655,8 @@ class BorrowerPaymentController extends Controller
         $promoBody = null;
         $message = null;
         if (filled($code) && ! $promoValid) {
-            $reason = (string) ($quote['promo_message'] ?? $quote['promo_error'] ?? '');
-            $expired = str_contains(mb_strtolower($reason), 'expir');
-            $promoStatus = $expired ? 'expired' : 'invalid';
-            $promoTitle = $expired
-                ? __('borrower.payments_page.show.promo_expired_title')
-                : __('borrower.payments_page.show.promo_unavailable_title');
-            $promoBody = $expired
-                ? __('borrower.payments_page.show.promo_expired_body')
-                : __('borrower.payments_page.show.promo_unavailable_body');
+            $reason = (string) ($quote['promo_reason'] ?? 'not_found');
+            [$promoStatus, $promoTitle, $promoBody] = $this->promoFailureCopy($reason);
             $message = $promoBody;
         } elseif (filled($code) && $promoValid) {
             $promoStatus = 'success';
@@ -708,5 +701,37 @@ class BorrowerPaymentController extends Controller
         }
 
         return back()->with('status', 'Proof uploaded. Finance will review your payment.');
+    }
+
+    /** @return array{0: string, 1: string, 2: string} */
+    private function promoFailureCopy(string $reason): array
+    {
+        return match ($reason) {
+            'expired' => [
+                'expired',
+                __('borrower.payments_page.show.promo_expired_title'),
+                __('borrower.payments_page.show.promo_expired_body'),
+            ],
+            'wrong_fee' => [
+                'invalid',
+                __('borrower.payments_page.show.promo_wrong_payment_title'),
+                __('borrower.payments_page.show.promo_wrong_payment_body'),
+            ],
+            'exhausted' => [
+                'invalid',
+                __('borrower.payments_page.show.promo_exhausted_title'),
+                __('borrower.payments_page.show.promo_exhausted_body'),
+            ],
+            'inactive' => [
+                'invalid',
+                __('borrower.payments_page.show.promo_inactive_title'),
+                __('borrower.payments_page.show.promo_inactive_body'),
+            ],
+            default => [
+                'invalid',
+                __('borrower.payments_page.show.promo_not_found_title'),
+                __('borrower.payments_page.show.promo_not_found_body'),
+            ],
+        };
     }
 }

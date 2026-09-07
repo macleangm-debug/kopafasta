@@ -261,9 +261,16 @@ class ApplicationFeeGateAuditTest extends TestCase
             'status' => 'paid',
             'reference' => 'PAY-APP-FEE-1',
             'paid_at' => now(),
+            'provider_meta' => [
+                'apply_context' => [
+                    'loan_product_id' => $product->id,
+                    'draft_reference' => 'APP-IL-PAID-1',
+                ],
+            ],
         ]);
 
         $payload = array_merge($this->quotePayload($product), [
+            'draft_reference' => 'APP-IL-PAID-1',
             'application_fee' => ['status' => 'paid', 'reference' => $payment->reference, 'amount' => 10_000],
         ]);
         LoanApplicationDraft::create([
@@ -271,6 +278,7 @@ class ApplicationFeeGateAuditTest extends TestCase
             'loan_product_id' => $product->id,
             'phase' => 'application',
             'step' => 1,
+            'draft_reference' => 'APP-IL-PAID-1',
             'payload' => $payload,
             'saved_at' => now(),
         ]);

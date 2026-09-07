@@ -37,6 +37,8 @@ class MicroPassCEducationKilimoFeatureTest extends TestCase
             'code' => 'EL',
             'name' => 'Education Loan',
             'category' => 'education',
+            'purpose_mode' => 'fixed',
+            'fixed_purpose' => 'education',
             'is_active' => true,
             'interest_rate' => 0.16,
             'min_amount' => 500_000,
@@ -53,6 +55,8 @@ class MicroPassCEducationKilimoFeatureTest extends TestCase
             ->all();
 
         $this->assertSame(['quote', 'education_details', 'guarantor', 'review', 'submit'], $keys);
+        $this->assertTrue($product->hasFixedPurpose());
+        $this->assertSame('education', $product->fixedPurposeKey());
         $this->assertTrue(app(ApplicationFeePaymentService::class)->blocksWizardStep('education_details'));
         $this->assertSame(
             'education_details',

@@ -192,6 +192,7 @@ class LoanApplicationDraftService
             'valuation_fee' => $payload['valuation_fee'] ?? null,
             'asset_documents' => $payload['asset_documents'] ?? [],
             'education_documents' => $payload['education_documents'] ?? [],
+            'institution_payment' => $payload['institution_payment'] ?? null,
             'external_guarantor' => $this->refreshExternalGuarantorPayload($customer, $payload['external_guarantor'] ?? null),
             'internal_guarantor' => $payload['internal_guarantor'] ?? null,
             'borrower_signature' => $payload['borrower_signature'] ?? null,
@@ -423,6 +424,9 @@ class LoanApplicationDraftService
             'valuation_fee' => $data['valuation_fee'] ?? ($existing?->payload['valuation_fee'] ?? null),
             'asset_documents' => $data['asset_documents'] ?? ($existing?->payload['asset_documents'] ?? []),
             'education_documents' => $data['education_documents'] ?? ($existing?->payload['education_documents'] ?? []),
+            'institution_payment' => $this->normalizeInstitutionPayment(
+                $data['institution_payment'] ?? ($existing?->payload['institution_payment'] ?? null)
+            ),
             'external_guarantor' => array_key_exists('external_guarantor', $data)
                 ? $data['external_guarantor']
                 : ($existing?->payload['external_guarantor'] ?? null),
@@ -959,5 +963,20 @@ class LoanApplicationDraftService
             'url' => $url,
             'is_image' => $url ? (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', (string) $path) : false,
         ];
+    }
+
+    /**
+     * Institution payment destination is borrower-submitted only until ops verifies it.
+     *
+     * @param  array<string, mixed>|null  $destination
+     * @return array<string, mixed>|null
+     */
+    private function normalizeInstitutionPayment(?array $destination): ?array
+    {
+        if (! is_array($destination) || $destination === []) {
+            return $destination;
+        }
+
+        return array_merge($destination, ['verified' => false]);
     }
 }

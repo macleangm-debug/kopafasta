@@ -265,8 +265,8 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->assertJsonPath('ok', false)
             ->assertJsonPath('promo_valid', false)
             ->assertJsonPath('promo_status', 'invalid')
-            ->assertJsonPath('promo_title', __('borrower.payments_page.show.promo_unavailable_title'))
-            ->assertJsonFragment(['message' => __('borrower.payments_page.show.promo_unavailable_body')]);
+            ->assertJsonPath('promo_title', __('borrower.payments_page.show.promo_not_found_title'))
+            ->assertJsonFragment(['message' => __('borrower.payments_page.show.promo_not_found_body')]);
     }
 
     public function test_kitonga_affiliate_code_does_not_discount_existing_borrower(): void

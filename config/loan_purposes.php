@@ -3,6 +3,7 @@
 return [
     'business_expansion' => 'Business Expansion',
     'agriculture'        => 'Agriculture',
+    'education'          => 'Education',
     'school_fees'        => 'School Fees',
     'medical_emergency'  => 'Medical Emergency',
     'asset_purchase'     => 'Asset Purchase',

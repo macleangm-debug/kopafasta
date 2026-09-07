@@ -25,6 +25,12 @@ return new class extends Migration
                     'purpose_mode' => 'fixed',
                     'fixed_purpose' => 'agriculture',
                 ]);
+            DB::table('loan_products')
+                ->where('code', 'EL')
+                ->update([
+                    'purpose_mode' => 'fixed',
+                    'fixed_purpose' => 'education',
+                ]);
         }
     }
 

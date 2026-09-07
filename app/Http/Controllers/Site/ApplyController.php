@@ -389,7 +389,13 @@ class ApplyController extends Controller
                         $selectedProduct,
                         is_array($savedDraft) ? $savedDraft : [],
                     );
-                if (! $feeBlocks) {
+                if ($feeBlocks) {
+                    // Unpaid obligation: ignore manipulated step_key and stay on setup/fee gate.
+                    $setupKey = app(LoanApplicationDraftService::class)
+                        ->lastSetupStepKeyForProduct($selectedProduct) ?: 'quote';
+                    $target['step_key'] = $setupKey;
+                    $target['phase'] = 'application';
+                } else {
                     $target['step_key'] = $requestedKey;
                     $target['phase'] = $target['phase'] ?? 'application';
                 }
@@ -2192,6 +2198,10 @@ class ApplyController extends Controller
                 'product_code' => $loanProduct->code,
                 'product_questions' => array_filter($data['product_question'] ?? []),
                 'education_documents' => array_values($draftPayload['education_documents'] ?? []),
+                'institution_payment' => array_merge(
+                    is_array($draftPayload['institution_payment'] ?? null) ? $draftPayload['institution_payment'] : [],
+                    ['verified' => false],
+                ),
                 'engagement' => $engagementBoosts,
                 'purpose_key' => $purposeKey !== '' ? $purposeKey : null,
                 'purpose_other' => (is_loan_purpose_other($purposeKey) && $purposeOther !== '') ? $purposeOther : null,

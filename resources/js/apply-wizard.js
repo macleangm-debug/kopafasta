@@ -36,6 +36,15 @@ export function applyWizard(config) {
                 valuationFeePaymentReference: config.valuationFeePaymentReference ?? null,
                 assetDocuments: config.savedDraft?.asset_documents || {},
                 educationDocuments: config.savedDraft?.education_documents || {},
+                institutionPayment: config.savedDraft?.institution_payment || {
+                    method: 'bank',
+                    bank_name: '',
+                    account_name: '',
+                    account_number: '',
+                    mobile_provider: '',
+                    mobile_number: '',
+                    verified: false,
+                },
                 assetDocumentUploading: false,
                 educationDocumentUploading: false,
                 feeChannel: 'mobile_money',
@@ -235,8 +244,27 @@ export function applyWizard(config) {
                     if (stepKey) {
                         const byKey = this.steps.findIndex(s => s.key === stepKey);
                         if (byKey >= 0) return byKey;
+                        // Post-fee resume key missing from rebuilt plan — never fall back to Quote.
+                        const setup = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members'];
+                        if (! setup.includes(stepKey)) {
+                            const next = this.steps.findIndex(s => ! setup.includes(s.key));
+                            if (next >= 0) return next;
+                        }
                     }
                     return Math.min(Math.max(0, fallbackIndex), Math.max(0, this.steps.length - 1));
+                },
+
+                applyFixedPurposeFromProduct(product = this.current) {
+                    if (product?.purpose_mode === 'fixed' && product?.fixed_purpose) {
+                        this.form.purpose = product.fixed_purpose;
+                        this.form.purpose_other = '';
+                        this.purposeEditing = false;
+                        if (this.isGroupProduct(product)) {
+                            this.group.purpose = product.fixed_purpose;
+                        }
+                        return true;
+                    }
+                    return false;
                 },
 
                 districtsForRegion() {
@@ -420,6 +448,7 @@ export function applyWizard(config) {
                         valuation_fee: this.valuationFeeState,
                         asset_documents: this.assetDocuments,
                         education_documents: this.educationDocuments,
+                        institution_payment: this.institutionPayment,
                         external_guarantor: this.externalGuarantor,
                         internal_guarantor: this.internalGuarantor,
                         borrower_signature: this.borrowerSignature,
@@ -1210,6 +1239,7 @@ export function applyWizard(config) {
 
                     // Prefer the resume URL (server already synced fee → next step) over a stale
                     // draft resume_target so we never paint the previous fee/quote step first.
+                    // Cancel/Stop also uses resume+step_key=quote — that must NOT fake a paid fee.
                     this._postPaymentContinue = false;
                     try {
                         const params = new URLSearchParams(location.search);
@@ -1218,7 +1248,6 @@ export function applyWizard(config) {
                         if (isResume && urlStep) {
                             target.step_key = urlStep;
                             target.phase = 'application';
-                            this._postPaymentContinue = true;
                         }
                         const cont = typeof window.kfConsumePaymentContinuation === 'function'
                             ? window.kfConsumePaymentContinuation('/borrower/apply')
@@ -1231,6 +1260,7 @@ export function applyWizard(config) {
                                     return null;
                                 }
                             })();
+                        // Only a real payment-continuation handshake may assume the fee settled.
                         if (cont) {
                             this._postPaymentContinue = true;
                         }
@@ -1244,9 +1274,11 @@ export function applyWizard(config) {
                     this.selectProduct(product, false);
 
                     Object.assign(this.form, draft.form || {});
+                    this.applyFixedPurposeFromProduct(product);
                     if (this.form.purpose) {
                         this.form.purpose = this.normalizePurposeKey(this.form.purpose);
                     }
+                    this.applyFixedPurposeFromProduct(product);
                     this.purposeEditing = this.purposeNeedsDetail();
                     if (draft.inputs) {
                         this.restoreFormInputs(draft.inputs);
@@ -1272,15 +1304,33 @@ export function applyWizard(config) {
                     if (draft.valuation_fee) this.valuationFeeState = draft.valuation_fee;
                     if (draft.asset_documents) this.assetDocuments = draft.asset_documents;
                     if (draft.education_documents) this.educationDocuments = draft.education_documents;
+                    if (draft.institution_payment && typeof draft.institution_payment === 'object') {
+                        this.institutionPayment = {
+                            method: 'bank',
+                            bank_name: '',
+                            account_name: '',
+                            account_number: '',
+                            mobile_provider: '',
+                            mobile_number: '',
+                            verified: false,
+                            ...draft.institution_payment,
+                            verified: false,
+                        };
+                    }
                     if (draft.external_guarantor) this.externalGuarantor = draft.external_guarantor;
                     if (draft.internal_guarantor) this.internalGuarantor = draft.internal_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
                     if (draft.declaration_accepted || draft.borrower_signature) this.declarationAccepted = true;
                     if (this._postPaymentContinue) {
-                        this.applicationFeeState = {
-                            ...(this.applicationFeeState || {}),
-                            status: 'paid',
-                        };
+                        const serverPaid = ['paid', 'waived'].includes(
+                            String(this.applicationFeeState?.status || draft.application_fee?.status || '')
+                        );
+                        if (serverPaid) {
+                            this.applicationFeeState = {
+                                ...(this.applicationFeeState || {}),
+                                status: this.applicationFeeState?.status || 'paid',
+                            };
+                        }
                         this._postPaymentContinue = false;
                     }
                     if (draft.group) {
@@ -2250,11 +2300,7 @@ export function applyWizard(config) {
 
                 selectProduct(p, rebuild = true) {
                     this.current = p;
-                    if (p?.purpose_mode === 'fixed' && p?.fixed_purpose) {
-                        this.form.purpose = p.fixed_purpose;
-                        this.form.purpose_other = '';
-                        this.purposeEditing = false;
-                    }
+                    this.applyFixedPurposeFromProduct(p);
                     this.form.loan_product_id = p.id;
                     if (typeof p.application_fee === 'number') {
                         this.applicationFee = p.application_fee;
@@ -2572,7 +2618,11 @@ export function applyWizard(config) {
                 /** Silent completeness check — used to show Continue only when the step is ready. */
                 isCurrentStepReady() {
                     void this._gateTick;
-                    if (this.advancing || this.resumeLoading) {
+                    // Keep Continue visible while advancing (disabled only) to avoid flicker.
+                    if (this.advancing) {
+                        return true;
+                    }
+                    if (this.resumeLoading) {
                         return false;
                     }
                     // Payment gate: Pay CTA only — no footer Continue until payment auto-advances.
@@ -2589,10 +2639,7 @@ export function applyWizard(config) {
                         return true;
                     }
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
-                        if (this.current?.purpose_mode === 'fixed' && this.current?.fixed_purpose) {
-                            this.form.purpose = this.current.fixed_purpose;
-                            this.form.purpose_other = '';
-                        }
+                        this.applyFixedPurposeFromProduct();
                         if (this.isGroupProduct(this.current)) {
                             if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) return false;
                             if (! this.group.purpose) return false;
@@ -2608,7 +2655,15 @@ export function applyWizard(config) {
                     if (this.stepKey === 'education_details') {
                         const school = (this.formRoot()?.querySelector('[name="product_question[school_name]"]')?.value || '').trim();
                         const docId = this.educationDocuments?.admission_fee_letter?.customer_document_id;
-                        return !! school && !! docId;
+                        const dest = this.institutionPayment || {};
+                        const method = String(dest.method || '').trim();
+                        let destReady = false;
+                        if (method === 'bank') {
+                            destReady = !!(dest.bank_name && dest.account_name && dest.account_number);
+                        } else if (method === 'mobile_money') {
+                            destReady = !!(dest.mobile_provider && dest.account_name && dest.mobile_number);
+                        }
+                        return !! school && !! docId && destReady;
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         const count = this.groupTargetCount();
@@ -3299,6 +3354,7 @@ export function applyWizard(config) {
                             this.syncGroupAmounts();
                             this.form.purpose = this.normalizePurposeKey(this.group.purpose);
                         } else {
+                            this.applyFixedPurposeFromProduct();
                             if (! this.form.purpose) {
                                 showWizardFeedback(this.i18n.alerts.selectPurpose);
                                 return false;

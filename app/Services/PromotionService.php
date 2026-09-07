@@ -102,39 +102,43 @@ class PromotionService
         ];
     }
 
-    /** @return array{valid: bool, promotion_discount: float, after_discount: float, promotion: Promotion|null} */
+    /** @return array{valid: bool, promotion_discount: float, after_discount: float, promotion: Promotion|null, reason: string|null} */
     public function applyPromoCode(string $code, string $feeType, float $amount): array
     {
+        $normalized = strtoupper(trim($code));
         $promotion = Promotion::query()
-            ->where('code', strtoupper(trim($code)))
-            ->where('status', 'active')
+            ->where('code', $normalized)
             ->first();
 
-        if (! $promotion || ! $promotion->isActive()) {
-            return [
-                'valid'              => false,
-                'promotion_discount' => 0.0,
-                'after_discount'     => round($amount, 2),
-                'promotion'          => null,
-            ];
+        if (! $promotion) {
+            return $this->invalidPromoResult($amount, 'not_found');
+        }
+
+        $today = now()->toDateString();
+        if ($promotion->ends_at && $promotion->ends_at->toDateString() < $today) {
+            return $this->invalidPromoResult($amount, 'expired', $promotion);
+        }
+
+        if ($promotion->starts_at && $promotion->starts_at->toDateString() > $today) {
+            return $this->invalidPromoResult($amount, 'inactive', $promotion);
+        }
+
+        if ($promotion->status !== 'active' || ! $promotion->isActive()) {
+            return $this->invalidPromoResult($amount, 'inactive', $promotion);
         }
 
         if (! self::isAllowedAppliesTo($promotion->applies_to)) {
-            return [
-                'valid'              => false,
-                'promotion_discount' => 0.0,
-                'after_discount'     => round($amount, 2),
-                'promotion'          => null,
-            ];
+            return $this->invalidPromoResult($amount, 'wrong_fee', $promotion);
         }
 
         if ($promotion->applies_to && $promotion->applies_to !== $feeType && $promotion->applies_to !== 'all') {
-            return [
-                'valid'              => false,
-                'promotion_discount' => 0.0,
-                'after_discount'     => round($amount, 2),
-                'promotion'          => null,
-            ];
+            return $this->invalidPromoResult($amount, 'wrong_fee', $promotion);
+        }
+
+        $uses = (int) data_get($promotion->metadata, 'uses', 0);
+        $maxUses = data_get($promotion->metadata, 'max_uses');
+        if ($maxUses !== null && (int) $maxUses > 0 && $uses >= (int) $maxUses) {
+            return $this->invalidPromoResult($amount, 'exhausted', $promotion);
         }
 
         $discount = 0.0;
@@ -144,11 +148,30 @@ class PromotionService
             $discount = round($amount * ((float) $promotion->discount_percent / 100), 2);
         }
 
+        if ($discount <= 0) {
+            return $this->invalidPromoResult($amount, 'wrong_fee', $promotion);
+        }
+
         return [
-            'valid'              => $discount > 0,
+            'valid' => true,
             'promotion_discount' => $discount,
-            'after_discount'     => max(0, round($amount - $discount, 2)),
-            'promotion'          => $promotion,
+            'after_discount' => max(0, round($amount - $discount, 2)),
+            'promotion' => $promotion,
+            'reason' => null,
+        ];
+    }
+
+    /**
+     * @return array{valid: bool, promotion_discount: float, after_discount: float, promotion: Promotion|null, reason: string}
+     */
+    private function invalidPromoResult(float $amount, string $reason, ?Promotion $promotion = null): array
+    {
+        return [
+            'valid' => false,
+            'promotion_discount' => 0.0,
+            'after_discount' => round($amount, 2),
+            'promotion' => $promotion,
+            'reason' => $reason,
         ];
     }
 }

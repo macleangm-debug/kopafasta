@@ -63,17 +63,22 @@ class ApplicationFeePaymentService
             return ['status' => 'not_applicable'] + $empty;
         }
 
+        // Canonical settlement only: verified CustomerPayment (or explicit waive).
+        // Never trust draft/session/frontend paid flags alone — cancel→quote must stay blocked.
+        $payment = $this->latestFeePayment($customer, $product, $application, $draftPayload);
         $draftState = is_array($draftPayload['application_fee'] ?? null) ? $draftPayload['application_fee'] : null;
-        if (in_array((string) ($draftState['status'] ?? ''), ['paid', 'waived'], true)) {
+        $draftStatus = (string) ($draftState['status'] ?? '');
+
+        if ($payment && in_array($payment->status, ['paid', 'verified'], true)) {
+            return ['status' => 'paid', 'payment' => $payment] + $empty;
+        }
+
+        if ($draftStatus === 'waived' && (int) ($draftState['amount'] ?? 0) <= 0) {
             return ['status' => 'paid'] + $empty;
         }
 
         if ($application && in_array((string) ($application->application_fee_status ?? ''), ['paid', 'waived', 'charged'], true)) {
-            return ['status' => 'paid'] + $empty;
-        }
-
-        $payment = $this->latestFeePayment($customer, $product, $application, $draftPayload);
-        if ($payment && in_array($payment->status, ['paid', 'verified'], true)) {
+            // Application row is authoritative after submit; drafts must still prove payment.
             return ['status' => 'paid', 'payment' => $payment] + $empty;
         }
 
@@ -168,11 +173,15 @@ class ApplicationFeePaymentService
         ));
 
         if ($paymentId > 0) {
-            return (clone $query)->where('id', $paymentId)->first();
+            $found = (clone $query)->where('id', $paymentId)->first();
+
+            return $this->paymentBoundToCurrentObligation($found, $application, $draftReference) ? $found : null;
         }
 
         if ($reference !== '') {
-            return (clone $query)->where('reference', $reference)->first();
+            $found = (clone $query)->where('reference', $reference)->first();
+
+            return $this->paymentBoundToCurrentObligation($found, $application, $draftReference) ? $found : null;
         }
 
         if ($application) {
@@ -195,6 +204,31 @@ class ApplicationFeePaymentService
 
         // No draft/application binding → fresh obligation (do not inherit orphans).
         return null;
+    }
+
+    private function paymentBoundToCurrentObligation(
+        ?CustomerPayment $payment,
+        ?LoanApplication $application,
+        string $draftReference,
+    ): bool {
+        if (! $payment) {
+            return false;
+        }
+
+        if ($application) {
+            return $payment->source_type === LoanApplication::class
+                && (int) $payment->source_id === (int) $application->id;
+        }
+
+        $paymentDraftRef = trim((string) data_get($payment->provider_meta, 'apply_context.draft_reference'));
+
+        // When either side is draft-anchored, they must match. Never inherit another draft's fee.
+        if ($draftReference !== '' || $paymentDraftRef !== '') {
+            return $draftReference !== '' && $paymentDraftRef === $draftReference;
+        }
+
+        // Legacy unbound citation (payment_id/reference on draft fee state) — allow once only.
+        return true;
     }
 
     /**
@@ -765,17 +799,26 @@ class ApplicationFeePaymentService
     private function feeStateFromPayment(CustomerPayment $payment, int $cashDue, string $channel): array
     {
         $pending = in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true);
+        $failed = in_array($payment->status, ['failed', 'expired', 'cancelled'], true);
+        $settled = in_array($payment->status, ['paid', 'verified'], true);
         $isBank = $channel === 'bank';
 
+        $status = match (true) {
+            $pending => $isBank ? 'pending' : 'processing',
+            $failed => 'failed',
+            $settled => 'paid',
+            default => 'failed',
+        };
+
         return [
-            'status' => $pending ? ($isBank ? 'pending' : 'processing') : 'paid',
+            'status' => $status,
             'reference' => $payment->reference,
             'payment_id' => $payment->id,
             'channel' => $this->usesDummyGateway()
                 ? ($isBank ? 'dummy_bank' : 'dummy_mobile_money')
                 : ($isBank ? 'bank' : 'mobile_money'),
             'amount' => $cashDue,
-            'paid_at' => $pending ? null : now()->toIso8601String(),
+            'paid_at' => $settled ? optional($payment->paid_at ?? now())->toIso8601String() : null,
             // Always hand off to the shared payments.show gate.
             'wait_url' => route('site.borrower.payments.show', $payment),
         ];

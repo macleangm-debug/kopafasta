@@ -1093,9 +1093,13 @@ class AuthController extends Controller
             ? ($guarantorInvitation
                 ? __('borrower.guarantor_invite.continue_after_pin')
                 : __('borrower.apply.group.continue_after_pin'))
-            : __('borrower.membership.welcome_pay_body');
+            : __('borrower.auth.register_welcome');
 
-        if ($user->customer && ! $isGuarantorRegistration) {
+        $membershipRequired = $user->customer
+            && app(MembershipService::class)->isRequiredForCountry($user->customer->country_code ?? 'TZ');
+
+        if ($user->customer && ! $isGuarantorRegistration && $membershipRequired) {
+            $welcome = __('borrower.membership.welcome_pay_body');
             try {
                 app(NotificationService::class)->notifyInApp(
                     $user->customer,

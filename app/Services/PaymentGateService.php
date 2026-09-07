@@ -58,6 +58,7 @@ class PaymentGateService
         $promoValid = false;
         $appliedPromo = null;
         $codeKind = null; // promo | affiliate | invalid
+        $promoReason = null;
 
         $afterPartner = round($baseAmount, 2);
         $canonicalBase = $afterPartner;
@@ -91,21 +92,25 @@ class PaymentGateService
                 $codeKind = 'promo';
                 $promoDiscount += (float) $promo['promotion_discount'];
                 $afterPartner = (float) $promo['after_discount'];
+                $promoReason = null;
             } else {
                 $appliedPromo = strtoupper(trim($resolvedPromo));
                 $promoValid = false;
                 $codeKind = 'invalid';
+                $promoReason = (string) ($promo['reason'] ?? 'not_found');
             }
         } elseif (filled($promoCode) && blank($resolvedPromo) && blank($resolvedAffiliate)) {
             // Raw code entered but matched neither promo nor affiliate.
             $appliedPromo = strtoupper(trim((string) $promoCode));
             $promoValid = false;
             $codeKind = 'invalid';
+            $promoReason = 'not_found';
         } elseif (filled($resolvedAffiliate)) {
             // Explicit affiliate code: attribution only — never a borrower promo discount.
             $appliedPromo = null;
             $promoValid = false;
             $codeKind = 'affiliate';
+            $promoReason = 'wrong_fee';
         }
         // Promo / campaign discounts apply only when a code is entered — no silent auto-discount.
 
@@ -156,6 +161,7 @@ class PaymentGateService
             'has_affiliate' => $hasAffiliate,
             'promo_code' => $appliedPromo,
             'promo_valid' => $promoValid,
+            'promo_reason' => $promoReason,
             'code_kind' => $codeKind,
             'referrer' => $hasReferrer ? $referrals->referrer($customer) : null,
             'referred_by' => $hasAffiliate ? $affiliates->affiliate($customer)?->name : null,
