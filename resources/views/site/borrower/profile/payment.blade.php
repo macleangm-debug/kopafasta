@@ -36,7 +36,11 @@
             $addType = old('type', '');
             $showAdd = $editing || ! $paymentComplete || $errors->any();
             // Complete + idle → collapsed. Incomplete / validation / explicit add|edit → expanded.
-            $startExpanded = $showAdd;
+            // After successful save/update (?open=1) stay on the expanded list with the panel closed.
+            $forceListOpen = request()->boolean('open');
+            $startExpanded = $showAdd || $forceListOpen;
+            $startAdding = $showAdd && ! $forceListOpen;
+            $focusAccountId = (int) request()->query('account', 0);
             $legalName = $borrowerLegalName ?? trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $mobileAccounts = $accounts->where('type', 'mobile_money')->values();
             $bankAccounts = $accounts->where('type', 'bank')->values();
@@ -46,8 +50,8 @@
         <div class="glass-card overflow-hidden" x-data="paymentProfileCard(@js([
             'expanded' => $startExpanded,
             'complete' => $paymentComplete,
-            'showEditAction' => $showAdd,
-            'adding' => $showAdd,
+            'showEditAction' => $startAdding,
+            'adding' => $startAdding,
             'editingId' => (int) old('account_id', 0),
             'step' => $addType !== '' ? 2 : 1,
             'type' => $addType,
@@ -58,6 +62,7 @@
             'bankBranch' => old('bank_branch', ''),
             'editTitle' => __('borrower.payment_details.edit_account_title'),
             'addTitle' => __('borrower.payment_details.add_account'),
+            'focusAccountId' => $focusAccountId,
         ]))">
             <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex flex-wrap items-start justify-between gap-3 cursor-pointer"
                  role="button"
@@ -127,7 +132,9 @@
                                 <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">{{ $group['label'] }}</p>
                                 <div class="space-y-3">
                                     @foreach ($group['items'] as $account)
-                                        <div @class([
+                                        <div id="payment-account-{{ $account->id }}"
+                                             data-payment-account-row="{{ $account->id }}"
+                                             @class([
                                             'rounded-2xl px-4 py-3 flex flex-wrap items-start justify-between gap-3',
                                             'bg-emerald-50 ring-2 ring-emerald-500/40 shadow-sm shadow-emerald-900/5' => $account->is_default,
                                             'bg-white ring-1 ring-gray-200' => ! $account->is_default,

@@ -18,6 +18,7 @@ export function registerPaymentProfileCard(Alpine) {
         bankBranch: config.bankBranch || '',
         editTitle: config.editTitle || 'Edit account',
         addTitle: config.addTitle || 'Add account',
+        focusAccountId: Number(config.focusAccountId) || 0,
 
         get showCompleteTick() {
             return this.complete && ! this.showEditAction && ! this.expanded;
@@ -25,6 +26,19 @@ export function registerPaymentProfileCard(Alpine) {
 
         get panelTitle() {
             return this.editingId ? this.editTitle : this.addTitle;
+        },
+
+        init() {
+            if (! this.focusAccountId) {
+                return;
+            }
+            this.$nextTick(() => {
+                const row = document.getElementById(`payment-account-${this.focusAccountId}`)
+                    || document.querySelector(`[data-payment-account-row="${this.focusAccountId}"]`);
+                if (row && typeof row.scrollIntoView === 'function') {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
         },
 
         toggleExpand() {

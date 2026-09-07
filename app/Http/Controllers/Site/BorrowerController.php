@@ -2392,16 +2392,19 @@ class BorrowerController extends Controller
 
         try {
             if ($editing) {
-                $detailsService->updateAccount($customer, $editing, $data);
+                $saved = $detailsService->updateAccount($customer, $editing, $data);
                 $status = __('borrower.payment_details.account_updated');
                 $this->auditBorrower('profile.payment_account_updated', $customer, [
                     'type' => $type,
-                    'account_id' => $editing->id,
+                    'account_id' => $saved->id,
                 ]);
             } else {
-                $detailsService->createAccount($customer, $data);
+                $saved = $detailsService->createAccount($customer, $data);
                 $status = __('borrower.payment_details.account_saved');
-                $this->auditBorrower('profile.payment_account_added', $customer, ['type' => $type]);
+                $this->auditBorrower('profile.payment_account_added', $customer, [
+                    'type' => $type,
+                    'account_id' => $saved->id,
+                ]);
             }
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
@@ -2412,7 +2415,11 @@ class BorrowerController extends Controller
         }
 
         return redirect()
-            ->route('site.borrower.profile', ['section' => 'payment'])
+            ->route('site.borrower.profile', [
+                'section' => 'payment',
+                'open' => 1,
+                'account' => $saved->id,
+            ])
             ->with('status', $status);
     }
 

@@ -166,7 +166,11 @@ class PaymentAccountProfileFeatureTest extends TestCase
                 'bank_branch'    => 'Kariakoo',
                 'account_name'   => 'Payment Borrower',
             ])
-            ->assertRedirect(route('site.borrower.profile', ['section' => 'payment']))
+            ->assertRedirect(route('site.borrower.profile', [
+                'section' => 'payment',
+                'open' => 1,
+                'account' => CustomerDisbursementAccount::query()->where('customer_id', $customer->id)->value('id'),
+            ]))
             ->assertSessionHas('status');
 
         $this->assertDatabaseHas('customer_disbursement_accounts', [
@@ -198,7 +202,11 @@ class PaymentAccountProfileFeatureTest extends TestCase
                 'mobile_number'   => '0712345699',
                 'account_name'    => 'Payment Borrower',
             ])
-            ->assertRedirect(route('site.borrower.profile', ['section' => 'payment']));
+            ->assertRedirect(route('site.borrower.profile', [
+                'section' => 'payment',
+                'open' => 1,
+                'account' => $account->id,
+            ]));
 
         $this->assertSame(1, CustomerDisbursementAccount::query()->where('customer_id', $customer->id)->count());
         $this->assertDatabaseHas('customer_disbursement_accounts', [
@@ -270,5 +278,33 @@ class PaymentAccountProfileFeatureTest extends TestCase
 
         $this->assertStringNotContainsString('kfGatedSubmit()', $html);
         $this->assertStringContainsString('editingId', $html);
+    }
+
+    public function test_payment_success_return_keeps_list_expanded_and_panel_closed(): void
+    {
+        $customer = $this->borrower();
+        $account = CustomerDisbursementAccount::create([
+            'customer_id'     => $customer->id,
+            'type'            => 'mobile_money',
+            'account_name'    => 'Payment Borrower',
+            'mobile_provider' => 'mpesa',
+            'mobile_number'   => '255712345678',
+            'is_default'      => true,
+        ]);
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', [
+                'section' => 'payment',
+                'open' => 1,
+                'account' => $account->id,
+            ]))
+            ->assertOk()
+            ->assertSee('id="payment-account-'.$account->id.'"', false)
+            ->assertSee('data-payment-account-edit="'.$account->id.'"', false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/\\\\u0022expanded\\\\u0022:true/', $html);
+        $this->assertMatchesRegularExpression('/\\\\u0022adding\\\\u0022:false/', $html);
+        $this->assertMatchesRegularExpression('/\\\\u0022focusAccountId\\\\u0022:'.$account->id.'/', $html);
     }
 }
