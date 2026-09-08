@@ -139,10 +139,10 @@
          "></div>
 @endif
 
-<div class="min-h-screen flex">
+<div class="min-h-screen flex lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
 
     {{-- Sidebar (desktop) --}}
-    <aside class="kf-chrome-sidebar hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
+    <aside class="kf-chrome-sidebar hidden lg:flex w-64 lg:w-auto shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <a href="{{ route('site.borrower.dashboard') }}" data-kf-motion="tab" class="relative block px-5 py-4 border-b border-white/15">
             <x-site.brand-mark size="md" variant="light" :portal="__('borrower.portal')" />
@@ -170,85 +170,85 @@
         </div>
     </aside>
 
-    {{-- Main column --}}
-    <div class="flex-1 flex flex-col min-h-screen min-w-0">
+    {{-- Main column: full remaining width; never wrap topbar in content max-width. --}}
+    <div class="flex-1 flex flex-col min-h-screen min-w-0 w-full max-w-none">
 
-        {{-- Topbar (desktop) — always full shell width; never inherit wizard/content max-width. --}}
-        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-40 glass-nav w-full min-w-0 shrink-0 self-stretch">
-            <div class="flex w-full min-w-0 items-center justify-between gap-4 px-6 lg:px-8 h-16">
-            <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition shrink-0">
-                ← {{ brand_name() }}
-            </a>
-            <div class="flex items-center gap-3 ml-auto shrink-0">
-                <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                <div class="relative" x-data="notificationBell()" x-init="load()">
-                    <button type="button" @click="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
-                        <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
-                    </button>
-                    <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50">
-                        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white/80">
-                            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
-                            <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
+        {{-- Topbar (desktop) — full shell width; padding matches main. --}}
+        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-40 glass-nav w-full max-w-none min-w-0 shrink-0 self-stretch">
+            <div class="flex w-full max-w-none min-w-0 items-center gap-4 px-4 lg:px-8 h-16">
+                <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition shrink-0">
+                    ← {{ brand_name() }}
+                </a>
+                <div class="flex items-center gap-3 ml-auto shrink-0">
+                    <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                    <div class="relative" x-data="notificationBell()" x-init="load()">
+                        <button type="button" @click="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
+                            <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
+                        </button>
+                        <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50">
+                            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white/80">
+                                <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
+                                <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
+                            </div>
+                            <div class="max-h-80 overflow-y-auto bg-white/90">
+                                <template x-if="items.length === 0">
+                                    <p class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
+                                </template>
+                                <template x-for="item in items" :key="item.id">
+                                    <div class="px-4 py-3 border-b border-gray-50 hover:bg-brand-muted/30" :class="!item.read ? 'bg-brand-muted/50' : ''">
+                                        <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category_label || item.category"></p>
+                                        <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
+                                        <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
+                                        <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
+                                        <template x-if="item.accept_url && item.decline_url">
+                                            <div class="mt-2 flex flex-wrap gap-2">
+                                                <a :href="item.accept_url"
+                                                   class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand"
+                                                   x-text="item.action_label || @js(__('borrower.guarantor_notifications.accept_cta'))"></a>
+                                                <form :action="item.decline_url" method="POST" class="inline">
+                                                    <input type="hidden" name="_token" :value="document.querySelector('meta[name=csrf-token]')?.content || ''">
+                                                    <input type="hidden" name="action" value="reject">
+                                                    <button type="submit"
+                                                            class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50"
+                                                            x-text="item.decline_label || @js(__('borrower.guarantor_notifications.decline_cta'))"></button>
+                                                </form>
+                                            </div>
+                                        </template>
+                                        <template x-if="item.action_url && !(item.accept_url && item.decline_url)">
+                                            <a :href="item.action_url" class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
-                        <div class="max-h-80 overflow-y-auto bg-white/90">
-                            <template x-if="items.length === 0">
-                                <p class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
-                            </template>
-                            <template x-for="item in items" :key="item.id">
-                                <div class="px-4 py-3 border-b border-gray-50 hover:bg-brand-muted/30" :class="!item.read ? 'bg-brand-muted/50' : ''">
-                                    <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category_label || item.category"></p>
-                                    <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
-                                    <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
-                                    <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
-                                    <template x-if="item.accept_url && item.decline_url">
-                                        <div class="mt-2 flex flex-wrap gap-2">
-                                            <a :href="item.accept_url"
-                                               class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand"
-                                               x-text="item.action_label || @js(__('borrower.guarantor_notifications.accept_cta'))"></a>
-                                            <form :action="item.decline_url" method="POST" class="inline">
-                                                <input type="hidden" name="_token" :value="document.querySelector('meta[name=csrf-token]')?.content || ''">
-                                                <input type="hidden" name="action" value="reject">
-                                                <button type="submit"
-                                                        class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50"
-                                                        x-text="item.decline_label || @js(__('borrower.guarantor_notifications.decline_cta'))"></button>
-                                            </form>
-                                        </div>
-                                    </template>
-                                    <template x-if="item.action_url && !(item.accept_url && item.decline_url)">
-                                        <a :href="item.action_url" class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
-                                    </template>
-                                </div>
-                            </template>
+                    </div>
+                    <div class="relative" x-data="{ profileOpen: false }">
+                        <button type="button" @click="profileOpen = !profileOpen"
+                                class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition">
+                            <div class="text-right leading-tight hidden sm:block">
+                                <p class="text-sm font-semibold text-gray-900">{{ $displayName }}</p>
+                                <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
+                            </div>
+                            <div class="size-9 rounded-full bg-brand text-white grid place-items-center font-bold text-sm">
+                                {{ strtoupper(substr($displayName, 0, 1)) }}
+                            </div>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
+                             class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95">
+                            <a href="{{ route('site.borrower.profile') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
+                            <a href="{{ route('site.borrower.settings') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.nav.settings') }}</a>
+                            <a href="{{ route('site.borrower.notifications') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.notifications') }}</a>
+                            <a href="{{ route('site.borrower.support') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
+                            <div class="border-t border-gray-100 my-1"></div>
+                            <form method="POST" action="{{ route('site.logout') }}">
+                                @csrf
+                                <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ __('borrower.layout.sign_out') }}</button>
+                            </form>
                         </div>
                     </div>
                 </div>
-                <div class="relative" x-data="{ profileOpen: false }">
-                    <button type="button" @click="profileOpen = !profileOpen"
-                            class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition">
-                        <div class="text-right leading-tight hidden sm:block">
-                            <p class="text-sm font-semibold text-gray-900">{{ $displayName }}</p>
-                            <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
-                        </div>
-                        <div class="size-9 rounded-full bg-brand text-white grid place-items-center font-bold text-sm">
-                            {{ strtoupper(substr($displayName, 0, 1)) }}
-                        </div>
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                    <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
-                         class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95">
-                        <a href="{{ route('site.borrower.profile') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
-                        <a href="{{ route('site.borrower.settings') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.nav.settings') }}</a>
-                        <a href="{{ route('site.borrower.notifications') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.notifications') }}</a>
-                        <a href="{{ route('site.borrower.support') }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
-                        <div class="border-t border-gray-100 my-1"></div>
-                        <form method="POST" action="{{ route('site.logout') }}">
-                            @csrf
-                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ __('borrower.layout.sign_out') }}</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
             </div>
         </header>
 

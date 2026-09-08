@@ -1596,23 +1596,36 @@ class ApplyController extends Controller
     }
 
     /**
-     * Resolve a product-question document field from config (Education, Emergency, …).
+     * Resolve a product-question document field from config (Education, Emergency, Agriculture, …).
      *
      * @return array<string, mixed>|null
      */
     private function applyProductDocumentField(LoanProduct $product, string $documentCode): ?array
     {
-        $block = config('loan_product_questions.'.strtoupper((string) $product->code));
-        if (! is_array($block)) {
-            return null;
-        }
-        foreach ($block['fields'] ?? [] as $field) {
-            if (($field['type'] ?? '') !== 'document') {
+        $code = strtoupper((string) $product->code);
+        $questionKeys = array_values(array_unique(array_filter([
+            $code,
+            $code === 'KB' ? 'AG' : null,
+            loan_purpose_details_questions_key($product->fixedPurposeKey()),
+            // Free-purpose products may attach Education / Emergency / Agriculture evidence.
+            'EL',
+            'EM',
+            'AG',
+        ])));
+
+        foreach ($questionKeys as $questionsKey) {
+            $block = config('loan_product_questions.'.$questionsKey);
+            if (! is_array($block)) {
                 continue;
             }
-            $code = (string) ($field['document_code'] ?? $field['key'] ?? '');
-            if ($code !== '' && $code === $documentCode) {
-                return $field;
+            foreach ($block['fields'] ?? [] as $field) {
+                if (($field['type'] ?? '') !== 'document') {
+                    continue;
+                }
+                $fieldCode = (string) ($field['document_code'] ?? $field['key'] ?? '');
+                if ($fieldCode !== '' && $fieldCode === $documentCode) {
+                    return $field;
+                }
             }
         }
 

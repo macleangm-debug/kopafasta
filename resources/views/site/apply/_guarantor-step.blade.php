@@ -24,62 +24,80 @@
 
     {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}
 
-    <div x-show="isGuarantorLocked()" x-cloak class="glass-card rounded-2xl px-5 py-5 space-y-4 mb-5 ring-1"
+    <div x-show="isGuarantorLocked()" x-cloak
+         class="rounded-2xl bg-white ring-1 ring-gray-200 px-5 py-5 space-y-4 mb-5 shadow-sm"
          :class="guarantorLockedCardClass()">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0">
-                <p class="text-base font-semibold text-gray-900 truncate" x-text="guarantorSummaryText()"></p>
-                <p class="text-[10px] uppercase tracking-widest mt-1" :class="guarantorLockedCardMutedClass()">{{ __('borrower.apply.guarantor_locked_status') }}</p>
+                <p class="text-base font-bold text-gray-900 truncate" x-text="guarantorSummaryText()"></p>
+                <p class="mt-1 text-xs font-semibold text-brand" x-text="guarantorMembershipLabel()"></p>
             </div>
             <span class="inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1"
                   :class="guarantorStatusBadgeClass()"
                   x-text="guarantorStatusLabel()"></span>
         </div>
+
+        <dl class="grid sm:grid-cols-2 gap-3 text-sm">
+            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3.5 py-3">
+                <dt class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('borrower.profile.fields.phone') }}</dt>
+                <dd class="mt-1 font-semibold text-gray-900 tabular-nums" x-text="guarantorPhoneText()"></dd>
+            </div>
+            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3.5 py-3" x-show="form.guarantor_mode === 'external'" x-cloak>
+                <dt class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('borrower.apply.guarantor_fields.relationship') }}</dt>
+                <dd class="mt-1 font-semibold text-gray-900" x-text="guarantorRelationshipText()"></dd>
+            </div>
+            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3.5 py-3 sm:col-span-2">
+                <dt class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('borrower.apply.guarantor_locked_status') }}</dt>
+                <dd class="mt-1 font-semibold text-gray-900" x-text="guarantorStatusLabel()"></dd>
+            </div>
+        </dl>
+
         <ol x-show="guarantorProgressSteps().length" x-cloak class="grid sm:grid-cols-4 gap-2">
             <template x-for="step in guarantorProgressSteps()" :key="'g-' + step.key">
-                <li class="rounded-xl bg-white/80 ring-1 px-3 py-2"
-                    :class="step.complete ? 'ring-emerald-200' : (step.current ? 'ring-amber-300' : 'ring-gray-200')">
+                <li class="rounded-xl bg-gray-50 ring-1 px-3 py-2"
+                    :class="step.complete ? 'ring-brand/20' : (step.current ? 'ring-brand/30' : 'ring-gray-100')">
                     <p class="text-[10px] font-semibold"
-                       :class="step.complete ? 'text-emerald-700' : (step.current ? 'text-amber-800' : 'text-gray-400')"
+                       :class="step.complete ? 'text-brand' : (step.current ? 'text-brand/80' : 'text-gray-400')"
                        x-text="step.complete ? '✓' : (step.current ? '·' : '○')"></p>
                     <p class="text-xs font-semibold mt-0.5 text-gray-700" x-text="step.label"></p>
                 </li>
             </template>
         </ol>
-        <div x-show="form.guarantor_mode === 'external' && externalGuarantor?.invitation_url" x-cloak x-data="{ copied: false }"
-             class="rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-5 space-y-4 shadow-sm">
-            <p class="text-xs font-mono text-brand bg-brand-gold/90 rounded-xl px-3 py-2.5 break-all" x-text="externalGuarantor.short_url || externalGuarantor.invitation_url"></p>
-            <div class="flex flex-wrap gap-2">
-                <a :href="externalGuarantor.whatsapp_url || '#'" :class="!externalGuarantor.whatsapp_url && 'pointer-events-none opacity-50'" target="_blank" rel="noopener"
-                   class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                    {{ __('borrower.apply.guarantor_fields.share_whatsapp') }}
-                </a>
-                <a :href="externalGuarantor.sms_url || '#'" :class="!externalGuarantor.sms_url && 'pointer-events-none opacity-50'"
-                   class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                    {{ __('borrower.apply.guarantor_fields.share_sms') }}
-                </a>
-                <a :href="externalGuarantor.email_url || '#'" :class="!externalGuarantor.email_url && 'pointer-events-none opacity-50'"
-                   class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                    {{ __('borrower.apply.guarantor_fields.share_email') }}
-                </a>
-                <button type="button"
-                        @click="navigator.clipboard.writeText(externalGuarantor.short_url || externalGuarantor.invitation_url); copied = true; setTimeout(() => copied = false, 2000)"
-                        class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-                    <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.apply.guarantor_fields.share_copy'))"></span>
-                </button>
-            </div>
-        </div>
+
         <div x-show="(form.guarantor_mode === 'internal' || form.guarantor_mode === 'previous') && internalGuarantor?.invitation_id" x-cloak
-             class="rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-4 shadow-sm">
-            <p class="text-sm font-bold">{{ __('borrower.apply.guarantor_fields.member_notified_title') }}</p>
-            <p class="mt-1 text-sm text-white/85 leading-relaxed">{{ __('borrower.apply.guarantor_fields.member_notified_body') }}</p>
+             class="rounded-xl bg-brand/5 ring-1 ring-brand/10 px-4 py-3">
+            <p class="text-sm font-semibold text-brand">{{ __('borrower.apply.guarantor_fields.member_notified_title') }}</p>
+            <p class="mt-1 text-sm text-gray-600 leading-relaxed">{{ __('borrower.apply.guarantor_fields.member_notified_body') }}</p>
         </div>
-        <button type="button"
-                @click="changeGuarantor()"
-                :disabled="guarantorChanging"
-                class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
-            {{ __('borrower.apply.change_guarantor') }}
-        </button>
+
+        <div class="flex flex-wrap gap-2 pt-1">
+            <button type="button"
+                    @click="changeGuarantor()"
+                    :disabled="guarantorChanging"
+                    class="inline-flex items-center justify-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
+                {{ __('borrower.apply.change_guarantor') }}
+            </button>
+            <button type="button"
+                    x-show="form.guarantor_mode === 'external' && (externalGuarantor?.invitation_url || externalGuarantor?.short_url || externalGuarantor?.whatsapp_url)"
+                    x-cloak
+                    @click="openGuarantorShare()"
+                    class="inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                {{ __('borrower.apply.guarantor_fields.share_invitation') }}
+            </button>
+        </div>
+
+        <x-site.kopafasta-share-sheet
+            :title="__('borrower.apply.guarantor_fields.share_invitation')"
+            :hint="__('borrower.apply.guarantor_fields.share_ready')"
+            :show-facebook="false"
+            open="guarantorShareOpen"
+            :whatsapp-label="__('borrower.membership.share_whatsapp')"
+            :messages-label="__('borrower.membership.share_messages')"
+            :email-label="__('borrower.membership.share_email')"
+            :copy-label="__('borrower.membership.share_copy')"
+            :copied-label="__('borrower.membership.share_copied_short')"
+            :more-label="__('borrower.membership.share_more')"
+        />
     </div>
 
     <div x-show="addGuarantorOpen && !isGuarantorLocked()" x-cloak

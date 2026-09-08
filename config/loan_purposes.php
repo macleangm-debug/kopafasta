@@ -5,6 +5,7 @@ return [
     'agriculture'        => 'Agriculture',
     'education'          => 'Education',
     'school_fees'        => 'School Fees',
+    'emergency'          => 'Emergency',
     'medical_emergency'  => 'Medical Emergency',
     'asset_purchase'     => 'Asset Purchase',
     'asset_financing'    => 'Asset Financing',

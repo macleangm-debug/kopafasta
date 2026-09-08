@@ -50,6 +50,9 @@ export function applyWizard(config) {
                 })(),
                 assetDocumentUploading: false,
                 educationDocumentUploading: false,
+                educationDocumentUploadProgress: null,
+                educationDocumentUploadCode: '',
+                educationDocumentUploadError: '',
                 feeChannel: 'mobile_money',
                 feePhone: config.paymentPhone || '',
                 feeUseWallet: false,
@@ -153,6 +156,18 @@ export function applyWizard(config) {
                 isResume: !! config.isResume,
                 guarantorErrors: {},
                 externalInviteTimer: null,
+                // Canonical invitation share sheet (guarantor + group member)
+                shareOpen: false,
+                guarantorShareOpen: false,
+                groupShareOpen: false,
+                copied: false,
+                shareText: '',
+                shareUrl: '',
+                whatsappUrl: '',
+                shareTitle: (typeof document !== 'undefined' && document.title) ? document.title : 'Kopafasta',
+                copyPrompt: 'Copy this message',
+                canNativeShare: typeof navigator !== 'undefined' && typeof navigator.share === 'function',
+                inviteShareContext: null,
                 initialPlan: config.initialPlan || [],
                 assetApplication: config.assetApplication || null,
                 reservationMode: !! config.reservationMode,
@@ -183,7 +198,7 @@ export function applyWizard(config) {
                     icon: ({
                         quote: '💰', asset_details: '🏠', asset_tenure: '📅', group_setup: '👥',
                         group_members: '👤', application_fee: '💳', guarantor: '🤝',
-                        product_questions: '📄', education_details: '🎓', review: '✅',
+                        product_questions: '📄', education_details: '🎓', emergency_details: '🚨', agriculture_details: '🌾', review: '✅',
                         signature: '✍️', submit: '📤',
                     })[s.key] || '',
                 })),
@@ -250,6 +265,8 @@ export function applyWizard(config) {
                     guarantor: '🤝',
                     product_questions: '📄',
                     education_details: '🎓',
+                    emergency_details: '🚨',
+                    agriculture_details: '🌾',
                     review: '✅',
                     signature: '✍️',
                     submit: '📤',
@@ -633,7 +650,7 @@ export function applyWizard(config) {
                 needsFeeGateBefore(nextKey) {
                     if (this.supplementMode || this.feeGateSatisfied()) return false;
                     if (this.effectiveFeeAmount() <= 0) return false;
-                    return ['guarantor', 'product_questions', 'education_details', 'review', 'signature', 'submit'].includes(nextKey);
+                    return ['guarantor', 'product_questions', 'education_details', 'emergency_details', 'agriculture_details', 'review', 'signature', 'submit'].includes(nextKey);
                 },
 
                 quoteFeeCtaVisible() {
@@ -741,6 +758,7 @@ export function applyWizard(config) {
                         this.purposeEditing = true;
                     }
                     this.syncPurposeHidden();
+                    this.rebuildSteps(this.stepKey);
                     this.scheduleDraftSave();
                 },
 
@@ -1011,35 +1029,55 @@ export function applyWizard(config) {
                 async uploadEducationDocument(code, event) {
                     const file = event.target?.files?.[0];
                     if (! file || ! this.educationDocumentUploadUrl || ! this.form.loan_product_id) return;
+                    if (this.educationDocumentUploading) return;
                     this.educationDocumentUploading = true;
+                    this.educationDocumentUploadCode = code;
+                    this.educationDocumentUploadProgress = null;
+                    this.educationDocumentUploadError = '';
                     try {
                         const formData = new FormData();
                         formData.append('loan_product_id', this.form.loan_product_id);
                         formData.append('document_code', code);
                         formData.append('file', file);
-                        const res = await fetch(this.educationDocumentUploadUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Accept': 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
-                            },
-                            credentials: 'same-origin',
-                            body: formData,
+                        const data = await new Promise((resolve, reject) => {
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST', this.educationDocumentUploadUrl);
+                            xhr.withCredentials = true;
+                            xhr.setRequestHeader('Accept', 'application/json');
+                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                            xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name=csrf-token]')?.content || '');
+                            if (xhr.upload) {
+                                xhr.upload.onprogress = (evt) => {
+                                    if (! evt.lengthComputable) {
+                                        this.educationDocumentUploadProgress = null;
+                                        return;
+                                    }
+                                    this.educationDocumentUploadProgress = Math.max(0, Math.min(100, Math.round((evt.loaded / evt.total) * 100)));
+                                };
+                            }
+                            xhr.onload = () => {
+                                let payload = {};
+                                try { payload = JSON.parse(xhr.responseText || '{}'); } catch (e) { payload = {}; }
+                                if (xhr.status >= 200 && xhr.status < 300 && payload.ok) {
+                                    resolve(payload);
+                                    return;
+                                }
+                                reject(new Error(payload.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed'));
+                            };
+                            xhr.onerror = () => reject(new Error(this.i18n.educationDetails?.uploadFailed || 'Upload failed'));
+                            xhr.send(formData);
                         });
-                        const data = await res.json();
-                        if (! res.ok || ! data.ok) {
-                            throw new Error(data.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed');
-                        }
                         this.educationDocuments = data.education_documents || {};
                         if (this.educationErrors) {
                             this.educationErrors = { ...this.educationErrors, admission_letter: '' };
                         }
                         await this.persistDraft(true);
                     } catch (e) {
-                        showWizardFeedback(e?.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed');
+                        this.educationDocumentUploadError = e?.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed';
                     } finally {
                         this.educationDocumentUploading = false;
+                        this.educationDocumentUploadProgress = null;
+                        this.educationDocumentUploadCode = '';
                         if (event.target) event.target.value = '';
                     }
                 },
@@ -1548,7 +1586,7 @@ export function applyWizard(config) {
                             return true;
                         }
 
-                        const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'];
+                        const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details', 'emergency_details', 'agriculture_details'];
                         const paidLanding = feeReturnIntent === 'paid'
                             || paidContinue
                             || draft.resume_target?.intent === 'paid'
@@ -2395,7 +2433,7 @@ export function applyWizard(config) {
                 clampToIncompleteSetup() {
                     if (this.supplementMode || this.isEditHop() || this._lockResolvedState) return;
                     // Verified fee already unlocked a post-fee stage — do not rewind setup.
-                    const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'];
+                    const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details', 'emergency_details', 'agriculture_details'];
                     if (this.feeGateSatisfied() && postFeeKeys.includes(this.stepKey)) {
                         return;
                     }
@@ -2445,7 +2483,7 @@ export function applyWizard(config) {
                     if (! forced || ! keys.includes(forced)) return;
                     const forcedIndex = keys.indexOf(forced);
                     const currentIndex = Math.max(0, keys.indexOf(this.stepKey));
-                    if (forcedIndex < currentIndex || ! this.stepKey || ['guarantor', 'review', 'submit', 'signature', 'education_details'].includes(this.stepKey)) {
+                    if (forcedIndex < currentIndex || ! this.stepKey || ['guarantor', 'review', 'submit', 'signature', 'education_details', 'emergency_details', 'agriculture_details'].includes(this.stepKey)) {
                         this.step = forcedIndex;
                         this.furthestStep = Math.min(this.furthestStep || 0, forcedIndex);
                         this.syncStepKey();
@@ -2454,6 +2492,42 @@ export function applyWizard(config) {
 
                 withStepIcon(step) {
                     return { ...step, icon: this.stepIcons[step.key] || '' };
+                },
+
+                purposeDetailsStepKey(purpose = null) {
+                    const raw = this.normalizePurposeKey(purpose || this.form.purpose || this.current?.fixed_purpose || '');
+                    if (! raw) return null;
+                    if (raw === 'education' || raw === 'school_fees') return 'education_details';
+                    if (raw === 'emergency' || raw === 'medical_emergency') return 'emergency_details';
+                    if (raw === 'agriculture') return 'agriculture_details';
+                    return null;
+                },
+
+                productPurposeDetailsStepKey(product = this.current) {
+                    const code = String(product?.code || '').toUpperCase();
+                    if (code === 'EL') return 'education_details';
+                    if (code === 'EM') return 'emergency_details';
+                    if (code === 'KB' || code === 'AG') return 'agriculture_details';
+                    if (product?.purpose_mode === 'fixed' && product?.fixed_purpose) {
+                        return this.purposeDetailsStepKey(product.fixed_purpose);
+                    }
+                    return this.purposeDetailsStepKey(this.form.purpose || this.group?.purpose);
+                },
+
+                /** Insert/remove Education|Emergency|Agriculture details based on purpose registry. */
+                syncPurposeDetailSteps() {
+                    const detailKeys = ['education_details', 'emergency_details', 'agriculture_details'];
+                    const wanted = this.productPurposeDetailsStepKey();
+                    this.steps = (this.steps || []).filter((s) => ! detailKeys.includes(s.key));
+                    if (! wanted) {
+                        return;
+                    }
+                    const labels = this.i18n.steps || {};
+                    const label = labels[wanted] || wanted.replace(/_/g, ' ');
+                    const setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members'];
+                    let insertAt = this.steps.findIndex((s) => ! setupKeys.includes(s.key));
+                    if (insertAt < 0) insertAt = this.steps.length;
+                    this.steps.splice(insertAt, 0, this.withStepIcon({ key: wanted, label }));
                 },
 
                 rebuildSteps(preserveStepKey = null) {
@@ -2477,20 +2551,12 @@ export function applyWizard(config) {
                             steps.push({ key: 'asset_details', label: stepLabels.asset_details || this.i18n.steps.asset_details });
                         } else if (! this.isMarketplaceProduct(this.current)) {
                             steps.push({ key: 'quote', label: stepLabels.quote });
-                            if (String(this.current?.code || '').toUpperCase() === 'EL') {
-                                steps.push({
-                                    key: 'education_details',
-                                    label: stepLabels.education_details || this.i18n.steps.education_details || 'Education details',
-                                });
-                            }
                         } else {
                             steps.push({ key: 'asset_tenure', label: stepLabels.asset_tenure || stepLabels.quote });
                         }
                         if (this.requiresGuarantor()) {
                             steps.push({ key: 'guarantor', label: this.i18n.steps.guarantor });
                         }
-                        // Education details are supplied by the server step plan for EL (post-fee).
-                        // product_questions for EM still fold into quote.
                         steps.push({ key: 'review', label: this.i18n.steps.review });
                         steps.push({ key: 'submit', label: this.i18n.steps.submit });
                         this.steps = steps.map(s => this.withStepIcon(s));
@@ -2498,9 +2564,9 @@ export function applyWizard(config) {
 
                     // Application fee / in-wizard signature / product_questions are never numbered steps —
                     // fee is a payment gate; artisan details live on Amount; signature on profile.
-                    // education_details stays as a real post-fee step when present in the plan.
                     this.syncFeePaidState();
                     this.steps = this.steps.filter(s => !['application_fee', 'signature', 'product_questions'].includes(s.key));
+                    this.syncPurposeDetailSteps();
                     if (['confirm', 'welcome_back', 'prefill'].includes(this.repeatJourney)) {
                         const skipKeys = ['personal', 'residence', 'kin', 'activity'];
                         this.steps = this.steps.filter((step) => {
@@ -2942,6 +3008,18 @@ export function applyWizard(config) {
                             && String(dest.account_number || '').trim());
                         return !! school && !! docId && destReady;
                     }
+                    if (this.stepKey === 'emergency_details') {
+                        const type = (this.formRoot()?.querySelector('[name="product_question[emergency_type]"]')?.value || '').trim();
+                        return !! type;
+                    }
+                    if (this.stepKey === 'agriculture_details') {
+                        const root = this.formRoot();
+                        const required = ['farming_activity_type', 'farming_location', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
+                        return required.every((key) => {
+                            const el = root?.querySelector(`[name="product_question[${key}]"]`);
+                            return !!(el?.value || '').toString().trim();
+                        });
+                    }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         const count = this.groupTargetCount();
                         return !!(this.group.name || '').trim()
@@ -2985,14 +3063,170 @@ export function applyWizard(config) {
                 },
 
                 guarantorSummaryText() {
-                    if (this.form.guarantor_mode === 'internal') {
-                        return this.guarantorLookup.label || this.form.internal_guarantor_name || '—';
+                    if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
+                        return this.guarantorLookup.label
+                            || this.internalGuarantor?.name
+                            || this.form.internal_guarantor_name
+                            || '—';
                     }
                     if (this.form.guarantor_mode === 'external') {
-                        return [this.form.external_first_name, this.form.external_last_name].filter(Boolean).join(' ') || '—';
+                        return [this.form.external_first_name, this.form.external_middle_name, this.form.external_last_name]
+                            .filter(Boolean)
+                            .join(' ') || '—';
                     }
 
                     return '—';
+                },
+
+                guarantorMembershipLabel() {
+                    if (this.form.guarantor_mode === 'external') {
+                        return this.i18n.reviewStep?.externalType || 'Non-member';
+                    }
+                    if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
+                        return this.i18n.reviewStep?.internalType || 'Member';
+                    }
+                    return '—';
+                },
+
+                guarantorPhoneText() {
+                    if (this.form.guarantor_mode === 'external') {
+                        const phone = String(this.form.external_phone || this.externalGuarantor?.phone || '').trim();
+                        return phone ? (phone.startsWith('+') ? phone : '+255 ' + phone) : '—';
+                    }
+                    const phone = String(
+                        this.form.internal_guarantor_phone
+                        || this.guarantorLookup.phone
+                        || this.internalGuarantor?.phone
+                        || ''
+                    ).trim();
+                    return phone ? (phone.startsWith('+') ? phone : '+255 ' + phone) : '—';
+                },
+
+                guarantorRelationshipText() {
+                    if (this.form.guarantor_mode !== 'external') {
+                        return '—';
+                    }
+                    const key = this.form.external_relationship || '';
+                    const labels = this.i18n.guarantorRelationshipOptions || {};
+                    return labels[key] || key || '—';
+                },
+
+                /**
+                 * Build share payload from invitation share object (guarantor or group member).
+                 * Prefers share_text / urls from the server; otherwise derives text from WhatsApp/SMS URLs.
+                 */
+                resolveInvitationShare(payload) {
+                    const share = payload || {};
+                    const url = share.short_url || share.invitation_url || '';
+                    let text = String(share.share_text || '').trim();
+                    if (! text) {
+                        const fromQuery = (raw, keys) => {
+                            if (! raw) return '';
+                            try {
+                                const u = new URL(raw, window.location.origin);
+                                for (const key of keys) {
+                                    const v = u.searchParams.get(key);
+                                    if (v) return v;
+                                }
+                            } catch {
+                                // Relative / non-URL schemes (sms:, mailto:)
+                            }
+                            for (const key of keys) {
+                                const match = String(raw).match(new RegExp('[?&]' + key + '=([^&]*)'));
+                                if (match && match[1]) {
+                                    try { return decodeURIComponent(match[1].replace(/\+/g, ' ')); } catch { return match[1]; }
+                                }
+                            }
+                            return '';
+                        };
+                        text = fromQuery(share.whatsapp_url, ['text'])
+                            || fromQuery(share.sms_url, ['body'])
+                            || fromQuery(share.email_url, ['body']);
+                    }
+                    if (! text && url) {
+                        text = url;
+                    } else if (text && url && ! text.includes(url)) {
+                        text = text.trim() + '\n' + url;
+                    }
+                    return {
+                        text,
+                        url,
+                        whatsappUrl: share.whatsapp_url || (text ? ('https://wa.me/?text=' + encodeURIComponent(text)) : ''),
+                    };
+                },
+
+                openInvitationShare(payload, title, context) {
+                    const resolved = this.resolveInvitationShare(payload);
+                    if (! resolved.text && ! resolved.url) return;
+                    this.shareText = resolved.text;
+                    this.shareUrl = resolved.url;
+                    this.whatsappUrl = resolved.whatsappUrl;
+                    if (title) this.shareTitle = title;
+                    if (this.i18n.share?.copyPrompt) this.copyPrompt = this.i18n.share.copyPrompt;
+                    this.copied = false;
+                    this.inviteShareContext = context || null;
+                    this.guarantorShareOpen = context === 'guarantor';
+                    this.groupShareOpen = context === 'group';
+                    this.shareOpen = true;
+                },
+
+                openGuarantorShare() {
+                    this.openInvitationShare(this.externalGuarantor, this.i18n.share?.title || 'Share invitation', 'guarantor');
+                },
+
+                openGroupMemberShare(member) {
+                    this.openInvitationShare(member?.share || member, this.i18n.share?.title || 'Share invitation', 'group');
+                },
+
+                shareWhatsApp() {
+                    if (this.whatsappUrl) {
+                        window.open(this.whatsappUrl, '_blank', 'noopener');
+                        return;
+                    }
+                    if (this.shareText) {
+                        window.open('https://wa.me/?text=' + encodeURIComponent(this.shareText), '_blank', 'noopener');
+                    }
+                },
+
+                shareFacebook() {
+                    if (! this.shareUrl) return;
+                    window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(this.shareUrl), '_blank', 'noopener');
+                },
+
+                shareMessages() {
+                    window.location.href = 'sms:?&body=' + encodeURIComponent(this.shareText || this.shareUrl || '');
+                },
+
+                shareEmail() {
+                    window.location.href = 'mailto:?subject=' + encodeURIComponent(this.shareTitle || 'Kopafasta')
+                        + '&body=' + encodeURIComponent(this.shareText || this.shareUrl || '');
+                },
+
+                async copyShare() {
+                    const value = this.shareText || this.shareUrl || '';
+                    if (! value) return;
+                    try {
+                        await navigator.clipboard.writeText(value);
+                        this.copied = true;
+                        const self = this;
+                        setTimeout(function () { self.copied = false; }, 2200);
+                    } catch (e) {
+                        window.prompt(this.copyPrompt || 'Copy this message', value);
+                    }
+                },
+
+                async shareMore() {
+                    if (! this.canNativeShare) return;
+                    try {
+                        const payload = { title: this.shareTitle || 'Kopafasta', text: this.shareText || '' };
+                        if (this.shareUrl) payload.url = this.shareUrl;
+                        await navigator.share(payload);
+                        this.shareOpen = false;
+                        this.guarantorShareOpen = false;
+                        this.groupShareOpen = false;
+                    } catch (e) {
+                        if (e && e.name === 'AbortError') return;
+                    }
                 },
 
                 async changeGuarantor() {
@@ -3132,54 +3366,20 @@ export function applyWizard(config) {
                 },
 
                 guarantorLockedCardClass() {
-                    const code = this.guarantorStatusCode();
-                    if (code === 'rejected' || code === 'expired') {
-                        return 'bg-rose-50 ring-rose-200';
-                    }
-                    if (code === 'ready' || code === 'accepted') {
-                        return 'bg-emerald-50 ring-emerald-200';
-                    }
-                    if (code === 'pending_profile' || code === 'guarantee_pending') {
-                        return 'bg-amber-50 ring-amber-200';
-                    }
-
-                    return 'bg-amber-50 ring-amber-200';
+                    // Calm light card — status colour lives on the badge, not competing panels.
+                    return 'bg-white ring-gray-200';
                 },
 
                 guarantorLockedCardTextClass() {
-                    const code = this.guarantorStatusCode();
-                    if (code === 'rejected' || code === 'expired') {
-                        return 'text-rose-900';
-                    }
-                    if (code === 'ready' || code === 'accepted') {
-                        return 'text-emerald-900';
-                    }
-
-                    return 'text-amber-900';
+                    return 'text-gray-900';
                 },
 
                 guarantorLockedCardMutedClass() {
-                    const code = this.guarantorStatusCode();
-                    if (code === 'rejected' || code === 'expired') {
-                        return 'text-rose-700';
-                    }
-                    if (code === 'ready' || code === 'accepted') {
-                        return 'text-emerald-700';
-                    }
-
-                    return 'text-brand';
+                    return 'text-gray-500';
                 },
 
                 guarantorLockedCardBodyClass() {
-                    const code = this.guarantorStatusCode();
-                    if (code === 'rejected' || code === 'expired') {
-                        return 'text-rose-800';
-                    }
-                    if (code === 'ready' || code === 'accepted') {
-                        return 'text-emerald-800';
-                    }
-
-                    return 'text-amber-800';
+                    return 'text-gray-600';
                 },
 
                 guarantorStatusBadgeClass() {
@@ -3772,6 +3972,28 @@ export function applyWizard(config) {
                         if (schoolEl) {
                             this.form.product_question_school_name = school;
                             schoolEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                        return true;
+                    }
+                    if (this.stepKey === 'emergency_details') {
+                        const typeEl = this.formRoot()?.querySelector('[name="product_question[emergency_type]"]');
+                        if (! (typeEl?.value || '').toString().trim()) {
+                            showWizardFeedback(this.i18n.emergencyDetails?.typeRequired || 'Select the emergency type.');
+                            typeEl?.focus?.();
+                            return false;
+                        }
+                        return true;
+                    }
+                    if (this.stepKey === 'agriculture_details') {
+                        const root = this.formRoot();
+                        const required = ['farming_activity_type', 'farming_location', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
+                        for (const key of required) {
+                            const el = root?.querySelector(`[name="product_question[${key}]"]`);
+                            if (! (el?.value || '').toString().trim()) {
+                                showWizardFeedback(this.i18n.agricultureDetails?.incomplete || 'Complete the agriculture details before continuing.');
+                                el?.focus?.();
+                                return false;
+                            }
                         }
                         return true;
                     }

@@ -11,7 +11,7 @@
     @endphp
 
     @if ($elBlock)
-        <div x-show="current && current.code === 'EL'" class="space-y-5">
+        <div class="space-y-5">
             <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-5">
                 @foreach ($elBlock['fields'] as $field)
                     @php

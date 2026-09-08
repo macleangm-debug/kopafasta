@@ -193,6 +193,8 @@ class ApplicationFeePaymentService
             'guarantor',
             'product_questions',
             'education_details',
+            'emergency_details',
+            'agriculture_details',
             'review',
             'signature',
             'submit',

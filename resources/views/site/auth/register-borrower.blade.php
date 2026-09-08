@@ -4,6 +4,15 @@
     $isGroupInviteRegistration = $isGroupInviteRegistration ?? false;
     $isInviteRegistration = $isGuarantorRegistration || $isGroupInviteRegistration;
     $initialStep = $isInviteRegistration && ! empty($prefill['local_phone']) ? 2 : (int) old('step', 1);
+    if ($errors->any()) {
+        if ($errors->hasAny(['password', 'password_confirmation'])) {
+            $initialStep = 3;
+        } elseif ($errors->hasAny(['first_name', 'middle_name', 'last_name', 'gender'])) {
+            $initialStep = 2;
+        } elseif ($errors->hasAny(['local_phone', 'phone', 'country'])) {
+            $initialStep = 1;
+        }
+    }
 @endphp
 {{-- Professional 3-step borrower registration wizard --}}
 <x-site.layout :auth="true" :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : brand_title(__('borrower.register.title')))">
@@ -68,6 +77,7 @@
             borrowerName: @js($prefill['borrower_name'] ?? ''),
             waitlist_email: @js(old('waitlist_email', '')),
             waitlist_local_phone: @js(old('waitlist_local_phone', '')),
+            serverErrors: @js($errors->keys()),
         })">
             <div class="w-full max-w-md">
                 <a href="{{ route('site.home') }}" class="lg:hidden inline-block mb-6">
@@ -93,14 +103,8 @@
                     @if (session('status'))
                         <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">{{ session('status') }}</div>
                     @endif
-                    @if ($errors->any())
-                        <div class="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-                            <p class="font-medium mb-1">{{ __('borrower.register.form_errors') }}</p>
-                            <ul class="list-disc ml-5 space-y-0.5">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
-                        </div>
-                    @endif
 
-                    <form method="POST" action="{{ route('site.register.borrower.post') }}">
+                    <form method="POST" action="{{ route('site.register.borrower.post') }}" data-no-draft>
                         @csrf
                         @if (! empty($referralCode))
                             <input type="hidden" name="referral_code" value="{{ $referralCode }}">
@@ -177,8 +181,14 @@
                                                data-lpignore="true" data-1p-ignore="true"
                                                :disabled="!activeCountry.active" :readonly="lockIdentity && !!form.local_phone"
                                                placeholder="712 345 678"
-                                               class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition">
+                                               class="flex-1 px-3.5 py-3 rounded-xl bg-white border focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition {{ $errors->has('local_phone') || $errors->has('phone') ? 'border-rose-400' : 'border-gray-200' }}">
                                     </div>
+                                    @error('local_phone')
+                                        <p class="mt-1.5 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                    @error('phone')
+                                        <p class="mt-1.5 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
                                     <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.register.mobile_hint') }}</p>
                                 </div>
 
@@ -233,18 +243,27 @@
                                     <div class="min-w-0">
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.first_name') }} <span class="text-red-500">*</span></label>
                                         <input name="first_name" x-model="form.first_name" required autocomplete="given-name"
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition {{ $errors->has('first_name') ? 'border-rose-400' : 'border-gray-200' }}">
+                                        @error('first_name')
+                                            <p class="mt-1.5 text-xs text-rose-600">{{ $message }}</p>
+                                        @enderror
                                     </div>
                                     <div class="min-w-0">
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.middle_name') }} <span class="text-gray-400 font-normal">{{ __('borrower.register.optional') }}</span></label>
                                         <input name="middle_name" x-model="form.middle_name" autocomplete="additional-name"
-                                               class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
+                                               class="w-full px-3.5 py-3 rounded-xl bg-white border focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition {{ $errors->has('middle_name') ? 'border-rose-400' : 'border-gray-200' }}">
+                                        @error('middle_name')
+                                            <p class="mt-1.5 text-xs text-rose-600">{{ $message }}</p>
+                                        @enderror
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.last_name') }} <span class="text-red-500">*</span></label>
                                     <input name="last_name" x-model="form.last_name" required autocomplete="family-name"
-                                           class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
+                                           class="w-full px-3.5 py-3 rounded-xl bg-white border focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition {{ $errors->has('last_name') ? 'border-rose-400' : 'border-gray-200' }}">
+                                    @error('last_name')
+                                        <p class="mt-1.5 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
                                 <div class="min-w-0">
                                     <x-site.profile-select
@@ -278,12 +297,15 @@
                                                readonly onfocus="this.removeAttribute('readonly')"
                                                data-lpignore="true" data-1p-ignore="true"
                                                class="w-full pr-14 px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
-                                               :class="errors.password ? 'border-red-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
+                                               :class="(errors.password || @js($errors->has('password'))) ? 'border-rose-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
                                         <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 grid place-items-center pr-3 text-xs text-gray-500 font-medium">
                                             <span x-text="show ? @js(__('borrower.register.hide')) : @js(__('borrower.register.show'))"></span>
                                         </button>
                                     </div>
-                                    <p x-show="errors.password" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password"></p>
+                                    <p x-show="errors.password" x-cloak class="mt-1.5 text-xs text-rose-600" x-text="errors.password"></p>
+                                    @error('password')
+                                        <p class="mt-1.5 text-xs text-rose-600" x-show="!errors.password">{{ $message }}</p>
+                                    @enderror
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.password_confirm') }} <span class="text-red-500">*</span></label>
@@ -292,8 +314,11 @@
                                            readonly onfocus="this.removeAttribute('readonly')"
                                            data-lpignore="true" data-1p-ignore="true"
                                            class="w-full px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
-                                           :class="errors.password_confirmation ? 'border-red-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
-                                    <p x-show="errors.password_confirmation" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password_confirmation"></p>
+                                           :class="(errors.password_confirmation || @js($errors->has('password_confirmation'))) ? 'border-rose-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
+                                    <p x-show="errors.password_confirmation" x-cloak class="mt-1.5 text-xs text-rose-600" x-text="errors.password_confirmation"></p>
+                                    @error('password_confirmation')
+                                        <p class="mt-1.5 text-xs text-rose-600" x-show="!errors.password_confirmation">{{ $message }}</p>
+                                    @enderror
                                 </div>
 
                                 <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 text-sm text-gray-800 leading-relaxed">
@@ -375,6 +400,26 @@
                 countryOpen: false,
                 checkingPhone: false,
                 errors: { phone: '', email: '', password: '', password_confirmation: '' },
+                init() {
+                    const keys = Array.isArray(initial.serverErrors) ? initial.serverErrors : [];
+                    if (! keys.length) return;
+                    const order = ['local_phone', 'phone', 'first_name', 'middle_name', 'last_name', 'gender', 'password', 'password_confirmation'];
+                    const first = order.find((k) => keys.includes(k)) || keys[0];
+                    if (['first_name', 'middle_name', 'last_name', 'gender'].includes(first)) this.step = 2;
+                    else if (['password', 'password_confirmation'].includes(first)) this.step = 3;
+                    else this.step = 1;
+                    this.$nextTick(() => {
+                        const el = document.querySelector('[name="' + first + '"]');
+                        const wrap = el?.closest('.min-w-0, .space-y-5 > div') || el?.parentElement;
+                        (wrap || el)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+                        if (el && el.type !== 'hidden' && typeof el.focus === 'function') {
+                            el.focus({ preventScroll: true });
+                            return;
+                        }
+                        const trigger = (el?.closest('.w-full.min-w-0') || wrap)?.querySelector('button');
+                        trigger?.focus?.({ preventScroll: true });
+                    });
+                },
                 get activeCountry() {
                     return this.countries.find(c => c.code === this.form.country) ?? this.countries[0];
                 },
@@ -468,6 +513,10 @@
                     if (this.step === 2) {
                         if (!this.form.first_name || !this.form.last_name) {
                             return this.showNotice(@js(__('borrower.register.name_required')));
+                        }
+                        const genderEl = document.querySelector('input[name="gender"]');
+                        if (genderEl && ! String(genderEl.value || '').trim()) {
+                            return this.showNotice(@js(__('borrower.register.gender_placeholder')));
                         }
                     }
                     if (this.step < 3) this.step++;

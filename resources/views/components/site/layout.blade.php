@@ -355,7 +355,7 @@
                     message: @js(session('status')),
                     lines: [],
                 });
-            @elseif ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any() && request()->routeIs('site.forgot-pin', 'site.forgot-pin.*', 'site.login', 'site.register*', 'site.borrower.setup-pin*'))
+            @elseif ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any() && request()->routeIs('site.forgot-pin', 'site.forgot-pin.*', 'site.login', 'site.borrower.setup-pin*'))
                 window.showBorrowerFeedback({
                     tone: 'error',
                     title: @js(__('site.auth.pin_recovery.title')),

@@ -145,8 +145,43 @@ class MicroPassC16WizardClosureFeatureTest extends TestCase
         $em = LoanProduct::query()->where('code', 'EM')->where('is_active', true)->first();
         $this->assertNotNull($em);
 
+        LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $em->id,
+            'phase' => 'application',
+            'step' => 1,
+            'draft_reference' => 'APP-C16-EM-HOLDER',
+            'payload' => [
+                'form' => [
+                    'loan_product_id' => $em->id,
+                    'requested_amount' => 200_000,
+                    'requested_tenure_months' => 3,
+                    'purpose' => 'emergency',
+                ],
+                'step_key' => 'emergency_details',
+            ],
+            'saved_at' => now(),
+        ]);
+
+        CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $em->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => max(1, (int) $em->application_fee_amount),
+            'currency' => 'TZS',
+            'status' => 'paid',
+            'reference' => 'PAY-C16-EM-HOLDER',
+            'paid_at' => now(),
+        ]);
+
         $html = $this->actingAs($customer->user)
-            ->get(route('site.borrower.apply', ['product' => $em->id]))
+            ->get(route('site.borrower.apply', [
+                'product' => $em->id,
+                'resume' => 1,
+                'step_key' => 'emergency_details',
+                'fee_return' => 'paid',
+            ]))
             ->assertOk()
             ->getContent();
 
@@ -155,6 +190,7 @@ class MicroPassC16WizardClosureFeatureTest extends TestCase
         $this->assertStringContainsString(__('borrower.profile.view_document'), $html);
         $this->assertStringContainsString(__('borrower.profile.replace_document'), $html);
         $this->assertStringContainsString(__('borrower.profile.remove_document'), $html);
+        $this->assertStringContainsString('data-wizard-step="emergency_details"', $html);
         $this->assertStringNotContainsString('Describe hospital bill', $html);
     }
 

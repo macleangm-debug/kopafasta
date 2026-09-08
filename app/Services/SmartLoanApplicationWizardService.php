@@ -152,11 +152,15 @@ class SmartLoanApplicationWizardService
             $steps[] = ['key' => 'asset_tenure', 'label' => __('borrower.apply.steps.asset_tenure'), 'skippable' => false, 'skipped' => false];
         }
 
-        // Education Loan: fee gate sits between Quote and Education Details.
-        if ($productCode && strtoupper((string) $productCode) === 'EL') {
+        // Education / Emergency / Agriculture details sit after Quote (fee gate) and before Guarantor.
+        // Fixed-purpose products always include their step; free-purpose products resolve at runtime
+        // from the selected purpose (JS inserts via the same registry keys).
+        $detailsKey = loan_product_purpose_details_step_key($product, null);
+        if ($detailsKey) {
+            $labelKey = 'borrower.apply.steps.'.$detailsKey;
             $steps[] = [
-                'key' => 'education_details',
-                'label' => __('borrower.apply.steps.education_details'),
+                'key' => $detailsKey,
+                'label' => __($labelKey),
                 'skippable' => false,
                 'skipped' => false,
             ];

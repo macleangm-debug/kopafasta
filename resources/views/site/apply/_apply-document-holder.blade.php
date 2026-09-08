@@ -106,9 +106,26 @@
                 class="text-sm font-semibold text-gray-500 hover:text-gray-700">
             {{ __('borrower.profile.cancel_update') }}
         </button>
-        <p x-show="educationDocumentUploading" x-cloak class="text-sm font-semibold text-gray-600">
-            {{ __('borrower.profile.uploading_documents') }}
-        </p>
+        <div x-show="educationDocumentUploading && educationDocumentUploadCode === @js($docCode)" x-cloak
+             class="rounded-xl bg-brand/5 ring-1 ring-brand/15 px-4 py-3 space-y-2">
+            <div class="flex items-center justify-between gap-3">
+                <p class="text-sm font-semibold text-brand">{{ __('borrower.apply.document_saving') }}</p>
+                <p class="text-sm font-bold tabular-nums text-brand"
+                   x-show="educationDocumentUploadProgress !== null"
+                   x-text="(educationDocumentUploadProgress ?? 0) + '%'"></p>
+            </div>
+            <div class="h-2 rounded-full bg-white overflow-hidden ring-1 ring-brand/10"
+                 x-show="educationDocumentUploadProgress !== null">
+                <div class="h-full bg-brand transition-[width] duration-150"
+                     :style="'width:' + (educationDocumentUploadProgress ?? 0) + '%'"></div>
+            </div>
+            <div class="h-2 rounded-full bg-white overflow-hidden ring-1 ring-brand/10"
+                 x-show="educationDocumentUploadProgress === null">
+                <div class="h-full w-1/3 bg-brand animate-pulse rounded-full"></div>
+            </div>
+        </div>
+        <p x-show="educationDocumentUploadError && educationDocumentUploadCode === @js($docCode)" x-cloak
+           class="text-sm font-medium text-rose-600" x-text="educationDocumentUploadError"></p>
     </div>
 
     <input type="hidden"

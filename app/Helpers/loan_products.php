@@ -170,3 +170,91 @@ if (! function_exists('loan_product_wizard_payload')) {
         ];
     }
 }
+
+if (! function_exists('loan_purpose_details_map')) {
+    /**
+     * @return array<string, array{step_key: string, aliases: list<string>, questions_key: string}>
+     */
+    function loan_purpose_details_map(): array
+    {
+        $map = config('loan_purpose_details', []);
+
+        return is_array($map) ? $map : [];
+    }
+}
+
+if (! function_exists('loan_purpose_details_step_key')) {
+    /**
+     * Resolve Education / Emergency / Agriculture details step for a purpose key.
+     */
+    function loan_purpose_details_step_key(?string $purpose): ?string
+    {
+        $key = normalize_loan_purpose_key($purpose);
+        if (! $key) {
+            return null;
+        }
+        foreach (loan_purpose_details_map() as $canonical => $meta) {
+            if ($key === $canonical || in_array($key, $meta['aliases'] ?? [], true)) {
+                return $meta['step_key'] ?? null;
+            }
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('loan_purpose_details_questions_key')) {
+    function loan_purpose_details_questions_key(?string $purpose): ?string
+    {
+        $key = normalize_loan_purpose_key($purpose);
+        if (! $key) {
+            return null;
+        }
+        foreach (loan_purpose_details_map() as $canonical => $meta) {
+            if ($key === $canonical || in_array($key, $meta['aliases'] ?? [], true)) {
+                return $meta['questions_key'] ?? null;
+            }
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('loan_product_purpose_details_step_key')) {
+    /**
+     * Fixed-purpose products always expose their details step.
+     * Free-purpose products resolve from the selected purpose when provided.
+     */
+    function loan_product_purpose_details_step_key(?LoanProduct $product, ?string $selectedPurpose = null): ?string
+    {
+        if (! $product) {
+            return loan_purpose_details_step_key($selectedPurpose);
+        }
+        $code = strtoupper((string) $product->code);
+        if ($code === 'EL') {
+            return 'education_details';
+        }
+        if ($code === 'EM') {
+            return 'emergency_details';
+        }
+        if (in_array($code, ['KB', 'AG'], true)) {
+            return 'agriculture_details';
+        }
+        if ($product->hasFixedPurpose()) {
+            return loan_purpose_details_step_key($product->fixedPurposeKey());
+        }
+
+        return loan_purpose_details_step_key($selectedPurpose);
+    }
+}
+
+if (! function_exists('loan_purpose_detail_step_keys')) {
+    /** @return list<string> */
+    function loan_purpose_detail_step_keys(): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            fn ($meta) => $meta['step_key'] ?? null,
+            loan_purpose_details_map()
+        ))));
+    }
+}

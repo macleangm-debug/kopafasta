@@ -239,6 +239,11 @@
                           'declined' => __('borrower.apply.guarantor_locked_declined'),
                           'summary' => __('borrower.apply.guarantor_locked_summary'),
                       ],
+                      'guarantorRelationshipOptions' => trans('borrower.profile.guarantor_relationship_options'),
+                      'share' => [
+                          'title' => __('borrower.apply.guarantor_fields.share_invitation'),
+                          'copyPrompt' => __('borrower.membership.share_copy_prompt'),
+                      ],
                       'reviewStep' => [
                           'internalType' => __('borrower.apply.review_step.internal_type'),
                           'externalType' => __('borrower.apply.review_step.external_type'),
@@ -432,6 +437,8 @@
                 @include('site.apply._product-questions-step')
 
                 @include('site.apply._education-details-step')
+                @include('site.apply._emergency-details-step')
+                @include('site.apply._agriculture-details-step')
 
                 @include('site.apply._review-step')
 

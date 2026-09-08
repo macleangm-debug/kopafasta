@@ -211,13 +211,8 @@
                                 />
                             </div>
                         @elseif (($field['type'] ?? 'text') === 'document')
-                            @include('site.apply._apply-document-holder', [
-                                'docCode' => $docCode,
-                                'label' => $fieldLabel,
-                                'required' => ! empty($field['required']),
-                                'hint' => $fieldHint,
-                                'hostPrefix' => strtolower((string) $code),
-                            ])
+                            {{-- Documents live on dedicated post-fee purpose-detail steps. --}}
+                            @continue
                         @else
                             <div class="{{ ($field['type'] ?? 'text') === 'textarea' ? 'sm:col-span-2' : '' }}">
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ $fieldLabel }}</label>
