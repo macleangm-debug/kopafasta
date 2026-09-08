@@ -161,7 +161,7 @@
               }"
               x-on:input="refreshReady()"
               x-on:change="refreshReady()"
-              data-saving-message="{{ __('borrower.profile.uploading_income') }}"
+              data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_income') }}"
               @submit="uploading = true">
             @csrf @method('PUT')
             @if ($wizardMode ?? false)

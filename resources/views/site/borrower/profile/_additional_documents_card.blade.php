@@ -68,7 +68,7 @@
                   }"
                   x-on:input="refreshReady()"
                   x-on:change="refreshReady()"
-                  data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
+                  data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
                   @submit="if (!docType || !ready) { $event.preventDefault(); return; } uploading = true">
                 @csrf @method('PUT')
                 @if ($wizardMode ?? false)

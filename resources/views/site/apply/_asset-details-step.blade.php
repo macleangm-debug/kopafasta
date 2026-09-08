@@ -1,4 +1,9 @@
 {{-- Asset-backed collateral step — hide while fee gate is open (same as IL quote). --}}
+@php
+    $assetCardService = app(\App\Services\CollateralCardService::class);
+    $assetTypeIcons = \App\Models\CustomerAsset::typeIcons();
+    $assetService = app(\App\Services\CustomerAssetService::class);
+@endphp
 <div x-show="stepKey === 'asset_details' && ! $data.feeGateOpen" class="p-6 sm:p-8" data-wizard-step="asset_details">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.steps.asset_details')"
@@ -29,38 +34,65 @@
             </div>
 
             <div x-show="customerAssets.length && assetSubstep === 1" class="space-y-4">
-                <div class="glass-card p-5 ring-1 ring-brand/15">
-                    <label class="block text-sm font-semibold text-gray-900 mb-1">
-                        {{ __('borrower.apply.asset_details.choose_existing') }} <span class="text-rose-500">*</span>
-                    </label>
-                    <p class="text-xs text-gray-500 mb-3">{{ __('borrower.apply.asset_details.multi_asset_hint') }}</p>
-                    <div class="space-y-2">
-                        <template x-for="asset in customerAssets" :key="asset.id">
-                            <label class="flex items-center gap-3 rounded-xl ring-1 ring-gray-200 px-3 py-3 cursor-pointer hover:bg-brand-muted/20"
-                                   :class="isCustomerAssetSelected(asset.id) ? 'ring-brand/40 bg-brand-muted/30' : ''">
-                                <input type="checkbox"
-                                       class="rounded border-gray-300 text-brand focus:ring-brand shrink-0"
-                                       :value="asset.id"
-                                       :checked="isCustomerAssetSelected(asset.id)"
-                                       @change="toggleCustomerAsset(asset.id)">
-                                <span class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
-                                    <template x-if="asset.thumbnail_url">
-                                        <img :src="asset.thumbnail_url" alt="" class="size-full object-cover">
-                                    </template>
-                                    <template x-if="!asset.thumbnail_url">
-                                        <span class="text-lg" x-text="(assetTypeOptions[asset.asset_type] || '📦').charAt(0)"></span>
-                                    </template>
-                                </span>
-                                <span class="min-w-0 flex-1">
-                                    <span class="block text-sm font-semibold text-gray-900" x-text="asset.label"></span>
-                                    <span class="block text-xs text-gray-500 mt-0.5"
-                                          x-text="(assetTypeOptions[asset.asset_type] || asset.asset_type) + (asset.registration_number ? ' · ' + asset.registration_number : '')"></span>
-                                </span>
-                            </label>
-                        </template>
+                <div class="glass-card p-5 ring-1 ring-brand/15 space-y-3">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-900 mb-1">
+                            {{ __('borrower.apply.asset_details.choose_existing') }} <span class="text-rose-500">*</span>
+                        </label>
+                        <p class="text-xs text-gray-500">{{ __('borrower.apply.asset_details.multi_asset_hint') }}</p>
                     </div>
+
+                    @foreach (($customerAssets ?? collect()) as $asset)
+                        @php
+                            $incomplete = $assetService->incompleteForApply($asset);
+                            $pledged = $assetService->isPledgedToAnotherApplication($asset);
+                            $selectable = $incomplete === null && ! $pledged;
+                            $card = $assetCardService->forAsset(
+                                $asset,
+                                null,
+                                \App\Services\CollateralCardService::VIEWER_BORROWER,
+                                [
+                                    'status_label' => $incomplete
+                                        ? __('borrower.assets.collateral_incomplete')
+                                        : ($pledged ? __('borrower.apply.asset_details.asset_already_pledged_short') : null),
+                                ]
+                            );
+                        @endphp
+                        <div class="rounded-2xl ring-1 p-1 transition"
+                             :class="isCustomerAssetSelected({{ (int) $asset->id }}) ? 'ring-brand/40 bg-brand-muted/20' : 'ring-transparent'">
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox"
+                                       class="mt-4 ml-2 rounded border-gray-300 text-brand focus:ring-brand shrink-0"
+                                       value="{{ (int) $asset->id }}"
+                                       :checked="isCustomerAssetSelected({{ (int) $asset->id }})"
+                                       @if (! $selectable) disabled @endif
+                                       @change="toggleCustomerAsset({{ (int) $asset->id }})">
+                                <div class="min-w-0 flex-1">
+                                    <x-site.collateral-card :selected="$card" :type-icons="$assetTypeIcons">
+                                        @if ($incomplete)
+                                            <p class="text-xs font-medium text-amber-900 mt-1">
+                                                @if ($incomplete === 'ownership')
+                                                    {{ __('borrower.assets.collateral_incomplete_ownership') }}
+                                                @else
+                                                    {{ __('borrower.assets.collateral_incomplete_photos') }}
+                                                @endif
+                                            </p>
+                                            <a :href="assetIncompleteProfileUrl({ id: {{ (int) $asset->id }} })"
+                                               class="inline-flex mt-1 text-xs font-semibold text-brand hover:underline"
+                                               @click.stop>
+                                                {{ __('borrower.apply.asset_details.complete_in_profile_cta') }} →
+                                            </a>
+                                        @elseif ($pledged)
+                                            <p class="text-xs font-medium text-amber-900 mt-1">{{ __('borrower.apply.asset_details.asset_already_pledged_short') }}</p>
+                                        @endif
+                                    </x-site.collateral-card>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+
                     <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'add' => 1]) }}"
-                       class="inline-flex mt-3 text-sm font-semibold text-brand hover:underline">
+                       class="inline-flex mt-1 text-sm font-semibold text-brand hover:underline">
                         {{ __('borrower.apply.asset_details.add_another_asset') }} →
                     </a>
                 </div>
@@ -77,7 +109,7 @@
                            :max="current.max"
                            step="50000"
                            x-model.number="form.requested_amount"
-                           @input="updateQuote()"
+                           @input="updateQuote(); scheduleDraftSave()"
                            class="w-full accent-brand h-2 rounded-full">
                     <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
                         <span x-text="formatTzs(current.min)"></span>
@@ -96,7 +128,7 @@
                            :max="current.tmax"
                            step="1"
                            x-model.number="form.requested_tenure_months"
-                           @input="updateQuote()"
+                           @input="updateQuote(); scheduleDraftSave()"
                            class="w-full accent-brand h-2 rounded-full">
                     <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
                         <span><span x-text="current.tmin"></span> {{ __('borrower.apply.browse.months_short') }}</span>

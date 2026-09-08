@@ -106,7 +106,23 @@
             </ul>
         </div>
 
-        <form x-ref="form" method="POST" action="{{ $action }}" enctype="multipart/form-data" @submit.prevent="submitForm">
+        <div x-show="inlineUploading" x-cloak class="rounded-xl bg-brand/5 ring-1 ring-brand/15 px-4 py-3 space-y-2" data-document-holder>
+            <div class="flex items-center justify-between gap-3">
+                <p class="text-sm font-semibold text-brand"
+                   x-text="inlineProgress === null ? @js(__('borrower.document_upload.processing')) : @js(__('borrower.document_upload.uploading'))"></p>
+                <p class="text-sm font-bold tabular-nums text-brand"
+                   x-show="inlineProgress !== null"
+                   x-text="(inlineProgress ?? 0) + '%'"></p>
+            </div>
+            <div class="h-2 rounded-full bg-white overflow-hidden ring-1 ring-brand/10" x-show="inlineProgress !== null">
+                <div class="h-full bg-brand transition-[width] duration-150" :style="'width:' + (inlineProgress ?? 0) + '%'"></div>
+            </div>
+            <div class="h-2 rounded-full bg-white overflow-hidden ring-1 ring-brand/10" x-show="inlineProgress === null">
+                <div class="h-full w-1/3 bg-brand animate-pulse rounded-full"></div>
+            </div>
+        </div>
+
+        <form x-ref="form" method="POST" action="{{ $action }}" enctype="multipart/form-data" @submit.prevent="submitForm" data-inline-document-progress>
             @csrf
             {{ $slot }}
             @if ($showClarification)
@@ -153,6 +169,8 @@
                     cameraNotice: null,
                     validationError: null,
                     submitting: false,
+                    inlineUploading: false,
+                    inlineProgress: null,
                     facingMode: 'environment',
                     labels: labels || {},
 
@@ -345,23 +363,31 @@
                             fd.append(this.allowMultiple ? 'files[]' : 'file', item.file || item);
                         });
                         this.closeCamera();
-                        if (typeof window.kfShowSaving === 'function') {
-                            window.kfShowSaving(this.labels.savingMessage || '');
+                        this.inlineUploading = true;
+                        this.inlineProgress = 0;
+                        const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', form.action);
+                        xhr.withCredentials = true;
+                        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                        xhr.setRequestHeader('Accept', 'application/json, text/html;q=0.9');
+                        if (csrf) xhr.setRequestHeader('X-CSRF-TOKEN', csrf);
+                        if (xhr.upload) {
+                            xhr.upload.onprogress = (evt) => {
+                                if (! evt.lengthComputable) {
+                                    this.inlineProgress = null;
+                                    return;
+                                }
+                                this.inlineProgress = Math.max(0, Math.min(99, Math.round((evt.loaded / evt.total) * 100)));
+                            };
                         }
-                        fetch(form.action, {
-                            method: 'POST',
-                            body: fd,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json, text/html;q=0.9',
-                            },
-                            credentials: 'same-origin',
-                            redirect: 'follow',
-                        }).then(async (res) => {
-                            if (res.ok || res.redirected) {
+                        xhr.onload = async () => {
+                            const redirected = !!xhr.getResponseHeader('Location') || (xhr.responseURL && xhr.responseURL !== form.action);
+                            const ok = xhr.status >= 200 && xhr.status < 300;
+                            if (ok || redirected) {
+                                this.inlineProgress = 100;
                                 this.revokeQueued();
                                 this.queued = [];
-                                if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
                                 try { if (typeof open !== 'undefined') open = false; } catch (e) {}
                                 this.$dispatch('profile-section-close-edit');
                                 if (typeof window.showBorrowerFeedback === 'function') {
@@ -372,15 +398,16 @@
                                         okLabel: this.labels.continueLabel || '',
                                     });
                                 }
-                                window.location.href = res.redirected ? res.url : window.location.href;
+                                window.location.href = xhr.getResponseHeader('Location') || xhr.responseURL || window.location.href;
                                 return;
                             }
-                            if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
+                            this.inlineUploading = false;
+                            this.inlineProgress = null;
                             this.submitting = false;
                             if (btn && typeof window.kfClearBusy === 'function') window.kfClearBusy(btn);
                             let message = this.labels.uploadFailed || '';
                             try {
-                                const data = await res.json();
+                                const data = JSON.parse(xhr.responseText || '{}');
                                 const first = data?.message || Object.values(data?.errors || {}).flat()?.[0];
                                 message = this.humanizeError(first);
                             } catch (e) {
@@ -389,12 +416,15 @@
                             this.validationError = message;
                             this.revokeQueued();
                             this.queued = [];
-                        }).catch(() => {
-                            if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
+                        };
+                        xhr.onerror = () => {
+                            this.inlineUploading = false;
+                            this.inlineProgress = null;
                             this.submitting = false;
                             if (btn && typeof window.kfClearBusy === 'function') window.kfClearBusy(btn);
                             this.validationError = this.labels.uploadFailed || '';
-                        });
+                        };
+                        xhr.send(fd);
                     },
                 }));
             });

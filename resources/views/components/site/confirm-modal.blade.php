@@ -79,7 +79,12 @@
                     this.form.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (btn) { btn.disabled = true; });
                 }
                 this.form.dataset.loadingBound = '1';
-                if (typeof window.kfFormNeedsSaving === 'function' && window.kfFormNeedsSaving(this.form) && typeof window.kfShowSaving === 'function') {
+                if (this.form.hasAttribute('data-inline-document-progress')) {
+                    this.form.dispatchEvent(new CustomEvent('kf-inline-document-upload-start', {
+                        bubbles: true,
+                        detail: { message: this.form.getAttribute('data-saving-message') || '' },
+                    }));
+                } else if (typeof window.kfFormNeedsSaving === 'function' && window.kfFormNeedsSaving(this.form) && typeof window.kfShowSaving === 'function') {
                     window.kfShowSaving(this.form.getAttribute('data-saving-message') || '');
                 }
                 this.form.submit();

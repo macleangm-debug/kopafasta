@@ -41,6 +41,10 @@ export function registerSavingOverlay(Alpine) {
         if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-no-saving')) {
             return false;
         }
+        // Generic document holders show upload progress inline — never open the fullscreen overlay.
+        if (form.hasAttribute('data-inline-document-progress')) {
+            return false;
+        }
         const method = String(form.getAttribute('method') || 'get').toLowerCase();
         if (method === 'get') {
             return false;
@@ -58,6 +62,37 @@ export function registerSavingOverlay(Alpine) {
 
     document.addEventListener('submit', (event) => {
         const form = event.target;
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+        if (form.hasAttribute('data-inline-document-progress')) {
+            const holders = form.querySelectorAll('[data-document-holder]');
+            let progressed = false;
+            holders.forEach((holder) => {
+                const hasFiles = [...holder.querySelectorAll('input[type=file]')].some(
+                    (input) => input.files && input.files.length > 0,
+                );
+                if (! hasFiles) {
+                    return;
+                }
+                progressed = true;
+                holder.dispatchEvent(new CustomEvent('kf-inline-document-upload-start', {
+                    bubbles: true,
+                    detail: {
+                        message: form.getAttribute('data-saving-message') || '',
+                    },
+                }));
+            });
+            if (! progressed) {
+                form.dispatchEvent(new CustomEvent('kf-inline-document-upload-start', {
+                    bubbles: true,
+                    detail: {
+                        message: form.getAttribute('data-saving-message') || '',
+                    },
+                }));
+            }
+            return;
+        }
         if (! window.kfFormNeedsSaving(form)) {
             return;
         }

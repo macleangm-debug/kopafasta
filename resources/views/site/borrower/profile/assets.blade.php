@@ -100,7 +100,7 @@
                     }
                 @endphp
                 <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6" novalidate
-                      data-saving-message="{{ __('borrower.profile.uploading_collateral') }}"
+                      data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_collateral') }}"
                       x-data="collateralAddForm({ isVehicle: @js($isVehicle), photoCount: {{ count($photoSlots) }} })"
                       x-on:input="refreshGates()"
                       x-on:change="refreshGates()"

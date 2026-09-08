@@ -153,7 +153,8 @@
         <div x-show="educationDocumentUploading && educationDocumentUploadCode === @js($docCode)" x-cloak
              class="mt-3 rounded-xl bg-brand/5 ring-1 ring-brand/15 px-4 py-3 space-y-2">
             <div class="flex items-center justify-between gap-3">
-                <p class="text-sm font-semibold text-brand">{{ __('borrower.apply.document_saving') }}</p>
+                <p class="text-sm font-semibold text-brand"
+                   x-text="educationDocumentUploadProgress === null ? @js(__('borrower.document_upload.processing')) : @js(__('borrower.document_upload.uploading'))"></p>
                 <p class="text-sm font-bold tabular-nums text-brand"
                    x-show="educationDocumentUploadProgress !== null"
                    x-text="(educationDocumentUploadProgress ?? 0) + '%'"></p>

@@ -74,7 +74,7 @@
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
-                      data-saving-message="{{ __('borrower.profile.uploading') }}"
+                      data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading') }}"
                       x-data="{ uploading: false }" @submit="uploading = true">
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)

@@ -38,7 +38,7 @@
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('site.partner_account.upload_new') }}</p>
             <h2 class="text-lg font-bold text-gray-900 mt-1 mb-4">{{ __('site.partner_account.add_document') }}</h2>
             <form method="POST" action="{{ $uploadRoute }}" enctype="multipart/form-data" class="space-y-3"
-                  data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
+                  data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
                   @submit="
                       if (!docType) { $event.preventDefault(); return; }
                       const labelInput = $el.querySelector('[data-doc-label]');

@@ -44,6 +44,9 @@
         replaceMode: false,
         sourceOpen: false,
         captureOpen: {{ $document ? 'false' : 'true' }},
+        inlineUploading: false,
+        inlineProgress: null,
+        inlineMessage: @js(__('borrower.apply.document_saving')),
         openCapture(source) {
             this.captureOpen = true;
             this.$nextTick(() => {
@@ -56,6 +59,18 @@
         },
      }"
      @document-source="openCapture($event.detail?.source)"
+     @kf-inline-document-upload-start="
+        inlineUploading = true;
+        inlineProgress = null;
+        if ($event.detail?.message) inlineMessage = $event.detail.message;
+     "
+     @kf-inline-document-upload-progress.window="
+        if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
+        inlineUploading = true;
+        if ($event.detail?.percent != null) inlineProgress = $event.detail.percent;
+        if ($event.detail?.message) inlineMessage = $event.detail.message;
+     "
+     data-document-holder
      class="space-y-3">
     @if ($document)
         <div @class([
@@ -230,4 +245,24 @@
     @error($fieldName)<p class="text-xs text-red-600">{{ $message }}</p>@enderror
     @error($pagesName)<p class="text-xs text-red-600">{{ $message }}</p>@enderror
     @error($pagesName.'.*')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+
+    <div x-show="inlineUploading" x-cloak
+         class="rounded-xl bg-brand/5 ring-1 ring-brand/15 px-4 py-3 space-y-2">
+        <div class="flex items-center justify-between gap-3">
+            <p class="text-sm font-semibold text-brand"
+               x-text="inlineProgress === null ? @js(__('borrower.document_upload.processing')) : (inlineMessage || @js(__('borrower.apply.document_saving')))"></p>
+            <p class="text-sm font-bold tabular-nums text-brand"
+               x-show="inlineProgress !== null"
+               x-text="(inlineProgress ?? 0) + '%'"></p>
+        </div>
+        <div class="h-2 rounded-full bg-white overflow-hidden ring-1 ring-brand/10"
+             x-show="inlineProgress !== null">
+            <div class="h-full bg-brand transition-[width] duration-150"
+                 :style="'width:' + (inlineProgress ?? 0) + '%'"></div>
+        </div>
+        <div class="h-2 rounded-full bg-white overflow-hidden ring-1 ring-brand/10"
+             x-show="inlineProgress === null">
+            <div class="h-full w-1/3 bg-brand animate-pulse rounded-full"></div>
+        </div>
+    </div>
 </div>
