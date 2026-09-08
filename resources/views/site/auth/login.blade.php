@@ -1,7 +1,9 @@
 @php
-    $authMethod = old('auth_method', ($partnerPortal ?? false) ? ($defaultMethod ?? 'password') : 'pin');
-    $prefillPhone = old('phone', $prefillPhone ?? null);
+    $authMethod = old('auth_method', request('auth_method', ($partnerPortal ?? false) ? ($defaultMethod ?? 'password') : 'pin'));
+    $prefillPhone = old('phone', $prefillPhone ?? request('phone'));
     $isPartnerPortal = (bool) ($partnerPortal ?? false);
+    $finishRegistration = (bool) request('finish_registration') || session()->has('login_inline');
+    $prefillLogin = old('login', request('login', $prefillPhone));
 @endphp
 {{-- Premium login — borrower-first by default; partner via secondary CTA / portal route --}}
 <x-site.layout :auth="true" :title="brand_title(__('site.auth.sign_in'))">
@@ -45,8 +47,42 @@
                 @if (session('status'))
                     <div class="mt-6 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">{{ session('status') }}</div>
                 @endif
+                @if (session('login_inline'))
+                    <div class="mt-6 p-3.5 rounded-xl bg-brand/5 ring-1 ring-brand/15 text-sm text-brand font-medium">{{ session('login_inline') }}</div>
+                @endif
+                @if ($errors->any())
+                    <div class="mt-6 p-3.5 rounded-xl bg-rose-50 ring-1 ring-rose-200 text-sm text-rose-700 space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <p>{{ $error }}</p>
+                        @endforeach
+                    </div>
+                @endif
 
                 @unless ($isPartnerPortal)
+                    @if ($finishRegistration || $authMethod === 'password')
+                        {{-- Finish incomplete registration with password → setup-pin --}}
+                        <form method="POST" action="{{ route('site.login.post') }}" class="mt-6 space-y-5 form-scroll-lock">
+                            @csrf
+                            <input type="hidden" name="auth_method" value="password">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.email_or_phone') }}</label>
+                                <input type="text" name="login" value="{{ $prefillLogin }}" autocomplete="username"
+                                       placeholder="{{ __('site.auth.email_or_phone_placeholder') }}"
+                                       required
+                                       class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.password') }}</label>
+                                <input type="password" name="password" autocomplete="current-password"
+                                       required
+                                       class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none">
+                            </div>
+                            <x-site.turnstile action="login" />
+                            <button class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">
+                                {{ __('site.auth.sign_in') }}
+                            </button>
+                        </form>
+                    @else
                     {{-- Borrower-first: phone + PIN only --}}
                     <form method="POST" action="{{ route('site.login.post') }}" class="mt-6 space-y-5 form-scroll-lock">
                         @csrf
@@ -80,6 +116,7 @@
                             {{ __('site.auth.sign_in') }}
                         </button>
                     </form>
+                    @endif
 
                     <div class="mt-6 pt-5 border-t border-gray-100">
                         <button type="button"
@@ -252,18 +289,5 @@
             setMethod(root.dataset.method || 'password');
         })();
     </script>
-    @endif
-    @if ($errors->any())
-        <script>
-            document.addEventListener('alpine:initialized', () => {
-                window.dispatchEvent(new CustomEvent('open-feedback-default', {
-                    detail: {
-                        title: @js(__('site.auth.sign_in')),
-                        message: @js($errors->first()),
-                        tone: 'warning',
-                    },
-                }));
-            });
-        </script>
     @endif
 </x-site.layout>

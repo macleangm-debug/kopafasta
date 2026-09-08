@@ -192,6 +192,69 @@ class MicroPassRegistrationAutosaveAgroFeatureTest extends TestCase
         $this->assertTrue((bool) ($land['required'] ?? false));
         $this->assertSame('multi_page', $land['capture'] ?? null);
         $this->assertSame('location', $fields->firstWhere('key', 'farming_location')['type'] ?? null);
-        $this->assertSame('income_range', $fields->firstWhere('key', 'expected_revenue')['type'] ?? null);
+        $this->assertSame('sales_range', $fields->firstWhere('key', 'expected_revenue')['type'] ?? null);
+        $this->assertSame('budget_range', $fields->firstWhere('key', 'activity_budget')['type'] ?? null);
+        $this->assertNotEmpty(agriculture_budget_range_options());
+        $this->assertArrayHasKey('above_100m', agriculture_sales_range_options());
+        $this->assertArrayHasKey('5m_10m', agriculture_sales_range_options());
+    }
+
+    public function test_register_continue_is_always_present_on_details_step(): void
+    {
+        $html = $this->get(route('site.register.borrower'))->assertOk()->getContent();
+        $this->assertStringContainsString('canContinueStep2', $html);
+        $this->assertStringContainsString(':disabled="!canContinueStep2"', $html);
+        $this->assertStringNotContainsString('x-show="canContinueStep2"', $html);
+        $this->assertFileExists(resource_path('views/components/site/document-source-picker.blade.php'));
+    }
+
+    public function test_welcome_notification_cta_points_to_loans_when_membership_off(): void
+    {
+        $this->post(route('site.register.borrower.post'), [
+            'country' => 'TZ',
+            'first_name' => 'Welcome',
+            'last_name' => 'Loans',
+            'gender' => 'male',
+            'phone' => '255712399988',
+            'password' => 'Password1!',
+            'password_confirmation' => 'Password1!',
+        ])->assertRedirect(route('site.borrower.setup-pin'));
+
+        $user = User::query()->where('phone', '255712399988')->firstOrFail();
+        $this->actingAs($user);
+        $this->post(route('site.borrower.setup-pin.post'), [
+            'phase' => 'pin',
+            'pin' => '1234',
+            'pin_confirmation' => '1234',
+        ])->assertRedirect(route('site.borrower.setup-pin'));
+
+        $this->get(route('site.borrower.setup-pin'))->assertOk();
+        $keys = session('pin_setup_question_keys');
+        $this->assertIsArray($keys);
+        $this->assertNotEmpty($keys);
+        $answers = collect($keys)->mapWithKeys(fn ($key) => [$key => 'answer-'.$key])->all();
+
+        $this->post(route('site.borrower.setup-pin.post'), [
+            'phase' => 'questions',
+            'answers' => $answers,
+        ])->assertRedirect(route('site.borrower.dashboard'));
+
+        $user->refresh();
+        $log = \App\Models\NotificationLog::query()
+            ->where('customer_id', $user->customer->id)
+            ->where('template', 'registration_welcome')
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($log);
+        $this->assertStringContainsString('/loans', (string) $log->recipient);
+        $this->assertStringNotContainsString('membership', (string) $log->recipient);
+        $this->assertSame(__('borrower.membership.welcome_loans_cta'), data_get($log->meta, 'action_label'));
+    }
+
+    public function test_login_keeps_errors_inline_without_no_pin_modal_copy(): void
+    {
+        $html = $this->get(route('site.login'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('No PIN set for this account', $html);
+        $this->assertStringContainsString('name="pin"', $html);
     }
 }

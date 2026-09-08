@@ -145,8 +145,20 @@ class AuthController extends Controller
         }
 
         if (! $this->pins->hasPin($user)) {
+            // Incomplete registration — continue with password, then setup-pin. Never a Got it modal.
+            if ($user->role === 'borrower') {
+                return redirect()
+                    ->route('site.login', [
+                        'auth_method' => 'password',
+                        'login' => $phone,
+                        'phone' => $phone,
+                        'finish_registration' => 1,
+                    ])
+                    ->with('login_inline', __('site.auth.finish_registration_password'));
+            }
+
             return back()
-                ->withErrors(['phone' => 'No PIN set for this account. Sign in with email and password, then set your PIN in Profile → Security.'])
+                ->withErrors(['phone' => __('site.auth.no_pin_use_password')])
                 ->withInput(['phone' => $phone, 'auth_method' => 'pin']);
         }
 
@@ -396,11 +408,14 @@ class AuthController extends Controller
             ])->save();
         }
 
-        $membershipRequired = $customer
-            && app(MembershipService::class)->isRequiredForCountry($customer->country_code ?? 'TZ');
+        if (! $customer) {
+            return;
+        }
 
-        if ($customer && $membershipRequired) {
-            try {
+        $membershipAllowed = app(MembershipService::class)->isRequiredForCountry($customer->country_code ?? 'TZ');
+
+        try {
+            if ($membershipAllowed) {
                 app(NotificationService::class)->notifyInApp(
                     $customer,
                     __('borrower.membership.welcome_pay_body'),
@@ -410,9 +425,19 @@ class AuthController extends Controller
                     route('site.membership.renew'),
                     __('borrower.membership.pay_registration'),
                 );
-            } catch (\Throwable) {
-                // Non-blocking — registration should still succeed.
+            } else {
+                app(NotificationService::class)->notifyInApp(
+                    $customer,
+                    __('borrower.membership.welcome_loans_body'),
+                    'account',
+                    'registration_welcome',
+                    __('borrower.membership.welcome_loans_title'),
+                    route('site.borrower.loans'),
+                    __('borrower.membership.welcome_loans_cta'),
+                );
             }
+        } catch (\Throwable) {
+            // Non-blocking — registration should still succeed.
         }
     }
 

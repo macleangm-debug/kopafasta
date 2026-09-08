@@ -348,14 +348,14 @@
                     message: @js($feedback['message'] ?? ''),
                     lines: @js($feedback['lines'] ?? []),
                 });
-            @elseif (session('status') && ! request()->routeIs('site.register*', 'site.borrower.setup-pin*'))
+            @elseif (session('status') && ! request()->routeIs('site.register*', 'site.borrower.setup-pin*', 'site.login', 'site.login.*'))
                 window.showBorrowerFeedback({
                     tone: 'success',
                     title: @js(brand_name()),
                     message: @js(session('status')),
                     lines: [],
                 });
-            @elseif ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any() && request()->routeIs('site.forgot-pin', 'site.forgot-pin.*', 'site.login'))
+            @elseif ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any() && request()->routeIs('site.forgot-pin', 'site.forgot-pin.*'))
                 window.showBorrowerFeedback({
                     tone: 'error',
                     title: @js(__('site.auth.pin_recovery.title')),

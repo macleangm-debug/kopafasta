@@ -788,6 +788,8 @@ return [
         ],
         'sign_in_title' => 'Sign in with your phone & PIN.',
         'sign_in_subtitle' => 'Fast, secure access designed for mobile.',
+        'finish_registration_password' => 'Your account is almost ready. Sign in with your password to create your PIN and finish registration.',
+        'no_pin_use_password' => 'No PIN yet for this account. Sign in with your password to continue setup.',
         'sign_in_failed_title' => 'Sign in failed',
         'trust_device' => 'Trust this device for :days days',
         'remember_me' => 'Keep me signed in',

@@ -133,6 +133,42 @@ if (! function_exists('income_range_select_options')) {
     }
 }
 
+if (! function_exists('agriculture_budget_range_options')) {
+    /** @return array<string, string> */
+    function agriculture_budget_range_options(): array
+    {
+        $configured = setting('agriculture.budget_ranges');
+        if (is_string($configured)) {
+            $configured = json_decode($configured, true);
+        }
+        $ranges = is_array($configured) && $configured !== []
+            ? $configured
+            : config('agriculture_ranges.budget', []);
+
+        return collect($ranges)
+            ->mapWithKeys(fn ($range, string $key) => [$key => is_array($range) ? (string) ($range['label'] ?? $key) : (string) $range])
+            ->all();
+    }
+}
+
+if (! function_exists('agriculture_sales_range_options')) {
+    /** @return array<string, string> */
+    function agriculture_sales_range_options(): array
+    {
+        $configured = setting('agriculture.sales_ranges');
+        if (is_string($configured)) {
+            $configured = json_decode($configured, true);
+        }
+        $ranges = is_array($configured) && $configured !== []
+            ? $configured
+            : config('agriculture_ranges.sales', []);
+
+        return collect($ranges)
+            ->mapWithKeys(fn ($range, string $key) => [$key => is_array($range) ? (string) ($range['label'] ?? $key) : (string) $range])
+            ->all();
+    }
+}
+
 if (! function_exists('loan_product_theme')) {
     /** @return array{icon: string, theme: string, label?: string, label_sw?: string, illustration?: string} */
     function loan_product_theme(?string $code): array

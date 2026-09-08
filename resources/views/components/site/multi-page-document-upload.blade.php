@@ -5,10 +5,14 @@
     'maxPages' => 12,
     'required' => false,
     'cameraFirst' => false,
+    'autoFinishUpload' => false,
+    'sourceDriven' => false,
 ])
 
 @php
     $hostId = $inputHostId ?? ('doc-pages-'.md5($name));
+    $autoFinishUpload = (bool) $autoFinishUpload;
+    $sourceDriven = (bool) $sourceDriven || $autoFinishUpload;
     $labelDefaults = [
         'hint' => '',
         'uploadFile' => __('borrower.profile.multi_page_upload'),
@@ -32,9 +36,11 @@
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
 
-<div class="space-y-4" x-data="multiPageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), {{ (int) $maxPages }})">
+<div class="space-y-4" x-data="multiPageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), {{ (int) $maxPages }}, @js($autoFinishUpload))"
+     @document-open-camera.window="if ($event.detail?.hostId === hostId) { fromCamera = true; openCamera(); }"
+     @document-open-upload.window="if ($event.detail?.hostId === hostId) $refs.fileInput?.click()">
     <input type="hidden" value="" x-bind:value="pages.length ? String(pages.length) : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
-    <div class="flex flex-wrap items-center gap-3" x-show="pages.length === 0" x-cloak>
+    <div class="flex flex-wrap items-center gap-3" x-show="pages.length === 0 && !@js($sourceDriven)" x-cloak>
         @if ($cameraFirst)
             <button type="button" @click="fromCamera = true; openCamera()"
                     class="inline-flex items-center justify-center rounded-xl bg-brand-gold px-5 py-3 text-sm font-bold text-brand shadow-sm hover:bg-yellow-400">
@@ -42,12 +48,12 @@
             </button>
             <label class="inline-flex items-center justify-center bg-white hover:bg-gray-50 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm ring-1 ring-brand/20">
                 <span>{{ __('borrower.profile.upload') }}</span>
-                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="fromCamera = false; addFiles($event)">
+                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" x-ref="fileInput" @change="fromCamera = false; addFiles($event)">
             </label>
         @else
             <label class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm">
                 <span>{{ __('borrower.profile.upload') }}</span>
-                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" @change="fromCamera = false; addFiles($event)">
+                <input type="file" accept="image/*,application/pdf" multiple class="sr-only" x-ref="fileInput" @change="fromCamera = false; addFiles($event)">
             </label>
             <button type="button" @click="fromCamera = true; openCamera()"
                     class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand shadow-sm ring-1 ring-brand/20 hover:bg-brand-muted/40">
@@ -55,6 +61,9 @@
             </button>
         @endif
     </div>
+    @if ($sourceDriven)
+        <input type="file" accept="image/*,application/pdf" multiple class="sr-only" x-ref="fileInput" @change="fromCamera = false; addFiles($event)">
+    @endif
 
     <p x-show="cameraNotice" x-cloak class="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2" x-text="cameraNotice"></p>
 
@@ -66,7 +75,7 @@
                     <x-site.brand-mark size="sm" variant="light" />
                     <p class="mt-1 text-[10px] uppercase tracking-widest text-brand-gold font-semibold truncate" x-text="labels.brand"></p>
                 </div>
-                <button type="button" @click="closeCamera()"
+                <button type="button" @click="dismissCamera()"
                         class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
                         x-text="labels.close"></button>
             </div>
@@ -96,7 +105,7 @@
                             class="flex-1 font-bold px-4 py-3.5 rounded-full text-sm"
                             :class="pages.length ? 'bg-white/15 text-white ring-1 ring-white/30' : 'bg-brand-gold text-brand'"
                             x-text="pages.length ? labels.captureMore : labels.capturePage"></button>
-                    <button type="button" x-show="pages.length" x-cloak @click="closeCamera()"
+                    <button type="button" x-show="pages.length" x-cloak @click="finishFromCamera()"
                             class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm"
                             x-text="labels.finish"></button>
                 </div>
@@ -110,8 +119,12 @@
             <p class="text-xs font-semibold text-gray-500">
                 <span x-text="labels.pagesReady.replace(':count', String(pages.length))"></span>
             </p>
-            <button type="button" x-show="fromCamera" x-cloak @click="openCamera()" :disabled="pages.length >= maxPages"
-                    class="text-xs font-semibold text-brand hover:underline disabled:opacity-40" x-text="labels.addAnother"></button>
+            <div class="flex items-center gap-3">
+                <button type="button" x-show="fromCamera" x-cloak @click="openCamera()" :disabled="pages.length >= maxPages"
+                        class="text-xs font-semibold text-brand hover:underline disabled:opacity-40" x-text="labels.addAnother"></button>
+                <button type="button" x-show="autoFinishUpload && !cameraOpen" x-cloak @click="finishUpload()"
+                        class="text-xs font-bold text-brand hover:underline" x-text="labels.finish"></button>
+            </div>
         </div>
         <ul class="flex flex-wrap gap-2">
             <template x-for="(page, index) in pages" :key="page.id">
@@ -151,12 +164,13 @@
     @endpush
     @push('scripts')
     <script>
-        function multiPageDocumentUpload(labels, fieldName, hostId, maxPages = 12) {
+        function multiPageDocumentUpload(labels, fieldName, hostId, maxPages = 12, autoFinishUpload = false) {
             return {
                 labels: labels || {},
                 fieldName,
                 hostId,
                 maxPages: maxPages || 12,
+                autoFinishUpload: !!autoFinishUpload,
                 pages: [],
                 fromCamera: false,
                 cameraOpen: false,
@@ -241,6 +255,23 @@
                     this.stopStream();
                     this.cameraOpen = false;
                 },
+                dismissCamera() {
+                    this.closeCamera();
+                },
+                finishFromCamera() {
+                    this.closeCamera();
+                    if (this.autoFinishUpload && this.pages.length > 0) {
+                        this.finishUpload();
+                    }
+                },
+                finishUpload() {
+                    this.syncInputs();
+                    this.$dispatch('kf-document-pages-ready', {
+                        hostId: this.hostId,
+                        name: this.fieldName,
+                        count: this.pages.length,
+                    });
+                },
                 stopStream() {
                     if (this.stream) {
                         this.stream.getTracks().forEach(t => t.stop());
@@ -268,7 +299,7 @@
                         this.fromCamera = true;
                         this.addBlob(blob, 'page-' + (this.pages.length + 1) + '.jpg');
                         if (this.maxPages === 1) {
-                            this.closeCamera();
+                            this.finishFromCamera();
                         }
                     }, 'image/jpeg', 0.92);
                 },
@@ -301,6 +332,9 @@
                         this.addBlob(file, file.name);
                     }
                     event.target.value = '';
+                    if (this.autoFinishUpload && this.pages.length > 0) {
+                        this.$nextTick(() => this.finishUpload());
+                    }
                 },
                 addBlob(blob, name) {
                     const isPdf = (blob.type || '').includes('pdf') || /\.pdf$/i.test(name || '');

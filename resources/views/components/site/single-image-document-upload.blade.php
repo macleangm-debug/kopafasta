@@ -9,6 +9,7 @@
     'guide' => null,
     'showOval' => null,
     'largePreview' => false,
+    'sourceDriven' => false,
 ])
 
 @php
@@ -18,6 +19,7 @@
     $cameraOnly = (bool) $cameraOnly;
     $autoSubmit = (bool) $autoSubmit;
     $largePreview = (bool) $largePreview;
+    $sourceDriven = (bool) $sourceDriven;
     $showOval = $showOval === null ? $facingMode === 'user' : (bool) $showOval;
     $labelDefaults = [
         'captureImage' => __('borrower.profile.capture_image'),
@@ -40,45 +42,38 @@
     $inlinePreview = $autoSubmit && $cameraOnly;
 @endphp
 
-<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly), @js($autoSubmit), @js(filled($guide)))"
+<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly), @js($autoSubmit), @js(filled($guide) && ! $sourceDriven))"
      @clear-capture.window="if ($event.detail && $event.detail.hostId === hostId) clearFile()"
+     @document-open-camera.window="if ($event.detail?.hostId === hostId) requestCamera()"
+     @document-open-upload.window="if ($event.detail?.hostId === hostId) $refs.uploadInput?.click()"
      @if ($autoSubmit) data-auto-submit="1" @endif>
     {{-- Gate helper: filled when a preview exists --}}
     <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required && ! $autoSubmit) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
 
     {{-- Pickers stay unnamed. A named file input is created in the host only after capture, so an empty file= is never posted. --}}
-    <div class="flex flex-wrap items-center gap-3" x-show="!(previewUrl || previewName || submitting || guideOpen)">
+    <div class="flex flex-wrap items-center gap-3" x-show="!(previewUrl || previewName || submitting || guideOpen)" @if($sourceDriven) x-cloak style="display:none" @endif>
         @unless ($cameraOnly)
         <label class="inline-flex items-center justify-center bg-white hover:bg-brand-muted/40 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm ring-1 ring-brand/20">
             <span>{{ __('borrower.profile.upload') }}</span>
-            <input type="file" accept="image/*,application/pdf" class="sr-only" @change="setFile($event)">
+            <input type="file" accept="image/*,application/pdf" class="sr-only" x-ref="uploadInput" @change="setFile($event)">
         </label>
         @if($facingMode === 'environment')
             <input type="file" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
         @endif
         @else
-            <input type="file" accept="image/*" capture="environment" class="sr-only" @change="setFile($event)">
+            <input type="file" accept="image/*" capture="environment" class="sr-only" x-ref="uploadInput" @change="setFile($event)">
         @endunless
         <button type="button" @click="requestCamera()"
                 class="inline-flex items-center justify-center rounded-xl {{ $cameraOnly ? 'bg-brand-gold text-brand hover:bg-yellow-400' : 'bg-white text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40' }} px-5 py-3 text-sm font-bold shadow-sm">
             {{ __('borrower.document_upload.camera') }}
         </button>
     </div>
+    @if ($sourceDriven)
+        <input type="file" accept="image/*,application/pdf" class="sr-only" x-ref="uploadInput" @change="setFile($event)">
+    @endif
 
     @if (filled($guide))
-    <div x-show="guideOpen" x-cloak class="mt-3 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-3">
-        <p class="text-sm font-semibold text-gray-900">{{ $guide }}</p>
-        <div class="flex flex-wrap gap-2">
-            <button type="button" @click="confirmGuide()"
-                    class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-2.5 text-sm shadow-sm">
-                {{ $mergedLabels['guideContinue'] ?? __('borrower.profile.capture_image') }}
-            </button>
-            <button type="button" @click="guideOpen = false"
-                    class="inline-flex items-center justify-center rounded-xl bg-white text-gray-700 font-semibold px-4 py-2.5 text-sm ring-1 ring-gray-200">
-                {{ __('borrower.apply.cancel') }}
-            </button>
-        </div>
-    </div>
+    <p x-show="cameraOpen" x-cloak class="mt-2 text-xs text-gray-500">{{ $guide }}</p>
     @endif
 
     <p x-show="submitting" x-cloak class="mt-3 text-sm font-semibold text-gray-600" x-text="labels.saving"></p>

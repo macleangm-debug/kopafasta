@@ -155,19 +155,21 @@
                                 <div class="flex flex-wrap items-center gap-2">
                                     <p class="font-bold text-sm sm:text-base text-gray-900 truncate" x-text="member.name"></p>
                                     <span x-show="member.role === 'leader'"
-                                          class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                          class="inline-flex items-center rounded-full bg-gray-900 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
                                         {{ __('borrower.apply.group_members.leader_badge') }}
                                     </span>
                                     <span x-show="member.role !== 'leader'"
-                                          class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                          class="inline-flex items-center rounded-full bg-gray-50 text-gray-700 ring-1 ring-gray-200 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
                                         {{ __('borrower.apply.group_members.member_badge') }}
                                     </span>
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1"
+                                          :class="memberStatusBadgeClass(member)"
+                                          x-text="memberStatusLabel(member)"></span>
                                 </div>
                                 <p class="text-xs text-gray-500 mt-0.5" x-text="member.phone"></p>
                             </div>
                             <div class="text-right shrink-0 w-[7.5rem]">
-                                <p class="text-xs font-semibold leading-snug" :class="memberStatusClass(member)" x-text="memberStatusLabel(member)"></p>
-                                <p class="text-sm font-extrabold tabular-nums text-gray-900 mt-0.5" x-text="formatTzs(member.requested_amount)"></p>
+                                <p class="text-sm font-extrabold tabular-nums text-gray-900" x-text="formatTzs(member.requested_amount)"></p>
                             </div>
                             <svg x-show="member.role !== 'leader'" class="w-4 h-4 text-gray-400 shrink-0 mt-1 transition" :class="member._open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                         </div>
@@ -207,7 +209,7 @@
 
     <x-site.kopafasta-share-sheet
         :title="__('borrower.apply.guarantor_fields.share_invitation')"
-        :hint="__('borrower.apply.guarantor_fields.share_ready')"
+        :hint="null"
         :show-facebook="false"
         open="groupShareOpen"
         :whatsapp-label="__('borrower.membership.share_whatsapp')"

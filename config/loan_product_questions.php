@@ -74,13 +74,13 @@ return [
             [
                 'key' => 'activity_budget',
                 'label_key' => 'borrower.apply.agriculture_details.activity_budget',
-                'type' => 'number',
+                'type' => 'budget_range',
                 'required' => true,
             ],
             [
                 'key' => 'expected_revenue',
                 'label_key' => 'borrower.apply.agriculture_details.expected_revenue',
-                'type' => 'income_range',
+                'type' => 'sales_range',
                 'required' => true,
             ],
             [

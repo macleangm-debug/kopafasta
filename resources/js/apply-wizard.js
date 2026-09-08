@@ -1826,6 +1826,14 @@ export function applyWizard(config) {
                     return 'text-brand';
                 },
 
+                memberStatusBadgeClass(member) {
+                    const key = member.status_key || (member.invitation_id ? 'invitation_sent' : 'profile_incomplete');
+                    if (key === 'kyc_complete' || member.signed) return 'bg-emerald-50 text-emerald-800 ring-emerald-200';
+                    if (key === 'awaiting_signature') return 'bg-amber-50 text-amber-900 ring-amber-200';
+                    if (key === 'invitation_sent' || key === 'pending_acceptance') return 'bg-sky-50 text-sky-900 ring-sky-200';
+                    return 'bg-gray-50 text-gray-700 ring-gray-200';
+                },
+
                 groupRosterPageSize: 5,
                 groupRosterPage: 0,
                 groupSigSlide: 0,

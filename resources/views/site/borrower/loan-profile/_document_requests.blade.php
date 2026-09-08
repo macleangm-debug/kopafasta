@@ -287,11 +287,34 @@
                                                     @error('front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                                     @error('back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                                 @else
-                                                    <x-site.multi-page-document-upload
-                                                        name="files"
-                                                        :input-host-id="'doc-req-pages-'.$docReq->id"
-                                                        :max-pages="12"
-                                                    />
+                                                    <div x-data="{
+                                                        sourceOpen: false,
+                                                        hostId: @js('doc-req-pages-'.$docReq->id),
+                                                        openCapture(source) {
+                                                            this.$nextTick(() => {
+                                                                if (source === 'camera') {
+                                                                    this.$dispatch('document-open-camera', { hostId: this.hostId });
+                                                                } else {
+                                                                    this.$dispatch('document-open-upload', { hostId: this.hostId });
+                                                                }
+                                                            });
+                                                        },
+                                                    }"
+                                                         @document-source="openCapture($event.detail?.source)"
+                                                         class="space-y-3">
+                                                        <div class="flex items-center justify-between gap-3">
+                                                            <p class="text-sm font-semibold text-gray-800">{{ __('borrower.document_upload.add') }}</p>
+                                                            <x-site.document-source-picker open="sourceOpen" />
+                                                        </div>
+                                                        <x-site.multi-page-document-upload
+                                                            name="files"
+                                                            :input-host-id="'doc-req-pages-'.$docReq->id"
+                                                            :max-pages="12"
+                                                            :camera-first="true"
+                                                            :source-driven="true"
+                                                        />
+                                                        <p class="text-xs text-gray-500">{{ __('borrower.document_upload.guide_document_compact') }}</p>
+                                                    </div>
                                                     <button type="submit"
                                                             class="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-brand-light">
                                                         {{ __('borrower.document_upload.submit') }}

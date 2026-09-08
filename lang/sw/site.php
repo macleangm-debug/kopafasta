@@ -784,6 +784,8 @@ return [
             ],
         ],
         'sign_in_title' => 'Ingia kwa simu na PIN.',
+        'finish_registration_password' => 'Akaunti yako iko karibu. Ingia kwa nenosiri ili kuunda PIN na kukamilisha usajili.',
+        'no_pin_use_password' => 'Bado hakuna PIN kwa akaunti hii. Ingia kwa nenosiri ili kuendelea.',
         'sign_in_subtitle' => 'Ufikiaji wa haraka na salama kwa simu.',
         'sign_in_failed_title' => 'Kuingia kumeshindikana',
         'trust_device' => 'Amini kifaa hiki kwa siku :days',

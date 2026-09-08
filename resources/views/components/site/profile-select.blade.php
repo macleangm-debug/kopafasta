@@ -24,14 +24,16 @@
         return this.options[val] || val;
     },
     pick(val) {
-        this.selected = val;
+        this.selected = String(val ?? '');
         this.pickerOpen = false;
         this.$nextTick(() => {
             const input = this.$el.querySelector('input[type=hidden]');
             if (input) {
+                input.value = this.selected;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
             }
+            this.$dispatch('profile-select', { name: @js($name), value: this.selected });
         });
     }
 }">

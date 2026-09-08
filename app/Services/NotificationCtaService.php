@@ -61,17 +61,25 @@ class NotificationCtaService
             }
         }
 
+        // Membership-off: never surface pay/join/renew membership CTAs (including legacy rows).
+        if ($this->isObsoleteMembershipCta($notification, $actionUrl)) {
+            return $empty;
+        }
+
         if (! $actionUrl) {
             return $empty;
         }
 
         $goUrl = route('site.borrower.notifications.go', $notification);
 
-        $actionLabel = match ($template) {
+        $storedLabel = filled($meta['action_label'] ?? null) ? (string) $meta['action_label'] : null;
+
+        $actionLabel = $storedLabel ?: match ($template) {
             'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
             'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
             'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
-            'membership_issued', 'membership_renewed' => __('borrower.membership.notification_cta'),
+            'membership_issued', 'membership_renewed', 'membership_welcome' => __('borrower.membership.notification_cta'),
+            'registration_welcome' => __('borrower.membership.welcome_loans_cta'),
             'document_request', 'document_requests', 'application_document_request', 'application_document_request_reminder_1', 'profile_revision_requested' => __('borrower.notifications.document_request_cta'),
             default => __('borrower.notifications.view_application'),
         };
@@ -97,6 +105,32 @@ class NotificationCtaService
             'meta'    => $meta,
             'read_at' => $notification->read_at ?? now(),
         ]);
+    }
+
+    /**
+     * When borrower membership is OFF, membership pay/join/renew actionable CTAs are obsolete.
+     */
+    private function isObsoleteMembershipCta(NotificationLog $notification, ?string $actionUrl): bool
+    {
+        $customer = $notification->customer;
+        $country = $customer?->country_code ?? 'TZ';
+        if (app(MembershipService::class)->isRequiredForCountry($country)) {
+            return false;
+        }
+
+        $template = (string) ($notification->template ?? '');
+        if (in_array($template, ['membership_welcome', 'membership_issued', 'membership_renewed'], true)) {
+            return true;
+        }
+
+        $url = (string) ($actionUrl ?? '');
+        if ($url === '') {
+            return false;
+        }
+
+        return str_contains($url, '/membership')
+            || str_contains($url, 'membership.renew')
+            || str_contains($url, 'membership/renew');
     }
 
     public function consumeGuarantorRequestCtas(CustomerGuarantor $link): void

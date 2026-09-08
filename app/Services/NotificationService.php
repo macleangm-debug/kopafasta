@@ -250,6 +250,12 @@ class NotificationService
             ], static fn ($v) => $v !== null && $v !== []);
         }
 
+        if (filled($actionLabel)) {
+            $meta = is_array($payload['meta'] ?? null) ? $payload['meta'] : [];
+            $meta['action_label'] = $actionLabel;
+            $payload['meta'] = $meta;
+        }
+
         return NotificationLog::create($payload);
     }
 

@@ -74,6 +74,7 @@ use App\Services\LoanQualificationService;
 use App\Services\LoanServicingTimelineService;
 use App\Services\MemberEngagementRewardService;
 use App\Services\MemberEngagementService;
+use App\Services\MembershipService;
 use App\Services\NidaVerificationService;
 use App\Services\NotificationCenterService;
 use App\Services\NotificationCtaService;
@@ -1525,6 +1526,14 @@ class BorrowerController extends Controller
             && str_starts_with((string) $notification->recipient, '/'))
             ? (string) $notification->recipient
             : route('site.borrower.notifications');
+
+        // Membership-off: never send borrowers to pay/join/renew membership from a CTA.
+        if (! app(MembershipService::class)->isRequiredForCountry($customer->country_code ?? 'TZ')) {
+            $path = parse_url($target, PHP_URL_PATH) ?: $target;
+            if (is_string($path) && str_contains($path, 'membership')) {
+                $target = route('site.borrower.loans');
+            }
+        }
 
         app(NotificationCtaService::class)->consume($notification);
 

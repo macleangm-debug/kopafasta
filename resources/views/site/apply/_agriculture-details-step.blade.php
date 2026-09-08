@@ -17,7 +17,8 @@
         $agBlock = $productQuestions['AG'] ?? null;
         $overviewFields = collect($agBlock['fields'] ?? [])->reject(fn ($f) => ($f['type'] ?? '') === 'document')->values();
         $documentFields = collect($agBlock['fields'] ?? [])->filter(fn ($f) => ($f['type'] ?? '') === 'document')->values();
-        $incomeRangeOptions = income_range_select_options();
+        $budgetRangeOptions = agriculture_budget_range_options();
+        $salesRangeOptions = agriculture_sales_range_options();
     @endphp
 
     @if ($agBlock)
@@ -36,7 +37,7 @@
             </div>
 
             <div x-show="agroTab === 'overview'" x-cloak class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-5">
-                <div class="grid sm:grid-cols-2 gap-4">
+                <div class="grid sm:grid-cols-2 gap-4 sm:gap-x-5 sm:gap-y-5 sm:items-start">
                     @foreach ($overviewFields as $field)
                         @php
                             $label = ! empty($field['label_key']) ? __($field['label_key']) : ($field['label'] ?? '');
@@ -45,9 +46,17 @@
                             if (! is_array($options)) {
                                 $options = [];
                             }
+                            if ($type === 'budget_range') {
+                                $options = $budgetRangeOptions;
+                            } elseif ($type === 'sales_range' || ($type === 'income_range' && ($field['key'] ?? '') === 'expected_revenue')) {
+                                $options = $salesRangeOptions;
+                                $type = 'sales_range';
+                            }
+                            $isHalf = in_array($type, ['date', 'budget_range', 'sales_range'], true)
+                                || (($type === 'select') && in_array($field['key'] ?? '', ['production_stage'], true));
                         @endphp
-                        @if ($type === 'select')
-                            <div class="sm:col-span-2">
+                        @if (in_array($type, ['select', 'budget_range', 'sales_range'], true))
+                            <div @class(['sm:col-span-2' => ! $isHalf, 'min-w-0' => true])>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">
                                     {{ $label }}
                                     @if (! empty($field['required'])) <span class="text-rose-500">*</span> @endif
@@ -60,22 +69,8 @@
                                     select-class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand"
                                 />
                             </div>
-                        @elseif ($type === 'income_range')
-                            <div class="sm:col-span-2">
-                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">
-                                    {{ $label }}
-                                    @if (! empty($field['required'])) <span class="text-rose-500">*</span> @endif
-                                </label>
-                                <x-site.profile-select
-                                    :name="'product_question['.$field['key'].']'"
-                                    :options="$incomeRangeOptions"
-                                    :required="$field['required'] ?? false"
-                                    :placeholder="__('borrower.profile.select')"
-                                    select-class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand"
-                                />
-                            </div>
                         @elseif ($type === 'location')
-                            <div class="sm:col-span-2 space-y-3"
+                            <div class="sm:col-span-2 space-y-3 min-w-0"
                                  x-data="{
                                     syncFarmLocation() {
                                         const root = $el;
@@ -99,7 +94,7 @@
                                 <input type="hidden" name="product_question[farming_location]" value="">
                             </div>
                         @elseif ($type === 'date')
-                            <div>
+                            <div class="min-w-0">
                                 <x-site.date-input
                                     :name="'product_question['.$field['key'].']'"
                                     :label="$label"
@@ -109,20 +104,8 @@
                                     :default="now()->addMonths(3)->format('Y-m-d')"
                                 />
                             </div>
-                        @elseif ($type === 'number')
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">
-                                    {{ $label }}
-                                    @if (! empty($field['required'])) <span class="text-rose-500">*</span> @endif
-                                </label>
-                                <input type="number" min="0" step="1000"
-                                       name="product_question[{{ $field['key'] }}]"
-                                       @if (! empty($field['required'])) required @endif
-                                       x-on:input="scheduleDraftSave()"
-                                       class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand">
-                            </div>
                         @else
-                            <div class="sm:col-span-2">
+                            <div class="sm:col-span-2 min-w-0">
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">
                                     {{ $label }}
                                     @if (! empty($field['required'])) <span class="text-rose-500">*</span> @endif
@@ -138,11 +121,11 @@
                 </div>
             </div>
 
-            <div x-show="agroTab === 'documents'" x-cloak class="space-y-5">
+            <div x-show="agroTab === 'documents'" x-cloak class="space-y-4">
                 <p class="text-sm font-semibold text-gray-700"
                    x-text="@js(__('borrower.apply.agriculture_details.documents_progress')).replace(':done', String(docDone())).replace(':total', String(requiredDocCodes.length))"></p>
 
-                <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-6">
+                <div class="space-y-3">
                     @foreach ($documentFields as $field)
                         @php
                             $label = ! empty($field['label_key']) ? __($field['label_key']) : ($field['label'] ?? '');
