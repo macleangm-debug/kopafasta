@@ -223,17 +223,17 @@
                         $steps = $row->status['steps'] ?? [];
                         $percent = $row->status['profile_percent'] ?? null;
                     @endphp
-                    <div class="rounded-2xl bg-gradient-to-br from-white to-brand-muted/20 ring-1 ring-brand/10 px-4 py-4">
-                        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <div class="rounded-2xl bg-white ring-1 ring-gray-200/80 px-4 py-4 shadow-sm">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="text-sm font-bold text-gray-900 truncate">{{ $row->name }}</p>
-                                <p class="text-xs text-gray-500 mt-0.5">{{ $row->type }} · {{ $row->status['label'] ?? '—' }}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">{{ $row->type }}</p>
                             </div>
                             <span @class([
-                                'shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1',
-                                'bg-emerald-100 text-emerald-800 ring-emerald-200' => $done,
-                                'bg-amber-100 text-amber-900 ring-amber-200' => ! $done && $code === 'pending_profile',
-                                'bg-sky-100 text-sky-800 ring-sky-200' => ! $done && $code !== 'pending_profile',
+                                'shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
+                                'bg-emerald-50 text-emerald-800 ring-emerald-200' => $done,
+                                'bg-amber-50 text-amber-900 ring-amber-200' => ! $done && $code === 'pending_profile',
+                                'bg-sky-50 text-sky-800 ring-sky-200' => ! $done && $code !== 'pending_profile',
                             ])>
                                 @if ($done)
                                     {{ __('borrower.apply.guarantor_status.ready') }}
@@ -244,24 +244,6 @@
                                 @endif
                             </span>
                         </div>
-
-                        @if (! $done && ! empty($steps))
-                            <ol class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                @foreach ($steps as $step)
-                                    <li @class([
-                                        'rounded-xl px-3 py-2.5 ring-1',
-                                        'bg-brand text-white ring-brand' => $step['complete'] ?? false,
-                                        'bg-brand-gold/30 text-brand ring-brand-gold/50' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
-                                        'bg-white text-gray-500 ring-gray-200' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
-                                    ])>
-                                        <p class="text-[10px] font-bold uppercase tracking-wider opacity-80">
-                                            {{ ($step['complete'] ?? false) ? '✓' : (($step['current'] ?? false) ? '·' : '○') }}
-                                        </p>
-                                        <p class="text-xs font-semibold mt-0.5 leading-snug">{{ $step['label'] }}</p>
-                                    </li>
-                                @endforeach
-                            </ol>
-                        @endif
                     </div>
                 @endforeach
             </div>

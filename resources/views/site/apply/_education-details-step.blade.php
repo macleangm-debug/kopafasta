@@ -28,6 +28,8 @@
                             'hostPrefix' => 'education',
                             'errorKey' => 'admission_letter',
                             'hiddenName' => 'admission_letter_document_id',
+                            'capture' => $field['capture'] ?? 'multi_page',
+                            'guideCompact' => true,
                         ])
                     @else
                         <div>

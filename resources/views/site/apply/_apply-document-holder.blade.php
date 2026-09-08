@@ -1,7 +1,9 @@
 {{--
   Canonical Document Holder for apply-wizard product documents.
   Compact card + branded + → Upload / Camera (document-source-picker).
-  Expects: $docCode, $label, $required, $hint?, $hostPrefix, $multiPage?, $guideCompact?
+  Expects: $docCode, $label, $required, $hint?, $hostPrefix, $multiPage?, $guideCompact?, $capture?
+  Generic documents default to multi-page camera → one PDF. Pass capture=images (or multiPage=false)
+  only for photo collections / specialized single captures.
 --}}
 @php
     $docCode = $docCode ?? 'document';
@@ -11,7 +13,14 @@
     $hostPrefix = $hostPrefix ?? 'apply';
     $hostId = $hostPrefix.'-'.$docCode.'-upload';
     $errorKey = $errorKey ?? null;
-    $multiPage = (bool) ($multiPage ?? false);
+    $capture = $capture ?? null;
+    $multiPageArg = $multiPage ?? null;
+    if ($multiPageArg === null) {
+        // Generic documents → multi-page PDF. Photo collections / specialized flows opt out.
+        $multiPage = ! in_array($capture, ['images', 'single', 'selfie', 'nida'], true);
+    } else {
+        $multiPage = (bool) $multiPageArg;
+    }
     $guideCompact = (bool) ($guideCompact ?? true);
     $guideText = $guideCompact
         ? __('borrower.document_upload.guide_document_compact')

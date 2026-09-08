@@ -24,69 +24,56 @@
 
     {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}
 
-    <div x-show="isGuarantorLocked()" x-cloak
-         class="rounded-2xl bg-white ring-1 ring-gray-200/80 px-5 py-5 space-y-4 mb-5 shadow-sm"
-         :class="guarantorLockedCardClass()">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div class="min-w-0">
+    <div x-show="isGuarantorLocked()" x-cloak class="mb-5">
+        <x-site.invitee-card>
+            <x-slot:title>
                 <p class="text-base font-bold text-gray-900 truncate" x-text="guarantorSummaryText()"></p>
-                <p class="mt-1 text-xs text-gray-500" x-text="guarantorMembershipLabel()"></p>
-            </div>
-            <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+            </x-slot:title>
+            <x-slot:meta>
+                <span x-text="guarantorMembershipLabel()"></span>
+                <span x-show="guarantorRelationshipText() && guarantorRelationshipText() !== '—'" x-cloak>
+                    · <span x-text="guarantorRelationshipText()"></span>
+                </span>
+            </x-slot:meta>
+            <x-slot:badges>
                 <span class="inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1"
                       :class="guarantorStatusBadgeClass()"
                       x-text="guarantorStatusLabel()"></span>
+                <span x-show="form.guarantor_mode === 'internal' || form.guarantor_mode === 'previous'" x-cloak
+                      class="inline-flex rounded-full bg-gray-50 text-gray-700 ring-1 ring-gray-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                    {{ __('borrower.apply.group_members.mode_internal') }}
+                </span>
                 <span x-show="form.guarantor_mode === 'external'" x-cloak
                       class="inline-flex rounded-full bg-gray-50 text-gray-600 ring-1 ring-gray-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                     {{ __('borrower.apply.group_members.mode_external') }}
                 </span>
-            </div>
-        </div>
-
-        <dl class="grid sm:grid-cols-2 gap-3 text-sm">
-            <div class="rounded-xl bg-gray-50/80 ring-1 ring-gray-100 px-3.5 py-3">
-                <dt class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('borrower.profile.fields.phone') }}</dt>
-                <dd class="mt-1 font-semibold text-gray-900 tabular-nums" x-text="guarantorPhoneText()"></dd>
-            </div>
-            <div class="rounded-xl bg-gray-50/80 ring-1 ring-gray-100 px-3.5 py-3" x-show="form.guarantor_mode === 'external'" x-cloak>
-                <dt class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('borrower.apply.guarantor_fields.relationship') }}</dt>
-                <dd class="mt-1 font-semibold text-gray-900" x-text="guarantorRelationshipText()"></dd>
-            </div>
-        </dl>
-
-        <ol x-show="guarantorProgressSteps().length" x-cloak class="grid sm:grid-cols-4 gap-2">
-            <template x-for="step in guarantorProgressSteps()" :key="'g-' + step.key">
-                <li class="rounded-xl bg-gray-50/80 ring-1 px-3 py-2"
-                    :class="step.complete ? 'ring-brand/15' : (step.current ? 'ring-gray-200' : 'ring-gray-100')">
-                    <p class="text-[10px] font-semibold"
-                       :class="step.complete ? 'text-brand' : (step.current ? 'text-gray-700' : 'text-gray-400')"
-                       x-text="step.complete ? '✓' : (step.current ? '·' : '○')"></p>
-                    <p class="text-xs font-semibold mt-0.5 text-gray-700" x-text="step.label"></p>
-                </li>
-            </template>
-        </ol>
-
-        <div x-show="(form.guarantor_mode === 'internal' || form.guarantor_mode === 'previous') && internalGuarantor?.invitation_id" x-cloak
-             class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
-            <p class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.guarantor_fields.member_notified_title') }}</p>
-            <p class="mt-1 text-sm text-gray-600 leading-relaxed">{{ __('borrower.apply.guarantor_fields.member_notified_body') }}</p>
-        </div>
-
-        <div class="flex flex-wrap gap-2 pt-1">
-            <button type="button"
-                    @click="changeGuarantor()"
-                    :disabled="guarantorChanging"
-                    class="inline-flex items-center justify-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
-                {{ __('borrower.apply.change_guarantor') }}
-            </button>
-            <button type="button"
-                    x-show="form.guarantor_mode === 'external' && (externalGuarantor?.invitation_url || externalGuarantor?.short_url || externalGuarantor?.whatsapp_url)"
-                    x-cloak
-                    @click="openGuarantorShare()"
-                    class="inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                {{ __('borrower.apply.guarantor_fields.share_invitation') }}
-            </button>
-        </div>
+            </x-slot:badges>
+            <x-slot:details>
+                <div class="rounded-xl bg-gray-50/80 ring-1 ring-gray-100 px-3.5 py-3">
+                    <dt class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('borrower.profile.fields.phone') }}</dt>
+                    <dd class="mt-1 font-semibold text-gray-900 tabular-nums" x-text="guarantorPhoneText()"></dd>
+                </div>
+                <div class="rounded-xl bg-gray-50/80 ring-1 ring-gray-100 px-3.5 py-3" x-show="form.guarantor_mode === 'external'" x-cloak>
+                    <dt class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">{{ __('borrower.apply.guarantor_fields.relationship') }}</dt>
+                    <dd class="mt-1 font-semibold text-gray-900" x-text="guarantorRelationshipText()"></dd>
+                </div>
+            </x-slot:details>
+            <x-slot:actions>
+                <button type="button"
+                        @click="changeGuarantor()"
+                        :disabled="guarantorChanging"
+                        class="inline-flex items-center justify-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
+                    {{ __('borrower.apply.change_guarantor') }}
+                </button>
+                <button type="button"
+                        x-show="form.guarantor_mode === 'external' && (externalGuarantor?.invitation_url || externalGuarantor?.short_url || externalGuarantor?.whatsapp_url)"
+                        x-cloak
+                        @click="openGuarantorShare()"
+                        class="inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                    {{ __('borrower.apply.guarantor_fields.share_invitation') }}
+                </button>
+            </x-slot:actions>
+        </x-site.invitee-card>
 
         <x-site.kopafasta-share-sheet
             :title="__('borrower.apply.guarantor_fields.share_invitation')"

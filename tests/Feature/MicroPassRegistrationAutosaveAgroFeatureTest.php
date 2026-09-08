@@ -191,12 +191,43 @@ class MicroPassRegistrationAutosaveAgroFeatureTest extends TestCase
         $this->assertTrue((bool) ($farm['required'] ?? false));
         $this->assertTrue((bool) ($land['required'] ?? false));
         $this->assertSame('multi_page', $land['capture'] ?? null);
+        $this->assertSame('multi_page', $fields->firstWhere('document_code', 'buyer_order_evidence')['capture'] ?? null);
+        $this->assertSame('images', $farm['capture'] ?? null);
         $this->assertSame('location', $fields->firstWhere('key', 'farming_location')['type'] ?? null);
         $this->assertSame('sales_range', $fields->firstWhere('key', 'expected_revenue')['type'] ?? null);
         $this->assertSame('budget_range', $fields->firstWhere('key', 'activity_budget')['type'] ?? null);
         $this->assertNotEmpty(agriculture_budget_range_options());
         $this->assertArrayHasKey('above_100m', agriculture_sales_range_options());
         $this->assertArrayHasKey('5m_10m', agriculture_sales_range_options());
+        $this->assertStringContainsString('100,000,000+', agriculture_sales_range_options()['above_100m']);
+        $this->assertStringNotContainsString('Above', agriculture_sales_range_options()['above_100m']);
+        $this->assertSame('Harvest date', __('borrower.apply.agriculture_details.cycle_end_date'));
+    }
+
+    public function test_incomplete_registration_layout_hides_welcome_back_and_logout(): void
+    {
+        $user = User::factory()->needsPinSetup()->create([
+            'role' => 'borrower',
+            'is_active' => false,
+            'password' => Hash::make('Password1!'),
+            'phone' => '255712300001',
+        ]);
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-INC-001',
+            'type' => 'individual',
+            'status' => 'pending',
+            'first_name' => 'Inc',
+            'last_name' => 'Reg',
+            'phone' => '255712300001',
+            'country_code' => 'TZ',
+        ]);
+
+        app()->setLocale('en');
+        $html = $this->actingAs($user)->get(route('site.borrower.setup-pin'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('Welcome back', $html);
+        $this->assertStringNotContainsString('>Log out<', $html);
+        $this->assertStringNotContainsString('>Sign out<', $html);
     }
 
     public function test_register_continue_is_always_present_on_details_step(): void

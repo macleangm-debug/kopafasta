@@ -39,6 +39,8 @@
                         'required' => ! empty($field['required']),
                         'hint' => $hint,
                         'hostPrefix' => 'emergency',
+                        'capture' => $field['capture'] ?? 'multi_page',
+                        'guideCompact' => true,
                     ])
                 @elseif (($field['type'] ?? 'text') === 'select')
                     <div>

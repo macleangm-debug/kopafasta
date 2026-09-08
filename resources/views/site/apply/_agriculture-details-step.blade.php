@@ -119,11 +119,23 @@
                         @endif
                     @endforeach
                 </div>
+                <div class="flex justify-end pt-1">
+                    <button type="button" @click="agroTab = 'documents'"
+                            class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-light">
+                        {{ __('borrower.apply.agriculture_details.tab_next_documents') }}
+                    </button>
+                </div>
             </div>
 
             <div x-show="agroTab === 'documents'" x-cloak class="space-y-4">
-                <p class="text-sm font-semibold text-gray-700"
-                   x-text="@js(__('borrower.apply.agriculture_details.documents_progress')).replace(':done', String(docDone())).replace(':total', String(requiredDocCodes.length))"></p>
+                <div class="flex items-center justify-between gap-3">
+                    <button type="button" @click="agroTab = 'overview'"
+                            class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-light">
+                        {{ __('borrower.apply.agriculture_details.tab_prev_overview') }}
+                    </button>
+                    <p class="text-sm font-semibold text-gray-700"
+                       x-text="@js(__('borrower.apply.agriculture_details.documents_progress')).replace(':done', String(docDone())).replace(':total', String(requiredDocCodes.length))"></p>
+                </div>
 
                 <div class="space-y-3">
                     @foreach ($documentFields as $field)
@@ -131,7 +143,8 @@
                             $label = ! empty($field['label_key']) ? __($field['label_key']) : ($field['label'] ?? '');
                             $docCode = $field['document_code'] ?? $field['key'] ?? 'document';
                             $hint = ! empty($field['hint_key']) ? __($field['hint_key']) : '';
-                            $multiPage = ($field['capture'] ?? '') === 'multi_page';
+                            $multiPage = null;
+                            $capture = $field['capture'] ?? 'multi_page';
                         @endphp
                         @include('site.apply._apply-document-holder', [
                             'docCode' => $docCode,
@@ -139,6 +152,7 @@
                             'required' => ! empty($field['required']),
                             'hint' => $hint,
                             'hostPrefix' => 'agriculture',
+                            'capture' => $capture,
                             'multiPage' => $multiPage,
                             'guideCompact' => true,
                         ])

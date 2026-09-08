@@ -140,19 +140,18 @@
         </div>
         <div class="space-y-3">
             <template x-for="(member, index) in (group.members || [])" :key="'gm-' + index + '-c' + (member.customer_id || 0) + '-i' + (member.invitation_id || 0)">
-                <div class="rounded-3xl overflow-hidden ring-1 bg-white shadow-sm transition"
-                     :class="member.role === 'leader' ? 'ring-brand/25' : 'ring-gray-200/90'">
+                <div class="rounded-2xl bg-white ring-1 shadow-sm overflow-hidden"
+                     :class="member.role === 'leader' ? 'ring-brand/20' : 'ring-gray-200/80'">
                     <button type="button"
-                            class="w-full text-left p-4 sm:p-5"
-                            :class="member.role === 'leader' ? 'bg-gradient-to-r from-brand-muted/50 to-white' : 'bg-white'"
+                            class="w-full text-left px-4 py-4 sm:px-5 sm:py-4"
                             @click="member.role !== 'leader' && (member._open = !member._open)">
                         <div class="flex items-start gap-3">
-                            <div class="size-12 rounded-2xl bg-brand text-white grid place-items-center text-base font-bold shrink-0 shadow-sm shadow-brand/20 overflow-hidden">
+                            <div class="size-11 rounded-2xl bg-brand text-white grid place-items-center text-sm font-bold shrink-0 overflow-hidden">
                                 <img x-show="member.avatar_url" x-cloak :src="member.avatar_url" :alt="member.name || ''" class="size-full object-cover">
                                 <span x-show="!member.avatar_url" x-text="(member.name || '?').trim().charAt(0).toUpperCase()"></span>
                             </div>
                             <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-2">
+                                <div class="flex flex-wrap items-center gap-1.5">
                                     <p class="font-bold text-sm sm:text-base text-gray-900 truncate" x-text="member.name"></p>
                                     <span x-show="member.role === 'leader'"
                                           class="inline-flex items-center rounded-full bg-gray-900 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
@@ -166,40 +165,25 @@
                                           :class="memberStatusBadgeClass(member)"
                                           x-text="memberStatusLabel(member)"></span>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-0.5" x-text="member.phone"></p>
-                            </div>
-                            <div class="text-right shrink-0 w-[7.5rem]">
-                                <p class="text-sm font-extrabold tabular-nums text-gray-900" x-text="formatTzs(member.requested_amount)"></p>
+                                <p class="text-xs text-gray-500 mt-1 tabular-nums" x-text="member.phone"></p>
+                                <p class="text-sm font-extrabold tabular-nums text-gray-900 mt-1" x-text="formatTzs(member.requested_amount)"></p>
                             </div>
                             <svg x-show="member.role !== 'leader'" class="w-4 h-4 text-gray-400 shrink-0 mt-1 transition" :class="member._open && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                         </div>
-                        <div class="mt-3">
-                            <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500 mb-1">
-                                <span>{{ __('borrower.apply.group.profile_completion') }}</span>
-                                <span class="font-bold tabular-nums text-brand" x-text="(member.profile_percent ?? 0) + '%'"></span>
-                            </div>
-                            <div class="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                                <div class="h-full rounded-full transition-all duration-500"
-                                     :class="(member.profile_percent ?? 0) >= 100 ? 'bg-emerald-500' : 'bg-brand'"
-                                     :style="'width:' + Math.max(0, Math.min(100, member.profile_percent ?? 0)) + '%'"></div>
-                            </div>
-                        </div>
                     </button>
-                    <div x-show="member._open && member.role !== 'leader'" x-cloak class="px-4 sm:px-5 pb-5 pt-4 border-t border-gray-100">
-                        <div class="space-y-4">
-                            <div class="flex flex-wrap items-center justify-between gap-3">
-                                <button type="button"
-                                        x-show="member.share?.short_url || member.share?.invitation_url || member.share?.whatsapp_url || member.share?.share_text"
-                                        x-cloak
-                                        @click="openGroupMemberShare(member)"
-                                        class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                                    {{ __('borrower.apply.guarantor_fields.share_invitation') }}
-                                </button>
-                                <button type="button" @click="removeGroupMember(index)"
-                                        class="inline-flex items-center gap-2 bg-white ring-1 ring-red-200 hover:bg-red-50 text-red-700 font-semibold px-4 py-2.5 rounded-xl text-sm shrink-0 ml-auto">
-                                    {{ __('borrower.apply.group_members.remove') }}
-                                </button>
-                            </div>
+                    <div x-show="member._open && member.role !== 'leader'" x-cloak class="px-4 sm:px-5 pb-4 pt-3 border-t border-gray-100">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <button type="button"
+                                    x-show="member.share?.short_url || member.share?.invitation_url || member.share?.whatsapp_url || member.share?.share_text"
+                                    x-cloak
+                                    @click="openGroupMemberShare(member)"
+                                    class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.apply.guarantor_fields.share_invitation') }}
+                            </button>
+                            <button type="button" @click="removeGroupMember(index)"
+                                    class="inline-flex items-center gap-2 bg-white ring-1 ring-red-200 hover:bg-red-50 text-red-700 font-semibold px-4 py-2.5 rounded-xl text-sm shrink-0 ml-auto">
+                                {{ __('borrower.apply.group_members.remove') }}
+                            </button>
                         </div>
                     </div>
                 </div>

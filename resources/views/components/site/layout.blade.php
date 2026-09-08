@@ -26,6 +26,14 @@
     $currentCountry = collect($siteCountries)->firstWhere('code', $siteCountry) ?? ['code' => 'TZ', 'name' => 'Tanzania', 'emoji' => '🇹🇿'];
     $auth = (bool) $auth;
     $minimal = (bool) $minimal;
+
+    // Incomplete registration (Details → PIN → Security): no Welcome back / Logout chrome.
+    $registrationIncomplete = false;
+    $authUser = auth()->user();
+    if ($authUser && ($authUser->role ?? null) === 'borrower') {
+        $registrationIncomplete = ! app(\App\Services\PinService::class)->hasPin($authUser)
+            || ! app(\App\Services\PinRecoveryChallengeService::class)->hasEnrolledAnswers($authUser);
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="{{ $siteLocale }}" class="h-full scroll-smooth {{ $auth ? 'overflow-hidden' : '' }}">
@@ -102,11 +110,13 @@
             <div class="hidden lg:flex items-center justify-end gap-2">
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 @auth
-                    <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
-                       class="text-sm font-medium text-gray-700 hover:text-brand">{{ __('site.auth.welcome_back') }}</a>
-                    <form method="POST" action="{{ route('site.logout') }}">@csrf
-                        <button class="text-sm text-gray-500 hover:text-gray-900">{{ app()->getLocale() === 'sw' ? 'Toka' : 'Log out' }}</button>
-                    </form>
+                    @unless ($registrationIncomplete)
+                        <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
+                           class="text-sm font-medium text-gray-700 hover:text-brand">{{ __('site.auth.welcome_back') }}</a>
+                        <form method="POST" action="{{ route('site.logout') }}">@csrf
+                            <button class="text-sm text-gray-500 hover:text-gray-900">{{ __('borrower.layout.sign_out') }}</button>
+                        </form>
+                    @endunless
                 @else
                     <a href="{{ route('site.login') }}" class="text-sm font-semibold text-brand border border-brand/30 hover:border-brand px-4 py-2 rounded-lg transition">{{ __('site.nav.log_in') }}</a>
                     <a href="{{ route('site.register.borrower') }}"
@@ -131,10 +141,12 @@
                         {{ __('site.nav.register') }}
                     </a>
                 @else
-                    <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
-                       class="text-xs font-semibold text-brand px-1.5 py-1.5 whitespace-nowrap max-w-[5.5rem] truncate">
-                        {{ __('site.auth.welcome_back') }}
-                    </a>
+                    @unless ($registrationIncomplete)
+                        <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
+                           class="text-xs font-semibold text-brand px-1.5 py-1.5 whitespace-nowrap max-w-[5.5rem] truncate">
+                            {{ __('site.auth.welcome_back') }}
+                        </a>
+                    @endunless
                 @endguest
                 <button type="button"
                         @click="menuOpen = true; menuView = 'main'"
@@ -178,11 +190,13 @@
                             <a href="{{ route('site.affiliate') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.nav.affiliate') }}</a>
                             <a href="{{ route('site.how-it-works') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.how_it_works.title') }}</a>
                             @auth
-                                <div class="border-t border-gray-200 pt-3 mt-2">
-                                    <form method="POST" action="{{ route('site.logout') }}">@csrf
-                                        <button class="w-full text-left px-3 py-3 rounded-xl text-sm text-gray-500 hover:bg-gray-50">{{ __('borrower.sign_out') }}</button>
-                                    </form>
-                                </div>
+                                @unless ($registrationIncomplete)
+                                    <div class="border-t border-gray-200 pt-3 mt-2">
+                                        <form method="POST" action="{{ route('site.logout') }}">@csrf
+                                            <button class="w-full text-left px-3 py-3 rounded-xl text-sm text-gray-500 hover:bg-gray-50">{{ __('borrower.layout.sign_out') }}</button>
+                                        </form>
+                                    </div>
+                                @endunless
                             @endauth
                         </div>
 
