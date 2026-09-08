@@ -984,10 +984,6 @@ export function applyWizard(config) {
                 },
 
                 toggleCustomerAsset(id) {
-                    const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
-                    if (asset && asset.selectable === false && ! this.isCustomerAssetSelected(id)) {
-                        return;
-                    }
                     const key = String(id);
                     let ids = this.selectedCustomerAssetIds().slice();
                     if (ids.includes(key)) {
@@ -998,22 +994,6 @@ export function applyWizard(config) {
                     this.form.customer_asset_ids = ids.map(v => Number(v) || v);
                     this.form.customer_asset_id = ids[0] || '';
                     this.applyExistingAsset();
-                },
-
-                assetIncompleteProfileUrl(asset) {
-                    if (! asset?.id) return this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
-                    const base = this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
-                    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-                    return base + (base.includes('?') ? '&' : '?')
-                        + 'edit=' + encodeURIComponent(asset.id)
-                        + '&return_to=' + returnUrl;
-                },
-
-                assetIncompleteHint(asset) {
-                    const code = asset?.incomplete;
-                    const map = this.i18n?.assetDetails?.incompleteHints || {};
-                    return map[code] || this.i18n?.assetDetails?.completeInProfile
-                        || 'Complete this asset on your profile, then return to this draft.';
                 },
 
                 selectedCustomerAsset() {
@@ -1118,7 +1098,6 @@ export function applyWizard(config) {
                         if (data.education_documents) {
                             this.educationDocuments = data.education_documents;
                         }
-                        this._gateTick++;
                         await this.persistDraft(true);
                     } catch (e) {
                         this.educationDocumentUploadError = e?.message || (this.i18n.educationDetails?.uploadFailed || 'Upload failed');
@@ -1150,7 +1129,6 @@ export function applyWizard(config) {
                             throw new Error(data.message || 'Could not remove document');
                         }
                         this.educationDocuments = data.education_documents || {};
-                        this._gateTick++;
                         await this.persistDraft(true);
                     } catch (e) {
                         showWizardFeedback(e?.message || 'Could not remove document');
@@ -1433,76 +1411,19 @@ export function applyWizard(config) {
 
                 restoreFormInputs(inputs) {
                     const root = this.formRoot();
-                    if (! root || typeof window.Alpine === 'undefined') {
-                        if (! root) return;
-                    }
-                    const data = inputs || {};
-                    Object.entries(data).forEach(([name, value]) => {
+                    if (! root) return;
+                    Object.entries(inputs || {}).forEach(([name, value]) => {
                         if (name === 'purpose' && ! String(value || '').trim()) return;
-                        // Address district restored after region Alpine sync (see below).
-                        if (name === 'product_question[farming_district]') return;
                         const el = root.querySelector(`[name="${name}"]`);
                         if (! el || el.type === 'file') return;
                         if (el.type === 'radio') {
                             const radio = root.querySelector(`[name="${name}"][value="${value}"]`);
                             if (radio) radio.checked = true;
                         } else {
-                            el.value = value == null ? '' : String(value);
+                            el.value = value;
                         }
-                        this.syncAlpineBoundField(el, el.value);
-                        el.dispatchEvent(new Event('input', { bubbles: true }));
                         el.dispatchEvent(new Event('change', { bubbles: true }));
                     });
-
-                    // Farming address: restore Alpine region/district without wiping district.
-                    const regionEl = root.querySelector('[name="product_question[farming_region]"]');
-                    const addrRoot = regionEl?.closest('[x-data]');
-                    if (addrRoot && window.Alpine?.$data) {
-                        const addr = window.Alpine.$data(addrRoot);
-                        if (addr && 'region' in addr && typeof addr.refreshDistricts === 'function') {
-                            const region = String(data['product_question[farming_region]'] || '').trim();
-                            const district = String(data['product_question[farming_district]'] || '').trim();
-                            addr.region = region;
-                            addr.savedDistrict = district;
-                            addr.refreshDistricts();
-                            if (typeof addr.syncDistrictSelection === 'function') {
-                                addr.syncDistrictSelection();
-                            } else {
-                                addr.district = district;
-                            }
-                            const districtEl = root.querySelector('[name="product_question[farming_district]"]');
-                            if (districtEl) districtEl.value = district;
-                        }
-                    }
-
-                    const locationHidden = root.querySelector('[name="product_question[farming_location]"]');
-                    if (locationHidden) {
-                        const region = (root.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
-                        const district = (root.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
-                        const ward = (root.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
-                        locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
-                    }
-
-                    this._gateTick++;
-                },
-
-                syncAlpineBoundField(el, value) {
-                    if (! window.Alpine?.$data || ! el) return;
-                    const host = el.closest('[x-data]');
-                    if (! host) return;
-                    const data = window.Alpine.$data(host);
-                    if (! data) return;
-                    // x-site.profile-select
-                    if ('selected' in data && typeof data.labelFor === 'function') {
-                        data.selected = String(value ?? '');
-                        return;
-                    }
-                    // x-site.date-input
-                    if ('value' in data && 'draft' in data && typeof data.confirm === 'function') {
-                        const next = String(value ?? '');
-                        data.value = next;
-                        data.draft = next || data.fallback || next;
-                    }
                 },
 
                 restoreDraft(draft) {
@@ -3126,7 +3047,6 @@ export function applyWizard(config) {
                     }
                     if (this.stepKey === 'agriculture_details') {
                         void this.educationDocuments;
-                        void this._gateTick;
                         const root = this.formRoot();
                         const region = (root?.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
                         const district = (root?.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
@@ -3140,7 +3060,6 @@ export function applyWizard(config) {
                             const el = root?.querySelector(`[name="product_question[${key}]"]`);
                             return !!(el?.value || '').toString().trim();
                         });
-                        // Required docs only — optional agriculture documents never block Continue.
                         const docsOk = !!this.educationDocuments?.farm_activity_photos?.customer_document_id
                             && !!this.educationDocuments?.land_use_evidence?.customer_document_id;
                         return fieldsOk && !!region && !!district && docsOk;
@@ -3160,11 +3079,11 @@ export function applyWizard(config) {
                     if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
                         void this.assetSubstep;
                         if (! this.customerAssets?.length || ! this.selectedCustomerAssetIds()?.length) return false;
-                        const incompleteSelected = this.selectedCustomerAssetIds().some((id) => {
+                        const missingInsurance = this.selectedCustomerAssetIds().some((id) => {
                             const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
-                            return asset && (asset.incomplete || asset.selectable === false);
+                            return asset && asset.asset_type === 'vehicle' && ! asset.has_insurance;
                         });
-                        if (incompleteSelected) return false;
+                        if (missingInsurance) return false;
                         if (this.assetSubstep <= 1) return true;
                         if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) return false;
                         if (this.current && this.form.requested_amount > this.current.max) return false;
@@ -4017,16 +3936,13 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.assetDetails.assetRequired);
                             return false;
                         }
-                        const incompleteId = this.selectedCustomerAssetIds().find((id) => {
+                        const missingInsuranceId = this.selectedCustomerAssetIds().find((id) => {
                             const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
-                            return asset && (asset.incomplete || asset.selectable === false);
+                            return asset && asset.asset_type === 'vehicle' && ! asset.has_insurance;
                         });
-                        if (incompleteId) {
+                        if (missingInsuranceId) {
                             const base = this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
-                            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-                            window.location = base + (base.includes('?') ? '&' : '?')
-                                + 'edit=' + encodeURIComponent(incompleteId)
-                                + '&return_to=' + returnUrl;
+                            window.location = base + (base.includes('?') ? '&' : '?') + 'edit=' + encodeURIComponent(missingInsuranceId) + '&focus=insurance';
                             return false;
                         }
                         if (this.assetSubstep <= 1) return true;

@@ -6,10 +6,6 @@
         docDone() {
             return this.requiredDocCodes.filter((code) => !!educationDocuments[code]?.customer_document_id).length;
         },
-        bumpAgroReady() {
-            _gateTick++;
-            scheduleDraftSave();
-        },
      }">
     <x-site.wizard-step-header
         :eyebrow="__('borrower.apply.agriculture_details.eyebrow')"
@@ -23,7 +19,6 @@
         $documentFields = collect($agBlock['fields'] ?? [])->filter(fn ($f) => ($f['type'] ?? '') === 'document')->values();
         $budgetRangeOptions = agriculture_budget_range_options();
         $salesRangeOptions = agriculture_sales_range_options();
-        $harvestDefault = now()->addMonths(3)->format('Y-m-d');
     @endphp
 
     @if ($agBlock)
@@ -41,9 +36,7 @@
                 </button>
             </div>
 
-            <div x-show="agroTab === 'overview'" x-cloak class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-5"
-                 @change="bumpAgroReady()"
-                 @profile-select="bumpAgroReady()">
+            <div x-show="agroTab === 'overview'" x-cloak class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-5">
                 <div class="grid sm:grid-cols-2 gap-4 sm:gap-x-5 sm:gap-y-5 sm:items-start">
                     @foreach ($overviewFields as $field)
                         @php
@@ -85,7 +78,7 @@
                                         const composed = [val('product_question[farming_region]'), val('product_question[farming_district]'), val('product_question[farming_ward]')].filter(Boolean).join(', ');
                                         const hidden = root.querySelector('[name=\"product_question[farming_location]\"]');
                                         if (hidden) hidden.value = composed;
-                                        bumpAgroReady();
+                                        scheduleDraftSave();
                                     }
                                  }"
                                  @change="syncFarmLocation()">
@@ -108,8 +101,7 @@
                                     :required="! empty($field['required'])"
                                     :min="now()->subYear()->format('Y-m-d')"
                                     :max="now()->addYears(5)->format('Y-m-d')"
-                                    :default="$harvestDefault"
-                                    :value="$harvestDefault"
+                                    :default="now()->addMonths(3)->format('Y-m-d')"
                                 />
                             </div>
                         @else
@@ -121,27 +113,31 @@
                                 <input type="text"
                                        name="product_question[{{ $field['key'] }}]"
                                        @if (! empty($field['required'])) required @endif
-                                       x-on:input="bumpAgroReady()"
+                                       x-on:input="scheduleDraftSave()"
                                        class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand">
                             </div>
                         @endif
                     @endforeach
                 </div>
-                <div class="flex justify-end pt-2 border-t border-gray-100">
+                <div class="flex justify-end pt-1">
                     <button type="button" @click="agroTab = 'documents'"
-                            class="inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-brand/20 px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand/5 shadow-sm">
+                            class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-light">
                         {{ __('borrower.apply.agriculture_details.tab_next_documents') }}
                     </button>
                 </div>
             </div>
 
             <div x-show="agroTab === 'documents'" x-cloak class="space-y-4">
-                <div class="flex items-center justify-end gap-3">
+                <div class="flex items-center justify-between gap-3">
+                    <button type="button" @click="agroTab = 'overview'"
+                            class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-light">
+                        {{ __('borrower.apply.agriculture_details.tab_prev_overview') }}
+                    </button>
                     <p class="text-sm font-semibold text-gray-700"
                        x-text="@js(__('borrower.apply.agriculture_details.documents_progress')).replace(':done', String(docDone())).replace(':total', String(requiredDocCodes.length))"></p>
                 </div>
 
-                <div class="space-y-3" @kf-document-pages-ready.window="_gateTick++" @kf-document-file.window="_gateTick++">
+                <div class="space-y-3">
                     @foreach ($documentFields as $field)
                         @php
                             $label = ! empty($field['label_key']) ? __($field['label_key']) : ($field['label'] ?? '');
@@ -165,12 +161,6 @@
                 <p x-show="docDone() < requiredDocCodes.length" x-cloak class="text-xs text-rose-600">
                     {{ __('borrower.apply.agriculture_details.docs_required_incomplete') }}
                 </p>
-                <div class="flex justify-start pt-2 border-t border-gray-100">
-                    <button type="button" @click="agroTab = 'overview'"
-                            class="inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-brand/20 px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand/5 shadow-sm">
-                        {{ __('borrower.apply.agriculture_details.tab_prev_overview') }}
-                    </button>
-                </div>
             </div>
 
             <p class="text-xs text-gray-500">{{ __('borrower.apply.agriculture_details.screening_note') }}</p>

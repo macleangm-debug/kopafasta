@@ -1085,12 +1085,6 @@ return [
             'vehicle_needs_insurance' => 'Add comprehensive insurance on this vehicle in Profile → Collaterals before selecting it.',
             'vehicle_insurance_required' => ':label needs a comprehensive insurance certificate on your profile before you can use it as collateral.',
             'asset_already_pledged' => ':label is already tied to another loan application and cannot be reused.',
-            'asset_already_pledged_short' => 'Already pledged to another application.',
-            'asset_incomplete_for_apply' => ':label needs photos and ownership documents on your profile before you can pledge it.',
-            'complete_in_profile' => 'Complete this asset on your profile, then return to this draft.',
-            'complete_in_profile_cta' => 'Complete in Profile',
-            'ownership_on_file' => 'Ownership on file',
-            'ownership_missing' => 'Ownership missing',
         ],
         'valuation_fee' => [
             'title' => 'Valuation fee',

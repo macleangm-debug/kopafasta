@@ -94,26 +94,16 @@
                   educationDocumentRemoveUrl: @js(route('site.borrower.apply.education-document.remove')),
                   assetTypeOptions: @js($assetTypeOptions ?? []),
                   assetDocumentLabels: @js($assetDocumentLabels ?? []),
-                  customerAssets: @js(($customerAssets ?? collect())->map(function ($a) {
-                      $assetService = app(\App\Services\CustomerAssetService::class);
-                      $incomplete = $assetService->incompleteForApply($a);
-                      $pledged = $assetService->isPledgedToAnotherApplication($a);
-
-                      return [
-                          'id' => $a->id,
-                          'asset_type' => $a->asset_type,
-                          'label' => $a->label,
-                          'description' => $a->description,
-                          'registration_number' => $a->registration_number,
-                          'estimated_value' => $a->estimated_value,
-                          'photo_count' => count($a->galleryPaths()),
-                          'has_ownership' => filled($a->metadata['ownership_document_path'] ?? null),
-                          'incomplete' => $incomplete,
-                          'selectable' => $incomplete === null && ! $pledged,
-                          'pledged' => $pledged,
-                          'thumbnail_url' => ($thumb = $a->thumbnailPath()) ? asset('storage/'.$thumb) : null,
-                      ];
-                  })->values()->all()),
+                  customerAssets: @js(($customerAssets ?? collect())->map(fn ($a) => [
+                      'id' => $a->id,
+                      'asset_type' => $a->asset_type,
+                      'label' => $a->label,
+                      'description' => $a->description,
+                      'registration_number' => $a->registration_number,
+                      'estimated_value' => $a->estimated_value,
+                      'has_insurance' => $a->hasComprehensiveInsurance(),
+                      'thumbnail_url' => ($thumb = $a->thumbnailPath()) ? asset('storage/'.$thumb) : null,
+                  ])->values()->all()),
                   valuationFeeAmount: {{ (int) ($valuationFeeAmount ?? 0) }},
                   paymentGatewayDummy: @js($paymentGatewayDummy ?? payment_gateway_is_dummy()),
                   savedDraft: @js($savedDraft ?? null),
@@ -204,12 +194,8 @@
                           'amountRequired' => __('borrower.apply.asset_details.amount_required'),
                           'tenureRequired' => __('borrower.apply.asset_details.tenure_required'),
                           'purposeRequired' => __('borrower.apply.asset_details.purpose_required'),
-                          'completeInProfile' => __('borrower.apply.asset_details.complete_in_profile'),
-                          'incompleteHints' => [
-                              'photos' => __('borrower.assets.collateral_incomplete_photos'),
-                              'person_photo' => __('borrower.assets.collateral_incomplete_photos'),
-                              'ownership' => __('borrower.assets.collateral_incomplete_ownership'),
-                          ],
+                          'vehicleNeedsInsurance' => __('borrower.apply.asset_details.vehicle_needs_insurance'),
+                          'completeInsuranceCta' => __('borrower.apply.asset_details.complete_insurance_cta'),
                       ],
                       'applicationFee' => [
                           'failed' => __('borrower.apply.application_fee.failed'),

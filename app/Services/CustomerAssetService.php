@@ -237,12 +237,8 @@ class CustomerAssetService
             ->first();
     }
 
-    /**
-     * Apply-wizard incompleteness: photos + ownership only.
-     * Comprehensive insurance is enforced later in the secured-collateral lifecycle
-     * (pre-disbursement / post-approval), not as a generic application-stage gate.
-     */
-    public function incompleteForApply(CustomerAsset $asset): ?string
+    /** Why this asset cannot be pledged yet, or null when documents look complete. */
+    public function incompleteReason(CustomerAsset $asset): ?string
     {
         if (! $asset->hasCompletePhotoSet()) {
             $missing = $asset->missingPhotoAngles();
@@ -254,17 +250,6 @@ class CustomerAssetService
         }
         if (! filled($asset->metadata['ownership_document_path'] ?? null)) {
             return 'ownership';
-        }
-
-        return null;
-    }
-
-    /** Why this asset cannot be pledged yet, or null when documents look complete (includes insurance). */
-    public function incompleteReason(CustomerAsset $asset): ?string
-    {
-        $applyIncomplete = $this->incompleteForApply($asset);
-        if ($applyIncomplete) {
-            return $applyIncomplete;
         }
         if ($asset->asset_type === 'vehicle') {
             if (! $asset->hasVehicleInsurance()) {

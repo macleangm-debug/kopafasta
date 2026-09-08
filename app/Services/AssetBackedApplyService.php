@@ -54,19 +54,9 @@ class AssetBackedApplyService
                 ]);
             }
 
-            $assetService = app(CustomerAssetService::class);
-            if ($assetService->isPledgedToAnotherApplication($customerAsset)) {
+            if (app(CustomerAssetService::class)->isPledgedToAnotherApplication($customerAsset)) {
                 throw ValidationException::withMessages([
                     'customer_asset_ids' => __('borrower.apply.asset_details.asset_already_pledged', [
-                        'label' => $customerAsset->label,
-                    ]),
-                ]);
-            }
-
-            $incomplete = $assetService->incompleteForApply($customerAsset);
-            if ($incomplete) {
-                throw ValidationException::withMessages([
-                    'customer_asset_ids' => __('borrower.apply.asset_details.asset_incomplete_for_apply', [
                         'label' => $customerAsset->label,
                     ]),
                 ]);
