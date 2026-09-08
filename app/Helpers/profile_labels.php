@@ -194,15 +194,50 @@ if (! function_exists('loan_purpose_options')) {
     }
 }
 
+if (! function_exists('sort_loan_products_by_display_order')) {
+    /**
+     * @param  \Illuminate\Support\Collection<int, \App\Models\LoanProduct>  $products
+     * @return \Illuminate\Support\Collection<int, \App\Models\LoanProduct>
+     */
+    function sort_loan_products_by_display_order(\Illuminate\Support\Collection $products): \Illuminate\Support\Collection
+    {
+        $order = config('loan_products.display_order', [
+            'IL', 'FC', 'WL', 'AL', 'AB', 'EM', 'KB', 'EL', 'GL', 'BP', 'SAL-12',
+        ]);
+
+        return $products
+            ->sortBy(function (\App\Models\LoanProduct $p) use ($order) {
+                $i = array_search($p->code, $order, true);
+
+                return $i === false ? (1000 + (int) $p->id) : $i;
+            })
+            ->values();
+    }
+}
+
 if (! function_exists('borrower_catalogue_products')) {
     /** @return \Illuminate\Support\Collection<int, \App\Models\LoanProduct> */
     function borrower_catalogue_products(): \Illuminate\Support\Collection
     {
-        $order = config('loan_products.display_order', ['IL', 'GL', 'AL', 'FC', 'KB', 'BP', 'EL', 'EM', 'WL', 'AB']);
+        return sort_loan_products_by_display_order(
+            \App\Models\LoanProduct::with('rateTiers')->where('is_active', true)->get()
+        );
+    }
+}
 
-        return \App\Models\LoanProduct::with('rateTiers')->where('is_active', true)->get()
-            ->sortBy(fn (\App\Models\LoanProduct $p) => ($i = array_search($p->code, $order, true)) === false ? 99 : $i)
-            ->values();
+if (! function_exists('public_catalogue_products')) {
+    /**
+     * Public / nav product list — active + coming_soon, same display_order as borrower catalogue.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\LoanProduct>
+     */
+    function public_catalogue_products(): \Illuminate\Support\Collection
+    {
+        return sort_loan_products_by_display_order(
+            \App\Models\LoanProduct::with('rateTiers')
+                ->whereIn('status', ['active', 'coming_soon'])
+                ->get()
+        );
     }
 }
 

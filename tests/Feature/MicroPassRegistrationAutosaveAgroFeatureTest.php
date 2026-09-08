@@ -183,6 +183,26 @@ class MicroPassRegistrationAutosaveAgroFeatureTest extends TestCase
         );
     }
 
+    public function test_loan_product_display_order_and_sharia_inactive(): void
+    {
+        $this->seed(PublicLoanProductsSeeder::class);
+
+        $expected = ['IL', 'FC', 'WL', 'AL', 'AB', 'EM', 'KB', 'EL'];
+        $borrowerCodes = borrower_catalogue_products()->pluck('code')->all();
+        $this->assertSame($expected, array_slice($borrowerCodes, 0, 8));
+        $this->assertNotContains('SL', $borrowerCodes);
+
+        $publicCodes = public_catalogue_products()->pluck('code')->all();
+        $publicWithoutComingSoon = array_values(array_filter($publicCodes, fn ($code) => $code !== 'SAL-12'));
+        $this->assertSame($expected, array_slice($publicWithoutComingSoon, 0, 8));
+        $this->assertNotContains('SL', $publicCodes);
+
+        $sharia = \App\Models\LoanProduct::query()->where('code', 'SL')->first();
+        $this->assertNotNull($sharia);
+        $this->assertSame('inactive', $sharia->status);
+        $this->assertFalse((bool) $sharia->is_active);
+    }
+
     public function test_agriculture_config_requires_farm_and_land_evidence(): void
     {
         $fields = collect(config('loan_product_questions.AG.fields'));

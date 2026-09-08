@@ -15,7 +15,7 @@ class PageController extends Controller
 {
     public function home(\Illuminate\Http\Request $request): View
     {
-        $products = LoanProduct::with('rateTiers')->whereIn('status', ['active', 'coming_soon'])->orderBy('id')->get();
+        $products = public_catalogue_products();
         $rateFromLabel = app(DisplayedRateService::class)->lowestBorrowerRateLabel($products);
         $featuredAssets = app(\App\Http\Controllers\Site\AssetMarketplaceController::class)->homepageFeatured(6);
         $marketplaceCategories = config('asset_marketplace.categories', []);
@@ -93,7 +93,7 @@ class PageController extends Controller
 
     public function products(): View
     {
-        $products = LoanProduct::with('rateTiers')->whereIn('status', ['active', 'coming_soon'])->orderBy('id')->get();
+        $products = public_catalogue_products();
         return view('site.products.index', compact('products'));
     }
 
@@ -107,12 +107,10 @@ class PageController extends Controller
         $presentation = app(\App\Services\PublicProductPresentationService::class)->forProduct($product);
         $productSeo = app(\App\Services\SeoService::class)->forProduct($product);
 
-        $otherProducts = LoanProduct::with('rateTiers')
-            ->whereIn('status', ['active', 'coming_soon'])
+        $otherProducts = public_catalogue_products()
             ->where('id', '!=', $product->id)
-            ->orderBy('id')
-            ->limit(4)
-            ->get();
+            ->take(4)
+            ->values();
 
         return view('site.products.show', compact('product', 'presentation', 'otherProducts', 'productSeo'));
     }
