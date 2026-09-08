@@ -254,6 +254,7 @@ return [
         'continue' => 'Endelea',
         'next' => 'Endelea',
         'continuing' => 'Inaendelea…',
+        'loading' => 'Inapakia…',
         'complete_editing' => 'Maliza kuhariri',
         'edit_hop_hint' => 'Badilisha sehemu hii tu, kisha gusa Maliza kuhariri — hutarudi kwenye malipo wala mchakato wote wa maombi.',
         'back' => '← Rudi',

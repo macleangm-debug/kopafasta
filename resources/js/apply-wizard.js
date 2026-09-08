@@ -36,15 +36,18 @@ export function applyWizard(config) {
                 valuationFeePaymentReference: config.valuationFeePaymentReference ?? null,
                 assetDocuments: config.savedDraft?.asset_documents || {},
                 educationDocuments: config.savedDraft?.education_documents || {},
-                institutionPayment: config.savedDraft?.institution_payment || {
-                    method: 'bank',
-                    bank_name: '',
-                    account_name: '',
-                    account_number: '',
-                    mobile_provider: '',
-                    mobile_number: '',
-                    verified: false,
-                },
+                institutionPayment: (() => {
+                    const saved = config.savedDraft?.institution_payment || {};
+                    return {
+                        method: 'bank',
+                        bank_name: saved.bank_name || '',
+                        account_name: saved.account_name || '',
+                        account_number: saved.account_number || '',
+                        mobile_provider: '',
+                        mobile_number: '',
+                        verified: false,
+                    };
+                })(),
                 assetDocumentUploading: false,
                 educationDocumentUploading: false,
                 feeChannel: 'mobile_money',
@@ -53,6 +56,7 @@ export function applyWizard(config) {
                 feePromoCode: '',
                 feeQuoteData: config.feeQuoteData ?? null,
                 feePaying: false,
+                feeNavigating: false,
                 feePaymentReference: config.feePaymentReference ?? null,
                 feeNotice: null,
                 feeLoyaltyOption: config.feeLoyaltyOption || null,
@@ -112,7 +116,9 @@ export function applyWizard(config) {
                 activityTypeLabels: config.activityTypeLabels || {},
                 tanzaniaLocations: config.tanzaniaLocations || {},
                 draftSaveUrl: config.draftSaveUrl || '',
-                reservationId: config.reservationId || null,
+                reservationId: config.reservationId
+                    || config.savedDraft?.asset_reservation_id
+                    || null,
                 draftSavedAt: null,
                 draftSaveTimer: null,
                 draftReference: config.savedDraft?.draft_reference || '',
@@ -1110,7 +1116,10 @@ export function applyWizard(config) {
 
                 async payApplicationFee() {
                     if (! this.applicationFeePayUrl || ! this.form.loan_product_id) return;
+                    if (this.feeNavigating || this.feePaying) return;
                     this.feePaying = true;
+                    this.feeNavigating = true;
+                    this.advancing = true;
                     this.feeNotice = null;
                     try {
                         // Persist group roster size before opening payments.show so fee × members is locked.
@@ -1140,7 +1149,8 @@ export function applyWizard(config) {
                         }
                         // Shared payments.show owns method selection + USSD push.
                         if (data.wait_url) {
-                            window.location.href = data.wait_url;
+                            // Keep CTA locked until navigation completes — never flash Next.
+                            window.location.assign(data.wait_url);
                             return;
                         }
                         this.applicationFeeState = data.fee;
@@ -1165,6 +1175,7 @@ export function applyWizard(config) {
                             data.message || this.i18n.applicationFee.paid
                         );
                         this.feePaying = false;
+                        this.feeNavigating = false;
                         try {
                             await this.next();
                         } catch (advanceErr) {
@@ -1176,8 +1187,12 @@ export function applyWizard(config) {
                             tone: 'error',
                             message: e?.message || this.i18n.applicationFee.failed,
                         };
-                    } finally {
+                        this.feeNavigating = false;
                         this.feePaying = false;
+                    } finally {
+                        if (! this.feeNavigating) {
+                            this.feePaying = false;
+                        }
                     }
                 },
 
@@ -1455,6 +1470,7 @@ export function applyWizard(config) {
                             mobile_number: '',
                             verified: false,
                             ...draft.institution_payment,
+                            method: 'bank',
                             verified: false,
                         };
                     }
@@ -1487,6 +1503,15 @@ export function applyWizard(config) {
                         };
                     }
                     if (draft.draft_reference) this.draftReference = draft.draft_reference;
+                    const draftReservationId = Number(
+                        draft.asset_reservation_id
+                        || draft.form?.asset_reservation_id
+                        || this.reservationId
+                        || 0
+                    );
+                    if (draftReservationId > 0) {
+                        this.reservationId = draftReservationId;
+                    }
                     this.syncFeePaidState();
                     this.syncValuationFeePaidState();
 
@@ -1800,6 +1825,7 @@ export function applyWizard(config) {
 
                 async refreshGroupMemberStatuses() {
                     if (! this.groupMemberStatusesUrl || ! this.group.members.length) return;
+                    return this.withPreservedScroll(async () => {
                     try {
                         const res = await fetch(this.groupMemberStatusesUrl, {
                             method: 'POST',
@@ -1843,6 +1869,7 @@ export function applyWizard(config) {
                     } catch (e) {
                         // Non-blocking refresh
                     }
+                    });
                 },
 
                 async inviteExternalGroupMember() {
@@ -1971,6 +1998,7 @@ export function applyWizard(config) {
                         this.groupLookupError = this.i18n.groupMembers.duplicate;
                         return;
                     }
+                    return this.withPreservedScroll(async () => {
                     this.groupLookupError = '';
                     this.groupLookupLoading = true;
                     try {
@@ -2010,6 +2038,7 @@ export function applyWizard(config) {
                     } finally {
                         this.groupLookupLoading = false;
                     }
+                    });
                 },
 
                 async validateGroupMember() {
@@ -2706,20 +2735,36 @@ export function applyWizard(config) {
                 },
 
                 /** Keep sticky step/review nav in place — scroll to wizard shell, not page top. */
-                scrollWizardIntoView() {
+                scrollWizardIntoView(opts = {}) {
+                    if (opts.preserve) return;
                     this.$nextTick(() => {
                         const shell = this.$root?.querySelector?.('[data-wizard-scroll-anchor]')
                             || this.$root;
                         if (! shell || typeof shell.getBoundingClientRect !== 'function') {
                             return;
                         }
-                        const top = shell.getBoundingClientRect().top + window.scrollY - 12;
+                        const rect = shell.getBoundingClientRect();
+                        // User already scrolled into wizard content — do not snap back to shell top.
+                        if (rect.top < 0 && rect.bottom > 160) {
+                            return;
+                        }
+                        const top = rect.top + window.scrollY - 12;
                         const current = window.scrollY || window.pageYOffset || 0;
-                        // Only nudge when the shell is meaningfully off-screen; avoid jumping away from sticky tabs.
                         if (Math.abs(current - top) > 80) {
-                            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                            window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
                         }
                     });
+                },
+
+                async withPreservedScroll(work) {
+                    const y = window.scrollY || window.pageYOffset || 0;
+                    try {
+                        return await work();
+                    } finally {
+                        this.$nextTick(() => {
+                            window.scrollTo({ top: y, behavior: 'auto' });
+                        });
+                    }
                 },
 
                 profileGateReturnUrl() {
@@ -2818,7 +2863,7 @@ export function applyWizard(config) {
                 isCurrentStepReady() {
                     void this._gateTick;
                     // Keep Continue visible while advancing (disabled only) to avoid flicker.
-                    if (this.advancing) {
+                    if (this.advancing || this.feeNavigating) {
                         return true;
                     }
                     if (this.resumeLoading) {
@@ -2861,13 +2906,11 @@ export function applyWizard(config) {
                         const school = (this.formRoot()?.querySelector('[name="product_question[school_name]"]')?.value || '').trim();
                         const docId = this.educationDocuments?.admission_fee_letter?.customer_document_id;
                         const dest = this.institutionPayment || {};
-                        const method = String(dest.method || '').trim();
-                        let destReady = false;
-                        if (method === 'bank') {
-                            destReady = !!(dest.bank_name && dest.account_name && dest.account_number);
-                        } else if (method === 'mobile_money') {
-                            destReady = !!(dest.mobile_provider && dest.account_name && dest.mobile_number);
+                        // Institution destination is bank-only and stays unverified until ops review.
+                        if (dest.method !== 'bank') {
+                            this.institutionPayment = { ...dest, method: 'bank', verified: false };
                         }
+                        const destReady = !!(dest.bank_name && dest.account_name && dest.account_number);
                         return !! school && !! docId && destReady;
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
@@ -3853,7 +3896,7 @@ export function applyWizard(config) {
                 },
 
                 async next() {
-                    if (this.advancing || this.resumeLoading) return;
+                    if (this.advancing || this.resumeLoading || this.feeNavigating) return;
                     if (this.guarantorInvitePreparing && this.stepKey === 'guarantor') return;
                     if (this.reviewContinue()) return;
                     if (! this.steps.length) {
@@ -3900,6 +3943,7 @@ export function applyWizard(config) {
                             await this.refreshApplicationFeeQuote();
                             if (! this.feeGateSatisfied()) {
                                 await this.payApplicationFee();
+                                // Navigating to payment.show — leave advancing locked.
                                 return;
                             }
                         }
@@ -3920,7 +3964,9 @@ export function applyWizard(config) {
                         }
                         this.scrollWizardIntoView();
                     } finally {
-                        this.advancing = false;
+                        if (! this.feeNavigating) {
+                            this.advancing = false;
+                        }
                     }
                 },
 

@@ -310,6 +310,7 @@ return [
         'continue' => 'Continue',
         'next' => 'Next',
         'continuing' => 'Continuing…',
+        'loading' => 'Loading…',
         'complete_editing' => 'Complete editing',
         'edit_hop_hint' => 'Change only this section, then tap Complete editing — you will not go through payments or the full application again.',
         'back' => '← Back',

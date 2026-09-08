@@ -19,19 +19,20 @@
         </button>
         <button type="button"
                 @click.prevent="next()"
-                :disabled="advancing || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor')"
-                x-show="advancing || (!feeGateOpen && !['signature', 'submit', 'application_fee'].includes(stepKey) && isCurrentStepReady())"
+                :disabled="advancing || feeNavigating || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor')"
+                x-show="advancing || feeNavigating || (!feeGateOpen && !['signature', 'submit', 'application_fee'].includes(stepKey) && isCurrentStepReady())"
                 class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 disabled:opacity-60 text-brand font-bold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
-            <span x-text="advancing
-                ? @js(__('borrower.apply.continuing'))
+            <span x-text="(advancing || feeNavigating)
+                ? @js(__('borrower.apply.loading'))
                 : ((guarantorInvitePreparing && stepKey === 'guarantor')
                 ? @js(__('borrower.apply.application_fee.processing'))
                 : (isEditHop()
                     ? @js(__('borrower.apply.complete_editing'))
                     : (stepKey === 'review' && reviewPage < reviewPageCount
                         ? @js(__('borrower.apply.review_step.next_page'))
-                        : @js(__('borrower.apply.next')))))"></span>
-            <svg x-show="!advancing" class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M8 4l6 6-6 6"/></svg>
+                        : @js(__('borrower.apply.continue')))))"></span>
+            <svg x-show="!(advancing || feeNavigating)" class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M8 4l6 6-6 6"/></svg>
+            <svg x-show="advancing || feeNavigating" x-cloak class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" class="opacity-25"/><path d="M21 12a9 9 0 00-9-9" class="opacity-90"/></svg>
         </button>
         <button type="button"
                 @click.prevent="signApplication()"

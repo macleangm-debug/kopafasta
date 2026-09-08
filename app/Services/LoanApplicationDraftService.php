@@ -549,7 +549,9 @@ class LoanApplicationDraftService
             ],
             [
                 'draft_reference' => $draftReference,
-                'asset_reservation_id' => $data['asset_reservation_id'] ?? null,
+                // Navigation / autosave must never detach a marketplace reservation.
+                // Only discard/clear may drop the FK; null/missing client values keep the existing one.
+                'asset_reservation_id' => ($data['asset_reservation_id'] ?? null) ?: $existing?->asset_reservation_id,
                 'phase' => $phase,
                 'step' => $step,
                 'payload' => $payload,

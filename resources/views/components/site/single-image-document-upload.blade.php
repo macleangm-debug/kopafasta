@@ -358,6 +358,9 @@
                         this.previewUrl = null;
                     }
                     this.emitPreview();
+                    window.dispatchEvent(new CustomEvent('kf-document-file', {
+                        detail: { hostId: this.hostId, fieldName: this.fieldName, file },
+                    }));
                     if (this.autoSubmit) {
                         this.submitClosestForm();
                     }

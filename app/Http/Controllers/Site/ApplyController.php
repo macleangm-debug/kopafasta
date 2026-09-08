@@ -96,6 +96,15 @@ class ApplyController extends Controller
         $preselect = $request->query('product');
         $preselectedProduct = null;
 
+        // Fee return / cancel must clear discard flags before any "no longer available" gate.
+        $feeReturnEarly = strtolower(trim((string) $request->query('fee_return', '')));
+        if ($feeReturnEarly === '' && $request->session()->get('kf_apply_fee_return') === 'paid') {
+            $feeReturnEarly = 'paid';
+        }
+        if ($preselect && $customer && in_array($feeReturnEarly, ['paid', 'cancel', 'failed', 'back', 'success'], true)) {
+            $drafts->forgetDiscard((int) $preselect);
+        }
+
         if ($preselect && $customer && $drafts->wasDiscarded((int) $preselect)) {
             if ($request->query('intent') === 'apply') {
                 $drafts->forgetDiscard((int) $preselect);
@@ -211,6 +220,17 @@ class ApplyController extends Controller
                 ->where('customer_id', $customer->id)
                 ->with('asset')
                 ->find($request->query('reservation'));
+        }
+        // Resume / Back-to-Quote without ?reservation= must still restore the linked reservation.
+        if (! $reservation && $customer && $preselectedProduct && is_marketplace_loan_product($preselectedProduct->code)) {
+            $existingAlDraft = $drafts->find($customer, (int) $preselectedProduct->id);
+            $linkedReservationId = app(ApplyFeeResumeService::class)->reservationIdFromDraft($existingAlDraft);
+            if ($linkedReservationId) {
+                $reservation = AssetReservation::query()
+                    ->where('customer_id', $customer->id)
+                    ->with('asset')
+                    ->find($linkedReservationId);
+            }
         }
         // Marketplace products normally need a reservation, but resume into an existing draft
         // must still open the wizard (Edit Quote / Continue) without bouncing to the marketplace.
@@ -1517,6 +1537,10 @@ class ApplyController extends Controller
             'code' => $code,
             'label' => $label,
             'view_url' => asset('storage/'.$path),
+            'file_name' => $request->file('file')->getClientOriginalName(),
+            'uploaded_at' => now()->format('d M Y, H:i'),
+            'is_pdf' => str_ends_with(strtolower($path), '.pdf'),
+            'verified' => false,
         ];
         $payload['education_documents'] = $educationDocuments;
         $draft->update(['payload' => $payload, 'saved_at' => now()]);

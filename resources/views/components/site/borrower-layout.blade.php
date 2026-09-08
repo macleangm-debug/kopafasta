@@ -172,7 +172,7 @@
     <div class="flex-1 flex flex-col min-h-screen min-w-0">
 
         {{-- Topbar (desktop) --}}
-        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-40 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16">
+        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-40 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16 w-full shrink-0">
             <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition">
                 ← {{ brand_name() }}
             </a>
