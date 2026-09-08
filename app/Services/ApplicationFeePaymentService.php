@@ -40,6 +40,9 @@ class ApplicationFeePaymentService
         ?array $draftPayload = null,
         ?LoanApplication $application = null,
     ): array {
+        // One authoritative draft view for every gate (wizard, resume, guarantor, group).
+        $draftPayload = $this->canonicalDraftPayloadForFee($customer, $product, $draftPayload);
+
         $groups = app(GroupLendingService::class);
         $isGroup = $groups->isGroupProduct($product);
         $memberCount = $isGroup
@@ -131,6 +134,59 @@ class ApplicationFeePaymentService
         return in_array($this->obligation($customer, $product, $draftPayload, $application)['status'], ['not_applicable', 'paid'], true);
     }
 
+    /**
+     * Canonical current-draft fee lookup inputs.
+     * Merges draft_reference + fee anchors from the DB draft so wizard, resume,
+     * guarantor, and group-member gates never diverge on partial payloads.
+     *
+     * @param  array<string, mixed>|null  $draftPayload
+     * @return array<string, mixed>
+     */
+    public function canonicalDraftPayloadForFee(
+        Customer $customer,
+        LoanProduct $product,
+        ?array $draftPayload = null,
+    ): array {
+        $payload = is_array($draftPayload) ? $draftPayload : [];
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        if (! $draft) {
+            return $payload;
+        }
+
+        $dbPayload = is_array($draft->payload) ? $draft->payload : [];
+
+        if (blank($payload['draft_reference'] ?? null) && filled($draft->draft_reference)) {
+            $payload['draft_reference'] = $draft->draft_reference;
+        } elseif (blank($payload['draft_reference'] ?? null) && filled($dbPayload['draft_reference'] ?? null)) {
+            $payload['draft_reference'] = $dbPayload['draft_reference'];
+        }
+
+        $incomingFee = is_array($payload['application_fee'] ?? null) ? $payload['application_fee'] : [];
+        $dbFee = is_array($dbPayload['application_fee'] ?? null) ? $dbPayload['application_fee'] : [];
+        $incomingHasCite = (int) ($incomingFee['payment_id'] ?? 0) > 0
+            || trim((string) ($incomingFee['reference'] ?? '')) !== '';
+        $dbHasCite = (int) ($dbFee['payment_id'] ?? 0) > 0
+            || trim((string) ($dbFee['reference'] ?? '')) !== '';
+
+        if ((! $incomingHasCite && $dbHasCite)
+            || (
+                in_array((string) ($dbFee['status'] ?? ''), ['paid', 'waived'], true)
+                && ! in_array((string) ($incomingFee['status'] ?? ''), ['paid', 'waived'], true)
+            )
+        ) {
+            $payload['application_fee'] = $dbFee;
+        }
+
+        if (! isset($payload['form']) && isset($dbPayload['form'])) {
+            $payload['form'] = $dbPayload['form'];
+        }
+        if (! isset($payload['group']) && isset($dbPayload['group'])) {
+            $payload['group'] = $dbPayload['group'];
+        }
+
+        return $payload;
+    }
+
     public function blocksWizardStep(string $stepKey): bool
     {
         return in_array($stepKey, [
@@ -172,16 +228,25 @@ class ApplicationFeePaymentService
             ?? ''
         ));
 
+        $settled = static fn (?CustomerPayment $p): bool => $p && in_array($p->status, ['paid', 'verified'], true);
+
         if ($paymentId > 0) {
             $found = (clone $query)->where('id', $paymentId)->first();
-
-            return $this->paymentBoundToCurrentObligation($found, $application, $draftReference, true) ? $found : null;
+            if ($this->paymentBoundToCurrentObligation($found, $application, $draftReference, true)) {
+                // Stale/failed citation must not hide a verified payment for this draft.
+                if ($settled($found) || $draftReference === '') {
+                    return $found;
+                }
+            }
         }
 
         if ($reference !== '') {
             $found = (clone $query)->where('reference', $reference)->first();
-
-            return $this->paymentBoundToCurrentObligation($found, $application, $draftReference, true) ? $found : null;
+            if ($this->paymentBoundToCurrentObligation($found, $application, $draftReference, true)) {
+                if ($settled($found) || $draftReference === '') {
+                    return $found;
+                }
+            }
         }
 
         if ($application) {
@@ -196,10 +261,14 @@ class ApplicationFeePaymentService
         }
 
         if ($draftReference !== '') {
-            return (clone $query)
+            $byDraft = (clone $query)
                 ->where('provider_meta->apply_context->draft_reference', $draftReference)
                 ->latest('id')
-                ->first();
+                ->get();
+
+            $paid = $byDraft->first(fn (CustomerPayment $p) => in_array($p->status, ['paid', 'verified'], true));
+
+            return $paid ?: $byDraft->first();
         }
 
         // No draft/application binding → fresh obligation (do not inherit orphans).

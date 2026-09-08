@@ -786,13 +786,10 @@ class ApplyController extends Controller
         $guarantors = app(GuarantorInvitationService::class);
         $normalizedPhone = $guarantors->normalizePhone($data['phone']);
         if ($existingMember = $guarantors->findMemberCustomerByPhone($normalizedPhone)) {
-            $existingName = trim(($existingMember->first_name ?? '').' '.($existingMember->last_name ?? ''));
-
             return response()->json([
                 'ok' => false,
                 'code' => 'already_member',
-                'message' => __('borrower.apply.group.lookup_is_member', ['name' => $existingName]),
-                'name' => $existingName,
+                'message' => __('borrower.apply.group_members.already_member_phone_conflict'),
                 'phone' => $existingMember->phone ?: $normalizedPhone,
             ], 422);
         }
@@ -2679,14 +2676,17 @@ class ApplyController extends Controller
             return;
         }
 
-        $draft = app(LoanApplicationDraftService::class)->find($customer, $productId);
-        $obligation = app(ApplicationFeePaymentService::class)->obligation(
-            $customer,
-            $product,
-            $draft?->payload,
-        );
+        $fees = app(ApplicationFeePaymentService::class);
+        // Sync verified payment into the draft before the gate — same authority as the wizard.
+        $fees->syncDraftFromVerifiedPayment($customer, $product);
 
-        if (in_array($obligation['status'], ['not_applicable', 'paid'], true)) {
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $productId);
+        $payload = is_array($draft?->payload) ? $draft->payload : [];
+        if ($draft?->draft_reference) {
+            $payload['draft_reference'] = $draft->draft_reference;
+        }
+
+        if ($fees->isSatisfiedFor($customer, $product, $payload)) {
             return;
         }
 

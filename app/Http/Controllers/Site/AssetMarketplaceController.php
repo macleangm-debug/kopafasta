@@ -145,8 +145,7 @@ class AssetMarketplaceController extends Controller
             ->route('site.borrower.apply', [
                 'product' => $productCode,
                 'reservation' => $reservation->id,
-            ])
-            ->with('status', __('borrower.marketplace.started'));
+            ]);
     }
 
     public function reserve(Request $request, string $assetId): RedirectResponse

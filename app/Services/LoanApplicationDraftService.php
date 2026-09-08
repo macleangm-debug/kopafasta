@@ -140,13 +140,29 @@ class LoanApplicationDraftService
         } else {
             $amount = (float) ($form['requested_amount'] ?? 0);
             $purpose = trim((string) ($form['purpose'] ?? ''));
+            if ($purpose === '' && $product->hasFixedPurpose()) {
+                $purpose = (string) $product->fixedPurposeKey();
+            }
             $tenure = (int) ($form['requested_tenure_months'] ?? 0);
             if ($amount < 1000 || $purpose === '' || $tenure < 1) {
                 $forcedKey = 'quote';
             }
         }
 
-        if ($forcedKey) {
+        $feeService = app(ApplicationFeePaymentService::class);
+        $feeSatisfied = $customer
+            ? $feeService->isSatisfiedFor($customer, $product, $payload)
+            : false;
+        $resumeKey = (string) ($wizardSteps[$resumeIndex]['key'] ?? $payload['step_key'] ?? '');
+        $setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members'];
+        $postFeeResume = $resumeKey !== ''
+            && (
+                $feeService->blocksWizardStep($resumeKey)
+                || ! in_array($resumeKey, $setupKeys, true)
+            );
+
+        // Verified fee already unlocked a post-fee stage — do not rewind to Collateral/Group Setup/Quote.
+        if ($forcedKey && ! ($feeSatisfied && $postFeeResume)) {
             $forcedIndex = $wizardSteps->search(fn (array $step) => ($step['key'] ?? '') === $forcedKey);
             if ($forcedIndex === false) {
                 return 0;
@@ -156,19 +172,15 @@ class LoanApplicationDraftService
 
         // Unpaid application fee: do not resume on guarantor/review/submit.
         // Land on the last setup step so the wizard opens the shared fee → payments.show gate (IL path).
-        if ($customer) {
-            $feeDue = ! app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $payload);
-            if ($feeDue) {
-                $setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members'];
-                $lastSetupIndex = null;
-                foreach ($wizardSteps as $i => $step) {
-                    if (in_array($step['key'] ?? '', $setupKeys, true)) {
-                        $lastSetupIndex = (int) $i;
-                    }
+        if ($customer && ! $feeSatisfied) {
+            $lastSetupIndex = null;
+            foreach ($wizardSteps as $i => $step) {
+                if (in_array($step['key'] ?? '', $setupKeys, true)) {
+                    $lastSetupIndex = (int) $i;
                 }
-                if ($lastSetupIndex !== null && $resumeIndex > $lastSetupIndex) {
-                    return $lastSetupIndex;
-                }
+            }
+            if ($lastSetupIndex !== null && $resumeIndex > $lastSetupIndex) {
+                return $lastSetupIndex;
             }
         }
 
@@ -179,11 +191,14 @@ class LoanApplicationDraftService
     private function formatPayload(Customer $customer, LoanApplicationDraft $draft): array
     {
         $payload = $draft->payload ?? [];
+        $draftReference = $draft->draft_reference
+            ?: ($payload['draft_reference'] ?? null);
 
         return [
             'phase' => $draft->phase,
             'step' => (int) $draft->step,
             'step_key' => $payload['step_key'] ?? null,
+            'draft_reference' => $draftReference,
             'application_started' => (bool) ($payload['application_started'] ?? $draft->phase === 'application'),
             'resume_target' => $this->resumeTarget($customer, $draft),
             'loan_product_id' => $draft->loan_product_id,
@@ -459,6 +474,48 @@ class LoanApplicationDraftService
         if (! $draftReference && $product) {
             $draftReference = app(ReferenceNumberService::class)->applicationReference($product);
             $payload['draft_reference'] = $draftReference;
+        }
+
+        // Locked product purpose is authoritative — persist before fee/resume gates run.
+        if ($product?->hasFixedPurpose()) {
+            $fixed = (string) $product->fixedPurposeKey();
+            $form = is_array($payload['form'] ?? null) ? $payload['form'] : [];
+            $form['purpose'] = $fixed;
+            $form['purpose_other'] = '';
+            $payload['form'] = $form;
+            if (is_array($payload['group'] ?? null)) {
+                $payload['group']['purpose'] = $fixed;
+            }
+        }
+
+        // Never let a stale client fee state wipe a verified current-draft payment.
+        // Do not call syncDraftFromVerifiedPayment here — that also advances the step and
+        // would break intentional Back-to-Quote while the fee remains paid.
+        if ($product) {
+            $fees = app(ApplicationFeePaymentService::class);
+            $existingFee = is_array($existing?->payload['application_fee'] ?? null)
+                ? $existing->payload['application_fee']
+                : null;
+            $incomingFee = is_array($payload['application_fee'] ?? null) ? $payload['application_fee'] : null;
+            $existingPaid = in_array((string) ($existingFee['status'] ?? ''), ['paid', 'waived'], true);
+            $incomingPaid = in_array((string) ($incomingFee['status'] ?? ''), ['paid', 'waived'], true);
+            if ($existingPaid && ! $incomingPaid) {
+                $payload['application_fee'] = $existingFee;
+            } elseif (! $incomingPaid && $fees->isSatisfiedFor($customer, $product, $payload)) {
+                $payment = $fees->obligation($customer, $product, $payload)['payment'] ?? null;
+                if ($payment && in_array($payment->status, ['paid', 'verified'], true)) {
+                    $payload['application_fee'] = [
+                        'status' => 'paid',
+                        'reference' => $payment->reference,
+                        'payment_id' => $payment->id,
+                        'channel' => $payment->payment_method === 'mobile_money' ? 'mobile_money' : 'bank',
+                        'amount' => (int) round((float) $payment->amount),
+                        'paid_at' => ($payment->paid_at ?? now())->toIso8601String(),
+                    ];
+                } elseif ($existingPaid) {
+                    $payload['application_fee'] = $existingFee;
+                }
+            }
         }
 
         $step = (int) ($data['step'] ?? 0);

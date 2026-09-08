@@ -132,6 +132,7 @@ export function applyWizard(config) {
                 showProfileReadyModal: false,
                 showMembershipGateModal: false,
                 showAlreadyMemberModal: false,
+                showAlreadyMemberInline: false,
                 alreadyMemberModal: { name: '', phone: '' },
                 openProfileGateOnLoad: !!(config.openProfileGateOnLoad),
                 openProfileReadyOnLoad: !!(config.openProfileReadyOnLoad),
@@ -1750,7 +1751,7 @@ export function applyWizard(config) {
                         const data = await res.json();
                         if (! res.ok || ! data.ok) {
                             if (data.code === 'already_member') {
-                                this.openAlreadyMemberModal(data);
+                                this.openAlreadyMemberInline(data);
                                 return;
                             }
                             this.groupLookupError = data.message || this.i18n.group.lookupNotFound;
@@ -1780,17 +1781,24 @@ export function applyWizard(config) {
                     }
                 },
 
-                openAlreadyMemberModal(data = {}) {
+                openAlreadyMemberInline(data = {}) {
                     this.groupLookupError = '';
                     this.alreadyMemberModal = {
-                        name: data.name || '',
+                        name: '',
                         phone: String(data.phone || this.groupExternal.phone || '').replace(/\D/g, ''),
                     };
-                    this.showAlreadyMemberModal = true;
+                    this.showAlreadyMemberModal = false;
+                    this.showAlreadyMemberInline = true;
+                },
+
+                openAlreadyMemberModal(data = {}) {
+                    // Legacy name — phone conflicts use inline feedback only.
+                    this.openAlreadyMemberInline(data);
                 },
 
                 dismissAlreadyMemberModal() {
                     this.showAlreadyMemberModal = false;
+                    this.showAlreadyMemberInline = false;
                     this.alreadyMemberModal = { name: '', phone: '' };
                 },
 
@@ -2200,6 +2208,11 @@ export function applyWizard(config) {
                  */
                 clampToIncompleteSetup() {
                     if (this.supplementMode || this.isEditHop()) return;
+                    // Verified fee already unlocked a post-fee stage — do not rewind setup.
+                    const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'];
+                    if (this.feeGateSatisfied() && postFeeKeys.includes(this.stepKey)) {
+                        return;
+                    }
                     const keys = (this.steps || []).map(s => s.key);
                     let forced = null;
 
@@ -2234,6 +2247,7 @@ export function applyWizard(config) {
                             forced = 'asset_tenure';
                         }
                     } else if (this.hasStep('quote')) {
+                        this.applyFixedPurposeFromProduct();
                         const amount = Number(this.form.requested_amount || 0);
                         const purpose = (this.form.purpose || '').trim();
                         const tenure = Number(this.form.requested_tenure_months || 0);
@@ -2245,7 +2259,7 @@ export function applyWizard(config) {
                     if (! forced || ! keys.includes(forced)) return;
                     const forcedIndex = keys.indexOf(forced);
                     const currentIndex = Math.max(0, keys.indexOf(this.stepKey));
-                    if (forcedIndex < currentIndex || ! this.stepKey || ['guarantor', 'review', 'submit', 'signature'].includes(this.stepKey)) {
+                    if (forcedIndex < currentIndex || ! this.stepKey || ['guarantor', 'review', 'submit', 'signature', 'education_details'].includes(this.stepKey)) {
                         this.step = forcedIndex;
                         this.furthestStep = Math.min(this.furthestStep || 0, forcedIndex);
                         this.syncStepKey();
@@ -2662,6 +2676,7 @@ export function applyWizard(config) {
                         return true;
                     }
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
+                        // Locked product purpose must count as complete before readiness runs.
                         this.applyFixedPurposeFromProduct();
                         if (this.isGroupProduct(this.current)) {
                             if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) return false;

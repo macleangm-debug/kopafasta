@@ -334,5 +334,16 @@
         </div>
 
         <p x-show="groupLookupError" x-cloak class="text-sm text-red-700" x-text="groupLookupError"></p>
+        <div x-show="showAlreadyMemberInline" x-cloak
+             class="mt-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3"
+             role="status">
+            <p class="text-sm font-semibold text-amber-950">{{ __('borrower.apply.group_members.already_member_title') }}</p>
+            <p class="mt-1 text-sm text-amber-900/90 leading-relaxed">{{ __('borrower.apply.group_members.already_member_body') }}</p>
+            <button type="button"
+                    @click="switchToMemberSearchFromModal()"
+                    class="mt-3 inline-flex text-sm font-bold text-brand underline underline-offset-2 hover:text-brand-light">
+                {{ __('borrower.apply.group_members.already_member_switch') }}
+            </button>
+        </div>
     </div>
 </div>
