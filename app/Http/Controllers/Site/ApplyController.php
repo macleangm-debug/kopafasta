@@ -20,6 +20,7 @@ use App\Services\ApplicationFeePaymentService;
 use App\Services\ApplicationOfferService;
 use App\Services\ApplicationRequirementsService;
 use App\Services\ApplicationTrackingShareService;
+use App\Services\ApplyFeeResumeService;
 use App\Services\AssetBackedApplyService;
 use App\Services\AssetBackedLoanService;
 use App\Services\AssetReservationService;
@@ -358,8 +359,7 @@ class ApplyController extends Controller
             return redirect()->route('site.borrower.loan-products');
         }
 
-        // Sync verified fee payment BEFORE honouring ?step_key=… so resume does not
-        // briefly reopen the unpaid fee/quote step (payment-success flicker root cause).
+        // Sync verified fee, then resolve ONE destination for progress + body.
         if ($selectedProduct && ! $supplementMode) {
             $syncedFee = app(ApplicationFeePaymentService::class)
                 ->syncDraftFromVerifiedPayment($customer, $selectedProduct);
@@ -374,53 +374,54 @@ class ApplyController extends Controller
             }
         }
 
-        if ($isResume && $savedDraft) {
+        if ($isResume && $savedDraft && $selectedProduct && ! $supplementMode) {
+            $resume = app(ApplyFeeResumeService::class);
+            // Payment-continuation handshake (session) counts as verified return even if
+            // the query string lost fee_return during a redirect hop.
+            $feeReturn = strtolower(trim((string) $request->query('fee_return', '')));
+            if ($feeReturn === '' && $request->session()->pull('kf_apply_fee_return') === 'paid') {
+                $request->query->set('fee_return', 'paid');
+                $feeReturn = 'paid';
+            }
+            // Active payment return must never treat the draft as discarded.
+            if (in_array($feeReturn, ['paid', 'cancel', 'failed', 'back'], true)) {
+                $drafts->forgetDiscard((int) $selectedProduct->id);
+            }
+            $resolved = $resume->resolveFromRequest(
+                $request,
+                $customer,
+                $selectedProduct,
+                is_array($savedDraft) ? $savedDraft : [],
+            );
+            $savedDraft = $resume->applyToSavedDraft($savedDraft, $resolved, $customer, $selectedProduct);
+
+            // Persist the resolved post-payment step so the next plain resume agrees.
+            if (($resolved['intent'] ?? '') === ApplyFeeResumeService::INTENT_PAID) {
+                $drafts->advancePastApplicationFee(
+                    $customer,
+                    $selectedProduct->id,
+                    $resolved['step_key'],
+                );
+            } elseif (! empty($resolved['asset_substep'])) {
+                $originDraft = $drafts->find($customer, $selectedProduct->id);
+                if ($originDraft) {
+                    $payload = is_array($originDraft->payload) ? $originDraft->payload : [];
+                    $form = is_array($payload['form'] ?? null) ? $payload['form'] : [];
+                    $form['asset_substep'] = (int) $resolved['asset_substep'];
+                    $payload['form'] = $form;
+                    $payload['asset_substep'] = (int) $resolved['asset_substep'];
+                    $payload['step_key'] = $resolved['step_key'];
+                    $originDraft->fill(['payload' => $payload, 'saved_at' => now()])->save();
+                }
+            }
+        } elseif ($isResume && $savedDraft) {
             $target = $savedDraft['resume_target'] ?? [];
             if ($request->filled('phase')) {
                 $target['phase'] = (string) $request->query('phase');
             }
             if ($request->filled('step_key')) {
-                $requestedKey = (string) $request->query('step_key');
-                $feeBlocks = $selectedProduct
-                    && ! $supplementMode
-                    && app(ApplicationFeePaymentService::class)->blocksWizardStep($requestedKey)
-                    && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor(
-                        $customer,
-                        $selectedProduct,
-                        is_array($savedDraft) ? $savedDraft : [],
-                    );
-                if ($feeBlocks) {
-                    // Unpaid obligation: ignore manipulated step_key and stay on setup/fee gate.
-                    $setupKey = app(LoanApplicationDraftService::class)
-                        ->lastSetupStepKeyForProduct($selectedProduct) ?: 'quote';
-                    $target['step_key'] = $setupKey;
-                    $target['phase'] = 'application';
-                } else {
-                    $target['step_key'] = $requestedKey;
-                    $target['phase'] = $target['phase'] ?? 'application';
-                }
-            } elseif (
-                $selectedProduct
-                && ! $supplementMode
-                && app(ApplicationFeePaymentService::class)->isSatisfiedFor(
-                    $customer,
-                    $selectedProduct,
-                    is_array($savedDraft) ? $savedDraft : [],
-                )
-            ) {
-                // Fee already verified: never demote an advanced payload step back to Quote
-                // just because resume_target was clamped before draft_reference was merged.
-                $setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members', 'application_fee'];
-                $payloadKey = (string) ($savedDraft['step_key'] ?? '');
-                $targetKey = (string) ($target['step_key'] ?? '');
-                if ($payloadKey !== '' && ! in_array($payloadKey, $setupKeys, true)) {
-                    $target['step_key'] = $payloadKey;
-                    $target['phase'] = 'application';
-                } elseif ($targetKey === '' || in_array($targetKey, $setupKeys, true)) {
-                    $target['step_key'] = app(ApplicationFeePaymentService::class)
-                        ->nextStepAfterApplicationFee($customer, $selectedProduct, is_array($savedDraft) ? $savedDraft : []);
-                    $target['phase'] = 'application';
-                }
+                $target['step_key'] = (string) $request->query('step_key');
+                $target['phase'] = $target['phase'] ?? 'application';
             }
             if ($request->filled('step')) {
                 $target['step'] = (int) $request->query('step');

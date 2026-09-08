@@ -454,24 +454,33 @@ class ApplicationFeePaymentService
      */
     public function resumeUrlAfterFee(Customer $customer, LoanProduct $product, ?array $draftPayload = null, ?string $stepKey = null): string
     {
-        $next = $stepKey ?: $this->nextStepAfterApplicationFee($customer, $product, $draftPayload);
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        $reservationId = app(ApplyFeeResumeService::class)->reservationIdFromDraft($draft);
 
-        return route('site.borrower.apply', [
-            'product' => $product->id,
-            'resume' => 1,
-            'step_key' => $next,
-        ]);
+        return app(ApplyFeeResumeService::class)->resumeUrlAfterFee(
+            $customer,
+            $product,
+            $draftPayload,
+            $stepKey,
+            $reservationId,
+        );
     }
 
     public function quoteResumeUrl(Customer $customer, LoanProduct $product): string
     {
-        $setup = app(LoanApplicationDraftService::class)->lastSetupStepKeyForProduct($product);
+        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        $payload = is_array($draft?->payload) ? $draft->payload : [];
+        if ($draft?->draft_reference) {
+            $payload['draft_reference'] = $draft->draft_reference;
+        }
+        $reservationId = app(ApplyFeeResumeService::class)->reservationIdFromDraft($draft);
 
-        return route('site.borrower.apply', [
-            'product' => $product->id,
-            'resume' => 1,
-            'step_key' => $setup ?: 'quote',
-        ]);
+        return app(ApplyFeeResumeService::class)->cancelResumeUrl(
+            $customer,
+            $product,
+            $payload,
+            $reservationId,
+        );
     }
 
     /**

@@ -203,6 +203,7 @@ class LoanApplicationDraftService
             'resume_target' => $this->resumeTarget($customer, $draft),
             'loan_product_id' => $draft->loan_product_id,
             'asset_reservation_id' => $draft->asset_reservation_id,
+            'asset_substep' => $payload['asset_substep'] ?? data_get($payload, 'form.asset_substep'),
             'form' => $payload['form'] ?? [],
             'inputs' => $payload['inputs'] ?? [],
             'guarantor_lookup' => $payload['guarantor_lookup'] ?? null,
@@ -342,6 +343,15 @@ class LoanApplicationDraftService
         return 'quote';
     }
 
+    /**
+     * Wizard step where Continue opens the application-fee payment gate.
+     * Cancel/failed payment returns here — never to earlier unfinished pre-Quote screens.
+     */
+    public function feeOriginStepKeyForProduct(LoanProduct $product): string
+    {
+        return $this->lastSetupStepKeyForProduct($product);
+    }
+
     /** @param  array<string, mixed>  $payload */
     public function shouldClampToFeeGate(Customer $customer, LoanProduct $product, array $payload): bool
     {
@@ -461,6 +471,9 @@ class LoanApplicationDraftService
                 ? (bool) $data['declaration_accepted']
                 : (bool) ($existing?->payload['declaration_accepted'] ?? false),
             'group' => $data['group'] ?? ($existing?->payload['group'] ?? null),
+            'asset_substep' => $data['asset_substep']
+                ?? data_get($data, 'form.asset_substep')
+                ?? ($existing?->payload['asset_substep'] ?? null),
         ];
 
         $product = LoanProduct::find((int) $productId);

@@ -263,9 +263,14 @@ export function applyWizard(config) {
                         if (this.isGroupProduct(product)) {
                             this.group.purpose = product.fixed_purpose;
                         }
+                        this.syncPurposeHidden();
                         return true;
                     }
                     return false;
+                },
+
+                hasFixedPurpose(product = this.current) {
+                    return !!(product?.purpose_mode === 'fixed' && product?.fixed_purpose);
                 },
 
                 districtsForRegion() {
@@ -383,7 +388,7 @@ export function applyWizard(config) {
                             this.showProfileReadyModal = true;
                         });
                     }
-                    if (this.reservationMode && this.assetApplication) {
+                    if (this.reservationMode && this.assetApplication && ! config.savedDraft) {
                         this.beginReservationApplication();
                         return;
                     }
@@ -456,6 +461,7 @@ export function applyWizard(config) {
                         borrower_signature: this.borrowerSignature,
                         declaration_accepted: this.declarationAccepted,
                         group: this.group,
+                        asset_substep: this.assetSubstep || null,
                         supplement_mode: !!this.supplementMode,
                         supplement_application_id: this.supplementApplicationId || null,
                     };
@@ -1248,13 +1254,19 @@ export function applyWizard(config) {
                     // draft resume_target so we never paint the previous fee/quote step first.
                     // Cancel/Stop also uses resume+step_key=quote — that must NOT fake a paid fee.
                     this._postPaymentContinue = false;
+                    let feeReturnIntent = null;
                     try {
                         const params = new URLSearchParams(location.search);
                         const urlStep = params.get('step_key');
                         const isResume = params.get('resume') === '1' || this.isResume;
+                        feeReturnIntent = (params.get('fee_return') || '').toLowerCase();
                         if (isResume && urlStep) {
                             target.step_key = urlStep;
                             target.phase = 'application';
+                        }
+                        const urlSubstep = parseInt(params.get('asset_substep') || '', 10);
+                        if (urlSubstep >= 1 && urlSubstep <= 3) {
+                            this.assetSubstep = urlSubstep;
                         }
                         const cont = typeof window.kfConsumePaymentContinuation === 'function'
                             ? window.kfConsumePaymentContinuation('/borrower/apply')
@@ -1270,9 +1282,12 @@ export function applyWizard(config) {
                         // Only a real payment-continuation handshake may assume the fee settled.
                         if (cont) {
                             this._postPaymentContinue = true;
+                            feeReturnIntent = feeReturnIntent || 'paid';
                             try {
                                 const contUrl = new URL(cont, window.location.origin);
                                 const contStep = contUrl.searchParams.get('step_key');
+                                const contFee = (contUrl.searchParams.get('fee_return') || '').toLowerCase();
+                                if (contFee) feeReturnIntent = contFee;
                                 if (contStep) {
                                     target.step_key = contStep;
                                     target.phase = 'application';
@@ -1283,6 +1298,17 @@ export function applyWizard(config) {
                         }
                     } catch (e) {
                         // ignore
+                    }
+
+                    // Server resume_target is authoritative when it already resolved paid → next step.
+                    if (draft.resume_target?.step_key
+                        && (feeReturnIntent === 'paid' || draft.resume_target?.intent === 'paid'
+                            || this._postPaymentContinue)) {
+                        target.step_key = draft.resume_target.step_key;
+                        target.phase = 'application';
+                        if (typeof draft.resume_target.step === 'number') {
+                            target.step = draft.resume_target.step;
+                        }
                     }
 
                     this.current = product;
@@ -1297,6 +1323,16 @@ export function applyWizard(config) {
                     }
                     this.applyFixedPurposeFromProduct(product);
                     this.purposeEditing = this.purposeNeedsDetail();
+                    const draftSubstep = parseInt(
+                        draft.asset_substep
+                        || draft.form?.asset_substep
+                        || this.assetSubstep
+                        || 0,
+                        10
+                    );
+                    if (draftSubstep >= 1 && draftSubstep <= 3) {
+                        this.assetSubstep = draftSubstep;
+                    }
                     if (draft.inputs) {
                         this.restoreFormInputs(draft.inputs);
                         [
@@ -1380,23 +1416,24 @@ export function applyWizard(config) {
                         this.phase = 'application';
                         this.rebuildSteps(resumeKey);
                         const viewStep = this.resolveStepIndex(resumeKey, resumeStep);
-                        const savedKey = draft.step_key || '';
-                        const savedStep = this.resolveStepIndex(savedKey, resumeStep ?? 0);
-                        // Progress and body must share one resolved index — never promote a raw
-                        // draft.step that disagrees with the resume destination (Quote flicker).
-                        let furthest = Math.max(viewStep, savedStep);
-                        this.furthestStep = furthest;
+                        // Progress and body share one resolved index from the server resume target.
+                        this.furthestStep = viewStep;
                         this.step = viewStep;
                         this.updateQuote();
                         this.syncStepKey();
                         // After fee payment, resume lands on guarantor/review/… — do not clamp back to quote.
                         const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'];
-                        if (! postFeeKeys.includes(resumeKey)) {
+                        const paidLanding = feeReturnIntent === 'paid'
+                            || this._postPaymentContinue
+                            || draft.resume_target?.intent === 'paid'
+                            || postFeeKeys.includes(resumeKey);
+                        if (! paidLanding) {
                             this.clampToIncompleteSetup();
                         }
                         // Paid continuation: never re-open fee gate or snap back to Quote.
-                        if (paidContinue || postFeeKeys.includes(resumeKey)) {
+                        if (paidLanding || paidContinue) {
                             this.feeGateOpen = false;
+                            this.applicationFeePaid = this.feeGateSatisfied() || paidContinue || feeReturnIntent === 'paid';
                         } else {
                             this.enforceStepRequirements(this.isResume);
                         }
@@ -2635,6 +2672,10 @@ export function applyWizard(config) {
                     if (! code || ! this.productQuestions?.[code]?.fields?.length) {
                         return true;
                     }
+                    // Fixed-purpose products already satisfy purpose before DOM hydration.
+                    if (this.hasFixedPurpose()) {
+                        this.applyFixedPurposeFromProduct();
+                    }
                     const root = this.formRoot?.() || document.getElementById('apply-wizard');
                     if (! root || ! window.KopaFastaForm) {
                         return true;
@@ -2677,15 +2718,18 @@ export function applyWizard(config) {
                     }
                     if (this.stepKey === 'quote' && this.hasStep('quote')) {
                         // Locked product purpose must count as complete before readiness runs.
-                        this.applyFixedPurposeFromProduct();
+                        if (this.hasFixedPurpose()) {
+                            this.applyFixedPurposeFromProduct();
+                        }
                         if (this.isGroupProduct(this.current)) {
                             if (! this.group.amount_per_member || Number(this.group.amount_per_member) < this.groupAmountPerMemberMin()) return false;
-                            if (! this.group.purpose) return false;
+                            if (! (this.group.purpose || (this.hasFixedPurpose() && this.current.fixed_purpose))) return false;
                             if (this.purposeNeedsDetail()) return false;
                             if (! this.form.requested_tenure_months) return false;
                             return true;
                         }
-                        if (! this.form.purpose) return false;
+                        const purposeReady = !!(this.form.purpose || (this.hasFixedPurpose() && this.current.fixed_purpose));
+                        if (! purposeReady) return false;
                         if (this.purposeNeedsDetail()) return false;
                         if (! this.quoteProductQuestionsReady()) return false;
                         return true;

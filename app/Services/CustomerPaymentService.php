@@ -1490,6 +1490,13 @@ class CustomerPaymentService
                     filled($nextStep) ? $nextStep : null,
                 );
             }
+
+            // Mark the next apply resume as a verified payment return (not Back-to-Quote).
+            try {
+                session(['kf_apply_fee_return' => 'paid']);
+            } catch (\Throwable) {
+                // CLI / queue contexts have no session.
+            }
         }
 
         if (! empty($ctx['settled'])) {
