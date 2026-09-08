@@ -160,12 +160,20 @@
             this.open = false;
             this.desktopOpen = false;
             this.pickerMode = 'calendar';
+            this.$nextTick(() => {
+                this.$el.querySelector('input[type=hidden]')?.dispatchEvent(new Event('change', { bubbles: true }));
+                this.$el.querySelector('input[type=hidden]')?.dispatchEvent(new Event('input', { bubbles: true }));
+            });
         },
         clear() {
             this.value = '';
             this.open = false;
             this.desktopOpen = false;
             this.pickerMode = 'calendar';
+            this.$nextTick(() => {
+                this.$el.querySelector('input[type=hidden]')?.dispatchEvent(new Event('change', { bubbles: true }));
+                this.$el.querySelector('input[type=hidden]')?.dispatchEvent(new Event('input', { bubbles: true }));
+            });
         },
         shiftMonth(delta) {
             let m = this.viewMonth + delta;

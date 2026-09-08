@@ -984,6 +984,10 @@ export function applyWizard(config) {
                 },
 
                 toggleCustomerAsset(id) {
+                    const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
+                    if (asset && asset.selectable === false && ! this.isCustomerAssetSelected(id)) {
+                        return;
+                    }
                     const key = String(id);
                     let ids = this.selectedCustomerAssetIds().slice();
                     if (ids.includes(key)) {
@@ -994,6 +998,22 @@ export function applyWizard(config) {
                     this.form.customer_asset_ids = ids.map(v => Number(v) || v);
                     this.form.customer_asset_id = ids[0] || '';
                     this.applyExistingAsset();
+                },
+
+                assetIncompleteProfileUrl(asset) {
+                    if (! asset?.id) return this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
+                    const base = this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
+                    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                    return base + (base.includes('?') ? '&' : '?')
+                        + 'edit=' + encodeURIComponent(asset.id)
+                        + '&return_to=' + returnUrl;
+                },
+
+                assetIncompleteHint(asset) {
+                    const code = asset?.incomplete;
+                    const map = this.i18n?.assetDetails?.incompleteHints || {};
+                    return map[code] || this.i18n?.assetDetails?.completeInProfile
+                        || 'Complete this asset on your profile, then return to this draft.';
                 },
 
                 selectedCustomerAsset() {
@@ -3079,11 +3099,11 @@ export function applyWizard(config) {
                     if (this.stepKey === 'asset_details' && this.hasStep('asset_details')) {
                         void this.assetSubstep;
                         if (! this.customerAssets?.length || ! this.selectedCustomerAssetIds()?.length) return false;
-                        const missingInsurance = this.selectedCustomerAssetIds().some((id) => {
+                        const incompleteSelected = this.selectedCustomerAssetIds().some((id) => {
                             const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
-                            return asset && asset.asset_type === 'vehicle' && ! asset.has_insurance;
+                            return asset && (asset.incomplete || asset.selectable === false);
                         });
-                        if (missingInsurance) return false;
+                        if (incompleteSelected) return false;
                         if (this.assetSubstep <= 1) return true;
                         if (! this.form.requested_amount || this.form.requested_amount < (this.current?.min || 1000)) return false;
                         if (this.current && this.form.requested_amount > this.current.max) return false;
@@ -3936,13 +3956,16 @@ export function applyWizard(config) {
                             showWizardFeedback(this.i18n.assetDetails.assetRequired);
                             return false;
                         }
-                        const missingInsuranceId = this.selectedCustomerAssetIds().find((id) => {
+                        const incompleteId = this.selectedCustomerAssetIds().find((id) => {
                             const asset = (this.customerAssets || []).find(a => String(a.id) === String(id));
-                            return asset && asset.asset_type === 'vehicle' && ! asset.has_insurance;
+                            return asset && (asset.incomplete || asset.selectable === false);
                         });
-                        if (missingInsuranceId) {
+                        if (incompleteId) {
                             const base = this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
-                            window.location = base + (base.includes('?') ? '&' : '?') + 'edit=' + encodeURIComponent(missingInsuranceId) + '&focus=insurance';
+                            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                            window.location = base + (base.includes('?') ? '&' : '?')
+                                + 'edit=' + encodeURIComponent(incompleteId)
+                                + '&return_to=' + returnUrl;
                             return false;
                         }
                         if (this.assetSubstep <= 1) return true;

@@ -140,8 +140,8 @@
         </div>
         <div class="space-y-3">
             <template x-for="(member, index) in (group.members || [])" :key="'gm-' + index + '-c' + (member.customer_id || 0) + '-i' + (member.invitation_id || 0)">
-                <div class="rounded-2xl bg-white ring-1 shadow-sm overflow-hidden"
-                     :class="member.role === 'leader' ? 'ring-brand/20' : 'ring-gray-200/80'">
+                <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
+                    <div class="h-1 w-full bg-gradient-to-r from-brand via-brand to-brand-gold/80" aria-hidden="true"></div>
                     <button type="button"
                             class="w-full text-left px-4 py-4 sm:px-5 sm:py-4"
                             @click="member.role !== 'leader' && (member._open = !member._open)">
@@ -154,11 +154,11 @@
                                 <div class="flex flex-wrap items-center gap-1.5">
                                     <p class="font-bold text-sm sm:text-base text-gray-900 truncate" x-text="member.name"></p>
                                     <span x-show="member.role === 'leader'"
-                                          class="inline-flex items-center rounded-full bg-gray-900 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                          class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
                                         {{ __('borrower.apply.group_members.leader_badge') }}
                                     </span>
                                     <span x-show="member.role !== 'leader'"
-                                          class="inline-flex items-center rounded-full bg-gray-50 text-gray-700 ring-1 ring-gray-200 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                          class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
                                         {{ __('borrower.apply.group_members.member_badge') }}
                                     </span>
                                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1"
@@ -177,7 +177,7 @@
                                     x-show="member.share?.short_url || member.share?.invitation_url || member.share?.whatsapp_url || member.share?.share_text"
                                     x-cloak
                                     @click="openGroupMemberShare(member)"
-                                    class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                    class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm shadow-sm shadow-brand/15">
                                 {{ __('borrower.apply.guarantor_fields.share_invitation') }}
                             </button>
                             <button type="button" @click="removeGroupMember(index)"

@@ -36,7 +36,9 @@
                 </button>
             </div>
 
-            <div x-show="agroTab === 'overview'" x-cloak class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-5">
+            <div x-show="agroTab === 'overview'" x-cloak class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-5"
+                 @change="scheduleDraftSave()"
+                 @profile-select="scheduleDraftSave()">
                 <div class="grid sm:grid-cols-2 gap-4 sm:gap-x-5 sm:gap-y-5 sm:items-start">
                     @foreach ($overviewFields as $field)
                         @php

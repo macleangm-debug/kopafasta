@@ -8,7 +8,10 @@
 
     @foreach ($productQuestions as $code => $block)
         @continue(($block['fold_into'] ?? 'quote') !== 'product_questions')
-        <div x-show="current && current.code === @js($code)" class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 mb-4">
+        <div x-show="current && current.code === @js($code)" class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 mb-4"
+             @change="scheduleDraftSave()"
+             @profile-select="scheduleDraftSave()"
+             @input="scheduleDraftSave()">
             <h3 class="text-sm font-bold text-gray-900 mb-4">{{ ! empty($block['title_key']) ? __($block['title_key']) : ($block['title'] ?? __('borrower.apply.product_questions.additional')) }}</h3>
             <div class="grid sm:grid-cols-2 gap-4">
                 @foreach ($block['fields'] as $field)
@@ -37,9 +40,11 @@
                                 />
                             @elseif (($field['type'] ?? 'text') === 'textarea')
                                 <textarea name="product_question[{{ $field['key'] }}]" rows="3" placeholder="{{ $field['placeholder'] ?? '' }}"
+                                          x-on:input="scheduleDraftSave()"
                                           class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand"></textarea>
                             @else
                                 <input type="text" name="product_question[{{ $field['key'] }}]" placeholder="{{ $field['placeholder'] ?? '' }}"
+                                       x-on:input="scheduleDraftSave()"
                                        class="w-full rounded-xl border-gray-300 ring-1 ring-gray-200 px-4 py-3 text-sm focus:ring-brand">
                             @endif
                         </div>

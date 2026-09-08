@@ -47,6 +47,24 @@
      @document-source="openCapture($event.detail?.source)">
     <div class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 shadow-sm">
         <div class="flex items-start gap-3">
+            <div x-show="educationDocuments[@js($docCode)]?.customer_document_id && !replaceMode" x-cloak
+                 class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
+                <template x-if="educationDocuments[@js($docCode)]?.view_url && !educationDocuments[@js($docCode)]?.is_pdf">
+                    <button type="button"
+                            @click="window.kfSiteOpenDocumentPreview?.(educationDocuments[@js($docCode)].view_url, @js($label), 'image')"
+                            class="size-full block cursor-zoom-in">
+                        <img :src="educationDocuments[@js($docCode)].view_url" alt="" class="size-full object-cover">
+                    </button>
+                </template>
+                <template x-if="educationDocuments[@js($docCode)]?.is_pdf || !educationDocuments[@js($docCode)]?.view_url">
+                    <button type="button"
+                            x-show="educationDocuments[@js($docCode)]?.view_url"
+                            @click="window.kfSiteOpenDocumentPreview?.(educationDocuments[@js($docCode)].view_url, @js($label), 'pdf')"
+                            class="size-full flex flex-col items-center justify-center text-brand cursor-zoom-in">
+                        <span class="text-[10px] font-bold tracking-wide">PDF</span>
+                    </button>
+                </template>
+            </div>
             <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                     <p class="text-sm font-bold text-gray-900">{{ $label }}</p>

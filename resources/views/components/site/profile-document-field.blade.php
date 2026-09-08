@@ -64,6 +64,23 @@
             'ring-gray-200' => ! $needsUpdate,
         ])>
             <div class="flex items-start gap-3">
+                @if ($previewUrl)
+                    <div class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
+                        @if ($isImage)
+                            <button type="button"
+                                    onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), 'image')"
+                                    class="size-full block cursor-zoom-in">
+                                <img src="{{ $previewUrl }}" alt="" class="size-full object-cover">
+                            </button>
+                        @else
+                            <button type="button"
+                                    onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), 'pdf')"
+                                    class="size-full flex flex-col items-center justify-center text-brand cursor-zoom-in">
+                                <span class="text-[10px] font-bold tracking-wide">{{ $fileExt ?: 'PDF' }}</span>
+                            </button>
+                        @endif
+                    </div>
+                @endif
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <p class="text-sm font-bold text-gray-900 truncate">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>

@@ -36,33 +36,88 @@
                     <p class="text-xs text-gray-500 mb-3">{{ __('borrower.apply.asset_details.multi_asset_hint') }}</p>
                     <div class="space-y-2">
                         <template x-for="asset in customerAssets" :key="asset.id">
-                            <label class="flex items-center gap-3 rounded-xl ring-1 ring-gray-200 px-3 py-3 cursor-pointer hover:bg-brand-muted/20"
-                                   :class="isCustomerAssetSelected(asset.id) ? 'ring-brand/40 bg-brand-muted/30' : ''">
-                                <input type="checkbox"
-                                       class="rounded border-gray-300 text-brand focus:ring-brand shrink-0"
-                                       :value="asset.id"
-                                       :checked="isCustomerAssetSelected(asset.id)"
-                                       @change="toggleCustomerAsset(asset.id)">
-                                <span class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
-                                    <template x-if="asset.thumbnail_url">
-                                        <img :src="asset.thumbnail_url" alt="" class="size-full object-cover">
-                                    </template>
-                                    <template x-if="!asset.thumbnail_url">
-                                        <span class="text-lg" x-text="(assetTypeOptions[asset.asset_type] || '📦').charAt(0)"></span>
-                                    </template>
-                                </span>
-                                <span class="min-w-0 flex-1">
-                                    <span class="block text-sm font-semibold text-gray-900" x-text="asset.label"></span>
-                                    <span class="block text-xs text-gray-500 mt-0.5"
-                                          x-text="(assetTypeOptions[asset.asset_type] || asset.asset_type) + (asset.registration_number ? ' · ' + asset.registration_number : '')"></span>
-                                </span>
-                            </label>
+                            <div class="rounded-xl ring-1 px-3 py-3"
+                                 :class="isCustomerAssetSelected(asset.id)
+                                    ? 'ring-brand/40 bg-brand-muted/30'
+                                    : (asset.selectable === false ? 'ring-amber-200 bg-amber-50/40' : 'ring-gray-200')">
+                                <label class="flex items-center gap-3"
+                                       :class="asset.selectable === false && !isCustomerAssetSelected(asset.id) ? 'cursor-default opacity-90' : 'cursor-pointer hover:bg-brand-muted/10 rounded-lg'">
+                                    <input type="checkbox"
+                                           class="rounded border-gray-300 text-brand focus:ring-brand shrink-0"
+                                           :value="asset.id"
+                                           :checked="isCustomerAssetSelected(asset.id)"
+                                           :disabled="asset.selectable === false && !isCustomerAssetSelected(asset.id)"
+                                           @change="toggleCustomerAsset(asset.id)">
+                                    <span class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
+                                        <template x-if="asset.thumbnail_url">
+                                            <img :src="asset.thumbnail_url" alt="" class="size-full object-cover">
+                                        </template>
+                                        <template x-if="!asset.thumbnail_url">
+                                            <span class="text-lg" x-text="(assetTypeOptions[asset.asset_type] || '📦').charAt(0)"></span>
+                                        </template>
+                                    </span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-semibold text-gray-900" x-text="asset.label"></span>
+                                        <span class="block text-xs text-gray-500 mt-0.5"
+                                              x-text="(assetTypeOptions[asset.asset_type] || asset.asset_type) + (asset.registration_number ? ' · ' + asset.registration_number : '')"></span>
+                                        <span class="mt-1 flex flex-wrap gap-1.5 text-[10px] font-bold uppercase tracking-wide">
+                                            <span class="inline-flex rounded-full bg-white ring-1 ring-gray-200 px-2 py-0.5 text-gray-600"
+                                                  x-text="(asset.photo_count || 0) + ' photos'"></span>
+                                            <span class="inline-flex rounded-full px-2 py-0.5 ring-1"
+                                                  :class="asset.has_ownership ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-amber-50 text-amber-900 ring-amber-200'"
+                                                  x-text="asset.has_ownership ? @js(__('borrower.apply.asset_details.ownership_on_file')) : @js(__('borrower.apply.asset_details.ownership_missing'))"></span>
+                                            <span x-show="asset.estimated_value" x-cloak
+                                                  class="inline-flex rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 px-2 py-0.5 tabular-nums"
+                                                  x-text="formatTzs(asset.estimated_value)"></span>
+                                        </span>
+                                    </span>
+                                </label>
+                                <div x-show="asset.incomplete" x-cloak class="mt-2 ml-[2.75rem] space-y-1.5">
+                                    <p class="text-xs font-medium text-amber-900" x-text="assetIncompleteHint(asset)"></p>
+                                    <a :href="assetIncompleteProfileUrl(asset)"
+                                       class="inline-flex text-xs font-semibold text-brand hover:underline">
+                                        {{ __('borrower.apply.asset_details.complete_in_profile_cta') }} →
+                                    </a>
+                                </div>
+                                <div x-show="asset.pledged && !asset.incomplete" x-cloak class="mt-2 ml-[2.75rem]">
+                                    <p class="text-xs font-medium text-amber-900">{{ __('borrower.apply.asset_details.asset_already_pledged_short') }}</p>
+                                </div>
+                            </div>
                         </template>
                     </div>
                     <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'add' => 1]) }}"
                        class="inline-flex mt-3 text-sm font-semibold text-brand hover:underline">
                         {{ __('borrower.apply.asset_details.add_another_asset') }} →
                     </a>
+                </div>
+
+                <div x-show="selectedCustomerAsset()" x-cloak class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
+                    <div class="h-1 w-full bg-gradient-to-r from-brand via-brand to-brand-gold/80" aria-hidden="true"></div>
+                    <div class="px-4 py-4 sm:px-5 space-y-2">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-brand">{{ __('borrower.apply.asset_details.selected_asset') }}</p>
+                        <div class="flex items-start gap-3">
+                            <span class="size-16 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
+                                <template x-if="selectedCustomerAsset()?.thumbnail_url">
+                                    <img :src="selectedCustomerAsset().thumbnail_url" alt="" class="size-full object-cover">
+                                </template>
+                                <template x-if="!selectedCustomerAsset()?.thumbnail_url">
+                                    <span class="text-xl" x-text="(assetTypeOptions[selectedCustomerAsset()?.asset_type] || '📦').charAt(0)"></span>
+                                </template>
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-bold text-gray-900" x-text="selectedCustomerAsset()?.label"></p>
+                                <p class="text-xs text-gray-500 mt-0.5"
+                                   x-text="(assetTypeOptions[selectedCustomerAsset()?.asset_type] || selectedCustomerAsset()?.asset_type || '')
+                                        + (selectedCustomerAsset()?.registration_number ? ' · ' + selectedCustomerAsset().registration_number : '')"></p>
+                                <p x-show="selectedCustomerAsset()?.description" x-cloak
+                                   class="text-xs text-gray-600 mt-1 line-clamp-2"
+                                   x-text="selectedCustomerAsset()?.description"></p>
+                                <p x-show="selectedCustomerAsset()?.estimated_value" x-cloak
+                                   class="text-sm font-extrabold text-brand tabular-nums mt-1"
+                                   x-text="formatTzs(selectedCustomerAsset()?.estimated_value)"></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -77,7 +132,7 @@
                            :max="current.max"
                            step="50000"
                            x-model.number="form.requested_amount"
-                           @input="updateQuote()"
+                           @input="updateQuote(); scheduleDraftSave()"
                            class="w-full accent-brand h-2 rounded-full">
                     <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
                         <span x-text="formatTzs(current.min)"></span>
@@ -96,7 +151,7 @@
                            :max="current.tmax"
                            step="1"
                            x-model.number="form.requested_tenure_months"
-                           @input="updateQuote()"
+                           @input="updateQuote(); scheduleDraftSave()"
                            class="w-full accent-brand h-2 rounded-full">
                     <div class="flex justify-between text-xs text-gray-500 mt-2 tabular-nums">
                         <span><span x-text="current.tmin"></span> {{ __('borrower.apply.browse.months_short') }}</span>

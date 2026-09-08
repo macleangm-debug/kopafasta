@@ -1442,6 +1442,12 @@ return [
             'vehicle_needs_insurance' => 'Ongeza bima kamili ya gari hili katika Wasifu → Dhamana kabla ya kuichagua.',
             'vehicle_insurance_required' => ':label inahitaji cheti cha bima kamili kwenye wasifu wako kabla ya kuitumia kama dhamana.',
             'asset_already_pledged' => ':label tayari imefungwa kwenye ombi lingine la mkopo na haiwezi kutumika tena.',
+            'asset_already_pledged_short' => 'Tayari imefungwa kwenye ombi lingine.',
+            'asset_incomplete_for_apply' => ':label inahitaji picha na hati za umiliki kwenye wasifu kabla ya kufungwa.',
+            'complete_in_profile' => 'Kamilisha mali hii kwenye wasifu, kisha rudi kwenye rasimu hii.',
+            'complete_in_profile_cta' => 'Kamilisha kwenye Wasifu',
+            'ownership_on_file' => 'Umiliki upo',
+            'ownership_missing' => 'Umiliki haupo',
         ],
     ],
     'marketplace' => [

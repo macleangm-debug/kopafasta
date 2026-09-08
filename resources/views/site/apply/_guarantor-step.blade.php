@@ -69,7 +69,7 @@
                         x-show="form.guarantor_mode === 'external' && (externalGuarantor?.invitation_url || externalGuarantor?.short_url || externalGuarantor?.whatsapp_url)"
                         x-cloak
                         @click="openGuarantorShare()"
-                        class="inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                        class="inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm shadow-sm shadow-brand/15">
                     {{ __('borrower.apply.guarantor_fields.share_invitation') }}
                 </button>
             </x-slot:actions>

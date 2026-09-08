@@ -223,26 +223,29 @@
                         $steps = $row->status['steps'] ?? [];
                         $percent = $row->status['profile_percent'] ?? null;
                     @endphp
-                    <div class="rounded-2xl bg-white ring-1 ring-gray-200/80 px-4 py-4 shadow-sm">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <p class="text-sm font-bold text-gray-900 truncate">{{ $row->name }}</p>
-                                <p class="text-xs text-gray-500 mt-0.5">{{ $row->type }}</p>
+                    <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
+                        <div class="h-1 w-full bg-gradient-to-r from-brand via-brand to-brand-gold/80" aria-hidden="true"></div>
+                        <div class="px-4 py-4">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-gray-900 truncate">{{ $row->name }}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">{{ $row->type }}</p>
+                                </div>
+                                <span @class([
+                                    'shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
+                                    'bg-emerald-50 text-emerald-800 ring-emerald-200' => $done,
+                                    'bg-amber-50 text-amber-900 ring-amber-200' => ! $done && $code === 'pending_profile',
+                                    'bg-sky-50 text-sky-800 ring-sky-200' => ! $done && $code !== 'pending_profile',
+                                ])>
+                                    @if ($done)
+                                        {{ __('borrower.apply.guarantor_status.ready') }}
+                                    @elseif ($code === 'pending_profile' && $percent !== null)
+                                        {{ __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $percent]) }}
+                                    @else
+                                        {{ $row->status['label'] ?? '—' }}
+                                    @endif
+                                </span>
                             </div>
-                            <span @class([
-                                'shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
-                                'bg-emerald-50 text-emerald-800 ring-emerald-200' => $done,
-                                'bg-amber-50 text-amber-900 ring-amber-200' => ! $done && $code === 'pending_profile',
-                                'bg-sky-50 text-sky-800 ring-sky-200' => ! $done && $code !== 'pending_profile',
-                            ])>
-                                @if ($done)
-                                    {{ __('borrower.apply.guarantor_status.ready') }}
-                                @elseif ($code === 'pending_profile' && $percent !== null)
-                                    {{ __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $percent]) }}
-                                @else
-                                    {{ $row->status['label'] ?? '—' }}
-                                @endif
-                            </span>
                         </div>
                     </div>
                 @endforeach

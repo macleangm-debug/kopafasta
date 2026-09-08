@@ -109,21 +109,19 @@
 
             <div class="hidden lg:flex items-center justify-end gap-2">
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                @auth
-                    @unless ($registrationIncomplete)
-                        <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
-                           class="text-sm font-medium text-gray-700 hover:text-brand">{{ __('site.auth.welcome_back') }}</a>
-                        <form method="POST" action="{{ route('site.logout') }}">@csrf
-                            <button class="text-sm text-gray-500 hover:text-gray-900">{{ __('borrower.layout.sign_out') }}</button>
-                        </form>
-                    @endunless
+                @if (auth()->check() && ! $registrationIncomplete)
+                    <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
+                       class="text-sm font-medium text-gray-700 hover:text-brand">{{ __('site.auth.welcome_back') }}</a>
+                    <form method="POST" action="{{ route('site.logout') }}">@csrf
+                        <button class="text-sm text-gray-500 hover:text-gray-900">{{ __('borrower.layout.sign_out') }}</button>
+                    </form>
                 @else
                     <a href="{{ route('site.login') }}" class="text-sm font-semibold text-brand border border-brand/30 hover:border-brand px-4 py-2 rounded-lg transition">{{ __('site.nav.log_in') }}</a>
                     <a href="{{ route('site.register.borrower') }}"
                        class="inline-flex items-center gap-2 rounded-lg bg-brand hover:bg-brand-light text-white text-sm font-semibold px-4 py-2 shadow-sm transition">
                         {{ __('site.nav.register') }}
                     </a>
-                @endauth
+                @endif
             </div>
             @endunless
 
@@ -131,7 +129,12 @@
                 @if ($minimal)
                     <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 @else
-                @guest
+                @if (auth()->check() && ! $registrationIncomplete)
+                    <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
+                       class="text-xs font-semibold text-brand px-1.5 py-1.5 whitespace-nowrap max-w-[5.5rem] truncate">
+                        {{ __('site.auth.welcome_back') }}
+                    </a>
+                @else
                     <a href="{{ route('site.login') }}"
                        class="text-xs font-semibold text-brand border border-brand/30 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
                         {{ __('site.nav.log_in') }}
@@ -140,14 +143,7 @@
                        class="inline-flex items-center rounded-lg bg-brand text-white text-xs font-semibold px-2.5 py-1.5 whitespace-nowrap">
                         {{ __('site.nav.register') }}
                     </a>
-                @else
-                    @unless ($registrationIncomplete)
-                        <a href="{{ Auth::user()->role === 'vendor' ? route('site.partner.dashboard') : (Auth::user()->role === 'investor' ? route('site.investor.dashboard') : route('site.borrower.dashboard')) }}"
-                           class="text-xs font-semibold text-brand px-1.5 py-1.5 whitespace-nowrap max-w-[5.5rem] truncate">
-                            {{ __('site.auth.welcome_back') }}
-                        </a>
-                    @endunless
-                @endguest
+                @endif
                 <button type="button"
                         @click="menuOpen = true; menuView = 'main'"
                         class="p-2 rounded-md hover:bg-gray-100"
@@ -189,15 +185,18 @@
                             <a href="{{ route('site.card.verify') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.nav.verify') }}</a>
                             <a href="{{ route('site.affiliate') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.nav.affiliate') }}</a>
                             <a href="{{ route('site.how-it-works') }}" class="block px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">{{ __('site.how_it_works.title') }}</a>
-                            @auth
-                                @unless ($registrationIncomplete)
-                                    <div class="border-t border-gray-200 pt-3 mt-2">
-                                        <form method="POST" action="{{ route('site.logout') }}">@csrf
-                                            <button class="w-full text-left px-3 py-3 rounded-xl text-sm text-gray-500 hover:bg-gray-50">{{ __('borrower.layout.sign_out') }}</button>
-                                        </form>
-                                    </div>
-                                @endunless
-                            @endauth
+                            @if (auth()->check() && ! $registrationIncomplete)
+                                <div class="border-t border-gray-200 pt-3 mt-2">
+                                    <form method="POST" action="{{ route('site.logout') }}">@csrf
+                                        <button class="w-full text-left px-3 py-3 rounded-xl text-sm text-gray-500 hover:bg-gray-50">{{ __('borrower.layout.sign_out') }}</button>
+                                    </form>
+                                </div>
+                            @elseif (! auth()->check() || $registrationIncomplete)
+                                <div class="border-t border-gray-200 pt-3 mt-2 space-y-1">
+                                    <a href="{{ route('site.login') }}" class="block px-3 py-3 rounded-xl text-sm font-semibold text-brand hover:bg-brand-muted">{{ __('site.nav.log_in') }}</a>
+                                    <a href="{{ route('site.register.borrower') }}" class="block px-3 py-3 rounded-xl text-sm font-semibold text-gray-800 hover:bg-gray-50">{{ __('site.nav.register') }}</a>
+                                </div>
+                            @endif
                         </div>
 
                         <div x-show="menuView === 'products'" x-cloak class="space-y-1">

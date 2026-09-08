@@ -21,7 +21,9 @@
     @endphp
 
     @if ($emBlock)
-        <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-5">
+        <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/10 space-y-5"
+             @change="scheduleDraftSave()"
+             @profile-select="scheduleDraftSave()">
             @foreach ($emBlock['fields'] as $field)
                 @php
                     $label = ! empty($field['label_key']) ? __($field['label_key']) : ($field['label'] ?? '');

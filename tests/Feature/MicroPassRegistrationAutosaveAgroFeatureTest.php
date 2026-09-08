@@ -224,10 +224,57 @@ class MicroPassRegistrationAutosaveAgroFeatureTest extends TestCase
         ]);
 
         app()->setLocale('en');
-        $html = $this->actingAs($user)->get(route('site.borrower.setup-pin'))->assertOk()->getContent();
+        $html = $this->withSession(['locale' => 'en'])
+            ->actingAs($user)
+            ->get(route('site.borrower.setup-pin'))
+            ->assertOk()
+            ->getContent();
         $this->assertStringNotContainsString('Welcome back', $html);
+        $this->assertStringNotContainsString('Karibu tena', $html);
         $this->assertStringNotContainsString('>Log out<', $html);
         $this->assertStringNotContainsString('>Sign out<', $html);
+        $this->assertTrue(
+            str_contains($html, 'Log In') || str_contains($html, 'Ingia'),
+            'Expected public Log In / Ingia CTA during incomplete registration'
+        );
+        $this->assertTrue(
+            str_contains($html, 'Register') || str_contains($html, 'Jisajili'),
+            'Expected public Register / Jisajili CTA during incomplete registration'
+        );
+    }
+
+    public function test_customer_asset_incomplete_for_apply_ignores_insurance(): void
+    {
+        $customer = $this->borrower();
+        $asset = \App\Models\CustomerAsset::create([
+            'customer_id' => $customer->id,
+            'asset_type' => 'vehicle',
+            'label' => 'Test car',
+            'description' => 'Toyota',
+            'registration_number' => 'T123ABC',
+            'estimated_value' => 5000000,
+            'is_active' => true,
+            'photo_paths' => [
+                'assets/front.jpg',
+                'assets/back.jpg',
+                'assets/left.jpg',
+                'assets/right.jpg',
+            ],
+            'metadata' => [
+                'photo_angles' => [
+                    'front' => 'assets/front.jpg',
+                    'back' => 'assets/back.jpg',
+                    'left' => 'assets/left.jpg',
+                    'right' => 'assets/right.jpg',
+                ],
+                'person_with_asset_path' => 'assets/owner.jpg',
+                'ownership_document_path' => 'assets/ownership.pdf',
+            ],
+        ]);
+
+        $service = app(\App\Services\CustomerAssetService::class);
+        $this->assertNull($service->incompleteForApply($asset));
+        $this->assertSame('insurance', $service->incompleteReason($asset));
     }
 
     public function test_register_continue_is_always_present_on_details_step(): void
