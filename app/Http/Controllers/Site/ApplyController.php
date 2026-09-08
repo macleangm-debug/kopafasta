@@ -1498,10 +1498,9 @@ class ApplyController extends Controller
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
-        abort_unless(strtoupper((string) $product->code) === 'EL', 422);
-
         $code = (string) $data['document_code'];
-        abort_unless($code === 'admission_fee_letter', 422);
+        $field = $this->applyProductDocumentField($product, $code);
+        abort_unless($field !== null, 422);
 
         $draft = $drafts->find($customer, $product->id)
             ?? $drafts->save($customer, [
@@ -1511,7 +1510,9 @@ class ApplyController extends Controller
             ]);
         abort_unless($draft, 422);
 
-        $label = __('borrower.apply.education_details.admission_letter');
+        $label = ! empty($field['label_key'])
+            ? __($field['label_key'])
+            : (string) ($field['label'] ?? __('borrower.profile.view_document'));
         $docType = \App\Models\DocumentType::firstOrCreate(
             ['code' => $code],
             [
@@ -1522,7 +1523,8 @@ class ApplyController extends Controller
             ],
         );
 
-        $path = $request->file('file')->store("borrower/{$customer->id}/education", 'public');
+        $folder = strtolower((string) $product->code) ?: 'apply';
+        $path = $request->file('file')->store("borrower/{$customer->id}/{$folder}", 'public');
         $document = CustomerDocument::create([
             'customer_id' => $customer->id,
             'document_type_id' => $docType->id,
@@ -1566,12 +1568,12 @@ class ApplyController extends Controller
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
-        abort_unless(strtoupper((string) $product->code) === 'EL', 422);
+        $code = (string) $data['document_code'];
+        abort_unless($this->applyProductDocumentField($product, $code) !== null, 422);
 
         $draft = $drafts->find($customer, $product->id);
         abort_unless($draft, 422);
 
-        $code = (string) $data['document_code'];
         $payload = $draft->payload ?? [];
         $educationDocuments = $payload['education_documents'] ?? [];
         $removedId = (int) ($educationDocuments[$code]['customer_document_id'] ?? 0);
@@ -1591,6 +1593,30 @@ class ApplyController extends Controller
             'ok' => true,
             'education_documents' => $educationDocuments,
         ]);
+    }
+
+    /**
+     * Resolve a product-question document field from config (Education, Emergency, …).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function applyProductDocumentField(LoanProduct $product, string $documentCode): ?array
+    {
+        $block = config('loan_product_questions.'.strtoupper((string) $product->code));
+        if (! is_array($block)) {
+            return null;
+        }
+        foreach ($block['fields'] ?? [] as $field) {
+            if (($field['type'] ?? '') !== 'document') {
+                continue;
+            }
+            $code = (string) ($field['document_code'] ?? $field['key'] ?? '');
+            if ($code !== '' && $code === $documentCode) {
+                return $field;
+            }
+        }
+
+        return null;
     }
 
     public function applicationFeeQuote(Request $request, ApplicationFeePaymentService $fees): JsonResponse

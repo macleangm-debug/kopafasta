@@ -196,18 +196,31 @@
                 <h3 class="text-sm font-bold text-gray-900 mb-4">{{ $block['title'] ?? __('borrower.apply.product_questions.additional') }}</h3>
                 <div class="grid sm:grid-cols-2 gap-4">
                     @foreach ($block['fields'] as $field)
+                        @php
+                            $fieldLabel = ! empty($field['label_key']) ? __($field['label_key']) : ($field['label'] ?? '');
+                            $fieldHint = ! empty($field['hint_key']) ? __($field['hint_key']) : ($field['hint'] ?? '');
+                            $docCode = $field['document_code'] ?? $field['key'] ?? 'document';
+                        @endphp
                         @if (($field['type'] ?? 'text') === 'tz_address')
                             <div class="sm:col-span-2">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">{{ $field['label'] }}</label>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">{{ $fieldLabel }}</label>
                                 <x-site.address-fields
                                     form-key="product_question"
                                     :prefix="$field['prefix'] ?? ''"
                                     :required="$field['required'] ?? true"
                                 />
                             </div>
+                        @elseif (($field['type'] ?? 'text') === 'document')
+                            @include('site.apply._apply-document-holder', [
+                                'docCode' => $docCode,
+                                'label' => $fieldLabel,
+                                'required' => ! empty($field['required']),
+                                'hint' => $fieldHint,
+                                'hostPrefix' => strtolower((string) $code),
+                            ])
                         @else
                             <div class="{{ ($field['type'] ?? 'text') === 'textarea' ? 'sm:col-span-2' : '' }}">
-                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ $field['label'] }}</label>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ $fieldLabel }}</label>
                                 @if (($field['type'] ?? 'text') === 'select')
                                     <x-site.profile-select
                                         :name="'product_question['.$field['key'].']'"

@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.apply.title'))" active="loans" content-width="wide">
+<x-site.borrower-layout :title="brand_title(__('borrower.apply.title'))" active="loans" content-width="full">
     <div class="max-w-3xl mx-auto w-full min-w-0">
 
         @if (session('error'))
@@ -204,6 +204,15 @@
                           'celebrate_title' => __('borrower.celebration.application_fee_title'),
                           'pay_title' => __('borrower.apply.application_fee.pay_title'),
                           'paidBadge' => __('borrower.apply.application_fee.paid_badge'),
+                      ],
+                      'educationDetails' => [
+                          'schoolRequired' => __('borrower.apply.education_details.school_required'),
+                          'documentRequired' => __('borrower.apply.education_details.document_required'),
+                          'bankRequired' => __('borrower.apply.education_details.bank_required'),
+                          'accountNameRequired' => __('borrower.apply.education_details.account_name_required'),
+                          'accountNumberRequired' => __('borrower.apply.education_details.account_number_required'),
+                          'incompleteTitle' => __('borrower.apply.education_details.incomplete_title'),
+                          'uploadFailed' => __('borrower.apply.education_details.upload_failed'),
                       ],
                       'group' => [
                           'lookupNotFound' => __('borrower.apply.group.lookup_not_found'),

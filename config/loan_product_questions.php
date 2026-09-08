@@ -12,7 +12,14 @@ return [
                 'education' => 'Urgent school fees',
                 'other'     => 'Other urgent need',
             ]],
-            ['key' => 'supporting_evidence', 'label' => 'Supporting evidence (optional)', 'type' => 'textarea', 'required' => false, 'placeholder' => 'Describe hospital bill, fee letter, etc.'],
+            [
+                'key' => 'supporting_evidence',
+                'label_key' => 'borrower.apply.emergency.supporting_evidence',
+                'type' => 'document',
+                'document_code' => 'supporting_evidence',
+                'required' => false,
+                'hint_key' => 'borrower.apply.emergency.supporting_evidence_hint',
+            ],
         ],
     ],
     'EL' => [

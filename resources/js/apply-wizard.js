@@ -133,6 +133,7 @@ export function applyWizard(config) {
                 advancing: false,
                 submitting: false,
                 resumeLoading: false,
+                educationErrors: {},
                 furthestStep: Math.max(0, Number(
                     config.savedDraft?.resume_target?.furthest_step
                     ?? config.savedDraft?.resume_target?.progress?.furthest_step
@@ -256,16 +257,32 @@ export function applyWizard(config) {
 
                 syncStepKey() {
                     const fromSteps = this.steps[this.step]?.key ?? '';
-                    // Never let an empty/rebuilding plan wipe a locked paid destination.
+                    // Paid-return lock only prevents demotion below the verified landing.
+                    // Forward Continue (Education Details → Guarantor, etc.) must unlock freely.
                     if (this._lockResolvedState && this.resolvedWizard?.step_key) {
-                        this.stepKey = this.resolvedWizard.step_key;
-                        const idx = this.resolveStepIndex(this.stepKey, this.step);
-                        if (idx !== this.step) {
-                            this.step = idx;
-                            this.furthestStep = idx;
+                        const lockedIdx = this.resolveStepIndex(this.resolvedWizard.step_key, 0);
+                        if (this.step < lockedIdx) {
+                            this.step = lockedIdx;
+                            this.furthestStep = Math.max(this.furthestStep || 0, lockedIdx);
+                            this.stepKey = this.resolvedWizard.step_key;
+                            this.syncUrlStep();
+                            return;
                         }
-                        this.syncUrlStep();
-                        return;
+                        if (this.step > lockedIdx) {
+                            this._lockResolvedState = false;
+                            if (this.resolvedWizard) {
+                                this.resolvedWizard = {
+                                    ...this.resolvedWizard,
+                                    step_key: fromSteps,
+                                    step: this.step,
+                                    intent: 'edit',
+                                };
+                            }
+                        } else {
+                            this.stepKey = this.resolvedWizard.step_key;
+                            this.syncUrlStep();
+                            return;
+                        }
                     }
                     this.stepKey = fromSteps;
                     this.syncUrlStep();
@@ -277,8 +294,10 @@ export function applyWizard(config) {
                         if (this.phase === 'application' && this.stepKey) {
                             url.searchParams.set('resume', '1');
                             url.searchParams.set('step_key', this.stepKey);
-                            if (this._lockResolvedState || this.resolvedWizard?.intent === 'paid') {
+                            if (this._lockResolvedState && this.resolvedWizard?.intent === 'paid') {
                                 url.searchParams.set('fee_return', 'paid');
+                            } else {
+                                url.searchParams.delete('fee_return');
                             }
                             window.history.replaceState({}, '', url.pathname + url.search + url.hash);
                         }
@@ -1013,6 +1032,9 @@ export function applyWizard(config) {
                             throw new Error(data.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed');
                         }
                         this.educationDocuments = data.education_documents || {};
+                        if (this.educationErrors) {
+                            this.educationErrors = { ...this.educationErrors, admission_letter: '' };
+                        }
                         await this.persistDraft(true);
                     } catch (e) {
                         showWizardFeedback(e?.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed');
@@ -2903,14 +2925,21 @@ export function applyWizard(config) {
                         return true;
                     }
                     if (this.stepKey === 'education_details') {
-                        const school = (this.formRoot()?.querySelector('[name="product_question[school_name]"]')?.value || '').trim();
+                        void this.educationDocuments;
+                        void this.institutionPayment?.bank_name;
+                        void this.institutionPayment?.account_name;
+                        void this.institutionPayment?.account_number;
+                        const school = (this.formRoot()?.querySelector('[name="product_question[school_name]"]')?.value
+                            || this.form?.product_question_school_name
+                            || '').trim();
                         const docId = this.educationDocuments?.admission_fee_letter?.customer_document_id;
                         const dest = this.institutionPayment || {};
-                        // Institution destination is bank-only and stays unverified until ops review.
                         if (dest.method !== 'bank') {
                             this.institutionPayment = { ...dest, method: 'bank', verified: false };
                         }
-                        const destReady = !!(dest.bank_name && dest.account_name && dest.account_number);
+                        const destReady = !!(String(dest.bank_name || '').trim()
+                            && String(dest.account_name || '').trim()
+                            && String(dest.account_number || '').trim());
                         return !! school && !! docId && destReady;
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
@@ -3696,6 +3725,56 @@ export function applyWizard(config) {
                             return false;
                         }
                     }
+                    if (this.stepKey === 'education_details') {
+                        this.educationErrors = {};
+                        const schoolEl = this.formRoot()?.querySelector('[name="product_question[school_name]"]');
+                        const school = (schoolEl?.value || '').trim();
+                        const docId = this.educationDocuments?.admission_fee_letter?.customer_document_id;
+                        const dest = this.institutionPayment || {};
+                        this.institutionPayment = {
+                            ...dest,
+                            method: 'bank',
+                            verified: false,
+                        };
+                        const msgs = this.i18n.educationDetails || {};
+                        let ok = true;
+                        if (! school) {
+                            this.educationErrors.school_name = msgs.schoolRequired || 'Enter the school or institution name.';
+                            ok = false;
+                            schoolEl?.focus?.();
+                        }
+                        if (! docId) {
+                            this.educationErrors.admission_letter = msgs.documentRequired || 'Upload the admission / fee letter.';
+                            ok = false;
+                        }
+                        if (! String(dest.bank_name || '').trim()) {
+                            this.educationErrors.bank_name = msgs.bankRequired || 'Enter the institution bank name.';
+                            ok = false;
+                        }
+                        if (! String(dest.account_name || '').trim()) {
+                            this.educationErrors.account_name = msgs.accountNameRequired || 'Enter the institution account name.';
+                            ok = false;
+                        }
+                        if (! String(dest.account_number || '').trim()) {
+                            this.educationErrors.account_number = msgs.accountNumberRequired || 'Enter the institution account number.';
+                            ok = false;
+                        }
+                        if (! ok) {
+                            const firstMsg = Object.values(this.educationErrors)[0];
+                            showWizardFeedback({
+                                tone: 'warning',
+                                title: msgs.incompleteTitle || 'Complete Education Details',
+                                message: firstMsg,
+                            });
+                            return false;
+                        }
+                        this.educationErrors = {};
+                        if (schoolEl) {
+                            this.form.product_question_school_name = school;
+                            schoolEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                        return true;
+                    }
                     if (this.stepKey === 'guarantor' && this.hasStep('guarantor')) {
                         this.syncGuarantorFormFromDom();
                         if (! this.requiresGuarantor() && (! this.form.guarantor_mode || this.form.guarantor_mode === 'none')) {
@@ -3951,6 +4030,8 @@ export function applyWizard(config) {
                         this.bumpFurthest(this.step);
                         this.syncStepKey();
                         this.enforceStepRequirements();
+                        // Persist unlocked step_key so refresh/resume does not rewind.
+                        await this.persistDraft(true);
                         if (this.stepKey === 'review') {
                             this.reviewPage = 1;
                             this.refreshReview(this.formRoot());

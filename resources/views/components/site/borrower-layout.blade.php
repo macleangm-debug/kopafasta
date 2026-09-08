@@ -6,6 +6,8 @@
     $contentMax = match ($contentWidth) {
         'narrow' => 'max-w-3xl mx-auto',
         'wide'   => 'max-w-7xl mx-auto',
+        // Full shell width for the page column; pages that need a narrow card constrain themselves.
+        'full'   => '',
         default  => 'max-w-7xl mx-auto',
     };
     $siteLocale = $siteLocale ?? app()->getLocale();
@@ -171,12 +173,13 @@
     {{-- Main column --}}
     <div class="flex-1 flex flex-col min-h-screen min-w-0">
 
-        {{-- Topbar (desktop) --}}
-        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-40 glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16 w-full shrink-0">
-            <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition">
+        {{-- Topbar (desktop) — always full shell width; never inherit wizard/content max-width. --}}
+        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-40 glass-nav w-full min-w-0 shrink-0 self-stretch">
+            <div class="flex w-full min-w-0 items-center justify-between gap-4 px-6 lg:px-8 h-16">
+            <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition shrink-0">
                 ← {{ brand_name() }}
             </a>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 ml-auto shrink-0">
                 <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <div class="relative" x-data="notificationBell()" x-init="load()">
                     <button type="button" @click="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
@@ -246,10 +249,11 @@
                     </div>
                 </div>
             </div>
+            </div>
         </header>
 
         {{-- Topbar (mobile) --}}
-        <header class="kf-chrome-topbar-mobile lg:hidden sticky top-0 z-40 glass-nav flex items-center justify-between px-3 h-14 gap-2">
+        <header class="kf-chrome-topbar-mobile lg:hidden sticky top-0 z-40 glass-nav flex items-center justify-between px-3 h-14 gap-2 w-full">
             @if ($plusWorkspace)
                 <a href="{{ route('site.borrower.dashboard') }}" data-kf-motion="tab" class="flex items-center gap-2 min-w-0 text-sm font-extrabold text-brand">
                     <span aria-hidden="true">←</span>
@@ -424,10 +428,16 @@
             ></div>
         @endif
 
-        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 {{ $hideMobileNav ? '' : 'pb-28 lg:pb-8' }} overflow-x-clip" data-kf-busy-scope>
-            <div class="{{ $contentMax }} w-full min-w-0">
-                {{ $slot }}
-            </div>
+        <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 {{ $hideMobileNav ? '' : 'pb-28 lg:pb-8' }} overflow-x-clip w-full min-w-0" data-kf-busy-scope>
+            @if ($contentMax !== '')
+                <div class="{{ $contentMax }} w-full min-w-0">
+                    {{ $slot }}
+                </div>
+            @else
+                <div class="w-full min-w-0">
+                    {{ $slot }}
+                </div>
+            @endif
         </main>
 
         <footer class="px-4 lg:px-8 py-6 text-center text-xs text-gray-400 border-t border-gray-200/60 hidden lg:block">
