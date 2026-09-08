@@ -271,6 +271,10 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/login/partner', [App\Http\Controllers\Site\AuthController::class, 'switchToPartnerLogin'])
         ->name('login.partner');
 
+    // Release incomplete registration session so Login / Register START CTAs are not hijacked.
+    Route::get('/auth/entry', [App\Http\Controllers\Site\AuthController::class, 'authEntry'])
+        ->name('auth.entry');
+
     Route::get('/partner', [PartnerHomeController::class, '__invoke'])
         ->name('partner.dashboard');
 

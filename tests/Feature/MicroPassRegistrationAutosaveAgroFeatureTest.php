@@ -204,6 +204,87 @@ class MicroPassRegistrationAutosaveAgroFeatureTest extends TestCase
         $this->assertSame('Harvest date', __('borrower.apply.agriculture_details.cycle_end_date'));
     }
 
+    public function test_incomplete_registration_login_and_register_start_are_not_hijacked(): void
+    {
+        $user = User::factory()->needsPinSetup()->create([
+            'role' => 'borrower',
+            'is_active' => false,
+            'password' => Hash::make('Password1!'),
+            'phone' => '255712300099',
+        ]);
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-RT-099',
+            'type' => 'individual',
+            'status' => 'pending',
+            'first_name' => 'Route',
+            'last_name' => 'Fix',
+            'phone' => '255712300099',
+            'country_code' => 'TZ',
+        ]);
+
+        // Security-questions stage: PIN set, recovery not enrolled.
+        app(PinService::class)->setPin($user->fresh(), '1234');
+        $user = $user->fresh();
+        $this->assertTrue(app(PinService::class)->hasPin($user));
+        $this->assertFalse(app(PinRecoveryChallengeService::class)->hasEnrolledAnswers($user));
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.setup-pin'))
+            ->assertOk();
+
+        // Ingia / Login must reach the borrower login screen — not bounce back to setup-pin.
+        $this->actingAs($user)
+            ->get(route('site.login'))
+            ->assertRedirect(route('site.auth.entry', ['to' => 'login']));
+
+        $this->followingRedirects()
+            ->get(route('site.login'))
+            ->assertOk()
+            ->assertSee('name="pin"', false);
+
+        $this->assertGuest('web');
+        $this->assertNotNull(User::query()->find($user->id)); // pending account retained
+
+        // Re-auth incomplete session for Register START check.
+        $this->actingAs($user->fresh());
+
+        $this->get(route('site.register.borrower', ['intent' => 'plus']))
+            ->assertRedirect(route('site.auth.entry', ['to' => 'register', 'intent' => 'plus']));
+
+        $register = $this->followingRedirects()
+            ->get(route('site.register.borrower', ['intent' => 'plus']));
+        $register->assertOk();
+        $register->assertSee('name="first_name"', false);
+        $register->assertSessionHas('login_redirect', route('site.borrower.plus.home'));
+        $this->assertGuest('web');
+    }
+
+    public function test_incomplete_registration_can_still_resume_setup_pin_intentionally(): void
+    {
+        $user = User::factory()->needsPinSetup()->create([
+            'role' => 'borrower',
+            'is_active' => false,
+            'password' => Hash::make('Password1!'),
+            'phone' => '255712300088',
+        ]);
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-RT-088',
+            'type' => 'individual',
+            'status' => 'pending',
+            'first_name' => 'Resume',
+            'last_name' => 'Path',
+            'phone' => '255712300088',
+            'country_code' => 'TZ',
+        ]);
+        app(PinService::class)->setPin($user->fresh(), '1234');
+
+        $this->actingAs($user->fresh())
+            ->get(route('site.borrower.setup-pin'))
+            ->assertOk();
+    }
+
     public function test_incomplete_registration_layout_hides_welcome_back_and_logout(): void
     {
         $user = User::factory()->needsPinSetup()->create([

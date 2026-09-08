@@ -28,12 +28,7 @@
     $minimal = (bool) $minimal;
 
     // Incomplete registration (Details → PIN → Security): no Welcome back / Logout chrome.
-    $registrationIncomplete = false;
-    $authUser = auth()->user();
-    if ($authUser && ($authUser->role ?? null) === 'borrower') {
-        $registrationIncomplete = ! app(\App\Services\PinService::class)->hasPin($authUser)
-            || ! app(\App\Services\PinRecoveryChallengeService::class)->hasEnrolledAnswers($authUser);
-    }
+    $registrationIncomplete = \App\Support\BorrowerRegistrationGate::isIncomplete(auth()->user());
 @endphp
 <!DOCTYPE html>
 <html lang="{{ $siteLocale }}" class="h-full scroll-smooth {{ $auth ? 'overflow-hidden' : '' }}">

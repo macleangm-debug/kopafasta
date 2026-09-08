@@ -3,6 +3,14 @@
     $isYearly = ($cycle ?? 'yearly') === 'yearly';
     $monthlyEquiv = $isYearly && $amount > 0 ? $amount / 12 : null;
 
+    $plusJoinHref = route('site.register.borrower', ['intent' => 'plus']);
+    $authUser = auth()->user();
+    if ($authUser
+        && ($authUser->role ?? null) === 'borrower'
+        && ! \App\Support\BorrowerRegistrationGate::isIncomplete($authUser)) {
+        $plusJoinHref = route('site.borrower.plus.home');
+    }
+
     $benefits = [
         ['title' => __('site.plus.benefit_behaviour_title'), 'body' => __('site.plus.benefit_behaviour_body')],
         ['title' => __('plus.home.money'), 'body' => __('site.plus.room_money')],
@@ -20,7 +28,7 @@
         eyebrow="Kopafasta Plus"
         :title="__('site.plus.hero_title')"
         :body="__('site.plus.hero_body')"
-        :primary-href="route('site.borrower.plus.home')"
+        :primary-href="$plusJoinHref"
         :primary-label="__('site.plus.join')"
         :secondary-href="'#benefits'"
         :secondary-label="__('site.plus.see_how')"
@@ -109,7 +117,7 @@
                         </ul>
                     </div>
                     <div class="lg:text-right">
-                        <a href="{{ route('site.borrower.plus.home') }}" class="inline-flex rounded-xl bg-brand-gold text-brand px-7 py-3.5 font-extrabold shadow-md">{{ __('site.plus.join') }}</a>
+                        <a href="{{ $plusJoinHref }}" class="inline-flex rounded-xl bg-brand-gold text-brand px-7 py-3.5 font-extrabold shadow-md">{{ __('site.plus.join') }}</a>
                         <p class="mt-3 text-xs text-white/60 lg:ml-auto lg:max-w-xs">{{ __('site.plus.optional') }}</p>
                     </div>
                 </div>

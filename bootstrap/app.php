@@ -76,6 +76,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $user = Auth::guard('web')->user();
 
+            // Incomplete borrower registration must not hijack Login / Register START CTAs.
+            // Release happens on site.auth.entry, then the real guest page is shown.
+            if ($user && \App\Support\BorrowerRegistrationGate::isIncomplete($user)) {
+                if ($request->is('login')) {
+                    return route('site.auth.entry', ['to' => 'login'] + $request->query());
+                }
+                if ($request->is('register') || $request->is('register/*')) {
+                    $to = $request->is('register/options') ? 'register.options' : 'register';
+
+                    return route('site.auth.entry', ['to' => $to] + $request->query());
+                }
+            }
+
             if ($user) {
                 return match ($user->role) {
                     'borrower' => route('site.borrower.dashboard'),

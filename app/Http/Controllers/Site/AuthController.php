@@ -53,6 +53,11 @@ class AuthController extends Controller
 
     public function showLogin(Request $request): View
     {
+        // Belt-and-suspenders: incomplete registration must never trap Login.
+        if (\App\Support\BorrowerRegistrationGate::releaseIncompleteSession($request)) {
+            // Session regenerated — continue rendering login as guest.
+        }
+
         if ($request->boolean('clear_guarantor')) {
             $request->session()->forget(['guarantor_invite_token', 'login_redirect']);
         }
@@ -79,6 +84,28 @@ class AuthController extends Controller
             'clearedGuarantorContext' => $request->boolean('clear_guarantor'),
             'partnerPortal' => $partnerPortal || $request->session()->get('login_portal') === 'partner',
         ]);
+    }
+
+    /**
+     * Explicit Login / Register START entry for users who still have an incomplete registration session.
+     * Releases the pending session (account retained) then forwards to the intended guest page.
+     */
+    public function authEntry(Request $request): RedirectResponse
+    {
+        $to = (string) $request->query('to', 'login');
+        $query = collect($request->query())->except('to')->all();
+
+        \App\Support\BorrowerRegistrationGate::releaseIncompleteSession($request);
+
+        if (Auth::guard('web')->check()) {
+            return $this->redirectAfterLogin(Auth::guard('web')->user());
+        }
+
+        return match ($to) {
+            'register.options' => redirect()->route('site.register.options', $query),
+            'register' => redirect()->route('site.register.borrower', $query),
+            default => redirect()->route('site.login', $query),
+        };
     }
 
     /** End any borrower (or other) web session, then open the partner login screen. */
@@ -916,6 +943,11 @@ class AuthController extends Controller
 
         if ($redirect = $request->query('redirect')) {
             $request->session()->put('login_redirect', $redirect);
+        }
+
+        // Plus acquisition CTA: begin registration with Plus intent retained after activation.
+        if ($request->query('intent') === 'plus' && ! $request->session()->has('login_redirect')) {
+            $request->session()->put('login_redirect', route('site.borrower.plus.home'));
         }
 
         $guarantorOnboarding = app(GuarantorOnboardingService::class);
