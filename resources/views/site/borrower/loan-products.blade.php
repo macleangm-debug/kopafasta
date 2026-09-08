@@ -1,4 +1,19 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.loan_products_page.title'))" active="loans" content-width="wide">
+    @php
+        $categoryOptions = [
+            'individual' => __('borrower.loan_products_page.categories.individual'),
+            'group' => __('borrower.loan_products_page.categories.group'),
+            'asset' => __('borrower.loan_products_page.categories.asset'),
+            'business' => __('borrower.loan_products_page.categories.business'),
+            'agriculture' => __('borrower.loan_products_page.categories.agriculture'),
+            'education' => __('borrower.loan_products_page.categories.education'),
+        ];
+        // Prefer catalogue categories when present; keep brief order for known keys.
+        $ordered = collect($categoryOptions)->keys()
+            ->merge($categories ?? [])
+            ->unique()
+            ->values();
+    @endphp
     <div x-data="loanProductsPage()">
         <section class="relative overflow-hidden rounded-2xl premium-gradient border border-gray-100/80 mb-8">
             <div class="px-6 sm:px-8 py-8 sm:py-10">
@@ -7,9 +22,6 @@
                 <p class="mt-2 text-sm sm:text-base text-gray-600 max-w-2xl">{{ __('borrower.loan_products_page.subtitle') }}</p>
             </div>
         </section>
-
-
-
 
         {{-- Profile completeness is enforced only at final submit — never as a product-list hurdle. --}}
 
@@ -26,21 +38,77 @@
                         <circle cx="9" cy="9" r="5.5"/><path d="M14 14l3 3"/>
                     </svg>
                 </div>
-                @if ($categories->isNotEmpty())
-                    <div class="sm:w-52 shrink-0">
-                        <label for="loan-product-category" class="sr-only">{{ __('borrower.loan_products_page.filter_label') }}</label>
-                        <select id="loan-product-category"
-                                x-model="category"
-                                class="w-full rounded-xl border-gray-200 bg-white py-3 pl-3 pr-10 text-sm ring-1 ring-gray-200 focus:ring-brand focus:border-brand shadow-sm capitalize">
-                            <option value="all">{{ __('borrower.loan_products_page.all_categories') }}</option>
-                            @foreach ($categories as $cat)
-                                <option value="{{ $cat }}">{{ str_replace('_', ' ', $cat) }}</option>
-                            @endforeach
-                        </select>
+
+                {{-- Mobile: premium bottom sheet (never native select) --}}
+                <div class="sm:hidden">
+                    <button type="button"
+                            @click="categoriesOpen = true"
+                            class="w-full inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 text-sm font-semibold text-gray-800 hover:ring-brand/30 transition">
+                        <svg class="w-4 h-4 text-brand shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/></svg>
+                        <span class="truncate" x-text="categoryLabel()"></span>
+                        <svg class="w-4 h-4 text-gray-400 shrink-0 ml-auto" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                    </button>
+                </div>
+
+                {{-- Desktop: premium dropdown (not native mobile select) --}}
+                <div class="hidden sm:block sm:w-56 shrink-0 relative" @keydown.escape.window="categoryMenuOpen = false">
+                    <button type="button"
+                            @click="categoryMenuOpen = !categoryMenuOpen"
+                            class="w-full inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 text-sm font-semibold text-gray-800 hover:ring-brand/30 transition capitalize">
+                        <span class="truncate" x-text="categoryLabel()"></span>
+                        <svg class="w-4 h-4 text-gray-400 shrink-0 ml-auto" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                    </button>
+                    <div x-show="categoryMenuOpen"
+                         x-cloak
+                         @click.outside="categoryMenuOpen = false"
+                         class="absolute right-0 mt-2 w-full rounded-2xl bg-white ring-1 ring-gray-200 shadow-lg overflow-hidden z-40">
+                        <button type="button"
+                                @click="selectCategory('all')"
+                                class="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-left transition"
+                                :class="category === 'all' ? 'bg-brand text-white' : 'text-gray-800 hover:bg-brand-muted/40'">
+                            <span>{{ __('borrower.loan_products_page.all_categories') }}</span>
+                            <svg x-show="category === 'all'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+                        </button>
+                        @foreach ($ordered as $cat)
+                            @php
+                                $label = $categoryOptions[$cat] ?? str_replace('_', ' ', (string) $cat);
+                            @endphp
+                            <button type="button"
+                                    @click="selectCategory(@js($cat))"
+                                    class="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-left transition capitalize"
+                                    :class="category === @js($cat) ? 'bg-brand text-white' : 'text-gray-800 hover:bg-brand-muted/40'">
+                                <span>{{ $label }}</span>
+                                <svg x-show="category === @js($cat)" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+                            </button>
+                        @endforeach
                     </div>
-                @endif
+                </div>
             </div>
         </div>
+
+        <x-site.bottom-sheet :title="__('borrower.loan_products_page.filter_label')" open="categoriesOpen">
+            <div class="grid gap-2">
+                <button type="button"
+                        @click="selectCategory('all')"
+                        class="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition"
+                        :class="category === 'all' ? 'bg-brand text-white' : 'bg-gray-50 text-gray-800 hover:bg-brand-muted/40'">
+                    <span>{{ __('borrower.loan_products_page.all_categories') }}</span>
+                    <svg x-show="category === 'all'" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+                </button>
+                @foreach ($ordered as $cat)
+                    @php
+                        $label = $categoryOptions[$cat] ?? str_replace('_', ' ', (string) $cat);
+                    @endphp
+                    <button type="button"
+                            @click="selectCategory(@js($cat))"
+                            class="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition capitalize"
+                            :class="category === @js($cat) ? 'bg-brand text-white' : 'bg-gray-50 text-gray-800 hover:bg-brand-muted/40'">
+                        <span>{{ $label }}</span>
+                        <svg x-show="category === @js($cat)" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+                    </button>
+                @endforeach
+            </div>
+        </x-site.bottom-sheet>
 
         @if ($products->isEmpty())
             <x-site.empty-state
@@ -89,13 +157,29 @@
     @push('scripts')
     <script>
         function loanProductsPage() {
+            const labels = @js(array_merge(
+                ['all' => __('borrower.loan_products_page.all_categories')],
+                collect($ordered)->mapWithKeys(fn ($cat) => [
+                    $cat => $categoryOptions[$cat] ?? str_replace('_', ' ', (string) $cat),
+                ])->all()
+            ));
             return {
                 search: '',
                 category: 'all',
+                categoriesOpen: false,
+                categoryMenuOpen: false,
                 visibleCount: {{ $products->count() }},
                 init() {
                     this.$watch('search', () => this.refreshVisibleCount());
                     this.$watch('category', () => this.refreshVisibleCount());
+                },
+                categoryLabel() {
+                    return labels[this.category] || this.category;
+                },
+                selectCategory(value) {
+                    this.category = value || 'all';
+                    this.categoriesOpen = false;
+                    this.categoryMenuOpen = false;
                 },
                 matchesWrapper(el) {
                     const haystack = (el.dataset.search || '').toLowerCase();

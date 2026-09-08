@@ -127,7 +127,14 @@ export function applyWizard(config) {
                 advancing: false,
                 submitting: false,
                 resumeLoading: false,
-                furthestStep: 0,
+                furthestStep: Math.max(0, Number(
+                    config.savedDraft?.resume_target?.furthest_step
+                    ?? config.savedDraft?.resume_target?.progress?.furthest_step
+                    ?? config.savedDraft?.resume_target?.step
+                    ?? config.savedDraft?.furthest_step
+                    ?? config.savedDraft?.step
+                    ?? 0
+                ) || 0),
                 showProfileGateModal: false,
                 showProfileReadyModal: false,
                 showMembershipGateModal: false,
@@ -164,10 +171,30 @@ export function applyWizard(config) {
                 phase: 'details',
                 readiness: null,
                 readinessLoading: false,
-                steps: [],
-                step: 0,
-                stepKey: '',
+                steps: (config.initialPlan || []).map((s) => ({
+                    ...s,
+                    icon: ({
+                        quote: '💰', asset_details: '🏠', asset_tenure: '📅', group_setup: '👥',
+                        group_members: '👤', application_fee: '💳', guarantor: '🤝',
+                        product_questions: '📄', education_details: '🎓', review: '✅',
+                        signature: '✍️', submit: '📤',
+                    })[s.key] || '',
+                })),
+                // Seed from server-resolved resume so first paint matches progress + body.
+                step: Math.max(0, Number(
+                    config.savedDraft?.resume_target?.step
+                    ?? config.savedDraft?.step
+                    ?? 0
+                ) || 0),
+                stepKey: String(
+                    config.savedDraft?.resume_target?.step_key
+                    || config.savedDraft?.step_key
+                    || ''
+                ),
                 current: null,
+                resolvedWizard: config.savedDraft?.resume_target || null,
+                _lockResolvedState: (config.savedDraft?.resume_target?.intent === 'paid')
+                    || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('fee_return') === 'paid'),
                 form: {
                     loan_product_id: null,
                     requested_amount: 0,
@@ -222,7 +249,19 @@ export function applyWizard(config) {
                 },
 
                 syncStepKey() {
-                    this.stepKey = this.steps[this.step]?.key ?? '';
+                    const fromSteps = this.steps[this.step]?.key ?? '';
+                    // Never let an empty/rebuilding plan wipe a locked paid destination.
+                    if (this._lockResolvedState && this.resolvedWizard?.step_key) {
+                        this.stepKey = this.resolvedWizard.step_key;
+                        const idx = this.resolveStepIndex(this.stepKey, this.step);
+                        if (idx !== this.step) {
+                            this.step = idx;
+                            this.furthestStep = idx;
+                        }
+                        this.syncUrlStep();
+                        return;
+                    }
+                    this.stepKey = fromSteps;
                     this.syncUrlStep();
                 },
 
@@ -232,12 +271,61 @@ export function applyWizard(config) {
                         if (this.phase === 'application' && this.stepKey) {
                             url.searchParams.set('resume', '1');
                             url.searchParams.set('step_key', this.stepKey);
+                            if (this._lockResolvedState || this.resolvedWizard?.intent === 'paid') {
+                                url.searchParams.set('fee_return', 'paid');
+                            }
                             window.history.replaceState({}, '', url.pathname + url.search + url.hash);
                         }
                     } catch (e) { /* ignore */ }
                 },
 
+                /**
+                 * Single canonical wizard position — progress, body, CTA, autosave and URL
+                 * all consume this object. Never update step/furthestStep/stepKey separately.
+                 */
+                applyResolvedWizardState(resolved = {}) {
+                    const stepKey = String(resolved.step_key || '');
+                    if (! stepKey) return;
+                    this.resolvedWizard = {
+                        step_key: stepKey,
+                        step: resolved.step,
+                        asset_substep: resolved.asset_substep ?? null,
+                        draft_reference: resolved.draft_reference || this.draftReference || null,
+                        intent: resolved.intent || null,
+                        fee_satisfied: !! resolved.fee_satisfied,
+                        reason: resolved.reason || null,
+                    };
+                    this._lockResolvedState = resolved.intent === 'paid'
+                        || resolved.fee_return === 'paid'
+                        || !! resolved.lock;
+                    this.phase = 'application';
+                    if (this.resolvedWizard.draft_reference) {
+                        this.draftReference = this.resolvedWizard.draft_reference;
+                    }
+                    if (resolved.asset_substep >= 1 && resolved.asset_substep <= 3) {
+                        this.assetSubstep = Number(resolved.asset_substep);
+                    }
+                    this.rebuildSteps(stepKey);
+                    const idx = this.resolveStepIndex(
+                        stepKey,
+                        Number.isFinite(Number(resolved.step)) ? Number(resolved.step) : 0
+                    );
+                    this.furthestStep = idx;
+                    this.step = idx;
+                    this.stepKey = stepKey;
+                    if (this._lockResolvedState || resolved.fee_satisfied) {
+                        this.feeGateOpen = false;
+                        this.applicationFeePaid = true;
+                    }
+                    this.syncUrlStep();
+                },
+
                 bumpFurthest(index = this.step) {
+                    if (this._lockResolvedState && this.resolvedWizard?.step_key) {
+                        const locked = this.resolveStepIndex(this.resolvedWizard.step_key, this.step);
+                        this.furthestStep = Math.max(locked, index || 0);
+                        return;
+                    }
                     this.furthestStep = Math.max(this.furthestStep || 0, index || 0);
                 },
 
@@ -1413,28 +1501,29 @@ export function applyWizard(config) {
                             return true;
                         }
 
-                        this.phase = 'application';
-                        this.rebuildSteps(resumeKey);
-                        const viewStep = this.resolveStepIndex(resumeKey, resumeStep);
-                        // Progress and body share one resolved index from the server resume target.
-                        this.furthestStep = viewStep;
-                        this.step = viewStep;
-                        this.updateQuote();
-                        this.syncStepKey();
-                        // After fee payment, resume lands on guarantor/review/… — do not clamp back to quote.
                         const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'];
                         const paidLanding = feeReturnIntent === 'paid'
-                            || this._postPaymentContinue
+                            || paidContinue
                             || draft.resume_target?.intent === 'paid'
                             || postFeeKeys.includes(resumeKey);
+
+                        this.applyResolvedWizardState({
+                            step_key: resumeKey,
+                            step: resumeStep,
+                            asset_substep: this.assetSubstep,
+                            draft_reference: this.draftReference || draft.draft_reference,
+                            intent: paidLanding ? 'paid' : (draft.resume_target?.intent || feeReturnIntent || null),
+                            fee_satisfied: paidLanding || this.feeGateSatisfied(),
+                            fee_return: feeReturnIntent || null,
+                            lock: paidLanding,
+                            reason: draft.resume_target?.reason || null,
+                        });
+                        this.updateQuote();
+                        this.applyFixedPurposeFromProduct(product);
+
                         if (! paidLanding) {
+                            this._lockResolvedState = false;
                             this.clampToIncompleteSetup();
-                        }
-                        // Paid continuation: never re-open fee gate or snap back to Quote.
-                        if (paidLanding || paidContinue) {
-                            this.feeGateOpen = false;
-                            this.applicationFeePaid = this.feeGateSatisfied() || paidContinue || feeReturnIntent === 'paid';
-                        } else {
                             this.enforceStepRequirements(this.isResume);
                         }
                         if (this.stepKey === 'review' || this.stepKey === 'signature' || this.stepKey === 'submit') {
@@ -2172,11 +2261,20 @@ export function applyWizard(config) {
                         .then(res => res.ok ? res.json() : Promise.reject(res))
                         .then(data => {
                             this.readiness = data;
-                            if (this.phase === 'application' && this.current && ! this.resumeLoading) {
+                            // Paid-return lock: readiness must not rebuild/clamp away from the
+                            // canonical resolved step (progress vs body disagreement root cause).
+                            if (this.phase === 'application' && this.current && ! this.resumeLoading && ! this._lockResolvedState) {
                                 this.rebuildSteps();
                                 this.clampToIncompleteSetup();
                                 this.enforceStepRequirements(this.isResume);
                                 this.syncStepKey();
+                            } else if (this._lockResolvedState && this.resolvedWizard?.step_key) {
+                                this.rebuildSteps(this.resolvedWizard.step_key);
+                                this.applyResolvedWizardState({
+                                    ...this.resolvedWizard,
+                                    lock: true,
+                                    fee_satisfied: true,
+                                });
                             }
                             if (data.fees?.application !== undefined) {
                                 this.applicationFee = data.fees.application;
@@ -2244,7 +2342,7 @@ export function applyWizard(config) {
                  * Keep the borrower on the first incomplete setup step instead.
                  */
                 clampToIncompleteSetup() {
-                    if (this.supplementMode || this.isEditHop()) return;
+                    if (this.supplementMode || this.isEditHop() || this._lockResolvedState) return;
                     // Verified fee already unlocked a post-fee stage — do not rewind setup.
                     const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'];
                     if (this.feeGateSatisfied() && postFeeKeys.includes(this.stepKey)) {
@@ -2669,7 +2767,12 @@ export function applyWizard(config) {
                 /** Required artisan / product-specific fields on the Amount step. */
                 quoteProductQuestionsReady() {
                     const code = this.current?.code;
-                    if (! code || ! this.productQuestions?.[code]?.fields?.length) {
+                    const block = this.productQuestions?.[code];
+                    if (! code || ! block?.fields?.length) {
+                        return true;
+                    }
+                    // Education / folded steps are not part of Quote readiness.
+                    if ((block.fold_into || 'quote') !== 'quote') {
                         return true;
                     }
                     // Fixed-purpose products already satisfy purpose before DOM hydration.
@@ -2685,10 +2788,28 @@ export function applyWizard(config) {
                         if (panel.offsetParent === null && getComputedStyle(panel).display === 'none') {
                             continue;
                         }
-                        const required = panel.querySelectorAll('[required]');
-                        if (required.length && ! window.KopaFastaForm.isComplete(panel, { onlyVisible: true, allowEmpty: false })) {
-                            return false;
+                        const required = [...panel.querySelectorAll('[required]')].filter((el) => {
+                            // Locked purpose UI hides the purpose select — never block Continue on it.
+                            if (this.hasFixedPurpose()) {
+                                const name = String(el.getAttribute('name') || el.getAttribute('x-model') || '');
+                                if (name.includes('purpose')) return false;
+                            }
+                            const style = getComputedStyle(el);
+                            if (style.display === 'none' || style.visibility === 'hidden') return false;
+                            if (el.closest('[style*="display: none"], [hidden], [x-cloak]')) {
+                                const wrap = el.closest('[x-show]');
+                                if (wrap && wrap.offsetParent === null) return false;
+                            }
+                            return true;
+                        });
+                        if (! required.length) {
+                            continue;
                         }
+                        const incomplete = required.some((el) => {
+                            const val = (el.value ?? '').toString().trim();
+                            return val === '';
+                        });
+                        if (incomplete) return false;
                     }
                     return true;
                 },
@@ -2728,6 +2849,8 @@ export function applyWizard(config) {
                             if (! this.form.requested_tenure_months) return false;
                             return true;
                         }
+                        if (! this.form.requested_amount || Number(this.form.requested_amount) < (this.current?.min || 1000)) return false;
+                        if (! this.form.requested_tenure_months || Number(this.form.requested_tenure_months) < (this.current?.tmin || 1)) return false;
                         const purposeReady = !!(this.form.purpose || (this.hasFixedPurpose() && this.current.fixed_purpose));
                         if (! purposeReady) return false;
                         if (this.purposeNeedsDetail()) return false;
@@ -3814,9 +3937,19 @@ export function applyWizard(config) {
                         return;
                     }
                     if (this.step > 0) {
+                        // Intentional back: unlock paid-return freeze so step/body stay in sync.
+                        this._lockResolvedState = false;
                         this.feeGateOpen = false;
                         this.step--;
                         this.syncStepKey();
+                        if (this.resolvedWizard) {
+                            this.resolvedWizard = {
+                                ...this.resolvedWizard,
+                                step_key: this.stepKey,
+                                step: this.step,
+                                intent: this.resolvedWizard.intent === 'paid' ? 'edit' : this.resolvedWizard.intent,
+                            };
+                        }
                         if (this.stepKey === 'asset_details') {
                             this.assetSubstep = 3;
                         }
@@ -3833,9 +3966,18 @@ export function applyWizard(config) {
 
                 goto(i) {
                     if (i <= (this.furthestStep ?? this.step)) {
+                        this._lockResolvedState = false;
                         this.feeGateOpen = false;
                         this.step = i;
                         this.syncStepKey();
+                        if (this.resolvedWizard) {
+                            this.resolvedWizard = {
+                                ...this.resolvedWizard,
+                                step_key: this.stepKey,
+                                step: this.step,
+                                intent: this.resolvedWizard.intent === 'paid' ? 'edit' : this.resolvedWizard.intent,
+                            };
+                        }
                         this.enforceStepRequirements();
                         if (this.stepKey === 'signature') {
                             this.$nextTick(() => this.restoreSignaturePad());

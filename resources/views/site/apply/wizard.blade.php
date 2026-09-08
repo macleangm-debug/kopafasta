@@ -1,5 +1,5 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.apply.title'))" active="loans" content-width="narrow">
-    <div>
+<x-site.borrower-layout :title="brand_title(__('borrower.apply.title'))" active="loans" content-width="wide">
+    <div class="max-w-3xl mx-auto w-full min-w-0">
 
         @if (session('error'))
             <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
@@ -339,6 +339,7 @@
 
                 <form id="apply-wizard-form"
                       data-apply-wizard-form
+                      data-no-draft
                       x-ref="wizardForm"
                       method="POST"
                       action="{{ route('site.borrower.apply.submit') }}"

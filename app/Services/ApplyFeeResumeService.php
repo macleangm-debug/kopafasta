@@ -70,7 +70,7 @@ class ApplyFeeResumeService
                 'intent' => self::INTENT_PAID,
                 'fee_satisfied' => true,
                 'step_key' => $next,
-                'asset_substep' => null,
+                'asset_substep' => $this->feeOriginAssetSubstep($product, $payload),
                 'reason' => 'verified_fee_next_step',
             ];
         }
@@ -206,13 +206,23 @@ class ApplyFeeResumeService
 
         $savedDraft['step_key'] = $stepKey;
         $savedDraft['step'] = (int) $index;
+        $savedDraft['furthest_step'] = (int) $index;
         $savedDraft['resume_target'] = [
             'phase' => 'application',
             'step_key' => $stepKey,
             'step' => (int) $index,
+            'furthest_step' => (int) $index,
+            'asset_substep' => $resolved['asset_substep'] ?? ($savedDraft['asset_substep'] ?? null),
+            'draft_reference' => $savedDraft['draft_reference'] ?? null,
             'reason' => $resolved['reason'] ?? null,
             'fee_satisfied' => (bool) ($resolved['fee_satisfied'] ?? false),
             'intent' => $resolved['intent'] ?? null,
+            // Single object progress + body must consume — never diverge.
+            'progress' => [
+                'step_key' => $stepKey,
+                'step' => (int) $index,
+                'furthest_step' => (int) $index,
+            ],
         ];
         if (! empty($resolved['asset_substep'])) {
             $savedDraft['asset_substep'] = (int) $resolved['asset_substep'];
