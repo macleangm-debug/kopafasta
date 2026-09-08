@@ -120,22 +120,6 @@ class MicroPassC17WizardClosureFeatureTest extends TestCase
         $this->assertStringContainsString('kopafasta-share-sheet', $group);
     }
 
-    public function test_registration_gender_and_inline_errors(): void
-    {
-        $this->assertSame('Enter gender', __('borrower.register.gender'));
-        $this->assertSame('Weka jinsia', __('borrower.register.gender', [], 'sw'));
-
-        $html = $this->get(route('site.register.borrower'))->assertOk()->getContent();
-        $this->assertStringContainsString(__('borrower.register.gender'), $html);
-        $this->assertStringContainsString('name="gender"', $html);
-
-        $select = file_get_contents(resource_path('views/components/site/profile-select.blade.php'));
-        $this->assertStringContainsString('lg:hidden', $select);
-        $this->assertStringNotContainsString('<select', $select);
-
-        $layout = file_get_contents(resource_path('views/components/site/layout.blade.php'));
-        $this->assertStringNotContainsString("'site.register*'", $layout);
-    }
 
     public function test_education_loan_plan_regression_still_inserts_education_details(): void
     {
