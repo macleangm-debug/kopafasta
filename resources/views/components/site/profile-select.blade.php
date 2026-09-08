@@ -26,6 +26,13 @@
     pick(val) {
         this.selected = val;
         this.pickerOpen = false;
+        this.$nextTick(() => {
+            const input = this.$el.querySelector('input[type=hidden]');
+            if (input) {
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
     }
 }">
     @if ($label)

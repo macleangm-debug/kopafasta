@@ -55,9 +55,8 @@ return [
             [
                 'key' => 'farming_location',
                 'label_key' => 'borrower.apply.agriculture_details.location',
-                'type' => 'text',
+                'type' => 'location',
                 'required' => true,
-                'placeholder_key' => 'borrower.apply.agriculture_details.location_placeholder',
             ],
             [
                 'key' => 'production_stage',
@@ -81,7 +80,7 @@ return [
             [
                 'key' => 'expected_revenue',
                 'label_key' => 'borrower.apply.agriculture_details.expected_revenue',
-                'type' => 'number',
+                'type' => 'income_range',
                 'required' => true,
             ],
             [
@@ -89,16 +88,18 @@ return [
                 'label_key' => 'borrower.apply.agriculture_details.farm_photos',
                 'type' => 'document',
                 'document_code' => 'farm_activity_photos',
-                'required' => false,
+                'required' => true,
                 'hint_key' => 'borrower.apply.agriculture_details.farm_photos_hint',
+                'capture' => 'images',
             ],
             [
                 'key' => 'land_evidence',
                 'label_key' => 'borrower.apply.agriculture_details.land_evidence',
                 'type' => 'document',
                 'document_code' => 'land_use_evidence',
-                'required' => false,
+                'required' => true,
                 'hint_key' => 'borrower.apply.agriculture_details.land_evidence_hint',
+                'capture' => 'multi_page',
             ],
             [
                 'key' => 'input_quotation',

@@ -317,14 +317,13 @@ class AuthController extends Controller
                 return $this->redirectAfterPinSetup($request, $user);
             }
 
-            return redirect()->route('site.borrower.setup-pin')
-                ->with('status', __('site.auth.pin_recovery.setup_pin_saved'));
+            // Direct transition to Security — no intermediate modal.
+            return redirect()->route('site.borrower.setup-pin');
         }
 
         // Stale PIN-phase POST after the PIN was already saved (draft/back/resubmit).
         if ((string) $request->input('phase') === 'pin') {
-            return redirect()->route('site.borrower.setup-pin')
-                ->with('status', __('site.auth.pin_recovery.setup_pin_saved'));
+            return redirect()->route('site.borrower.setup-pin');
         }
 
         $keys = session('pin_setup_question_keys', []);
@@ -353,19 +352,68 @@ class AuthController extends Controller
 
     private function redirectAfterPinSetup(Request $request, $user): RedirectResponse
     {
+        $this->finalizeBorrowerRegistration($user);
+
         if ($user->customer && ($guarantorRedirect = app(PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer))) {
             return $guarantorRedirect;
         }
 
         if ($returnUrl = $request->session()->pull('login_redirect')) {
             return redirect($returnUrl)
-                ->with('status', __('site.auth.pin_recovery.setup_done'))
                 ->with(Celebration::SESSION_KEY, ['registration']);
         }
 
         return redirect()->route('site.borrower.dashboard')
-            ->with('status', __('borrower.membership.pin_ready_browse'))
             ->with(Celebration::SESSION_KEY, ['registration']);
+    }
+
+    /**
+     * Activate a pending borrower only after PIN + security enrollment succeed.
+     */
+    private function finalizeBorrowerRegistration($user): void
+    {
+        if (! $user || $user->role !== 'borrower') {
+            return;
+        }
+
+        if (! $this->pins->hasPin($user)) {
+            return;
+        }
+
+        if (! app(PinRecoveryChallengeService::class)->hasEnrolledAnswers($user)) {
+            return;
+        }
+
+        if (! ($user->is_active ?? false)) {
+            $user->forceFill(['is_active' => true])->save();
+        }
+
+        $customer = $user->customer;
+        if ($customer && ($customer->status !== 'active' || blank($customer->onboarded_at))) {
+            $customer->forceFill([
+                'status' => 'active',
+                'onboarded_at' => $customer->onboarded_at ?? now(),
+            ])->save();
+        }
+
+        $membershipRequired = $customer
+            && app(MembershipService::class)->isRequiredForCountry($customer->country_code ?? 'TZ');
+
+        if ($customer && $membershipRequired) {
+            try {
+                app(NotificationService::class)->notifyInApp(
+                    $customer,
+                    __('borrower.membership.welcome_pay_body'),
+                    'membership',
+                    'membership_welcome',
+                    __('borrower.membership.welcome_pay_title'),
+                    route('site.membership.renew'),
+                    __('borrower.membership.pay_registration'),
+                );
+            } catch (\Throwable) {
+                // Non-blocking — registration should still succeed.
+            }
+        }
     }
 
     public function showForgotPin(Request $request): View
@@ -626,7 +674,11 @@ class AuthController extends Controller
                 ->withErrors(['email' => 'Staff accounts must sign in from the staff workspace.']);
         }
 
-        if (! ($user->is_active ?? true)) {
+        $registrationIncomplete = $user->role === 'borrower'
+            && (! $this->pins->hasPin($user)
+                || ! app(PinRecoveryChallengeService::class)->hasEnrolledAnswers($user));
+
+        if (! ($user->is_active ?? true) && ! $registrationIncomplete) {
             return back()->withErrors(['login' => 'This account is inactive.']);
         }
 
@@ -1008,20 +1060,21 @@ class AuthController extends Controller
         $user = DB::transaction(function () use ($data, $email, $referrals, $request) {
             $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
 
+            // Pending until PIN + security questions complete (finalizeBorrowerRegistration).
             $user = User::create([
                 'name' => $fullName,
                 'email' => $email,
                 'phone' => $data['phone'],
                 'password' => Hash::make($data['password']),
                 'role' => 'borrower',
-                'is_active' => true,
+                'is_active' => false,
             ]);
 
             $customer = Customer::create([
                 'user_id' => $user->id,
                 'customer_number' => 'C-'.strtoupper(Str::random(6)),
                 'type' => 'individual',
-                'status' => 'active',
+                'status' => 'pending',
                 'branch_id' => app(BranchService::class)->headOfficeId(),
                 'country_code' => strtoupper($data['country']),
                 'first_name' => $data['first_name'],
@@ -1034,7 +1087,7 @@ class AuthController extends Controller
                 'date_of_birth' => null,
                 'email' => null,
                 'phone' => $data['phone'],
-                'onboarded_at' => now(),
+                'onboarded_at' => null,
             ]);
 
             app(BranchService::class)->assignDefault($customer);
@@ -1089,34 +1142,8 @@ class AuthController extends Controller
             $groupOnboarding->rememberInvitation($request, $invitation);
         }
 
-        $welcome = $isGuarantorRegistration
-            ? ($guarantorInvitation
-                ? __('borrower.guarantor_invite.continue_after_pin')
-                : __('borrower.apply.group.continue_after_pin'))
-            : __('borrower.auth.register_welcome');
-
-        $membershipRequired = $user->customer
-            && app(MembershipService::class)->isRequiredForCountry($user->customer->country_code ?? 'TZ');
-
-        if ($user->customer && ! $isGuarantorRegistration && $membershipRequired) {
-            $welcome = __('borrower.membership.welcome_pay_body');
-            try {
-                app(NotificationService::class)->notifyInApp(
-                    $user->customer,
-                    __('borrower.membership.welcome_pay_body'),
-                    'membership',
-                    'membership_welcome',
-                    __('borrower.membership.welcome_pay_title'),
-                    route('site.membership.renew'),
-                    __('borrower.membership.pay_registration'),
-                );
-            } catch (\Throwable) {
-                // Non-blocking — registration should still succeed.
-            }
-        }
-
-        return redirect()->route('site.borrower.setup-pin')
-            ->with('status', $welcome);
+        // No welcome / Got it modal — go straight to PIN setup.
+        return redirect()->route('site.borrower.setup-pin');
     }
 
     public function storeWaitlistRequest(Request $request): RedirectResponse

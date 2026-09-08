@@ -10,6 +10,11 @@
     $hostPrefix = $hostPrefix ?? 'apply';
     $hostId = $hostPrefix.'-'.$docCode.'-upload';
     $errorKey = $errorKey ?? null;
+    $multiPage = (bool) ($multiPage ?? false);
+    $guideCompact = (bool) ($guideCompact ?? false);
+    $guideText = $guideCompact
+        ? __('borrower.document_upload.guide_document_compact')
+        : __('borrower.document_upload.guide_document');
 @endphp
 <div class="space-y-3 sm:col-span-2" x-data="{ replaceMode: false }">
     <label class="block text-sm font-semibold text-gray-700">
@@ -92,13 +97,30 @@
                     .then(() => { replaceMode = false; @if($errorKey) educationErrors[@js($errorKey)] = ''; @endif });
             }
          ">
-        <x-site.single-image-document-upload
-            :name="$hostPrefix.'_'.$docCode"
-            :input-host-id="$hostId"
-            facing="environment"
-            :required="$required"
-            :guide="__('borrower.document_upload.guide_document')"
-        />
+        @if ($multiPage)
+            <div id="{{ $hostId }}" class="sr-only" aria-hidden="true"></div>
+            <x-site.multi-page-document-upload
+                :name="$hostPrefix.'_'.$docCode"
+                :input-host-id="$hostId"
+                :required="$required"
+                :camera-first="true"
+                :max-pages="12"
+            />
+            <p class="text-xs text-gray-500">{{ $guideText }}</p>
+            <button type="button"
+                    @click="uploadEducationDocumentPages(@js($docCode), @js($hostId)).then(() => { replaceMode = false; @if($errorKey) educationErrors[@js($errorKey)] = ''; @endif })"
+                    class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-5 py-3 text-sm shadow-sm">
+                {{ __('borrower.apply.agriculture_details.save_pages') }}
+            </button>
+        @else
+            <x-site.single-image-document-upload
+                :name="$hostPrefix.'_'.$docCode"
+                :input-host-id="$hostId"
+                facing="environment"
+                :required="$required"
+                :guide="$guideText"
+            />
+        @endif
         <button type="button"
                 x-show="replaceMode && educationDocuments[@js($docCode)]?.customer_document_id"
                 x-cloak

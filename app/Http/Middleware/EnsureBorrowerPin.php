@@ -35,14 +35,7 @@ class EnsureBorrowerPin
             return $next($request);
         }
 
-        $message = ! $hasPin
-            ? __('site.auth.pin_recovery.middleware_need_pin')
-            : __('site.auth.pin_recovery.middleware_need_recovery');
-
-        return redirect()->route('site.borrower.setup-pin')->with('feedback', [
-            'tone' => 'info',
-            'title' => __('site.auth.pin_recovery.setup_title'),
-            'message' => $message,
-        ]);
+        // Silent redirect — registration must not insert Got it / Nimeelewa modals.
+        return redirect()->route('site.borrower.setup-pin');
     }
 }

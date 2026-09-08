@@ -100,7 +100,7 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('site.register.borrower.post') }}">
+                    <form method="POST" action="{{ route('site.register.borrower.post') }}" data-no-draft>
                         @csrf
                         @if (! empty($referralCode))
                             <input type="hidden" name="referral_code" value="{{ $referralCode }}">
@@ -180,6 +180,7 @@
                                                class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition">
                                     </div>
                                     <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.register.mobile_hint') }}</p>
+                                    <p x-show="step1Error || errors.phone" x-cloak class="mt-1.5 text-xs text-rose-600" x-text="step1Error || errors.phone"></p>
                                 </div>
 
                                 <template x-if="!activeCountry.active">
@@ -232,7 +233,7 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div class="min-w-0">
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.first_name') }} <span class="text-red-500">*</span></label>
-                                        <input name="first_name" x-model="form.first_name" required autocomplete="given-name"
+                                        <input name="first_name" x-model="form.first_name" @input="step2Error = ''" required autocomplete="given-name"
                                                class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                     </div>
                                     <div class="min-w-0">
@@ -243,10 +244,10 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.last_name') }} <span class="text-red-500">*</span></label>
-                                    <input name="last_name" x-model="form.last_name" required autocomplete="family-name"
+                                    <input name="last_name" x-model="form.last_name" @input="step2Error = ''" required autocomplete="family-name"
                                            class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition">
                                 </div>
-                                <div class="min-w-0">
+                                <div class="min-w-0" @change="if ($event.target?.name === 'gender') { form.gender = $event.target.value; step2Error = ''; }">
                                     <x-site.profile-select
                                         name="gender"
                                         :label="__('borrower.register.gender')"
@@ -256,7 +257,12 @@
                                         :placeholder="__('borrower.register.gender_placeholder')"
                                         select-class="w-full px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
                                     />
+                                    <p x-show="step2Error && !form.gender" x-cloak class="mt-1.5 text-xs text-rose-600" x-text="step2Error"></p>
+                                    @error('gender')
+                                        <p class="mt-1.5 text-xs text-rose-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
+                                <p x-show="step2Error && form.gender" x-cloak class="mt-1.5 text-xs text-rose-600" x-text="step2Error"></p>
                                 <div class="flex items-start gap-2 rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-3.5 py-2.5 text-xs text-brand">
                                     <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
                                     <span>{{ __('borrower.register.age_notice', ['age' => 18]) }}</span>
@@ -322,13 +328,13 @@
                                 <span x-cloak x-show="checkingPhone">{{ __('borrower.register.checking') }}</span>
                                 <svg x-show="!checkingPhone" class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
-                            <button type="button" @click="next()" x-show="step === 2"
+                            <button type="button" @click="next()" x-show="step === 2 && canContinueStep2" x-cloak
                                     class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm">
                                 {{ __('borrower.register.continue') }}
                                 <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
 
-                            <div x-show="step === 3" x-cloak class="w-full sm:w-auto sm:ml-auto space-y-3">
+                            <div x-show="step === 3 && canContinueStep3" x-cloak class="w-full sm:w-auto sm:ml-auto space-y-3">
                                 <x-site.turnstile action="register" />
                                 <button type="submit"
                                         class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 px-7 rounded-xl transition shadow-sm">
@@ -367,6 +373,7 @@
                     first_name: initial.first_name || '',
                     middle_name: initial.middle_name || '',
                     last_name: initial.last_name || '',
+                    gender: initial.gender || @js(old('gender', '')),
                     email: initial.email || '',
                     password: '',
                     password_confirmation: '',
@@ -374,6 +381,8 @@
                 countries: @js($registrationCountries ?? []),
                 countryOpen: false,
                 checkingPhone: false,
+                step1Error: '',
+                step2Error: '',
                 errors: { phone: '', email: '', password: '', password_confirmation: '' },
                 get activeCountry() {
                     return this.countries.find(c => c.code === this.form.country) ?? this.countries[0];
@@ -381,6 +390,16 @@
                 get canContinueStep1() {
                     const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
                     return this.activeCountry.active && digits.length >= 9;
+                },
+                get canContinueStep2() {
+                    return !!(this.form.first_name || '').trim()
+                        && !!(this.form.last_name || '').trim()
+                        && !!this.form.gender;
+                },
+                get canContinueStep3() {
+                    const password = this.form.password || '';
+                    const confirm = this.form.password_confirmation || '';
+                    return password.length >= 8 && password === confirm;
                 },
                 fullPhone() {
                     const prefix = (this.activeCountry.prefix || '').replace(/\D/g, '');
@@ -390,27 +409,16 @@
                 onPhoneInput() {
                     this.form.local_phone = (this.form.local_phone || '').replace(/[^\d\s]/g, '');
                     this.errors.phone = '';
+                    this.step1Error = '';
                 },
                 validatePhone() {
                     const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
                     this.errors.phone = digits.length >= 9 ? '' : @js(__('borrower.auth.phone_invalid'));
                     return ! this.errors.phone;
                 },
-                promptPhone() {
-                    if (! this.activeCountry.active) {
-                        return this.showNotice(@js(__('borrower.register.country_unavailable')));
-                    }
-                    this.validatePhone();
-                    this.showNotice(this.errors.phone || @js(__('borrower.auth.phone_invalid')));
-                },
-                showNotice(message) {
-                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
-                        detail: {
-                            tone: 'warning',
-                            title: @js(__('borrower.auth.phone_required_title')),
-                            message: message,
-                        },
-                    }));
+                setInlineError(step, message) {
+                    if (step === 1) this.step1Error = message;
+                    if (step === 2) this.step2Error = message;
                 },
                 validateEmail() {
                     if (!this.form.email) { this.errors.email = ''; return; }
@@ -432,9 +440,12 @@
                 async next() {
                     if (this.step === 1) {
                         if (! this.canContinueStep1) {
-                            return this.promptPhone();
+                            this.setInlineError(1, this.errors.phone || @js(__('borrower.auth.phone_invalid')));
+                            this.validatePhone();
+                            return;
                         }
                         this.checkingPhone = true;
+                        this.step1Error = '';
                         try {
                             const response = await fetch(@js(route('site.register.check-phone')), {
                                 method: 'POST',
@@ -460,15 +471,18 @@
                                 return;
                             }
                         } catch (e) {
-                            return this.showNotice(@js(__('borrower.auth.phone_check_failed')));
+                            this.setInlineError(1, @js(__('borrower.auth.phone_check_failed')));
+                            return;
                         } finally {
                             this.checkingPhone = false;
                         }
                     }
                     if (this.step === 2) {
-                        if (!this.form.first_name || !this.form.last_name) {
-                            return this.showNotice(@js(__('borrower.register.name_required')));
+                        if (! this.canContinueStep2) {
+                            this.setInlineError(2, @js(__('borrower.register.name_required')));
+                            return;
                         }
+                        this.step2Error = '';
                     }
                     if (this.step < 3) this.step++;
                     window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -425,6 +425,15 @@ export function applyWizard(config) {
                         // Persist immediately so language switches keep the visible step.
                         this.persistDraft(true);
                     });
+                    const flushDraftOnLeave = () => {
+                        if (this.phase === 'application' && ! this.draftBlocked && ! this.supplementMode) {
+                            this.persistDraft(true);
+                        }
+                    };
+                    window.addEventListener('pagehide', flushDraftOnLeave);
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'hidden') flushDraftOnLeave();
+                    });
                     this.$watch('stepKey', (key) => {
                         if (key === 'application_fee') {
                             this.enterApplicationFeeStep();
@@ -1029,6 +1038,25 @@ export function applyWizard(config) {
                 async uploadEducationDocument(code, event) {
                     const file = event.target?.files?.[0];
                     if (! file || ! this.educationDocumentUploadUrl || ! this.form.loan_product_id) return;
+                    return this._postEducationDocumentUpload(code, (formData) => formData.append('file', file));
+                },
+
+                async uploadEducationDocumentPages(code, hostId) {
+                    if (! this.educationDocumentUploadUrl || ! this.form.loan_product_id) return;
+                    const host = document.getElementById(hostId);
+                    const inputs = host ? Array.from(host.querySelectorAll('input[type=file]')) : [];
+                    const files = inputs.flatMap((input) => Array.from(input.files || []));
+                    if (! files.length) {
+                        this.educationDocumentUploadCode = code;
+                        this.educationDocumentUploadError = this.i18n.educationDetails?.uploadFailed || 'Upload failed';
+                        return;
+                    }
+                    return this._postEducationDocumentUpload(code, (formData) => {
+                        files.forEach((file) => formData.append('pages[]', file));
+                    });
+                },
+
+                async _postEducationDocumentUpload(code, appendFiles) {
                     if (this.educationDocumentUploading) return;
                     this.educationDocumentUploading = true;
                     this.educationDocumentUploadCode = code;
@@ -1038,7 +1066,7 @@ export function applyWizard(config) {
                         const formData = new FormData();
                         formData.append('loan_product_id', this.form.loan_product_id);
                         formData.append('document_code', code);
-                        formData.append('file', file);
+                        appendFiles(formData);
                         const data = await new Promise((resolve, reject) => {
                             const xhr = new XMLHttpRequest();
                             xhr.open('POST', this.educationDocumentUploadUrl);
@@ -1067,18 +1095,15 @@ export function applyWizard(config) {
                             xhr.onerror = () => reject(new Error(this.i18n.educationDetails?.uploadFailed || 'Upload failed'));
                             xhr.send(formData);
                         });
-                        this.educationDocuments = data.education_documents || {};
-                        if (this.educationErrors) {
-                            this.educationErrors = { ...this.educationErrors, admission_letter: '' };
+                        if (data.education_documents) {
+                            this.educationDocuments = data.education_documents;
                         }
                         await this.persistDraft(true);
                     } catch (e) {
-                        this.educationDocumentUploadError = e?.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed';
+                        this.educationDocumentUploadError = e?.message || (this.i18n.educationDetails?.uploadFailed || 'Upload failed');
                     } finally {
                         this.educationDocumentUploading = false;
                         this.educationDocumentUploadProgress = null;
-                        this.educationDocumentUploadCode = '';
-                        if (event.target) event.target.value = '';
                     }
                 },
 
@@ -3013,12 +3038,23 @@ export function applyWizard(config) {
                         return !! type;
                     }
                     if (this.stepKey === 'agriculture_details') {
+                        void this.educationDocuments;
                         const root = this.formRoot();
-                        const required = ['farming_activity_type', 'farming_location', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
-                        return required.every((key) => {
+                        const region = (root?.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
+                        const district = (root?.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
+                        const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
+                        if (locationHidden) {
+                            const ward = (root?.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
+                            locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
+                        }
+                        const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
+                        const fieldsOk = required.every((key) => {
                             const el = root?.querySelector(`[name="product_question[${key}]"]`);
                             return !!(el?.value || '').toString().trim();
                         });
+                        const docsOk = !!this.educationDocuments?.farm_activity_photos?.customer_document_id
+                            && !!this.educationDocuments?.land_use_evidence?.customer_document_id;
+                        return fieldsOk && !!region && !!district && docsOk;
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         const count = this.groupTargetCount();
@@ -3985,8 +4021,16 @@ export function applyWizard(config) {
                         return true;
                     }
                     if (this.stepKey === 'agriculture_details') {
+                        void this.educationDocuments;
                         const root = this.formRoot();
-                        const required = ['farming_activity_type', 'farming_location', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
+                        const region = (root?.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
+                        const district = (root?.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
+                        const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
+                        if (locationHidden) {
+                            const ward = (root?.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
+                            locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
+                        }
+                        const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
                         for (const key of required) {
                             const el = root?.querySelector(`[name="product_question[${key}]"]`);
                             if (! (el?.value || '').toString().trim()) {
@@ -3994,6 +4038,15 @@ export function applyWizard(config) {
                                 el?.focus?.();
                                 return false;
                             }
+                        }
+                        if (! region || ! district) {
+                            showWizardFeedback(this.i18n.agricultureDetails?.incomplete || 'Complete the agriculture details before continuing.');
+                            return false;
+                        }
+                        if (! this.educationDocuments?.farm_activity_photos?.customer_document_id
+                            || ! this.educationDocuments?.land_use_evidence?.customer_document_id) {
+                            showWizardFeedback(this.i18n.agricultureDetails?.docsRequired || 'Add the required farm photos and land-use evidence to continue.');
+                            return false;
                         }
                         return true;
                     }

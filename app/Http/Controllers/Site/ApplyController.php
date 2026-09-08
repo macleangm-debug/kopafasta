@@ -1135,7 +1135,12 @@ class ApplyController extends Controller
             'application_fee' => ['nullable', 'array'],
             'valuation_fee' => ['nullable', 'array'],
             'asset_documents' => ['nullable', 'array'],
+            'education_documents' => ['nullable', 'array'],
+            'institution_payment' => ['nullable', 'array'],
             'external_guarantor' => ['nullable', 'array'],
+            'internal_guarantor' => ['nullable', 'array'],
+            'draft_reference' => ['nullable', 'string', 'max:64'],
+            'asset_substep' => ['nullable', 'integer', 'min:0', 'max:20'],
             'borrower_signature' => ['nullable', 'array'],
             'declaration_accepted' => ['nullable', 'boolean'],
             'group' => ['nullable', 'array'],
@@ -1494,8 +1499,22 @@ class ApplyController extends Controller
         $data = $request->validate([
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
             'document_code' => ['required', 'string', 'max:60'],
-            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'pages' => ['nullable', 'array', 'min:1', 'max:12'],
+            'pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
+
+        $pageFiles = array_values(array_filter(
+            $request->file('pages', []) ?: [],
+            fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
+        ));
+        $single = $request->file('file');
+        if ($pageFiles === [] && ! ($single instanceof \Illuminate\Http\UploadedFile && $single->isValid())) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('validation.required', ['attribute' => 'file']),
+            ], 422);
+        }
 
         $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
         $code = (string) $data['document_code'];
@@ -1524,7 +1543,17 @@ class ApplyController extends Controller
         );
 
         $folder = strtolower((string) $product->code) ?: 'apply';
-        $path = $request->file('file')->store("borrower/{$customer->id}/{$folder}", 'public');
+        if ($pageFiles !== []) {
+            $path = app(\App\Services\DocumentPageMerger::class)->mergeTo(
+                $pageFiles,
+                "borrower/{$customer->id}/{$folder}",
+                $code
+            );
+            $originalName = basename($path);
+        } else {
+            $path = $single->store("borrower/{$customer->id}/{$folder}", 'public');
+            $originalName = $single->getClientOriginalName();
+        }
         $document = CustomerDocument::create([
             'customer_id' => $customer->id,
             'document_type_id' => $docType->id,
@@ -1539,7 +1568,7 @@ class ApplyController extends Controller
             'code' => $code,
             'label' => $label,
             'view_url' => asset('storage/'.$path),
-            'file_name' => $request->file('file')->getClientOriginalName(),
+            'file_name' => $originalName,
             'uploaded_at' => now()->format('d M Y, H:i'),
             'is_pdf' => str_ends_with(strtolower($path), '.pdf'),
             'verified' => false,
