@@ -35,6 +35,9 @@ class LoanApplicationDraftService
         }
 
         $payload = $draft->payload ?? [];
+        if (filled($draft->draft_reference)) {
+            $payload['draft_reference'] = $draft->draft_reference;
+        }
         $stepKey = $payload['step_key'] ?? null;
         $step = (int) $draft->step;
         $applicationStarted = (bool) ($payload['application_started'] ?? $draft->phase === 'application');
@@ -327,6 +330,11 @@ class LoanApplicationDraftService
     /** @param  array<string, mixed>  $payload */
     public function shouldClampToFeeGate(Customer $customer, LoanProduct $product, array $payload): bool
     {
+        $draft = $this->find($customer, $product->id);
+        if ($draft && filled($draft->draft_reference)) {
+            $payload['draft_reference'] = $draft->draft_reference;
+        }
+
         $stepKey = (string) ($payload['step_key'] ?? '');
         if ($stepKey === '' || ! app(ApplicationFeePaymentService::class)->blocksWizardStep($stepKey)) {
             return false;
@@ -441,10 +449,16 @@ class LoanApplicationDraftService
         ];
 
         $product = LoanProduct::find((int) $productId);
-        $draftReference = $existing?->draft_reference;
+        $draftReference = $data['draft_reference']
+            ?? $existing?->draft_reference;
+
+        if (filled($draftReference)) {
+            $payload['draft_reference'] = $draftReference;
+        }
 
         if (! $draftReference && $product) {
             $draftReference = app(ReferenceNumberService::class)->applicationReference($product);
+            $payload['draft_reference'] = $draftReference;
         }
 
         $step = (int) ($data['step'] ?? 0);

@@ -399,6 +399,28 @@ class ApplyController extends Controller
                     $target['step_key'] = $requestedKey;
                     $target['phase'] = $target['phase'] ?? 'application';
                 }
+            } elseif (
+                $selectedProduct
+                && ! $supplementMode
+                && app(ApplicationFeePaymentService::class)->isSatisfiedFor(
+                    $customer,
+                    $selectedProduct,
+                    is_array($savedDraft) ? $savedDraft : [],
+                )
+            ) {
+                // Fee already verified: never demote an advanced payload step back to Quote
+                // just because resume_target was clamped before draft_reference was merged.
+                $setupKeys = ['quote', 'asset_details', 'asset_tenure', 'group_setup', 'group_members', 'application_fee'];
+                $payloadKey = (string) ($savedDraft['step_key'] ?? '');
+                $targetKey = (string) ($target['step_key'] ?? '');
+                if ($payloadKey !== '' && ! in_array($payloadKey, $setupKeys, true)) {
+                    $target['step_key'] = $payloadKey;
+                    $target['phase'] = 'application';
+                } elseif ($targetKey === '' || in_array($targetKey, $setupKeys, true)) {
+                    $target['step_key'] = app(ApplicationFeePaymentService::class)
+                        ->nextStepAfterApplicationFee($customer, $selectedProduct, is_array($savedDraft) ? $savedDraft : []);
+                    $target['phase'] = 'application';
+                }
             }
             if ($request->filled('step')) {
                 $target['step'] = (int) $request->query('step');

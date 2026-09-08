@@ -175,13 +175,13 @@ class ApplicationFeePaymentService
         if ($paymentId > 0) {
             $found = (clone $query)->where('id', $paymentId)->first();
 
-            return $this->paymentBoundToCurrentObligation($found, $application, $draftReference) ? $found : null;
+            return $this->paymentBoundToCurrentObligation($found, $application, $draftReference, true) ? $found : null;
         }
 
         if ($reference !== '') {
             $found = (clone $query)->where('reference', $reference)->first();
 
-            return $this->paymentBoundToCurrentObligation($found, $application, $draftReference) ? $found : null;
+            return $this->paymentBoundToCurrentObligation($found, $application, $draftReference, true) ? $found : null;
         }
 
         if ($application) {
@@ -210,6 +210,7 @@ class ApplicationFeePaymentService
         ?CustomerPayment $payment,
         ?LoanApplication $application,
         string $draftReference,
+        bool $citedByPaymentIdOrReference = false,
     ): bool {
         if (! $payment) {
             return false;
@@ -222,12 +223,22 @@ class ApplicationFeePaymentService
 
         $paymentDraftRef = trim((string) data_get($payment->provider_meta, 'apply_context.draft_reference'));
 
+        // Draft fee state that already cites this payment/reference is authoritative,
+        // unless the payment is bound to a different draft.
+        if ($citedByPaymentIdOrReference) {
+            if ($draftReference !== '' && $paymentDraftRef !== '' && $paymentDraftRef !== $draftReference) {
+                return false;
+            }
+
+            return true;
+        }
+
         // When either side is draft-anchored, they must match. Never inherit another draft's fee.
         if ($draftReference !== '' || $paymentDraftRef !== '') {
             return $draftReference !== '' && $paymentDraftRef === $draftReference;
         }
 
-        // Legacy unbound citation (payment_id/reference on draft fee state) — allow once only.
+        // Legacy unbound citation — allow once only.
         return true;
     }
 
@@ -746,6 +757,18 @@ class ApplicationFeePaymentService
         }
 
         $cashDue = $this->canonicalOpenPaymentAmount($customer, $product, $payment);
+
+        $nextStep = $this->nextStepAfterApplicationFee($customer, $product, $draftPayload);
+        $meta = is_array($payment->provider_meta) ? $payment->provider_meta : [];
+        $ctx = is_array($meta['apply_context'] ?? null) ? $meta['apply_context'] : [];
+        $ctx['loan_product_id'] = $product->id;
+        $ctx['draft_reference'] = $draft?->draft_reference ?: ($ctx['draft_reference'] ?? null);
+        $ctx['next_step_key'] = $nextStep;
+        $ctx['return_url'] = $this->resumeUrlAfterFee($customer, $product, $draftPayload, $nextStep);
+        $ctx['back_url'] = $this->quoteResumeUrl($customer, $product);
+        $ctx['gross_amount'] = (float) $cashDue;
+        $meta['apply_context'] = $ctx;
+        $payment->update(['provider_meta' => $meta]);
 
         return $this->feeStateFromPayment(
             $payment->fresh(),

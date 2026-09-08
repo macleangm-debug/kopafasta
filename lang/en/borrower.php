@@ -2928,11 +2928,14 @@ return [
             'bank_details' => 'Bank details used',
             'reference' => 'Reference',
             'proof_submitted' => 'Proof submitted',
+            'proof_awaiting_verification' => 'Proof submitted · Waiting for Verification',
             'document_uploaded' => 'Document uploaded',
             'no_proof' => 'No proof uploaded yet.',
             'verification_notes' => 'Verification notes',
             'upload_proof_heading' => 'Upload proof',
             'upload_proof_button' => 'Upload proof',
+            'proof_camera_guide' => 'Take a clear photo of your bank payment receipt. Make sure the amount, reference and transaction details are readable.',
+            'proof_camera_continue' => 'Open camera',
             'you_have_reward' => 'You have a reward',
             'reward_available' => 'Reward available',
             'save_on_payment' => 'Save on this payment',
@@ -3640,7 +3643,7 @@ return [
 
     'payment_statuses' => [
         'awaiting_payment' => 'Ready to pay',
-        'pending_verification' => 'Pending Verification',
+        'pending_verification' => 'Waiting for Verification',
         'clarification_requested' => 'Clarification Requested',
         'processing' => 'Awaiting phone confirmation',
         'verified' => 'Verified',

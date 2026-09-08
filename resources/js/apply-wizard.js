@@ -437,6 +437,7 @@ export function applyWizard(config) {
                         step: this.step,
                         step_key: this.stepKey,
                         application_started: this.phase === 'application',
+                        draft_reference: this.draftReference || null,
                         loan_product_id: this.form.loan_product_id,
                         asset_reservation_id: this.reservationId,
                         form: this.form,
@@ -1379,10 +1380,10 @@ export function applyWizard(config) {
                         this.rebuildSteps(resumeKey);
                         const viewStep = this.resolveStepIndex(resumeKey, resumeStep);
                         const savedKey = draft.step_key || '';
-                        const savedStep = this.resolveStepIndex(savedKey, draft.step ?? resumeStep ?? 0);
-                        let furthest = Math.max(viewStep, savedStep, Number(draft.step) || 0);
-                        // Do not unlock Review/Submit just because a signature exists —
-                        // that makes locale reloads feel like a jump off Guarantor.
+                        const savedStep = this.resolveStepIndex(savedKey, resumeStep ?? 0);
+                        // Progress and body must share one resolved index — never promote a raw
+                        // draft.step that disagrees with the resume destination (Quote flicker).
+                        let furthest = Math.max(viewStep, savedStep);
                         this.furthestStep = furthest;
                         this.step = viewStep;
                         this.updateQuote();

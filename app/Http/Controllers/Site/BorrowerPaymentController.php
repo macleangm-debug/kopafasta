@@ -234,8 +234,7 @@ class BorrowerPaymentController extends Controller
             }
 
             return redirect()
-                ->route('site.borrower.payments.show', $payment)
-                ->with('status', __('borrower.payment_waiting.switched_to_bank'));
+                ->route('site.borrower.payments.show', $payment);
         }
 
         $mobileNumber = PhoneNumber::fromRequest($request, 'mobile_number', $customer->country_code ?? null)
@@ -430,8 +429,7 @@ class BorrowerPaymentController extends Controller
         }
 
         return redirect()
-            ->route('site.borrower.payments.show', $payment)
-            ->with('status', __('borrower.payment_waiting.switched_to_bank'));
+            ->route('site.borrower.payments.show', $payment);
     }
 
     public function status(CustomerPayment $payment, CustomerPaymentService $payments): JsonResponse
@@ -700,7 +698,8 @@ class BorrowerPaymentController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('status', 'Proof uploaded. Finance will review your payment.');
+        // Stay on the same payment surface — Waiting for Verification is the status.
+        return redirect()->route('site.borrower.payments.show', $payment->fresh());
     }
 
     /** @return array{0: string, 1: string, 2: string} */

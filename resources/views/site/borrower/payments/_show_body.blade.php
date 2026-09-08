@@ -84,6 +84,9 @@
                 <span class="rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $badge }}">{{ $payment->statusLabel() }}</span>
                 <span class="text-xs text-white/70">{{ $payment->created_at?->format('d M Y') }}</span>
             </div>
+            @if ($payment->status === 'pending_verification')
+                <p class="mt-3 text-sm font-semibold text-amber-200">{{ __('borrower.payment_statuses.pending_verification') }}</p>
+            @endif
         </div>
     </section>
 
@@ -132,20 +135,54 @@
     <div>
         <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1.5">{{ __('borrower.payments_page.show.proof_submitted') }}</p>
         @if ($payment->hasProof())
-            <p class="text-sm font-medium text-gray-800">{{ $payment->proof_original_name ?? __('borrower.payments_page.show.document_uploaded') }}</p>
+            @php
+                $proofName = $payment->proof_original_name ?? __('borrower.payments_page.show.document_uploaded');
+                $proofIsImage = (bool) preg_match('/\.(jpe?g|png|gif|webp)$/i', (string) ($payment->proof_path ?? $proofName));
+                $proofUrl = $payment->proof_path ? asset('storage/'.$payment->proof_path) : null;
+            @endphp
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden">
+                <div class="flex items-center gap-3 px-4 py-3">
+                    @if ($proofIsImage && $proofUrl)
+                        <div class="h-14 w-14 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-gray-50 shrink-0">
+                            <img src="{{ $proofUrl }}" alt="" class="h-full w-full object-cover">
+                        </div>
+                    @else
+                        <div class="h-14 w-14 rounded-lg ring-1 ring-gray-200 bg-brand-muted/40 grid place-items-center shrink-0">
+                            <span class="text-[10px] font-bold text-brand">PDF</span>
+                        </div>
+                    @endif
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-gray-900 truncate">{{ $proofName }}</p>
+                        @if ($payment->status === 'pending_verification')
+                            <p class="text-xs font-semibold text-amber-700 mt-0.5">{{ __('borrower.payments_page.show.proof_awaiting_verification') }}</p>
+                        @endif
+                    </div>
+                    @if ($proofUrl)
+                        <a href="{{ $proofUrl }}" target="_blank" rel="noopener"
+                           class="text-xs font-semibold text-brand hover:underline shrink-0">{{ __('borrower.profile.view') }}</a>
+                    @endif
+                </div>
+            </div>
         @else
             <p class="text-sm text-gray-500">{{ __('borrower.payments_page.show.no_proof') }}</p>
         @endif
     </div>
 
-    @if ($payment->verification_notes)
+    @php
+        $borrowerNotes = collect(preg_split('/\R+/', (string) ($payment->verification_notes ?? '')))
+            ->map(fn ($line) => trim($line))
+            ->filter(fn ($line) => $line !== '' && ! str_starts_with(mb_strtolower($line), 'staging simulator:'))
+            ->values()
+            ->all();
+    @endphp
+    @if ($borrowerNotes !== [])
         <div class="rounded-2xl bg-brand-muted/30 ring-1 ring-brand/10 px-5 py-4">
             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1.5">{{ __('borrower.payments_page.show.verification_notes') }}</p>
-            <p class="text-sm text-gray-800 whitespace-pre-line">{{ $payment->verification_notes }}</p>
+            <p class="text-sm text-gray-800 whitespace-pre-line">{{ implode("\n", $borrowerNotes) }}</p>
         </div>
     @endif
 
-    @if ($payment->payment_method === 'bank_transfer' && $payment->isPending())
+    @if ($payment->payment_method === 'bank_transfer' && $payment->isPending() && ! $payment->hasProof())
         <div class="rounded-2xl ring-1 ring-amber-200 bg-amber-50/60 px-5 py-5">
             <h3 class="text-sm font-semibold text-amber-950 mb-3">{{ __('borrower.payments_page.show.upload_proof_heading') }}</h3>
             <form method="POST" action="{{ route('site.borrower.payments.proof', $payment) }}" enctype="multipart/form-data" class="space-y-3">
@@ -154,15 +191,22 @@
                     name="proof"
                     facing="environment"
                     :required="true"
+                    :large-preview="true"
+                    :guide="__('borrower.payments_page.show.proof_camera_guide')"
                     :labels="[
                         'uploadImage' => __('borrower.payments_page.show.upload_proof_button'),
                         'captureImage' => __('borrower.profile.capture_image'),
+                        'guideContinue' => __('borrower.payments_page.show.proof_camera_continue'),
                     ]"
                 />
                 <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm transition">
                     {{ __('borrower.payments_page.show.upload_proof_button') }}
                 </button>
             </form>
+        </div>
+    @elseif ($payment->payment_method === 'bank_transfer' && $payment->isPending() && $payment->hasProof())
+        <div class="rounded-2xl ring-1 ring-amber-200 bg-amber-50/60 px-5 py-4">
+            <p class="text-sm font-semibold text-amber-950">{{ __('borrower.payments_page.show.proof_awaiting_verification') }}</p>
         </div>
     @endif
 </div>

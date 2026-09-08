@@ -451,18 +451,13 @@ class BorrowerController extends Controller
         abort_if($draft->customer_id !== $customer->id, 404);
 
         $productId = (int) $draft->loan_product_id;
-        $reference = $draft->draft_reference;
         app(LoanApplicationDraftService::class)->discard($customer, $productId);
 
         $reapply = $request->boolean('reapply') && $productId > 0;
 
         return $reapply
             ? redirect()->route('site.borrower.apply', ['product' => $productId, 'intent' => 'apply'])
-            : redirect()
-                ->route('site.borrower.loans', ['tab' => 'applications'])
-                ->with('status', __('borrower.policy.draft_discarded', [
-                    'number' => $reference ?: __('borrower.apply.title'),
-                ]));
+            : redirect()->route('site.borrower.loans', ['tab' => 'applications']);
     }
 
     public function replaceAssetDocument(Request $request, CustomerAsset $asset): RedirectResponse
