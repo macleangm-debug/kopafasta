@@ -80,7 +80,7 @@ class StagingPaymentsFeatureTest extends TestCase
         $this->asStaging();
         $product = $this->product(10_000);
 
-        $this->assertSame(500, quoted_application_fee(null, $product));
+        $this->assertSame(1000, quoted_application_fee(null, $product));
         $this->assertSame(10000, (int) $product->fresh()->application_fee_amount);
     }
 
@@ -103,12 +103,11 @@ class StagingPaymentsFeatureTest extends TestCase
         ]);
 
         $quote = app(PaymentGateService::class)->quote($customer, 10_000, 'application_fee', false, 'KITONGA');
-        $this->assertEquals(500.0, (float) $quote['base']);
+        $this->assertEquals(1000.0, (float) $quote['base']);
         $this->assertEquals(10000.0, (float) $quote['canonical_base']);
-        $this->assertEquals(50.0, (float) $quote['affiliate_discount']);
-        $this->assertEquals(450.0, (float) $quote['cash_due']);
+        $this->assertEquals(0.0, (float) $quote['affiliate_discount']);
+        $this->assertEquals(1000.0, (float) $quote['cash_due']);
         $this->assertContains('base', collect($quote['lines'])->pluck('key')->all());
-        $this->assertContains('affiliate', collect($quote['lines'])->pluck('key')->all());
         $this->assertContains('payable', collect($quote['lines'])->pluck('key')->all());
     }
 

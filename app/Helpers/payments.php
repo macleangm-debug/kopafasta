@@ -89,21 +89,9 @@ if (! function_exists('quoted_application_fee')) {
         $base = app(\App\Services\Staging\StagingPaymentsService::class)
             ->effective('application_fee', $base, $product);
 
-        $after = $base;
-
-        if ($customer && app(ReferralService::class)->referrer($customer)) {
-            $after = (float) app(ReferralService::class)->quoteFee($customer, $base, false, 'application_fee')['after_discount'];
-        } elseif ($customer) {
-            $after = (float) app(AffiliateService::class)->quoteFee($customer, $base, 'application_fee')['after_discount'];
-        } else {
-            $after = (float) app(PromotionService::class)->applyAfter('application_fee', $base)['after_discount'];
-        }
-
-        if ($customer) {
-            return (int) round($after);
-        }
-
-        return (int) round($after);
+        // Canonical payable only. Affiliate attribution / silent promos must not shrink
+        // the borrower amount here — PaymentGateService applies explicit promo/reward only.
+        return (int) round($base);
     }
 }
 
@@ -139,11 +127,8 @@ if (! function_exists('quoted_valuation_fee')) {
         $base = app(\App\Services\Staging\StagingPaymentsService::class)
             ->effective('valuation_fee', $base);
 
-        $unit = match (true) {
-            (bool) ($customer && app(ReferralService::class)->referrer($customer)) => (int) round(app(ReferralService::class)->quoteFee($customer, $base, false, 'valuation_fee')['after_discount']),
-            (bool) $customer => (int) round(app(AffiliateService::class)->quoteFee($customer, $base, 'valuation_fee')['after_discount']),
-            default => (int) round(app(PromotionService::class)->applyAfter('valuation_fee', $base)['after_discount']),
-        };
+        // Canonical per-asset amount only — no silent affiliate/promo shrink.
+        $unit = (int) round($base);
 
         return $unit * $count;
     }

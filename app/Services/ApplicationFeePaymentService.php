@@ -510,7 +510,7 @@ class ApplicationFeePaymentService
 
         [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
-        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        $draft = $this->ensureDraftForFee($customer, $product);
         $draftPayload = is_array($draft?->payload) ? $draft->payload : null;
         $nextStep = $this->nextStepAfterApplicationFee($customer, $product, $draftPayload);
         $groups = app(GroupLendingService::class);
@@ -545,10 +545,8 @@ class ApplicationFeePaymentService
         if ($draftRef !== '') {
             $existingQuery->where('provider_meta->apply_context->draft_reference', $draftRef);
         } else {
-            $existingQuery->where(function ($q): void {
-                $q->whereNull('provider_meta->apply_context->draft_reference')
-                    ->orWhere('provider_meta->apply_context->draft_reference', '');
-            });
+            // Never inherit unbound orphan fees onto a fresh obligation.
+            $existingQuery->whereRaw('1 = 0');
         }
 
         $existing = $existingQuery->latest('id')->first();
@@ -634,7 +632,7 @@ class ApplicationFeePaymentService
 
         [$effectivePromo, $effectiveAffiliate] = $this->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
-        $draft = app(LoanApplicationDraftService::class)->find($customer, $product->id);
+        $draft = $this->ensureDraftForFee($customer, $product);
         $draftPayload = is_array($draft?->payload) ? $draft->payload : null;
         $nextStep = $this->nextStepAfterApplicationFee($customer, $product, $draftPayload);
         $groups = app(GroupLendingService::class);
@@ -747,11 +745,75 @@ class ApplicationFeePaymentService
             return null;
         }
 
+        $cashDue = $this->canonicalOpenPaymentAmount($customer, $product, $payment);
+
         return $this->feeStateFromPayment(
-            $payment,
-            (int) round((float) $payment->amount),
+            $payment->fresh(),
+            $cashDue,
             $payment->payment_method === 'bank_transfer' ? 'bank' : 'mobile_money',
         );
+    }
+
+    /**
+     * Every fee obligation must be anchored to a draft_reference before payment rows are created.
+     */
+    private function ensureDraftForFee(Customer $customer, LoanProduct $product): ?\App\Models\LoanApplicationDraft
+    {
+        $drafts = app(LoanApplicationDraftService::class);
+        $draft = $drafts->find($customer, $product->id);
+        if (! $draft) {
+            $draft = $drafts->save($customer, [
+                'phase' => 'application',
+                'step' => 0,
+                'step_key' => 'quote',
+                'loan_product_id' => $product->id,
+                'form' => ['loan_product_id' => $product->id],
+                'application_started' => true,
+            ]);
+        }
+        if ($draft && blank($draft->draft_reference)) {
+            $draft->draft_reference = app(ReferenceNumberService::class)->applicationReference($product);
+            $draft->save();
+        }
+
+        return $draft?->fresh();
+    }
+
+    /**
+     * Open obligations keep their reference, but never inherit a silent discount.
+     * Refresh to the canonical fee unless the borrower explicitly applied a benefit on this payment.
+     */
+    private function canonicalOpenPaymentAmount(Customer $customer, LoanProduct $product, CustomerPayment $payment): int
+    {
+        $hasExplicitBenefit = (float) data_get($payment->provider_meta, 'pricing.promo_discount', 0) > 0
+            || (float) data_get($payment->provider_meta, 'pricing.loyalty_discount', 0) > 0
+            || (float) data_get($payment->provider_meta, 'pricing.wallet_applied', 0) > 0
+            || (bool) data_get($payment->provider_meta, 'pricing.apply_reward', false)
+            || filled(data_get($payment->provider_meta, 'pricing.promo_code'));
+
+        if ($hasExplicitBenefit) {
+            return (int) round((float) $payment->amount);
+        }
+
+        $canonical = (int) round((float) ($this->quote($customer, $product)['cash_due'] ?? 0));
+        if ($canonical <= 0) {
+            return (int) round((float) $payment->amount);
+        }
+
+        if ((int) round((float) $payment->amount) !== $canonical) {
+            $meta = is_array($payment->provider_meta) ? $payment->provider_meta : [];
+            data_set($meta, 'pricing.gross', $canonical);
+            data_set($meta, 'pricing.cash_due', $canonical);
+            data_set($meta, 'pricing.affiliate_discount', 0);
+            data_set($meta, 'pricing.promo_discount', 0);
+            data_set($meta, 'apply_context.gross_amount', $canonical);
+            $payment->update([
+                'amount' => $canonical,
+                'provider_meta' => $meta,
+            ]);
+        }
+
+        return $canonical;
     }
 
     /**

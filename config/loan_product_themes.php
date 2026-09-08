@@ -53,7 +53,7 @@ return [
     'KB' => [
         'icon' => '🚜',
         'theme' => 'emerald',
-        'label' => 'Kilimo Boost',
+        'label' => 'Agro Loan',
         'label_sw' => 'Msukumo wa kilimo',
         'illustration' => 'agriculture',
     ],
@@ -81,7 +81,7 @@ return [
     'WL' => [
         'icon' => '👩',
         'theme' => 'pink',
-        'label' => 'Women Loan',
+        'label' => "Queen's Loan",
         'label_sw' => 'Mkopo wa wanawake',
         'illustration' => 'women',
     ],

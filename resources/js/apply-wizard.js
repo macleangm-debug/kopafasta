@@ -542,8 +542,10 @@ export function applyWizard(config) {
                         // the fee is zero or already paid — that jumped asset-backed apps to guarantor.
                         return;
                     }
-                    if (onResume && ['processing', 'pending'].includes(this.applicationFeeState?.status || '')) {
-                        this.payApplicationFee();
+                    // Back to Quote / Cancel / Failed exit: stay on the setup step.
+                    // Only an explicit Continue may reopen payment.show.
+                    if (onResume && this.isPreFeeSetupStep(this.stepKey)) {
+                        this.feeGateOpen = false;
                         return;
                     }
                     if (this.needsFeeGateBefore(this.stepKey)) {
@@ -988,10 +990,12 @@ export function applyWizard(config) {
                         console.warn('application fee quote failed', e);
                     } finally {
                         this.syncFeePaidState();
-                        // Quote may arrive after resume landed on guarantor — open the same IL fee gate.
+                        // Never auto-open the fee gate while the borrower is still on Quote/setup.
+                        // Continue is the only path that may reopen payment.show after Cancel/Failed.
                         if (! this.supplementMode && ! this.isEditHop()
                             && ! this.feeGateSatisfied()
-                            && this.needsFeeGateBefore(this.stepKey)) {
+                            && this.needsFeeGateBefore(this.stepKey)
+                            && ! this.isPreFeeSetupStep(this.stepKey)) {
                             this.payApplicationFee();
                         }
                     }
@@ -1190,7 +1194,8 @@ export function applyWizard(config) {
                                   this.draftReference = data.draft_reference;
                               }
                               if (data?.step_key && data.step_key !== this.stepKey
-                                  && this.needsFeeGateBefore(this.stepKey)) {
+                                  && this.needsFeeGateBefore(this.stepKey)
+                                  && ! this.isPreFeeSetupStep(this.stepKey)) {
                                   this.payApplicationFee();
                               }
                           });
@@ -1263,6 +1268,16 @@ export function applyWizard(config) {
                         // Only a real payment-continuation handshake may assume the fee settled.
                         if (cont) {
                             this._postPaymentContinue = true;
+                            try {
+                                const contUrl = new URL(cont, window.location.origin);
+                                const contStep = contUrl.searchParams.get('step_key');
+                                if (contStep) {
+                                    target.step_key = contStep;
+                                    target.phase = 'application';
+                                }
+                            } catch (e) {
+                                // ignore malformed continuation URL
+                            }
                         }
                     } catch (e) {
                         // ignore
@@ -1321,7 +1336,8 @@ export function applyWizard(config) {
                     if (draft.internal_guarantor) this.internalGuarantor = draft.internal_guarantor;
                     if (draft.borrower_signature) this.borrowerSignature = draft.borrower_signature;
                     if (draft.declaration_accepted || draft.borrower_signature) this.declarationAccepted = true;
-                    if (this._postPaymentContinue) {
+                    const paidContinue = !! this._postPaymentContinue;
+                    if (paidContinue) {
                         const serverPaid = ['paid', 'waived'].includes(
                             String(this.applicationFeeState?.status || draft.application_fee?.status || '')
                         );
@@ -1372,10 +1388,16 @@ export function applyWizard(config) {
                         this.updateQuote();
                         this.syncStepKey();
                         // After fee payment, resume lands on guarantor/review/… — do not clamp back to quote.
-                        if (! ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'].includes(resumeKey)) {
+                        const postFeeKeys = ['guarantor', 'review', 'signature', 'submit', 'product_questions', 'education_details'];
+                        if (! postFeeKeys.includes(resumeKey)) {
                             this.clampToIncompleteSetup();
                         }
-                        this.enforceStepRequirements(this.isResume);
+                        // Paid continuation: never re-open fee gate or snap back to Quote.
+                        if (paidContinue || postFeeKeys.includes(resumeKey)) {
+                            this.feeGateOpen = false;
+                        } else {
+                            this.enforceStepRequirements(this.isResume);
+                        }
                         if (this.stepKey === 'review' || this.stepKey === 'signature' || this.stepKey === 'submit') {
                             this.refreshReview(this.formRoot());
                         }

@@ -521,7 +521,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             ->assertSessionHasErrors('affiliate_code');
     }
 
-    public function test_attributed_customer_quote_auto_applies_promo_without_typed_code(): void
+    public function test_attributed_customer_quote_does_not_auto_discount_from_affiliate(): void
     {
         [$user, $affiliate] = $this->affiliateUser([
             'affiliate_code' => 'AUTO001',
@@ -562,9 +562,8 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
         $quote = app(\App\Services\ApplicationFeePaymentService::class)->quote($customer->fresh(), $product, false, null, null, null);
 
         $this->assertTrue($quote['has_affiliate']);
-        $this->assertTrue($quote['promo_valid']);
-        $this->assertSame('AUTO001', $quote['promo_code']);
-        $this->assertGreaterThan(0, (float) $quote['affiliate_discount']);
+        $this->assertSame(0.0, (float) $quote['affiliate_discount']);
+        $this->assertSame(10000.0, (float) $quote['cash_due']);
     }
 
     public function test_affiliate_hero_keeps_wallet_code_and_single_mobile_cta(): void
