@@ -7,6 +7,7 @@
     'stale' => false,
     'empty' => false,
     'emptyOpensView' => false,
+    'editAllowed' => true,
     'addUrl' => null,
     'addLabel' => null,
     'sectionId' => null,
@@ -25,12 +26,16 @@
     $startOpen = (bool) $editing || (bool) $defaultEdit;
     $startExpanded = $startOpen || (bool) $defaultOpen;
     $emptyOpensView = (bool) $emptyOpensView;
+    $editAllowed = filter_var($editAllowed, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    $editAllowed = $editAllowed === null ? true : $editAllowed;
     $accordionId = $sectionId ?: ('section-'.substr(md5($title), 0, 8));
     $isStale = (bool) $stale;
     // Tick when complete AND fresh. Accept bool/int/string from Blade bindings.
     $isComplete = ! $isStale && filter_var($complete, FILTER_VALIDATE_BOOLEAN);
     // Server-render the tick so complete cards never flash Edit before Alpine boots.
     $startWithTick = $isComplete && ! $startOpen && ! $startExpanded;
+    // Locked/saved sections: never expose Edit — tick only.
+    $forceTickOnly = $isComplete && ! $editAllowed;
 @endphp
 
 <div
@@ -40,18 +45,19 @@
         ($allowOverflow ?? false) ? 'overflow-visible' : 'overflow-hidden',
     ]) }}
     x-data="profileSectionCard(@js([
-        'open' => $startOpen,
-        'expanded' => $startExpanded,
+        'open' => $forceTickOnly ? false : $startOpen,
+        'expanded' => $forceTickOnly ? $startExpanded : $startExpanded,
         'complete' => $isComplete,
-        'showEditAction' => $startOpen || $isStale,
+        'showEditAction' => $forceTickOnly ? false : ($startOpen || $isStale),
         'emptyOpensView' => $emptyOpensView,
+        'editAllowed' => $editAllowed,
         'id' => $accordionId,
         'sectionHash' => $sectionId,
         'unsavedTitle' => __('borrower.profile.unsaved_photos_title'),
         'unsavedMessage' => __('borrower.profile.unsaved_photos_body'),
         'unsavedConfirm' => __('borrower.profile.unsaved_photos_confirm'),
     ]))"
-    @profile-card-open-edit.window="if ($event.detail === sectionHash) openEdit()"
+    @profile-card-open-edit.window="if ($event.detail === sectionHash && editAllowed) openEdit()"
 >
     <div
         @class([
@@ -91,6 +97,19 @@
 
         @if ($useInline)
             <div class="shrink-0 flex items-center justify-end min-h-9">
+                @if ($forceTickOnly)
+                    <span
+                        class="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-brand to-brand-light pl-1.5 pr-3 py-1.5 text-brand-gold shadow-sm shadow-brand/20 ring-1 ring-brand-gold/50 pointer-events-none"
+                        title="{{ __('borrower.profile.section_complete') }}"
+                        aria-label="{{ __('borrower.profile.section_complete') }}">
+                        <span class="grid size-7 place-items-center rounded-full bg-white/15 ring-1 ring-white/25">
+                            <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                            </svg>
+                        </span>
+                        <span class="text-[11px] font-bold text-white/90 hidden sm:inline">{{ __('borrower.profile.section_complete') }}</span>
+                    </span>
+                @else
                 {{-- Exclusive controls: never render tick and Edit in the same frame --}}
                 <template x-if="typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick)">
                     <span
@@ -129,6 +148,7 @@
                         <span x-show="open" x-cloak>{{ __('borrower.profile.cancel_edit') }}</span>
                     </button>
                 </template>
+                @endif
             </div>
         @elseif (! $editing && $editUrl)
             <div class="shrink-0 relative min-h-9 min-w-9 flex items-center justify-end">

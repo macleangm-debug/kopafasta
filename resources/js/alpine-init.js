@@ -7,6 +7,7 @@ import { registerProfileSectionCard } from './profile-section-card';
 import { registerPaymentProfileCard } from './payment-profile-card';
 import { registerSavingOverlay } from './saving-overlay';
 import { registerPartnerCreateConfirm } from './partner-create-confirm';
+import { registerNidaDirectiveJourney } from './nida-directive-journey';
 
 import { registerValuationCamera } from './valuation-camera';
 import { registerPspPaymentFlow } from './psp-payment-flow';
@@ -19,6 +20,7 @@ registerCollateralAddForm(Alpine);
 registerProfileSectionCard(Alpine);
 registerPaymentProfileCard(Alpine);
 registerSavingOverlay(Alpine);
+registerNidaDirectiveJourney(Alpine);
 registerPartnerCreateConfirm(Alpine);
 registerValuationCamera(Alpine);
 registerPspPaymentFlow(Alpine);

@@ -116,8 +116,9 @@
                     :title="__('borrower.profile.fields.national_id')"
                     :complete="$nidaSaved"
                     :empty="! $nidaSaved"
+                    :edit-allowed="! $nidaSaved"
                     :default-open="$focusHash === 'identity'"
-                    :default-edit="$editFocus === 'identity'">
+                    :default-edit="$editFocus === 'identity' && ! $nidaSaved">
                     <x-slot:view>
                         @if ($nidaSaved)
                             <div>
@@ -129,7 +130,6 @@
                                     <p class="text-xs text-gray-500 mt-1">{{ __('borrower.nida.saved_locked_hint') }}</p>
                                 @else
                                     <p class="text-xs text-gray-500 mt-2">{{ __('borrower.nida.confirm_lock_pending_hint') }}</p>
-                                    <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.edit_section') }}</button>
                                 @endif
                             </div>
                         @else
@@ -141,12 +141,12 @@
                         @endunless
                     </x-slot:view>
                     <x-slot:form>
-                        @if ($nidaReadonly)
+                        @if ($nidaReadonly || $nidaSaved)
                             <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm text-gray-800 mb-4">
                                 <p class="font-semibold">{{ __('borrower.nida.saved_locked_title') }}</p>
                                 <p class="mt-1 text-gray-600">{{ __('borrower.nida.saved_locked_hint') }}</p>
                             </div>
-                        @endif
+                        @else
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
                               @submit.prevent="
                                   if (@js($locked)) { $el.submit(); return; }
@@ -188,6 +188,7 @@
                             </div>
                             <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" :allow-empty="$nidaSaved" />
                         </form>
+                        @endif
                     </x-slot:form>
                 </x-site.profile-section-card>
 

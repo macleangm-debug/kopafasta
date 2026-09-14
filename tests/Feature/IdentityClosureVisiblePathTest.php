@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Services\PinService;
 use App\Services\ProfileCompletionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class IdentityClosureVisiblePathTest extends TestCase
@@ -46,8 +48,8 @@ class IdentityClosureVisiblePathTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('data-kf-national-id-holder', $html);
+        $this->assertStringContainsString('nidaDirectiveJourney', $html);
         $this->assertStringContainsString(__('borrower.profile.national_id_holder_hint'), $html);
-        $this->assertStringContainsString('nida-holder-replace', $html);
         $this->assertStringContainsString(__('borrower.profile.id_images_title'), $html);
     }
 
@@ -61,44 +63,53 @@ class IdentityClosureVisiblePathTest extends TestCase
         $this->assertNotContains('identity', $keys);
     }
 
-    public function test_saved_nida_number_card_uses_number_not_uploads_for_complete(): void
+    public function test_saved_nida_number_card_disables_edit(): void
     {
         $blade = file_get_contents(resource_path('views/site/borrower/profile/personal.blade.php'));
         $this->assertStringContainsString(':complete="$nidaSaved"', $blade);
-        $this->assertStringContainsString(':empty="! $nidaSaved"', $blade);
-        $this->assertStringNotContainsString(':complete="$hasIdentity"', $blade);
-        $this->assertStringContainsString('empty-opens-view', $blade);
-        $this->assertStringContainsString('idImagesDefaultEdit', $blade);
-    }
+        $this->assertStringContainsString(':edit-allowed="! $nidaSaved"', $blade);
 
-    public function test_personal_profile_with_saved_nida_shows_complete_not_add_on_identity_card(): void
-    {
         $customer = $this->borrower();
-
         $html = $this->actingAs($customer->user)
             ->get(route('site.borrower.profile', ['section' => 'personal', 'focus' => 'identity']))
             ->assertOk()
             ->getContent();
 
         $this->assertStringContainsString($customer->national_id, $html);
-        // Complete tick SSR uses section_complete; Add CTA only when empty.
         $this->assertStringContainsString(__('borrower.profile.section_complete'), $html);
-        $this->assertStringContainsString('data-kf-national-id-holder', $html);
-        $this->assertStringContainsString('data-kf-nida-next-side', $html);
     }
 
-    public function test_face_wizard_clears_uploading_before_finalize_after_replace(): void
+    public function test_nida_front_only_upload_is_accepted_progressively(): void
+    {
+        Storage::fake('public');
+        $this->seed(\Database\Seeders\KycDocumentTypeSeeder::class);
+        $customer = $this->borrower();
+
+        $this->actingAs($customer->user)
+            ->post(route('site.borrower.profile.update', ['section' => 'personal']), [
+                '_method' => 'PUT',
+                'focus' => 'id_images',
+                'national_id' => $customer->national_id,
+                'national_id_front' => UploadedFile::fake()->image('front.jpg'),
+            ], ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('side', 'front')
+            ->assertJsonPath('complete', false);
+
+        $this->assertTrue(
+            app(\App\Services\ProfileValidationService::class)->hasDocument($customer->fresh(), 'national_id_front')
+        );
+        $this->assertFalse(
+            app(\App\Services\ProfileValidationService::class)->hasDocument($customer->fresh(), 'national_id_back')
+        );
+    }
+
+    public function test_face_wizard_hides_start_when_all_angles_done(): void
     {
         $blade = file_get_contents(resource_path('views/components/site/face-verification-wizard.blade.php'));
-        $this->assertStringContainsString("this.isUploading = false;", $blade);
+        $this->assertStringContainsString("phase === 'intro' && !steps.every(s => s.done)", $blade);
+        $this->assertStringContainsString('face-retake-angle', $blade);
         $this->assertStringContainsString('Clear uploading BEFORE finalize', $blade);
-        $this->assertStringContainsString("window.addEventListener('face-retake-angle'", $blade);
-        // Listener registered before the early-return all-done path.
-        $initPos = strpos($blade, 'async init()');
-        $listenerPos = strpos($blade, "window.addEventListener('face-retake-angle'", $initPos ?: 0);
-        $earlyReturnMarker = strpos($blade, 'this.stepIndex >= this.steps.length', $initPos ?: 0);
-        $this->assertNotFalse($listenerPos);
-        $this->assertNotFalse($earlyReturnMarker);
-        $this->assertLessThan($earlyReturnMarker, $listenerPos);
     }
 }

@@ -23,8 +23,8 @@
     })"
     x-init="init()"
 >
-    {{-- Intro --}}
-    <div x-show="phase === 'intro'" class="space-y-4">
+    {{-- Intro — never ask to start when every angle is already captured --}}
+    <div x-show="phase === 'intro' && !steps.every(s => s.done)" class="space-y-4">
         <nav aria-label="{{ __('borrower.face_verification_page.steps_nav') }}">
             <ol class="flex items-center gap-0">
                 <template x-for="(step, i) in steps" :key="'rail-' + step.key">
@@ -141,7 +141,10 @@
         </div>
 
         <div x-show="phase === 'saving'" class="absolute inset-0 z-[6] bg-black/60 flex items-center justify-center">
-            <p class="font-semibold text-white">{{ __('borrower.face_verification_page.photo_saved') }}</p>
+            <p class="inline-flex items-center gap-2 font-semibold text-white">
+                <span class="size-4 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true"></span>
+                {{ __('borrower.face_verification_page.saving') }}
+            </p>
         </div>
     </div>
     </template>
@@ -332,17 +335,16 @@
                         }
 
                         if (this.stepIndex >= this.steps.length) {
-                            this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
-                            // Never re-finalize when already pending/verified — that POST→redirect→focus=face
-                            // loop is what snaps /personal?focus=face back and forth.
-                            if (this.isFaceAlreadySubmitted()) {
-                                // Stay on review so Change picture can replace one angle — never the dead-end "saved" screen.
+                            if (this.steps.every(s => s.done)) {
+                                // All angles present — never show Start CTA; use review + retake.
                                 this.phase = 'review';
-                            } else if (this.phase === 'review' && this.steps.every((s) => s.done && ! s.localBlob)) {
-                                // Photos already on server, status still incomplete — finalize once.
-                                this.$nextTick(() => this.submitVerification());
-                            }
-                            if (this.phase === 'intro') {
+                                if (! this.isFaceAlreadySubmitted()
+                                    && this.steps.every((s) => s.done && ! s.localBlob)) {
+                                    // Photos on server, status still incomplete — finalize once.
+                                    this.$nextTick(() => this.submitVerification());
+                                }
+                            } else {
+                                this.phase = 'intro';
                                 this.stepIndex = this.steps.findIndex(s => !s.done);
                                 if (this.stepIndex < 0) this.stepIndex = 0;
                             }
@@ -1117,10 +1119,13 @@
                                 return;
                             }
 
+                            if (typeof window.kfShowInlineSaving === 'function') {
+                                window.kfShowInlineSaving(@js(__('borrower.document_upload.saving')));
+                            }
+
                             const blobPreview = this.previewUrl;
                             this.poseOk = false;
                             this.stepStartedAt = performance.now();
-                            await new Promise(r => setTimeout(r, 700));
                             this.previewUrl = null;
                             this.previewBlob = null;
                             if (blobPreview && String(blobPreview).startsWith('blob:') && step.previewUrl !== blobPreview) {
@@ -1185,6 +1190,9 @@
                             this.previewBlob = blob;
                             this.previewUrl = step?.previewUrl || (blob ? URL.createObjectURL(blob) : null);
                             this.holdProgress = 0;
+                            if (typeof window.kfHideSaving === 'function') {
+                                window.kfHideSaving();
+                            }
                         } finally {
                             this.isUploading = false;
                         }

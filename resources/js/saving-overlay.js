@@ -154,12 +154,12 @@ export function registerSavingOverlay(Alpine) {
 
         if (form.hasAttribute('data-inline-document-progress') || onProfile) {
             // Always keep Profile / inline holders on the non-blocking path.
-            if (onProfile && ! form.hasAttribute('data-inline-document-progress')) {
-                const msg = form.getAttribute('data-saving-message') || '';
-                if (msg || String(form.enctype || '').toLowerCase() === 'multipart/form-data'
-                    || [...form.querySelectorAll('input[type="file"]')].some((input) => input.files && input.files.length > 0)) {
-                    window.kfShowInlineSaving(msg);
-                }
+            const msg = form.getAttribute('data-saving-message')
+                || document.querySelector('[data-kf-saving-toast] span:last-child')?.textContent?.trim()
+                || '';
+            if (msg || String(form.enctype || '').toLowerCase() === 'multipart/form-data'
+                || [...form.querySelectorAll('input[type="file"]')].some((input) => input.files && input.files.length > 0)) {
+                window.kfShowInlineSaving(msg || undefined);
             }
 
             const holders = form.querySelectorAll('[data-document-holder]');

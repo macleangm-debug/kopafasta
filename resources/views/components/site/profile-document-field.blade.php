@@ -323,8 +323,10 @@
     <div x-show="inlineUploading" x-cloak
          class="rounded-xl bg-brand/5 ring-1 ring-brand/15 px-4 py-3 space-y-2">
         <div class="flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-brand"
-               x-text="inlineProgress === null ? @js(__('borrower.document_upload.processing')) : (inlineMessage || @js(__('borrower.apply.document_saving')))"></p>
+            <p class="inline-flex items-center gap-2 text-sm font-semibold text-brand">
+                <span class="size-3.5 rounded-full border-2 border-brand/30 border-t-brand animate-spin" aria-hidden="true"></span>
+                <span x-text="inlineProgress === null ? (inlineMessage || @js(__('borrower.document_upload.saving'))) : (inlineMessage || @js(__('borrower.apply.document_saving')))"></span>
+            </p>
             <p class="text-sm font-bold tabular-nums text-brand"
                x-show="inlineProgress !== null"
                x-text="(inlineProgress ?? 0) + '%'"></p>
@@ -333,10 +335,6 @@
              x-show="inlineProgress !== null">
             <div class="h-full bg-brand transition-[width] duration-150"
                  :style="'width:' + (inlineProgress ?? 0) + '%'"></div>
-        </div>
-        <div class="h-2 rounded-full bg-white overflow-hidden ring-1 ring-brand/10"
-             x-show="inlineProgress === null">
-            <div class="h-full w-1/3 bg-brand animate-pulse rounded-full"></div>
         </div>
     </div>
 </div>

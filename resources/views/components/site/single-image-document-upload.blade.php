@@ -451,8 +451,11 @@
                         this.submitClosestForm();
                         return;
                     }
-                    // Profile / form holders: autosave by submitting the existing section form.
+                    // Prevent form autosubmit when inside the NIDA directive journey (AJAX owns persistence).
                     if (this.sourceDriven) {
+                        if (this.$el.closest('[data-kf-national-id-holder]')) {
+                            return;
+                        }
                         const form = this.$el.closest('form');
                         const isApply = !!(form && (form.id === 'apply-wizard-form' || form.hasAttribute('data-apply-wizard-form')));
                         if (form && ! isApply) {

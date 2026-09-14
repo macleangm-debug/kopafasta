@@ -1792,7 +1792,7 @@ class BorrowerController extends Controller
             );
     }
 
-    public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
+    public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
 
@@ -1991,6 +1991,9 @@ class BorrowerController extends Controller
             }
 
             if ($idImagesFocus) {
+                $uploadedFront = $request->hasFile('national_id_front');
+                $uploadedBack = $request->hasFile('national_id_back');
+
                 if (! $customer->no_physical_nida_card) {
                     $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
                     $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), []);
@@ -2002,7 +2005,13 @@ class BorrowerController extends Controller
                     }
                 }
 
-                if ($identityRequired && ! $validation->nationalIdUploadsComplete($customer->fresh())) {
+                // Progressive Front→Back: one side per request is allowed. Only error when
+                // saving the section with no new ID image and uploads still incomplete.
+                if ($identityRequired
+                    && ! $customer->no_physical_nida_card
+                    && ! $uploadedFront
+                    && ! $uploadedBack
+                    && ! $validation->nationalIdUploadsComplete($customer->fresh())) {
                     $idErrorParams = array_filter([
                         'section' => 'personal',
                         'focus' => $focus === 'id_images' ? 'id_images' : 'identity',
@@ -2023,6 +2032,23 @@ class BorrowerController extends Controller
                         ->markIdentityRequestsUploadedFromProfile($customer->fresh());
                 } catch (\Throwable $e) {
                     report($e);
+                }
+
+                if ($request->expectsJson() && ($uploadedFront || $uploadedBack)) {
+                    $customer->refresh();
+                    $side = $uploadedFront ? 'front' : 'back';
+                    $code = $uploadedFront ? 'national_id_front' : 'national_id_back';
+                    $doc = app(\App\Services\ProfileDocumentService::class)
+                        ->latestProfileDocument($customer, $code);
+                    $previewUrl = ($doc && filled($doc->file_path)) ? asset('storage/'.$doc->file_path) : null;
+
+                    return response()->json([
+                        'ok' => true,
+                        'side' => $side,
+                        'previewUrl' => $previewUrl,
+                        'complete' => $validation->nationalIdUploadsComplete($customer),
+                        'message' => __('borrower.document_upload.saved'),
+                    ]);
                 }
             }
         }

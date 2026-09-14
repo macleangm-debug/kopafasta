@@ -8,6 +8,7 @@ export function registerProfileSectionCard(Alpine) {
         complete: !!config.complete,
         showEditAction: !!config.showEditAction,
         emptyOpensView: !!config.emptyOpensView,
+        editAllowed: config.editAllowed !== false,
         id: config.id || '',
         sectionHash: config.sectionHash || '',
         unsavedTitle: config.unsavedTitle || 'Leave without saving?',
@@ -16,6 +17,9 @@ export function registerProfileSectionCard(Alpine) {
         _onAccordion: null,
 
         get showCompleteTick() {
+            if (! this.editAllowed && this.complete) {
+                return ! this.open;
+            }
             // Collapsed + complete only — avoids Edit/Complete overlap and matches SSR tick.
             return this.complete && ! this.open && ! this.showEditAction && ! this.expanded;
         },
@@ -33,6 +37,10 @@ export function registerProfileSectionCard(Alpine) {
         },
 
         revealEdit() {
+            if (! this.editAllowed) {
+                this.openView();
+                return;
+            }
             this.showEditAction = true;
             this.expanded = true;
             window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
@@ -48,6 +56,10 @@ export function registerProfileSectionCard(Alpine) {
         },
 
         openEdit() {
+            if (! this.editAllowed) {
+                this.openView();
+                return;
+            }
             this.open = true;
             this.expanded = true;
             this.showEditAction = true;
