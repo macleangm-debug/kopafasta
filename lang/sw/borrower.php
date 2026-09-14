@@ -3033,6 +3033,8 @@ return [
         'guide_document_compact' => 'Weka hati yote kwenye fremu na hakikisha inaonekana vizuri.',
         'uploading' => 'Inapakia…',
         'processing' => 'Inachakata hati…',
+        'use_photo' => 'Hifadhi / Tumia picha',
+        'saved' => 'Imehifadhiwa',
         'start_camera' => 'Anza kamera',
         'capture_page' => 'Piga ukurasa',
         'ready_to_upload' => 'Tayari kupakia',

@@ -327,15 +327,7 @@
                     submitForm() {
                         if (this.submitting) return;
                         this.validationError = null;
-                        if (typeof window.confirmForm === 'function') {
-                            window.confirmForm(null, {
-                                title: this.labels.submitConfirmTitle || '',
-                                message: this.labels.submitConfirmBody || '',
-                                confirmLabel: this.labels.submitConfirmLabel || '',
-                                onConfirm: () => this.performSubmit(),
-                            });
-                            return;
-                        }
+                        // Document uploads persist inline — no celebratory confirm modal.
                         this.performSubmit();
                     },
 
@@ -390,14 +382,7 @@
                                 this.queued = [];
                                 try { if (typeof open !== 'undefined') open = false; } catch (e) {}
                                 this.$dispatch('profile-section-close-edit');
-                                if (typeof window.showBorrowerFeedback === 'function') {
-                                    window.showBorrowerFeedback({
-                                        title: this.labels.successTitle || '',
-                                        message: this.labels.successBody || '',
-                                        tone: 'success',
-                                        okLabel: this.labels.continueLabel || '',
-                                    });
-                                }
+                                // Inline ✓ Saved only — no success modal for ordinary document uploads.
                                 window.location.href = xhr.getResponseHeader('Location') || xhr.responseURL || window.location.href;
                                 return;
                             }

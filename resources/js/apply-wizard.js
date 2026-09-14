@@ -1144,11 +1144,13 @@ export function applyWizard(config) {
                             xhr.send(formData);
                         });
                         if (data.education_documents) {
-                            this.educationDocuments = data.education_documents;
+                            this.educationDocuments = { ...data.education_documents };
                         }
                         this._gateTick++;
                         await this.persistDraft(true);
                         this._gateTick++;
+                        // Force Alpine to re-evaluate footer Continue after docs land.
+                        this.$nextTick?.(() => { this._gateTick++; });
                     } catch (e) {
                         this.educationDocumentUploadError = e?.message || (this.i18n.educationDetails?.uploadFailed || 'Upload failed');
                     } finally {
@@ -3170,30 +3172,44 @@ export function applyWizard(config) {
                         void this.educationDocuments;
                         void this._gateTick;
                         const root = this.formRoot();
+                        const draft = this._lastDraftInputs || {};
                         const fieldValue = (key) => {
                             const name = `product_question[${key}]`;
                             const el = root?.querySelector(`[name="${name}"]`);
-                            if (! el) return '';
-                            const raw = (el.value || '').toString().trim();
-                            if (raw) return raw;
-                            // Fallback to Alpine host state when :value lag empties the DOM property.
-                            try {
-                                const host = el.closest('[x-data]');
-                                const data = host && window.Alpine?.$data ? window.Alpine.$data(host) : null;
-                                if (data && 'selected' in data) return String(data.selected || '').trim();
-                                if (data && 'value' in data && 'draft' in data) return String(data.value || '').trim();
-                                if (data && key.includes('region') && 'region' in data) return String(data.region || '').trim();
-                                if (data && key.includes('district') && 'district' in data) return String(data.district || '').trim();
-                            } catch (e) { /* ignore */ }
-                            return '';
+                            if (el) {
+                                const raw = (el.value || '').toString().trim();
+                                if (raw) return raw;
+                                // Fallback to Alpine host state when :value lag empties the DOM property.
+                                try {
+                                    const host = el.closest('[x-data]');
+                                    const data = host && window.Alpine?.$data ? window.Alpine.$data(host) : null;
+                                    if (data && 'selected' in data) {
+                                        const selected = String(data.selected || '').trim();
+                                        if (selected) return selected;
+                                    }
+                                    if (data && 'value' in data && 'draft' in data) {
+                                        const v = String(data.value || '').trim();
+                                        if (v) return v;
+                                    }
+                                    if (data && key.includes('region') && 'region' in data) {
+                                        const v = String(data.region || '').trim();
+                                        if (v) return v;
+                                    }
+                                    if (data && key.includes('district') && 'district' in data) {
+                                        const v = String(data.district || '').trim();
+                                        if (v) return v;
+                                    }
+                                } catch (e) { /* ignore */ }
+                            }
+                            const fromDraft = draft[name] ?? draft[`product_question.${key}`] ?? this.form?.[name];
+                            return String(fromDraft ?? '').trim();
                         };
-                        const region = fieldValue('farming_region')
-                            || (root?.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
-                        const district = fieldValue('farming_district')
-                            || (root?.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
+                        const region = fieldValue('farming_region');
+                        const district = fieldValue('farming_district');
                         const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
                         if (locationHidden) {
-                            const ward = (root?.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
+                            const ward = fieldValue('farming_ward')
+                                || (root?.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
                             locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
                         }
                         const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
@@ -4170,19 +4186,36 @@ export function applyWizard(config) {
                     if (this.stepKey === 'agriculture_details') {
                         void this.educationDocuments;
                         const root = this.formRoot();
-                        const region = (root?.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
-                        const district = (root?.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
+                        const draft = this._lastDraftInputs || {};
+                        const fieldValue = (key) => {
+                            const name = `product_question[${key}]`;
+                            const el = root?.querySelector(`[name="${name}"]`);
+                            if (el) {
+                                const raw = (el.value || '').toString().trim();
+                                if (raw) return raw;
+                                try {
+                                    const host = el.closest('[x-data]');
+                                    const data = host && window.Alpine?.$data ? window.Alpine.$data(host) : null;
+                                    if (data && 'selected' in data && String(data.selected || '').trim()) return String(data.selected).trim();
+                                    if (data && 'value' in data && 'draft' in data && String(data.value || '').trim()) return String(data.value).trim();
+                                    if (data && key.includes('region') && String(data.region || '').trim()) return String(data.region).trim();
+                                    if (data && key.includes('district') && String(data.district || '').trim()) return String(data.district).trim();
+                                } catch (e) { /* ignore */ }
+                            }
+                            return String(draft[name] ?? this.form?.[name] ?? '').trim();
+                        };
+                        const region = fieldValue('farming_region');
+                        const district = fieldValue('farming_district');
                         const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
                         if (locationHidden) {
-                            const ward = (root?.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
+                            const ward = fieldValue('farming_ward');
                             locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
                         }
                         const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
                         for (const key of required) {
-                            const el = root?.querySelector(`[name="product_question[${key}]"]`);
-                            if (! (el?.value || '').toString().trim()) {
+                            if (! fieldValue(key)) {
                                 showWizardFeedback(this.i18n.agricultureDetails?.incomplete || 'Complete the agriculture details before continuing.');
-                                el?.focus?.();
+                                root?.querySelector(`[name="product_question[${key}]"]`)?.focus?.();
                                 return false;
                             }
                         }

@@ -3354,6 +3354,8 @@ return [
         'guide_document_compact' => 'Keep the whole document in frame and make sure it is clear.',
         'uploading' => 'Uploading…',
         'processing' => 'Processing document…',
+        'use_photo' => 'Save / Use photo',
+        'saved' => 'Saved',
         'start_camera' => 'Start camera',
         'capture_page' => 'Capture page',
         'ready_to_upload' => 'Ready to upload',

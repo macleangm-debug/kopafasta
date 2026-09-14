@@ -42,13 +42,13 @@
 
 <div x-data="{
         replaceMode: false,
-        sourceOpen: false,
         captureOpen: {{ $document ? 'false' : 'true' }},
         inlineUploading: false,
         inlineProgress: null,
         inlineMessage: @js(__('borrower.apply.document_saving')),
         openCapture(source) {
             this.captureOpen = true;
+            this.replaceMode = true;
             this.$nextTick(() => {
                 if (source === 'camera') {
                     this.$dispatch('document-open-camera', { hostId: @js($hostId) });
@@ -58,7 +58,10 @@
             });
         },
      }"
-     @document-source="openCapture($event.detail?.source)"
+     @document-source.window="
+        if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
+        openCapture($event.detail?.source);
+     "
      @kf-inline-document-upload-start="
         inlineUploading = true;
         inlineProgress = null;
@@ -117,7 +120,7 @@
                 </div>
                 @unless ($readOnly)
                     <div x-show="replaceMode" class="shrink-0">
-                        <x-site.document-source-picker open="sourceOpen" />
+                        <x-site.document-source-picker :host-id="$hostId" />
                     </div>
                 @endunless
             </div>
@@ -189,7 +192,7 @@
                     </div>
                 </div>
                 <div class="shrink-0">
-                    <x-site.document-source-picker open="sourceOpen" />
+                    <x-site.document-source-picker :host-id="$hostId" />
                 </div>
             </div>
         </div>

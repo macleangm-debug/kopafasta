@@ -288,7 +288,6 @@
                                                     @error('back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                                 @else
                                                     <div x-data="{
-                                                        sourceOpen: false,
                                                         hostId: @js('doc-req-pages-'.$docReq->id),
                                                         openCapture(source) {
                                                             this.$nextTick(() => {
@@ -300,11 +299,14 @@
                                                             });
                                                         },
                                                     }"
-                                                         @document-source="openCapture($event.detail?.source)"
+                                                         @document-source.window="
+                                                            if ($event.detail?.hostId && $event.detail.hostId !== hostId) return;
+                                                            openCapture($event.detail?.source);
+                                                         "
                                                          class="space-y-3">
                                                         <div class="flex items-center justify-between gap-3">
                                                             <p class="text-sm font-semibold text-gray-800">{{ __('borrower.document_upload.add') }}</p>
-                                                            <x-site.document-source-picker open="sourceOpen" />
+                                                            <x-site.document-source-picker :host-id="'doc-req-pages-'.$docReq->id" />
                                                         </div>
                                                         <x-site.multi-page-document-upload
                                                             name="files"

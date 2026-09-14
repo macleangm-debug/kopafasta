@@ -495,12 +495,14 @@ class BorrowerController extends Controller
         $returnTo = (string) ($data['return_to'] ?? $request->input('return_to') ?? '');
         if ($returnTo !== '' && str_starts_with($returnTo, '/') && ! str_starts_with($returnTo, '//')) {
             return redirect()->to($returnTo)
-                ->with('status', __('borrower.profile.document_replaced'));
+                ->with('status', __('borrower.profile.document_replaced'))
+                ->with('kf_status_inline', true);
         }
 
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets', 'edit' => $asset->id])
-            ->with('status', __('borrower.profile.document_replaced'));
+            ->with('status', __('borrower.profile.document_replaced'))
+            ->with('kf_status_inline', true);
     }
 
     public function applicationOffer(LoanApplication $application): View
@@ -1295,7 +1297,8 @@ class BorrowerController extends Controller
         }
 
         return redirect()->route('site.borrower.documents')
-            ->with('status', __('borrower.documents_page.uploaded_status'));
+            ->with('status', __('borrower.documents_page.uploaded_status'))
+            ->with('kf_status_inline', true);
     }
 
     /* ---------------------------------------------------------------------
@@ -2290,7 +2293,8 @@ class BorrowerController extends Controller
                         default => null,
                     },
                 ]))
-                ->with('status', __('borrower.profile.save_confirm_title'));
+                ->with('status', __('borrower.profile.saved_inline'))
+                ->with('kf_status_inline', true);
 
             $fragment = match ($section) {
                 'personal' => match ((string) $request->input('focus')) {

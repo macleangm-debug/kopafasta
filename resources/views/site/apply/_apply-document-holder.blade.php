@@ -29,7 +29,6 @@
 <div class="sm:col-span-2"
      x-data="{
         replaceMode: false,
-        sourceOpen: false,
         captureOpen: false,
         pendingSource: null,
         openCapture(source) {
@@ -44,7 +43,10 @@
             });
         },
      }"
-     @document-source="openCapture($event.detail?.source)">
+     @document-source.window="
+        if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
+        openCapture($event.detail?.source);
+     ">
     <div class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 shadow-sm">
         <div class="flex items-start gap-3">
             <div x-show="educationDocuments[@js($docCode)]?.customer_document_id && !replaceMode" x-cloak
@@ -87,7 +89,7 @@
             </div>
 
             <div x-show="!educationDocuments[@js($docCode)]?.customer_document_id || replaceMode" class="shrink-0">
-                <x-site.document-source-picker open="sourceOpen" />
+                <x-site.document-source-picker :host-id="$hostId" />
             </div>
         </div>
 

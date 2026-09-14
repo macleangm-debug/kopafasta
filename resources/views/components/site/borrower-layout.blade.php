@@ -107,7 +107,7 @@
     });
 </script>
 
-@if (session('feedback') || session('status') || session('warning') || session('error'))
+@if ((session('feedback') || session('status') || session('warning') || session('error')) && ! session('kf_status_inline'))
     <div class="sr-only" aria-hidden="true"
          x-data
          x-init="

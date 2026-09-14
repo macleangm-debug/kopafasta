@@ -42,7 +42,7 @@
     $inlinePreview = $autoSubmit && $cameraOnly;
 @endphp
 
-<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly), @js($autoSubmit), @js(filled($guide) && ! $sourceDriven))"
+<div x-data="singleImageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), @js($facingMode), @js($lockFront), @js($cameraOnly), @js($autoSubmit), @js(filled($guide) && ! $sourceDriven), @js($sourceDriven))"
      @clear-capture.window="if ($event.detail && $event.detail.hostId === hostId) clearFile()"
      @document-open-camera.window="if ($event.detail?.hostId === hostId) requestCamera()"
      @document-open-upload.window="if ($event.detail?.hostId === hostId) $refs.uploadInput?.click()"
@@ -101,6 +101,14 @@
                     class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-white text-red-600 text-xs font-bold ring-1 ring-gray-200 grid place-items-center"
                     aria-label="{{ __('borrower.document_upload.remove') }}">×</button>
         </div>
+        @endif
+        @if ($sourceDriven && ! $autoSubmit)
+            <button type="button"
+                    x-show="previewUrl || previewName"
+                    @click="confirmUse()"
+                    class="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-3 text-sm shadow-sm">
+                {{ __('borrower.document_upload.use_photo') }}
+            </button>
         @endif
     </div>
 
@@ -164,7 +172,7 @@
     @endpush
     @push('scripts')
     <script>
-        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'environment', lockFront = false, cameraOnly = false, autoSubmit = false, hasGuide = false) {
+        function singleImageDocumentUpload(labels, fieldName, hostId, facingMode = 'environment', lockFront = false, cameraOnly = false, autoSubmit = false, hasGuide = false, sourceDriven = false) {
             return {
                 labels: labels || {},
                 fieldName,
@@ -173,6 +181,7 @@
                 lockFront: !!lockFront,
                 cameraOnly: !!cameraOnly,
                 autoSubmit: !!autoSubmit,
+                sourceDriven: !!sourceDriven,
                 hasGuide: !!hasGuide,
                 guideOpen: false,
                 submitting: false,
@@ -182,6 +191,7 @@
                 previewUrl: null,
                 previewName: null,
                 expanded: false,
+                pendingFile: null,
                 requestCamera() {
                     if (this.hasGuide) {
                         this.guideOpen = true;
@@ -192,6 +202,10 @@
                 confirmGuide() {
                     this.guideOpen = false;
                     this.openCamera();
+                },
+                confirmUse() {
+                    if (! this.pendingFile && ! this.previewName) return;
+                    this.commitFile(this.pendingFile);
                 },
                 async openCamera() {
                     this.cameraNotice = null;
@@ -344,6 +358,7 @@
                     if (this.previewUrl && String(this.previewUrl).startsWith('blob:')) {
                         URL.revokeObjectURL(this.previewUrl);
                     }
+                    this.pendingFile = file;
                     this.previewName = file.name || 'capture.jpg';
                     if (file.type && file.type.startsWith('image/')) {
                         this.previewUrl = URL.createObjectURL(file);
@@ -353,11 +368,28 @@
                         this.previewUrl = null;
                     }
                     this.emitPreview();
+                    // Source-driven holders require explicit Save / Use photo (preview alone is not persistence).
+                    if (! this.sourceDriven || this.autoSubmit) {
+                        this.commitFile(file);
+                    }
+                },
+                commitFile(file) {
+                    const payload = file || this.pendingFile;
+                    if (! payload) return;
                     window.dispatchEvent(new CustomEvent('kf-document-file', {
-                        detail: { hostId: this.hostId, fieldName: this.fieldName, file },
+                        detail: { hostId: this.hostId, fieldName: this.fieldName, file: payload },
                     }));
                     if (this.autoSubmit) {
                         this.submitClosestForm();
+                        return;
+                    }
+                    // Profile / form holders: submit so the server persists the attachment.
+                    if (this.sourceDriven) {
+                        const form = this.$el.closest('form');
+                        const isApply = !!(form && (form.id === 'apply-wizard-form' || form.hasAttribute('data-apply-wizard-form')));
+                        if (form && ! isApply) {
+                            this.submitClosestForm();
+                        }
                     }
                 },
                 submitClosestForm() {
@@ -387,6 +419,7 @@
                     if (this.previewUrl && String(this.previewUrl).startsWith('blob:')) {
                         URL.revokeObjectURL(this.previewUrl);
                     }
+                    this.pendingFile = null;
                     this.previewUrl = null;
                     this.previewName = null;
                     this.emitPreview();
