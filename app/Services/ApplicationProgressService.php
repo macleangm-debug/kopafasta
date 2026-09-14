@@ -168,19 +168,44 @@ class ApplicationProgressService
             'action_url' => route('site.borrower.profile', ['section' => 'personal']),
         ];
 
-        if ($requireIdentityDuringProfile || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs')) {
-            $items[] = [
-                'key'        => 'nida_docs',
-                'label'      => __('borrower.profile.nida_front'),
-                'complete'   => app(ProfileRevisionService::class)->nidaStepComplete($customer),
-                'action_url' => route('site.borrower.profile', ['section' => 'personal']),
-            ];
+        if ($identityPolicy->nidaRequired()
+            || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs')) {
+            $idImagesUrl = route('site.borrower.profile', ['section' => 'personal', 'focus' => 'id_images']).'#profile-id-images';
+            $identityUrl = route('site.borrower.profile', ['section' => 'personal', 'focus' => 'identity']).'#profile-identity';
+            $nidaVerified = app(NidaVerificationService::class)->isVerified($customer);
+            $noPhysical = (bool) $customer->no_physical_nida_card;
+            $validation = $this->profileValidation;
+
+            if ($requireIdentityDuringProfile) {
+                $items[] = [
+                    'key'        => 'nida',
+                    'label'      => __('borrower.profile.gaps.nida_verify'),
+                    'complete'   => $nidaVerified,
+                    'action_url' => $identityUrl,
+                ];
+            }
+
+            if (! $noPhysical) {
+                $items[] = [
+                    'key'        => 'nida_front',
+                    'label'      => __('borrower.profile.gaps.nida_front'),
+                    'complete'   => $validation->hasDocument($customer, 'national_id_front'),
+                    'action_url' => $idImagesUrl,
+                ];
+                $items[] = [
+                    'key'        => 'nida_back',
+                    'label'      => __('borrower.profile.gaps.nida_back'),
+                    'complete'   => $validation->hasDocument($customer, 'national_id_back'),
+                    'action_url' => $idImagesUrl,
+                ];
+            }
         }
 
-        if ($requireIdentityDuringProfile || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face')) {
+        if ($identityPolicy->facialRequired()
+            || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face')) {
             $items[] = [
                 'key'        => 'face',
-                'label'      => __('borrower.nida.face_title'),
+                'label'      => __('borrower.profile.gaps.face'),
                 'complete'   => app(ProfileRevisionService::class)->faceStepComplete($customer),
                 'action_url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
             ];

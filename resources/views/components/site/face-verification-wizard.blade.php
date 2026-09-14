@@ -19,6 +19,7 @@
         submitUrl: @js($submitUrl ?? route('site.borrower.face-verification.submit')),
         returnUrl: @js($returnUrl),
         startIndex: @js($wizard['current_index']),
+        faceStatus: @js((string) ($customer->face_verification_status ?? 'incomplete')),
     })"
     x-init="init()"
 >
@@ -255,6 +256,7 @@
                     submitUrl: config.submitUrl || '',
                     returnUrl: config.returnUrl || '',
                     stepIndex: config.startIndex,
+                    faceStatus: config.faceStatus || 'incomplete',
                     stream: null,
                     faceDetector: null,
                     detectorActive: false,
@@ -322,8 +324,12 @@
 
                         if (this.stepIndex >= this.steps.length) {
                             this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
-                            if (this.phase === 'review' && this.steps.every((s) => s.done && ! s.localBlob)) {
-                                // Already on server — finalize without asking again.
+                            // Never re-finalize when already pending/verified — that POST→redirect→focus=face
+                            // loop is what snaps /personal?focus=face back and forth.
+                            if (this.isFaceAlreadySubmitted()) {
+                                this.phase = 'done';
+                            } else if (this.phase === 'review' && this.steps.every((s) => s.done && ! s.localBlob)) {
+                                // Photos already on server, status still incomplete — finalize once.
                                 this.$nextTick(() => this.submitVerification());
                             }
                             if (this.phase === 'intro') {
@@ -464,8 +470,16 @@
                         }
                     },
 
+                    isFaceAlreadySubmitted() {
+                        return ['pending', 'verified'].includes(String(this.faceStatus || ''));
+                    },
+
                     async submitVerification() {
                         if (this.isSubmitting || this.isRemoving || this.isUploading) return;
+                        if (this.isFaceAlreadySubmitted()) {
+                            this.phase = 'done';
+                            return;
+                        }
                         if (!this.submitUrl) {
                             window.location.reload();
                             return;

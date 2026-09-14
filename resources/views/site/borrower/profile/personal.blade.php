@@ -38,8 +38,9 @@
                 && ! app(\App\Services\ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs')
                 && ! app(\App\Services\ProfileRevisionService::class)->hasOpenRevision($customer, 'nida');
             $noPhysicalCard = (bool) old('no_physical_nida_card', $customer->no_physical_nida_card);
+            $nidaRequired = app(\App\Services\IdentityVerificationPolicyService::class)->nidaRequired();
             $hasIdentity = $nidaSaved && (
-                ! $requireIdentityDuringProfile || $uploadsComplete
+                ! $nidaRequired || $uploadsComplete
             );
             $readonly = 'kf-field-readonly';
             $editable = 'kf-field';

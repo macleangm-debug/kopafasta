@@ -63,12 +63,14 @@ class ProfileCompletionService
     public function displaySections(Customer $customer, bool $onlyActionable = true): array
     {
         $faceStatus = $customer->face_verification_status ?? 'incomplete';
-        $nidaVerified = app(NidaVerificationService::class)->isVerified($customer);
         $freshness = app(KycFreshnessService::class);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);
 
         $personalComplete = app(ProfileValidationService::class)->isPersonalInfoComplete($customer);
-        $requireIdentity = app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation();
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
+        $requireIdentity = $identityPolicy->requiredDuringProfileCreation();
+        $nidaRequired = $identityPolicy->nidaRequired();
+        $facialRequired = $identityPolicy->facialRequired();
 
         $sections = [
             [
@@ -97,29 +99,38 @@ class ProfileCompletionService
             ],
         ];
 
-        if ($requireIdentity) {
+        if ($nidaRequired || $facialRequired || $requireIdentity) {
             $nidaRevision = ($customer->nida_verification_status ?? '') === 'revision_required'
                 || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida')
                 || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs');
             $faceRevision = $faceStatus === 'revision_required'
                 || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face');
 
-            $sections[] = [
-                'key'        => 'identity',
-                'label'      => __('borrower.nida.title'),
-                'status'     => $nidaVerified ? 'complete' : ($nidaRevision ? 'stale' : 'missing'),
-                'action_url' => route('site.borrower.profile', ['section' => 'personal']),
-            ];
-            $sections[] = [
-                'key'        => 'face',
-                'label'      => __('borrower.nida.face_title'),
-                'status'     => match (true) {
-                    in_array($faceStatus, ['verified', 'pending'], true) => 'complete',
-                    $faceRevision => 'stale',
-                    default => 'missing',
-                },
-                'action_url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
-            ];
+            if ($nidaRequired) {
+                $identityComplete = app(ProfileValidationService::class)->nationalIdUploadsComplete($customer);
+                if ($requireIdentity) {
+                    $identityComplete = $identityComplete
+                        && app(ProfileRevisionService::class)->nidaStepComplete($customer);
+                }
+                $sections[] = [
+                    'key'        => 'identity',
+                    'label'      => __('borrower.nida.title'),
+                    'status'     => $identityComplete ? 'complete' : ($nidaRevision ? 'stale' : 'missing'),
+                    'action_url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'id_images']).'#profile-id-images',
+                ];
+            }
+            if ($facialRequired) {
+                $sections[] = [
+                    'key'        => 'face',
+                    'label'      => __('borrower.nida.face_title'),
+                    'status'     => match (true) {
+                        app(ProfileRevisionService::class)->faceStepComplete($customer) => 'complete',
+                        $faceRevision => 'stale',
+                        default => 'missing',
+                    },
+                    'action_url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face',
+                ];
+            }
         }
 
         foreach ($sections as &$section) {
@@ -279,8 +290,19 @@ class ProfileCompletionService
         $personalComplete = $validation->isCorePersonalComplete($customer)
             && $validation->isFamilyComplete($customer)
             && $validation->isKinComplete($customer);
-        if ($requireIdentity) {
-            $personalComplete = $personalComplete && app(ProfileRevisionService::class)->nidaStepComplete($customer);
+
+        // Persisted identity evidence (images / face) counts for Profile completion whenever
+        // country/product flags require them — not merely “visited cards”.
+        if ($identityPolicy->nidaRequired()) {
+            $personalComplete = $personalComplete && $validation->nationalIdUploadsComplete($customer);
+            if ($requireIdentity) {
+                $personalComplete = $personalComplete
+                    && app(ProfileRevisionService::class)->nidaStepComplete($customer);
+            }
+        }
+        if ($identityPolicy->facialRequired()) {
+            $personalComplete = $personalComplete
+                && app(ProfileRevisionService::class)->faceStepComplete($customer);
         }
 
         $residenceComplete = $this->isResidenceComplete($customer);

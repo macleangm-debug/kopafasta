@@ -185,15 +185,24 @@ class ProfileValidationService
                 'url' => $personalUrl.'#profile-identity',
             ];
         }
-        if (app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation()
-            && app(IdentityVerificationPolicyService::class)->nidaRequired()
-            && ! app(ProfileRevisionService::class)->nidaStepComplete($customer)) {
-            if (! $this->hasDocument($customer, 'national_id_front')) {
-                $gaps[] = [
-                    'key' => 'nida_front',
-                    'label' => __('borrower.profile.gaps.nida_front'),
-                    'url' => $personalUrl.'#profile-identity',
-                ];
+        if ((bool) ($this->kycSettings()['require_nida'] ?? true)
+            && app(IdentityVerificationPolicyService::class)->nidaRequired()) {
+            $idImagesUrl = route('site.borrower.profile', ['section' => 'personal', 'focus' => 'id_images']).'#profile-id-images';
+            if (! $customer->no_physical_nida_card) {
+                if (! $this->hasDocument($customer, 'national_id_front')) {
+                    $gaps[] = [
+                        'key' => 'nida_front',
+                        'label' => __('borrower.profile.gaps.nida_front'),
+                        'url' => $idImagesUrl,
+                    ];
+                }
+                if (! $this->hasDocument($customer, 'national_id_back')) {
+                    $gaps[] = [
+                        'key' => 'nida_back',
+                        'label' => __('borrower.profile.gaps.nida_back'),
+                        'url' => $idImagesUrl,
+                    ];
+                }
             }
         }
         if (! $this->isFamilyComplete($customer)) {
@@ -211,8 +220,7 @@ class ProfileValidationService
             ];
         }
         $faceStatus = (string) ($customer->face_verification_status ?? 'incomplete');
-        if (app(IdentityVerificationPolicyService::class)->requiredDuringProfileCreation()
-            && app(IdentityVerificationPolicyService::class)->facialRequired()
+        if (app(IdentityVerificationPolicyService::class)->facialRequired()
             && (! in_array($faceStatus, ['verified', 'pending'], true)
                 || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face'))) {
             $gaps[] = [

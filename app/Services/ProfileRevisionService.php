@@ -167,12 +167,8 @@ class ProfileRevisionService
             return false;
         }
 
-        $validation = app(ProfileValidationService::class);
-        if ($customer->no_physical_nida_card) {
-            return true;
-        }
-
-        return $validation->hasDocument($customer, 'national_id_front');
+        // Canonical: both front and back (or no-physical-card exemption) must be persisted.
+        return app(ProfileValidationService::class)->nationalIdUploadsComplete($customer);
     }
 
     public function faceStepComplete(Customer $customer): bool
