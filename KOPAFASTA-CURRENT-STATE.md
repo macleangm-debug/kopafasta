@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
 | **Prior staging (do not promote)** | `d748536efc6a18062ec0fd67a818bb855dd04299` | FINAL economical: AG Region/District, Quote Continue, canonical camera, Replace |
-| **Staging under UAT** | `a6a6b0a94d7878174b0ba378fe160d34ea263027` | Closure: browser AG journey + one shared camera shell + NIDA confirm |
+| **Staging under UAT** | `(pending deploy)` | Profile capture autosave + single profile_completion reward |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
 
