@@ -110,7 +110,7 @@
             </x-site.bottom-sheet>
         </div>
     @else
-        <p class="text-sm font-semibold text-brand">
+        <p class="text-sm font-semibold text-brand" data-kf-nida-next-side="{{ $nextSide }}">
             {{ $nextSide === 'front' ? __('borrower.profile.national_id_next_front') : __('borrower.profile.national_id_next_back') }}
         </p>
         @if ($hasFront)
@@ -145,7 +145,13 @@
                 :guide="$active['guide']"
                 guide-frame="id-card"
                 :start-open="true"
+                :compact-label="true"
             />
         </form>
+        <button type="button"
+                @click="$dispatch('profile-card-open-edit', 'profile-id-images')"
+                class="text-xs font-semibold text-gray-500 hover:text-gray-700 underline-offset-2 hover:underline">
+            {{ __('borrower.nida.no_card_label') }}
+        </button>
     @endif
 </div>

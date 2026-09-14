@@ -39,9 +39,7 @@
                 && ! app(\App\Services\ProfileRevisionService::class)->hasOpenRevision($customer, 'nida');
             $noPhysicalCard = (bool) old('no_physical_nida_card', $customer->no_physical_nida_card);
             $nidaRequired = app(\App\Services\IdentityVerificationPolicyService::class)->nidaRequired();
-            $hasIdentity = $nidaSaved && (
-                ! $nidaRequired || $uploadsComplete
-            );
+            // NIDA number card is complete when the number is persisted — images are a separate card.
             $readonly = 'kf-field-readonly';
             $editable = 'kf-field';
             $hasContact = filled($customer->phone) || filled($customer->email);
@@ -73,10 +71,10 @@
             $showSoloCard = function (array $keys) use ($solo, $soloFocus): bool {
                 return ! $solo || in_array($soloFocus, $keys, true);
             };
-            $startIdCamera = ($editFocus === 'id_images' || ($solo && $focusHash === 'id_images'))
-                && ! $uploadsComplete
-                && ! $noPhysicalCard;
-            $idImagesDefaultEdit = $editFocus === 'id_images' || $startIdCamera;
+            // Physical NIDA: stay on the view holder (Front→Back). Form is only for no-card / alt IDs.
+            $idImagesAltErrors = $errors->hasAny(['alternate_id_types', 'alternate_id_front', 'alternate_id_back', 'no_physical_nida_card', 'passport', 'voter_id', 'driving_license', 'other_id']);
+            $idImagesDefaultEdit = ($editFocus === 'id_images' && ($noPhysicalCard || $idImagesAltErrors));
+            $idImagesDefaultOpen = $focusHash === 'id_images' || ((! $uploadsComplete) && ! $noPhysicalCard && ($solo || $focusHash === 'id_images' || $editFocus === 'id_images'));
         @endphp
 
         @include('site.borrower.profile._nida_result', ['customer' => $customer])
@@ -116,8 +114,8 @@
                     section-id="profile-identity"
                     icon="🪪"
                     :title="__('borrower.profile.fields.national_id')"
-                    :complete="$hasIdentity"
-                    :empty="! $hasIdentity"
+                    :complete="$nidaSaved"
+                    :empty="! $nidaSaved"
                     :default-open="$focusHash === 'identity'"
                     :default-edit="$editFocus === 'identity'">
                     <x-slot:view>
@@ -201,7 +199,8 @@
                     :title="__('borrower.profile.id_images_title')"
                     :complete="$uploadsComplete"
                     :empty="! $uploadsComplete"
-                    :default-open="$focusHash === 'id_images'"
+                    :empty-opens-view="! $noPhysicalCard"
+                    :default-open="$idImagesDefaultOpen"
                     :default-edit="$idImagesDefaultEdit">
                     <x-slot:view>
                         <div class="space-y-3">
@@ -276,7 +275,11 @@
                                 @endunless
                                 <div x-show="!noCard" x-cloak class="space-y-3">
                                     <p class="text-sm text-gray-600">{{ __('borrower.profile.national_id_holder_hint') }}</p>
-                                    <p class="text-xs text-gray-500">{{ __('borrower.profile.id_photos_replace_hint') }}</p>
+                                    <p class="text-xs text-amber-800">{{ __('borrower.profile.id_photos_replace_hint') }}</p>
+                                    <button type="button" @click="$dispatch('profile-section-close-edit')"
+                                            class="text-sm font-semibold text-brand hover:underline">
+                                        {{ __('borrower.profile.national_id_next_front') }} →
+                                    </button>
                                 </div>
                                 <div x-show="noCard" x-cloak class="space-y-4 rounded-xl bg-amber-50/80 ring-1 ring-amber-200 p-4">
                                     <div>

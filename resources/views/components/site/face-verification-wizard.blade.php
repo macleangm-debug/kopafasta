@@ -318,6 +318,15 @@
                     },
 
                     async init() {
+                        this._onFaceRetakeAngle = (event) => {
+                            const idx = Number(event?.detail?.index);
+                            if (! Number.isFinite(idx) || idx < 0) return;
+                            this.retakeStep(idx);
+                        };
+                        window.addEventListener('face-retake-angle', this._onFaceRetakeAngle);
+                        this.observeVisibility();
+                        this.bindLeaveGuard();
+
                         while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
                             this.stepIndex++;
                         }
@@ -338,7 +347,7 @@
                                 if (this.stepIndex < 0) this.stepIndex = 0;
                             }
                             this.ready = true;
-                            return;
+                            return () => this.destroy();
                         }
 
                         this.simpleMode = this.isDesktop;
@@ -347,16 +356,6 @@
 
                         // Never auto-start the camera — Chrome fails when the video is inside a
                         // hidden profile section (videoWidth stays 0). User must click Start.
-                        this.observeVisibility();
-                        this.bindLeaveGuard();
-                        this._onFaceRetakeAngle = (event) => {
-                            const idx = Number(event?.detail?.index);
-                            if (! Number.isFinite(idx) || idx < 0) return;
-                            this.retakeStep(idx);
-                        };
-                        window.addEventListener('face-retake-angle', this._onFaceRetakeAngle);
-
-                        // Alpine cleanup when the component is torn down.
                         return () => this.destroy();
                     },
 
@@ -556,7 +555,9 @@
                         this.stepIndex = index;
                         this.holdProgress = 0;
                         this.notice = null;
+                        // Leave any stuck "photo saved" overlay before opening a live camera.
                         this.phase = 'intro';
+                        this.isUploading = false;
                         await this.startScan();
                     },
 
@@ -1126,9 +1127,22 @@
                                 URL.revokeObjectURL(blobPreview);
                             }
 
-                            if (data.complete) {
+                            // Clear uploading BEFORE finalize — submitVerification() no-ops while isUploading,
+                            // which left the UI stuck on "Picha imehifadhiwa" after angle replace.
+                            this.isUploading = false;
+
+                            if (data.complete || this.steps.every((s) => s.done)) {
                                 this.stopCamera();
-                                // Autosubmit for review — no extra Save CTA.
+                                if (typeof window.kfFlashInlineSaved === 'function') {
+                                    window.kfFlashInlineSaved(@js(__('borrower.document_upload.saved')));
+                                } else if (typeof window.kfHideSaving === 'function') {
+                                    window.kfHideSaving();
+                                }
+                                if (this.isFaceAlreadySubmitted()) {
+                                    this.phase = 'review';
+                                    this.notice = null;
+                                    return;
+                                }
                                 await this.submitVerification();
                                 return;
                             }
@@ -1141,6 +1155,10 @@
                             if (this.stepIndex >= this.steps.length) {
                                 this.stopCamera();
                                 if (this.steps.every(s => s.done)) {
+                                    if (this.isFaceAlreadySubmitted()) {
+                                        this.phase = 'review';
+                                        return;
+                                    }
                                     await this.submitVerification();
                                 } else {
                                     this.phase = 'intro';
@@ -1162,7 +1180,7 @@
                                 }
                                 this.steps = this.steps.map((s) => ({ ...s }));
                             }
-                            this.notice = e.message || 'Upload failed. Please try again.';
+                            this.notice = e.message || @js(__('borrower.document_upload.could_not_save').' · '.__('borrower.document_upload.retry'));
                             this.phase = 'preview';
                             this.previewBlob = blob;
                             this.previewUrl = step?.previewUrl || (blob ? URL.createObjectURL(blob) : null);

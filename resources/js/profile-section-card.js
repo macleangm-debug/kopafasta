@@ -7,6 +7,7 @@ export function registerProfileSectionCard(Alpine) {
         expanded: !!config.expanded,
         complete: !!config.complete,
         showEditAction: !!config.showEditAction,
+        emptyOpensView: !!config.emptyOpensView,
         id: config.id || '',
         sectionHash: config.sectionHash || '',
         unsavedTitle: config.unsavedTitle || 'Leave without saving?',
@@ -36,6 +37,14 @@ export function registerProfileSectionCard(Alpine) {
             this.expanded = true;
             window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
             window.dispatchEvent(new CustomEvent('profile-section-edit', { detail: this.sectionHash }));
+        },
+
+        /** Expand the view slot without opening the edit form (e.g. NIDA Front→Back holder). */
+        openView() {
+            this.open = false;
+            this.expanded = true;
+            this.showEditAction = false;
+            window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
         },
 
         openEdit() {

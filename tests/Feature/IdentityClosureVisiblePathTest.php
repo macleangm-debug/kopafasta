@@ -61,12 +61,44 @@ class IdentityClosureVisiblePathTest extends TestCase
         $this->assertNotContains('identity', $keys);
     }
 
-    public function test_face_wizard_uses_review_not_saved_dead_end_when_pending(): void
+    public function test_saved_nida_number_card_uses_number_not_uploads_for_complete(): void
+    {
+        $blade = file_get_contents(resource_path('views/site/borrower/profile/personal.blade.php'));
+        $this->assertStringContainsString(':complete="$nidaSaved"', $blade);
+        $this->assertStringContainsString(':empty="! $nidaSaved"', $blade);
+        $this->assertStringNotContainsString(':complete="$hasIdentity"', $blade);
+        $this->assertStringContainsString('empty-opens-view', $blade);
+        $this->assertStringContainsString('idImagesDefaultEdit', $blade);
+    }
+
+    public function test_personal_profile_with_saved_nida_shows_complete_not_add_on_identity_card(): void
+    {
+        $customer = $this->borrower();
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'personal', 'focus' => 'identity']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString($customer->national_id, $html);
+        // Complete tick SSR uses section_complete; Add CTA only when empty.
+        $this->assertStringContainsString(__('borrower.profile.section_complete'), $html);
+        $this->assertStringContainsString('data-kf-national-id-holder', $html);
+        $this->assertStringContainsString('data-kf-nida-next-side', $html);
+    }
+
+    public function test_face_wizard_clears_uploading_before_finalize_after_replace(): void
     {
         $blade = file_get_contents(resource_path('views/components/site/face-verification-wizard.blade.php'));
-        $this->assertStringContainsString("this.phase = 'review'", $blade);
-        $this->assertStringContainsString('face-retake-angle', $blade);
-        $status = file_get_contents(resource_path('views/components/site/face-verification-status.blade.php'));
-        $this->assertStringContainsString('face-retake-angle', $status);
+        $this->assertStringContainsString("this.isUploading = false;", $blade);
+        $this->assertStringContainsString('Clear uploading BEFORE finalize', $blade);
+        $this->assertStringContainsString("window.addEventListener('face-retake-angle'", $blade);
+        // Listener registered before the early-return all-done path.
+        $initPos = strpos($blade, 'async init()');
+        $listenerPos = strpos($blade, "window.addEventListener('face-retake-angle'", $initPos ?: 0);
+        $earlyReturnMarker = strpos($blade, 'this.stepIndex >= this.steps.length', $initPos ?: 0);
+        $this->assertNotFalse($listenerPos);
+        $this->assertNotFalse($earlyReturnMarker);
+        $this->assertLessThan($earlyReturnMarker, $listenerPos);
     }
 }

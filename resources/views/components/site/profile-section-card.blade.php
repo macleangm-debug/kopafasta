@@ -6,6 +6,7 @@
     'complete' => null,
     'stale' => false,
     'empty' => false,
+    'emptyOpensView' => false,
     'addUrl' => null,
     'addLabel' => null,
     'sectionId' => null,
@@ -23,6 +24,7 @@
     // defaultOpen = expand to VIEW only. defaultEdit / editing = open the form.
     $startOpen = (bool) $editing || (bool) $defaultEdit;
     $startExpanded = $startOpen || (bool) $defaultOpen;
+    $emptyOpensView = (bool) $emptyOpensView;
     $accordionId = $sectionId ?: ('section-'.substr(md5($title), 0, 8));
     $isStale = (bool) $stale;
     // Tick when complete AND fresh. Accept bool/int/string from Blade bindings.
@@ -42,6 +44,7 @@
         'expanded' => $startExpanded,
         'complete' => $isComplete,
         'showEditAction' => $startOpen || $isStale,
+        'emptyOpensView' => $emptyOpensView,
         'id' => $accordionId,
         'sectionHash' => $sectionId,
         'unsavedTitle' => __('borrower.profile.unsaved_photos_title'),
@@ -104,7 +107,7 @@
                 </template>
                 <template x-if="!(typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick))">
                     <button type="button"
-                            @click.stop="open ? requestClose() : openEdit()"
+                            @click.stop="open ? requestClose() : (emptyOpensView && @js($empty) ? openView() : openEdit())"
                             class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition"
                             :class="open
                                 ? 'text-gray-700 ring-gray-200 bg-gray-50'
@@ -191,7 +194,7 @@
     @if ($useInline)
         {{-- SSR/hydration agree: cloak only the panel that should be hidden on first paint --}}
         <div x-show="!open && expanded" @unless ($startExpanded && ! $startOpen) x-cloak @endunless class="p-5 sm:p-6" @click.stop>
-            @if ($empty && $addUrl)
+            @if ($empty && $addUrl && ! $emptyOpensView)
                 <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-5 py-8 text-center">
                     <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
                     <button type="button" @click="openEdit()"
