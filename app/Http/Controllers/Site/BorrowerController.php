@@ -469,6 +469,7 @@ class BorrowerController extends Controller
         $data = $request->validate([
             'document' => ['required', 'in:ownership_document,insurance_document'],
             'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'return_to' => ['nullable', 'string', 'max:500'],
         ]);
 
         if ($data['document'] === 'insurance_document' && $asset->asset_type !== 'vehicle') {
@@ -491,8 +492,14 @@ class BorrowerController extends Controller
             Storage::disk('public')->delete($previous);
         }
 
+        $returnTo = (string) ($data['return_to'] ?? $request->input('return_to') ?? '');
+        if ($returnTo !== '' && str_starts_with($returnTo, '/') && ! str_starts_with($returnTo, '//')) {
+            return redirect()->to($returnTo)
+                ->with('status', __('borrower.profile.document_replaced'));
+        }
+
         return redirect()
-            ->route('site.borrower.profile', ['section' => 'assets'])
+            ->route('site.borrower.profile', ['section' => 'assets', 'edit' => $asset->id])
             ->with('status', __('borrower.profile.document_replaced'));
     }
 
@@ -3560,6 +3567,13 @@ class BorrowerController extends Controller
             $detailRules['details.insurance_expires_at'] = ['required', 'date', 'after:today'];
         }
 
+        // AB apply return_to: photos + ownership only; insurance collected later in collateral lifecycle.
+        $skipInsurance = filled($request->input('return_to'));
+        if ($skipInsurance && $type === 'vehicle') {
+            $detailRules['details.insurance_policy_number'] = ['nullable', 'string', 'max:150'];
+            $detailRules['details.insurance_expires_at'] = ['nullable', 'date', 'after:today'];
+        }
+
         $data = $request->validate(array_merge([
             'asset_type' => ['required', 'string', 'max:40'],
             'label' => ['required', 'string', 'max:150'],
@@ -3571,8 +3585,9 @@ class BorrowerController extends Controller
             'photos.*' => ['nullable', 'image', 'max:5120'],
             'person_photo' => ['required', 'image', 'max:5120'],
             'ownership_document' => ['nullable'],
+            'return_to' => ['nullable', 'string', 'max:500'],
             'insurance_document' => [
-                $type === 'vehicle' ? 'required' : 'nullable',
+                ($type === 'vehicle' && ! $skipInsurance) ? 'required' : 'nullable',
                 'file',
                 'mimes:jpg,jpeg,png,webp,pdf',
                 'max:8192',
@@ -3608,8 +3623,10 @@ class BorrowerController extends Controller
 
         if (($data['asset_type'] ?? '') === 'vehicle') {
             $details = $data['details'] ?? [];
-            $type = (string) ($details['insurance_type'] ?? 'comprehensive');
-            $details['insurance_type'] = in_array($type, ['comprehensive', 'third_party'], true) ? $type : 'comprehensive';
+            if (! $skipInsurance) {
+                $itype = (string) ($details['insurance_type'] ?? 'comprehensive');
+                $details['insurance_type'] = in_array($itype, ['comprehensive', 'third_party'], true) ? $itype : 'comprehensive';
+            }
             $data['details'] = $details;
         }
 
@@ -3672,6 +3689,12 @@ class BorrowerController extends Controller
             }
         }
 
+        $returnTo = (string) ($data['return_to'] ?? $request->input('return_to') ?? '');
+        if ($returnTo !== '' && str_starts_with($returnTo, '/') && ! str_starts_with($returnTo, '//')) {
+            return redirect()->to($returnTo)
+                ->with('status', __('borrower.profile.asset_saved'));
+        }
+
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets'])
             ->with('status', __('borrower.profile.asset_saved'));
@@ -3731,6 +3754,7 @@ class BorrowerController extends Controller
             'registration_number' => [$type === 'vehicle' ? 'required' : 'nullable', 'string', 'max:80'],
             'estimated_value' => ['nullable', 'numeric', 'min:1'],
             'details' => ['nullable', 'array'],
+            'return_to' => ['nullable', 'string', 'max:500'],
         ], $detailRules));
 
         $allowed = collect(CustomerAsset::detailFieldsFor($type))
@@ -3743,8 +3767,8 @@ class BorrowerController extends Controller
                 'insurance_policy_number',
                 'insurance_expires_at',
             ]);
-            $type = (string) ($data['details']['insurance_type'] ?? 'comprehensive');
-            $data['details']['insurance_type'] = in_array($type, ['comprehensive', 'third_party'], true) ? $type : 'comprehensive';
+            $itype = (string) ($data['details']['insurance_type'] ?? 'comprehensive');
+            $data['details']['insurance_type'] = in_array($itype, ['comprehensive', 'third_party'], true) ? $itype : 'comprehensive';
         }
         $data['details'] = collect($data['details'] ?? [])->only($allowed)->all();
         $data['asset_type'] = $type;
@@ -3762,6 +3786,12 @@ class BorrowerController extends Controller
                 : $asset->estimated_value,
             'metadata' => $meta,
         ]);
+
+        $returnTo = (string) ($data['return_to'] ?? $request->input('return_to') ?? '');
+        if ($returnTo !== '' && str_starts_with($returnTo, '/') && ! str_starts_with($returnTo, '//')) {
+            return redirect()->to($returnTo)
+                ->with('status', __('borrower.profile.asset_updated'));
+        }
 
         return redirect()
             ->route('site.borrower.profile', ['section' => 'assets', 'edit' => $asset->id])

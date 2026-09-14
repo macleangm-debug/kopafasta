@@ -309,10 +309,8 @@ class LoanApplicationProfileService
                     'value' => $form['asset_value'] ?? $form['estimated_value'] ?? ($payload['asset']['value'] ?? null),
                     'location' => $form['asset_location'] ?? ($payload['asset']['location'] ?? null),
                 ],
-                'photos' => $snapshot['asset_photos'] ?? [],
-                'ownership_documents' => $snapshot['ownership_documents'] ?? [],
-                'insurance_documents' => $snapshot['insurance_documents'] ?? [],
-                'steps' => $this->assetBackedSteps($snapshot, $form),
+                // Photos / ownership / insurance live on Profile assets — not AB application stages.
+                'steps' => $this->assetBackedSteps($form),
             ];
         }
 
@@ -418,23 +416,29 @@ class LoanApplicationProfileService
     }
 
     /**
-     * @param  array<string, mixed>  $snapshot
+     * AB application progress: Profile asset + amount/tenure + purpose.
+     * Photos/ownership are Profile completeness (incompleteForApply); insurance is post-approval.
+     *
      * @param  array<string, mixed>  $form
      * @return list<array{key: string, label: string, complete: bool}>
      */
-    private function assetBackedSteps(array $snapshot, array $form): array
+    private function assetBackedSteps(array $form): array
     {
-        $hasDetails = filled($form['asset_description'] ?? $form['collateral_description'] ?? null)
+        $ids = $form['customer_asset_ids'] ?? null;
+        if (! is_array($ids)) {
+            $ids = filled($form['customer_asset_id'] ?? null) ? [$form['customer_asset_id']] : [];
+        }
+        $hasAsset = collect($ids)->filter(fn ($id) => filled($id))->isNotEmpty()
+            || filled($form['asset_description'] ?? $form['collateral_description'] ?? null)
             || filled($form['asset_type'] ?? null);
-        $hasPhotos = ! empty($snapshot['asset_photos']);
-        $hasOwnership = ! empty($snapshot['ownership_documents']);
-        $hasInsurance = ! empty($snapshot['insurance_documents']);
+        $hasAmount = (float) ($form['requested_amount'] ?? 0) > 0
+            && (int) ($form['requested_tenure_months'] ?? 0) > 0;
+        $hasPurpose = filled($form['purpose'] ?? null);
 
         return [
-            ['key' => 'details', 'label' => __('borrower.loan_profile.special.step_details'), 'complete' => $hasDetails],
-            ['key' => 'photos', 'label' => __('borrower.loan_profile.special.step_photos'), 'complete' => $hasPhotos],
-            ['key' => 'ownership', 'label' => __('borrower.loan_profile.special.step_ownership'), 'complete' => $hasOwnership],
-            ['key' => 'insurance', 'label' => __('borrower.loan_profile.special.step_insurance'), 'complete' => $hasInsurance],
+            ['key' => 'details', 'label' => __('borrower.loan_profile.special.step_details'), 'complete' => $hasAsset],
+            ['key' => 'amount', 'label' => __('borrower.loan_profile.special.step_amount'), 'complete' => $hasAmount],
+            ['key' => 'purpose', 'label' => __('borrower.apply.quote.purpose'), 'complete' => $hasPurpose],
         ];
     }
 

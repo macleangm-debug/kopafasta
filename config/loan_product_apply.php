@@ -36,9 +36,9 @@ return [
             ['label' => 'Deposit confirmation', 'detail' => 'Collected before asset release'],
         ],
         'AB' => [
-            ['label' => 'Asset photos', 'detail' => 'Multiple angles of the collateral'],
-            ['label' => 'Ownership documents', 'detail' => 'Logbook or title deed'],
-            ['label' => 'Insurance cover', 'detail' => 'Comprehensive insurance certificate'],
+            ['label' => 'Profile asset', 'detail' => 'Choose a complete Profile asset (photos + ownership on file)'],
+            ['label' => 'Loan amount & tenure', 'detail' => 'How much you need and for how long'],
+            ['label' => 'Purpose', 'detail' => 'Why you need the loan'],
         ],
         'GL' => [
             ['label' => 'Group members', 'detail' => 'Member roster submitted digitally during application'],

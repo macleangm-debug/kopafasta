@@ -167,6 +167,8 @@
                     <form method="POST"
                           action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
                           enctype="multipart/form-data"
+                          data-inline-document-progress
+                          data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
                           novalidate
                           @submit="document.querySelectorAll('[data-phone-input]').forEach((el) => window.syncSitePhoneInput?.(el))">
                         @csrf @method('PUT')

@@ -86,6 +86,8 @@
             <x-site.profile-section-card :title="($typeIcons[$selectedType] ?? '📦').'  '.__('borrower.profile.add_asset').': '.__('borrower.profile.asset_types.'.$selectedType)" :allow-overflow="true">
                 @php
                     $isVehicle = $selectedType === 'vehicle';
+                    // AB apply return_to: collect photos + ownership only; insurance stays for later collateral lifecycle.
+                    $skipInsurance = filled(request('return_to'));
                     $ownerLabel = $isVehicle
                         ? __('borrower.profile.asset_photo_owner')
                         : __('borrower.profile.asset_photo_owner_generic');
@@ -101,7 +103,7 @@
                 @endphp
                 <form method="POST" action="{{ route('site.borrower.profile.assets.store') }}" enctype="multipart/form-data" class="space-y-6" novalidate
                       data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_collateral') }}"
-                      x-data="collateralAddForm({ isVehicle: @js($isVehicle), photoCount: {{ count($photoSlots) }} })"
+                      x-data="collateralAddForm({ isVehicle: @js($isVehicle), skipInsurance: @js($skipInsurance), photoCount: {{ count($photoSlots) }} })"
                       x-on:input="refreshGates()"
                       x-on:change="refreshGates()"
                       x-on:guided-photos-ready="refreshGates(); next()"
@@ -112,6 +114,9 @@
                     @if ($currentAppId)
                         <input type="hidden" name="application" value="{{ $currentAppId }}">
                     @endif
+                    @if (filled(request('return_to')))
+                        <input type="hidden" name="return_to" value="{{ request('return_to') }}">
+                    @endif
 
                     @php
                         $typePickerUrl = route('site.borrower.profile', array_filter([
@@ -119,6 +124,7 @@
                             'add' => 1,
                             'uw' => $uwPrompt ? 1 : null,
                             'application' => $currentAppId,
+                            'return_to' => request('return_to'),
                         ]));
                     @endphp
                     <div class="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-2">
@@ -198,7 +204,7 @@
                     </div>
 
                     @if ($isVehicle)
-                        <div x-show="step === 2" x-cloak class="space-y-4" data-collateral-step="insurance">
+                        <div x-show="!skipInsurance && step === 2" x-cloak class="space-y-4" data-collateral-step="insurance">
                             <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_insurance') }}</p>
                             <div class="rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4">
                                 <label class="text-xs font-semibold text-brand mb-1 block">
@@ -214,7 +220,7 @@
                                             'third_party' => __('borrower.profile.insurance_third_party'),
                                         ]"
                                         :value="old('details.insurance_type')"
-                                        :required="true"
+                                        :required="! $skipInsurance"
                                         :placeholder="__('borrower.profile.insurance_type_placeholder')"
                                         select-class="kf-field"
                                     />
@@ -222,7 +228,7 @@
                                 <div class="grid sm:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-900 mb-1.5">{{ __('borrower.profile.collateral_fields.insurance_policy_number') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number') }}" maxlength="150" required
+                                        <input type="text" name="details[insurance_policy_number]" value="{{ old('details.insurance_policy_number') }}" maxlength="150" @if (! $skipInsurance) required @endif
                                                class="kf-field"
                                                placeholder="{{ __('borrower.profile.collateral_placeholders.insurance_policy_number') }}">
                                     </div>
@@ -231,7 +237,7 @@
                                             name="details[insurance_expires_at]"
                                             :label="__('borrower.profile.collateral_fields.insurance_expires_at')"
                                             :value="old('details.insurance_expires_at')"
-                                            :required="true"
+                                            :required="! $skipInsurance"
                                             :min="now()->addDay()->format('Y-m-d')"
                                             :max="now()->addYears(5)->format('Y-m-d')"
                                             :default="now()->addYear()->format('Y-m-d')"
@@ -330,13 +336,13 @@
                         />
                     </div>
 
-                    {{-- Insurance certificate (vehicle only) --}}
+                    {{-- Insurance certificate (vehicle only) — omitted when completing from AB return_to --}}
                     @if ($isVehicle)
-                        <div x-show="step === 5" x-cloak class="space-y-4" data-collateral-step="cert">
+                        <div x-show="!skipInsurance && step === 5" x-cloak class="space-y-4" data-collateral-step="cert">
                             <p class="text-sm font-semibold text-gray-900">{{ __('borrower.profile.collateral_step_insurance_doc') }}</p>
                             <p class="text-xs text-gray-500">{{ __('borrower.profile.comprehensive_insurance_hint') }}</p>
                             <div class="rounded-xl ring-1 ring-brand/20 bg-brand-muted/30 p-4">
-                                <x-site.single-image-document-upload name="insurance_document" :required="true" facing="environment" />
+                                <x-site.single-image-document-upload name="insurance_document" :required="! $skipInsurance" facing="environment" />
                             </div>
                         </div>
                     @endif
@@ -362,19 +368,19 @@
                                 {{ __('borrower.profile.continue') }}
                             </button>
                             <button type="button"
-                                    x-show="isVehicle && step === 2 && step2Ready" x-cloak
+                                    x-show="!skipInsurance && isVehicle && step === 2 && step2Ready" x-cloak
                                     @click="next()"
                                     class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                                 {{ __('borrower.profile.continue') }}
                             </button>
                             <button type="button"
-                                    x-show="isVehicle && step === proofStep && step3Ready" x-cloak
+                                    x-show="!skipInsurance && isVehicle && step === proofStep && step3Ready" x-cloak
                                     @click="next()"
                                     class="inline-flex items-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
                                 {{ __('borrower.profile.continue') }}
                             </button>
                             <button type="submit"
-                                    x-show="((step === proofStep && !isVehicle && step3Ready) || (step === 5 && step4Ready))" x-cloak
+                                    x-show="(skipInsurance && step === proofStep && step3Ready) || (!skipInsurance && ((step === proofStep && !isVehicle && step3Ready) || (step === 5 && step4Ready)))" x-cloak
                                     :disabled="saving"
                                     class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-70">
                                 <svg x-show="saving" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -408,6 +414,7 @@
                                 'type' => $key,
                                 'uw' => $uwPrompt ? 1 : null,
                                 'application' => $currentAppId,
+                                'return_to' => request('return_to'),
                             ])) }}"
                            class="group rounded-2xl ring-1 ring-gray-200/80 p-5 hover:ring-brand/40 hover:shadow-md transition bg-white text-center">
                             <span class="text-3xl block mb-3" aria-hidden="true">{{ $typeIcons[$key] ?? '📦' }}</span>
@@ -563,6 +570,9 @@
                                   class="rounded-2xl bg-brand-muted/25 ring-1 ring-brand/10 p-4 space-y-4">
                                 @csrf
                                 @method('PUT')
+                                @if (filled(request('return_to')))
+                                    <input type="hidden" name="return_to" value="{{ request('return_to') }}">
+                                @endif
                                 <p class="text-xs uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.collateral_details') }}</p>
                                 <div class="grid sm:grid-cols-2 gap-3">
                                     <div class="sm:col-span-2">
@@ -788,9 +798,13 @@
                                     @else
                                         <p class="text-xs text-gray-500 mb-2">{{ __('borrower.profile.no_document_yet') }}</p>
                                     @endif
-                                    <form method="POST" action="{{ route('site.borrower.profile.assets.documents.replace', $asset) }}" enctype="multipart/form-data" class="mt-3" x-show="editingAsset === {{ $asset->id }}" x-cloak>
+                                    <form method="POST" action="{{ route('site.borrower.profile.assets.documents.replace', $asset) }}" enctype="multipart/form-data" class="mt-3" x-show="editingAsset === {{ $asset->id }}" x-cloak
+                                          data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
                                         @csrf
                                         <input type="hidden" name="document" value="ownership_document">
+                                        @if (filled(request('return_to')))
+                                            <input type="hidden" name="return_to" value="{{ request('return_to') }}">
+                                        @endif
                                         <label class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">
                                             {{ $ownershipDoc ? __('borrower.profile.replace_document') : __('borrower.profile.upload_document') }}
                                             <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" class="sr-only" onchange="this.form.submit()">
@@ -843,7 +857,8 @@
                                         @else
                                             <p class="text-xs text-amber-700">{{ __('borrower.profile.no_document_yet') }}</p>
                                         @endif
-                                        <form method="POST" action="{{ route('site.borrower.profile.assets.documents.replace', $asset) }}" enctype="multipart/form-data" x-show="editingAsset === {{ $asset->id }}" x-cloak>
+                                        <form method="POST" action="{{ route('site.borrower.profile.assets.documents.replace', $asset) }}" enctype="multipart/form-data" x-show="editingAsset === {{ $asset->id }}" x-cloak
+                                              data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
                                             @csrf
                                             <input type="hidden" name="document" value="insurance_document">
                                             <label class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm cursor-pointer">

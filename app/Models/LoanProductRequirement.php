@@ -124,4 +124,34 @@ class LoanProductRequirement extends Model
         return $name === 'group constitution'
             || ($name !== '' && str_contains($name, 'group') && str_contains($name, 'constitution'));
     }
+
+    /**
+     * AB apply readiness must not treat Profile-asset evidence (photos / ownership /
+     * comprehensive insurance) as separate application document stages.
+     * Valuation and other underwriting rows stay visible.
+     */
+    public static function nameIsAssetBackedProfileEvidence(?string $name, ?string $description = null): bool
+    {
+        $name = strtolower(trim((string) $name));
+        $hay = $name.' '.strtolower(trim((string) $description));
+
+        if ($name === '') {
+            return false;
+        }
+
+        if (str_contains($hay, 'valuation')) {
+            return false;
+        }
+
+        $photo = str_contains($hay, 'photo')
+            || str_contains($hay, 'vehicle photos')
+            || str_contains($hay, 'applicant with vehicle');
+        $ownership = str_contains($hay, 'ownership')
+            || str_contains($hay, 'logbook')
+            || str_contains($hay, 'title deed');
+        $insurance = str_contains($hay, 'comprehensive insurance')
+            || (str_contains($hay, 'insurance') && str_contains($hay, 'certificate'));
+
+        return $photo || $ownership || $insurance;
+    }
 }

@@ -231,6 +231,13 @@ class PublicProductPresentationService
         ];
 
         foreach ($product->requirements as $req) {
+            if (strtoupper((string) $product->code) === 'AB'
+                && \App\Models\LoanProductRequirement::nameIsAssetBackedProfileEvidence(
+                    (string) $req->name,
+                    (string) ($req->description ?? '')
+                )) {
+                continue;
+            }
             $docs[] = [
                 'name' => $req->name,
                 'detail' => $req->description ?: ($req->is_required ? __('site.product_detail.documents.required') : __('site.product_detail.documents.optional')),

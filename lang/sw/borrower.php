@@ -917,16 +917,16 @@ return [
                 ],
                 'AB' => [
                     0 => [
-                        'label' => 'Picha za mali',
-                        'detail' => 'Pembe nyingi za dhamana',
+                        'label' => 'Mali kwenye wasifu',
+                        'detail' => 'Chagua mali kamili kutoka Wasifu (picha + umiliki)',
                     ],
                     1 => [
-                        'label' => 'Nyaraka za umiliki',
-                        'detail' => 'Kitabu cha gari au hati ya umiliki',
+                        'label' => 'Kiasi na muda',
+                        'detail' => 'Kiasi unachohitaji na muda wa kulipa',
                     ],
                     2 => [
-                        'label' => 'Bima',
-                        'detail' => 'Cheti cha bima kamili',
+                        'label' => 'Lengo',
+                        'detail' => 'Kwa nini unahitaji mkopo',
                     ],
                 ],
                 'GL' => [
@@ -1904,7 +1904,7 @@ return [
         'tab_incomplete' => 'Inahitaji kazi',
         'tab_optional' => 'Si lazima',
         'hub' => [
-            'sections_title' => 'Sehemu za wasifu',
+            'sections_title' => 'Wasifu wako',
             'back' => 'Rudi kwenye muhtasari wa wasifu',
             'personal_hint' => 'Jina, mawasiliano, ndugu wa karibu na utambulisho.',
             'activity_hint' => 'Ajira, biashara na mapato.',
@@ -1932,6 +1932,19 @@ return [
             'group_help' => 'Msaada',
             'group_security' => 'Usalama na mapendeleo',
             'group_kopafasta' => 'Kopafasta',
+            'things_remaining' => '{0} Yote yamekamilika|{1} Kitu 1 kinachobaki|[2,*] Vitu :count vinavyobaki',
+            'whats_next' => 'Gusa kipengele ili ukamilishe.',
+            'all_set_hint' => 'Bado unaweza kusasisha sehemu yoyote hapa chini yanapobadilika.',
+            'of_complete' => ':done kati ya :total zimekamilika',
+            'switch_section' => 'Badilisha sehemu',
+            'layperson' => [
+                'about_you' => 'Kuhusu wewe',
+                'about_you_hint' => 'Jina, kitambulisho, picha za uso, familia na watu wa karibu.',
+                'where_you_live' => 'Mahali unapoishi',
+                'work_money' => 'Kazi na fedha',
+                'payment_accounts' => 'Akaunti za malipo',
+                'your_assets' => 'Mali zako',
+            ],
         ],
         'gaps' => [
             'summary' => 'Bado inahitajika: :items',
@@ -2254,6 +2267,7 @@ return [
         'add_details' => 'Ongeza',
         'section_empty' => 'Hakuna maelezo yaliyoongezwa bado.',
         'cancel_edit' => 'Ghairi',
+        'saved_inline' => 'Imehifadhiwa',
         'section_complete' => 'Imekamilika',
         'section_complete_tap' => 'Imekamilika — gusa kuhariri',
         'section_needs_update' => 'Inahitaji kusasishwa',

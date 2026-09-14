@@ -13,13 +13,18 @@
 
     <template x-if="current">
         <div class="space-y-6">
-            <div class="flex items-center gap-2 text-xs font-semibold text-gray-500">
-                <template x-for="n in 3" :key="'as'+n">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-gray-500">
+                <template x-for="(label, idx) in [
+                    @js(__('borrower.loan_profile.special.step_details')),
+                    @js(__('borrower.loan_profile.special.step_amount')),
+                    @js(__('borrower.apply.quote.purpose')),
+                ]" :key="'as'+idx">
                     <span class="inline-flex items-center gap-1.5">
                         <span class="size-6 rounded-full grid place-items-center text-[11px]"
-                              :class="assetSubstep >= n ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'"
-                              x-text="n"></span>
-                        <span x-show="n < 3" class="text-gray-300" aria-hidden="true">·</span>
+                              :class="assetSubstep >= (idx + 1) ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500'"
+                              x-text="idx + 1"></span>
+                        <span class="max-w-[7rem] truncate" :class="assetSubstep >= (idx + 1) ? 'text-brand' : 'text-gray-500'" x-text="label"></span>
+                        <span x-show="idx < 2" class="text-gray-300" aria-hidden="true">·</span>
                     </span>
                 </template>
             </div>
@@ -27,7 +32,7 @@
             <div x-show="!customerAssets.length" class="rounded-2xl bg-brand-muted/50 ring-1 ring-brand/15 p-5 sm:p-6">
                 <p class="text-sm font-semibold text-brand">{{ __('borrower.apply.asset_details.no_assets_title') }}</p>
                 <p class="text-sm text-brand/80 mt-2">{{ __('borrower.apply.asset_details.no_assets_body') }}</p>
-                <a href="{{ route('site.borrower.profile', ['section' => 'assets']) }}"
+                <a :href="assetAddProfileUrl()"
                    class="inline-flex mt-4 items-center gap-2 text-sm font-semibold text-brand hover:underline">
                     {{ __('borrower.apply.asset_details.add_asset_link') }} →
                 </a>
@@ -91,7 +96,7 @@
                         </div>
                     @endforeach
 
-                    <a href="{{ route('site.borrower.profile', ['section' => 'assets', 'add' => 1]) }}"
+                    <a :href="assetAddProfileUrl()"
                        class="inline-flex mt-1 text-sm font-semibold text-brand hover:underline">
                         {{ __('borrower.apply.asset_details.add_another_asset') }} →
                     </a>

@@ -446,9 +446,21 @@ class LoanApplicationDraftService
         }
 
         $existing = $this->find($customer, (int) $productId);
+        $incomingInputs = is_array($data['inputs'] ?? null) ? $data['inputs'] : [];
+        $existingInputs = is_array($existing?->payload['inputs'] ?? null) ? $existing->payload['inputs'] : [];
+        $mergedInputs = $existingInputs;
+        foreach ($incomingInputs as $key => $value) {
+            $isProductQuestion = is_string($key) && str_starts_with($key, 'product_question[');
+            $trimmed = is_string($value) ? trim($value) : $value;
+            if ($isProductQuestion && ($trimmed === '' || $trimmed === null)
+                && filled($existingInputs[$key] ?? null)) {
+                continue;
+            }
+            $mergedInputs[$key] = $value;
+        }
         $payload = [
             'form' => $data['form'] ?? ($existing?->payload['form'] ?? []),
-            'inputs' => $data['inputs'] ?? ($existing?->payload['inputs'] ?? []),
+            'inputs' => $mergedInputs !== [] ? $mergedInputs : ($data['inputs'] ?? ($existing?->payload['inputs'] ?? [])),
             'step_key' => $data['step_key'] ?? ($existing?->payload['step_key'] ?? null),
             'application_started' => $phase === 'application'
                 || (bool) ($data['application_started'] ?? ($existing?->payload['application_started'] ?? false)),

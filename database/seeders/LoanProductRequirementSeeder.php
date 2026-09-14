@@ -49,11 +49,8 @@ class LoanProductRequirementSeeder extends Seeder
                 ['name' => 'Supplier details',          'description' => 'Supplier name, address & contact.'],
             ],
             'AB'  => [
-                ['name' => 'Collateral ownership doc',  'description' => 'Logbook / title deed of the asset offered as collateral.'],
-                ['name' => 'Vehicle photos (multiple)', 'description' => 'Clear photos of the vehicle from front, rear, sides and interior.'],
-                ['name' => 'Applicant with vehicle',    'description' => 'Photo of you standing beside the vehicle.'],
-                ['name' => 'Proof of ownership',        'description' => 'Registration card or ownership transfer document.'],
-                ['name' => 'Comprehensive insurance',   'description' => 'Valid comprehensive insurance cover certificate.'],
+                // Photos / ownership / comprehensive insurance live on Profile assets (incompleteForApply).
+                // Keep valuation as an underwriting requirement — not an AB apply wizard stage.
                 ['name' => 'Valuation report',          'description' => 'Recent valuation report from an approved valuer.'],
             ],
             'AL'  => [

@@ -238,7 +238,8 @@
                         </div>
                     </x-slot:view>
                     <x-slot:form>
-                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data">
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
+                              data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="id_images">
                             @if (! empty($returnUrl))
@@ -450,6 +451,7 @@
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
+                              data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
                               x-data="{
                                   marital: @js(old('marital_status', $customer->marital_status)),
                                   maritalOpen: false,

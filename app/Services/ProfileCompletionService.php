@@ -168,7 +168,15 @@ class ProfileCompletionService
         return true;
     }
 
-    /** @return array{percent: int, remaining: list<string>, completed: list<string>} */
+    /**
+     * @return array{
+     *     percent: int,
+     *     remaining: list<string>,
+     *     completed: list<string>,
+     *     remaining_count: int,
+     *     actionable: list<array{key: string, label: string, url: string|null}>
+     * }
+     */
     public function completionSummary(Customer $customer): array
     {
         $requirements = collect(app(ApplicationProgressService::class)->requirements($customer, null, null))
@@ -176,13 +184,42 @@ class ProfileCompletionService
             ->values();
 
         $completed = $requirements->where('complete', true)->pluck('label')->values()->all();
-        $remaining = $requirements->where('complete', false)->pluck('label')->values()->all();
+        $incomplete = $requirements->where('complete', false)->values();
+        $remaining = $incomplete->pluck('label')->values()->all();
         $calculated = $this->calculate($customer);
 
+        $actionable = $incomplete
+            ->map(fn (array $item) => [
+                'key' => (string) ($item['key'] ?? ''),
+                'label' => (string) ($item['label'] ?? ''),
+                'url' => $item['action_url'] ?? null,
+            ])
+            ->filter(fn (array $item) => $item['label'] !== '')
+            ->values()
+            ->all();
+
+        // Prefer incomplete hub sections when requirement rows are empty.
+        if ($actionable === []) {
+            foreach ($calculated['sections'] as $section) {
+                if (! empty($section['complete'])) {
+                    continue;
+                }
+                $tab = $this->tabStatuses($customer)[$section['key']] ?? null;
+                $actionable[] = [
+                    'key' => (string) $section['key'],
+                    'label' => (string) $section['label'],
+                    'url' => $tab['url'] ?? route('site.borrower.profile', ['section' => $section['key']]),
+                ];
+            }
+            $remaining = collect($actionable)->pluck('label')->all();
+        }
+
         return [
-            'percent'   => $calculated['percent'],
+            'percent' => $calculated['percent'],
             'remaining' => $remaining,
             'completed' => $completed,
+            'remaining_count' => count($actionable),
+            'actionable' => $actionable,
         ];
     }
 

@@ -59,12 +59,38 @@ class ProfileSectionBuilderService
         $completion = app(ProfileCompletionService::class);
         $tabStatuses = $completion->extendedTabStatuses($customer);
 
+        // Layperson supercategory labels — same underlying sections, clearer wording.
         $meta = [
-            'personal'  => ['icon' => '👤', 'action' => 'add_section'],
-            'activity'  => ['icon' => '💼', 'action' => 'add_section'],
-            'residence' => ['icon' => '🏠', 'action' => 'add_section'],
-            'payment'   => ['icon' => '💳', 'action' => 'add'],
-            'assets'    => ['icon' => '🚗', 'action' => 'manage'],
+            'personal'  => [
+                'icon' => '👤',
+                'action' => 'add_section',
+                'label' => __('borrower.profile.hub.layperson.about_you'),
+                'hint' => __('borrower.profile.hub.layperson.about_you_hint'),
+            ],
+            'residence' => [
+                'icon' => '🏠',
+                'action' => 'add_section',
+                'label' => __('borrower.profile.hub.layperson.where_you_live'),
+                'hint' => __('borrower.profile.hub.residence_hint'),
+            ],
+            'activity'  => [
+                'icon' => '💼',
+                'action' => 'add_section',
+                'label' => __('borrower.profile.hub.layperson.work_money'),
+                'hint' => __('borrower.profile.hub.activity_hint'),
+            ],
+            'payment'   => [
+                'icon' => '💳',
+                'action' => 'add',
+                'label' => __('borrower.profile.hub.layperson.payment_accounts'),
+                'hint' => __('borrower.profile.hub.payment_hint'),
+            ],
+            'assets'    => [
+                'icon' => '🚗',
+                'action' => 'manage',
+                'label' => __('borrower.profile.hub.layperson.your_assets'),
+                'hint' => __('borrower.profile.hub.assets_hint'),
+            ],
         ];
 
         return collect($tabStatuses)
@@ -72,23 +98,33 @@ class ProfileSectionBuilderService
             ->map(function (array $tab, string $key) use ($meta, $customer) {
                 $status = (string) ($tab['status'] ?? 'not_started');
                 $sectionMeta = $meta[$key] ?? ['icon' => '📋', 'action' => 'view_edit'];
+                $missing = $key === 'personal'
+                    ? app(ProfileValidationService::class)->personalGaps($customer)
+                    : [];
+
+                $doneParts = null;
+                if ($key === 'personal' && $missing !== []) {
+                    $doneParts = [
+                        'done' => max(0, 3 - min(3, count($missing))),
+                        'total' => 3,
+                    ];
+                }
 
                 return [
                     'key'          => $key,
                     'icon'         => $sectionMeta['icon'],
-                    'label'        => $tab['label'],
-                    'description'  => $key === 'personal'
+                    'label'        => $sectionMeta['label'] ?? $tab['label'],
+                    'description'  => $sectionMeta['hint'] ?? ($key === 'personal'
                         ? $this->personalGapSummary($customer)
-                        : null,
-                    'missing'      => $key === 'personal'
-                        ? app(ProfileValidationService::class)->personalGaps($customer)
-                        : [],
+                        : null),
+                    'missing'      => $missing,
                     'status'       => $status,
                     'status_label' => $this->statusLabel($status),
                     'action_label' => $this->actionLabel($status, $sectionMeta['action']),
                     'url'          => $tab['url'],
                     'required'     => (bool) ($tab['required'] ?? false),
                     'count'        => $tab['count'] ?? null,
+                    'progress'     => $doneParts,
                 ];
             })->values()->all();
     }

@@ -8,6 +8,8 @@ export function registerCollateralAddForm(Alpine) {
         step: 1,
         photoIndex: 0,
         isVehicle: !!config.isVehicle,
+        /** When completing an asset from AB apply return_to, skip insurance stages. */
+        skipInsurance: !!config.skipInsurance,
         photoCount: Number(config.photoCount || 2),
         step1Ready: false,
         step2Ready: false,
@@ -17,12 +19,21 @@ export function registerCollateralAddForm(Alpine) {
         allPhotosReady: false,
         _timer: null,
         get lastStep() {
+            if (this.skipInsurance) {
+                return 3;
+            }
             return this.isVehicle ? 5 : 3;
         },
         get photoStep() {
+            if (this.skipInsurance) {
+                return 2;
+            }
             return this.isVehicle ? 3 : 2;
         },
         get proofStep() {
+            if (this.skipInsurance) {
+                return 3;
+            }
             return this.isVehicle ? 4 : 3;
         },
         next() {
@@ -43,9 +54,11 @@ export function registerCollateralAddForm(Alpine) {
             const form = this.$el;
             const complete = (scope) => window.KopaFastaForm?.isComplete(form, { onlyVisible: false, scope }) ?? false;
             this.step1Ready = complete(form.querySelector('[data-collateral-step="details"]'));
-            this.step2Ready = ! this.isVehicle || complete(form.querySelector('[data-collateral-step="insurance"]'));
+            this.step2Ready = this.skipInsurance || ! this.isVehicle
+                || complete(form.querySelector('[data-collateral-step="insurance"]'));
             this.step3Ready = complete(form.querySelector('[data-collateral-step="proof"]'));
-            this.step4Ready = ! this.isVehicle || complete(form.querySelector('[data-collateral-step="cert"]'));
+            this.step4Ready = this.skipInsurance || ! this.isVehicle
+                || complete(form.querySelector('[data-collateral-step="cert"]'));
             const photoRoot = form.querySelector('[data-collateral-step="photos"]');
             const photoInputs = photoRoot ? [...photoRoot.querySelectorAll('input[type="file"]')] : [];
             this.allPhotosReady = photoInputs.length > 0 && photoInputs.every((input) => input.files && input.files.length > 0);

@@ -185,7 +185,8 @@
     @if ($payment->payment_method === 'bank_transfer' && $payment->isPending() && ! $payment->hasProof())
         <div class="rounded-2xl ring-1 ring-amber-200 bg-amber-50/60 px-5 py-5">
             <h3 class="text-sm font-semibold text-amber-950 mb-3">{{ __('borrower.payments_page.show.upload_proof_heading') }}</h3>
-            <form method="POST" action="{{ route('site.borrower.payments.proof', $payment) }}" enctype="multipart/form-data" class="space-y-3">
+            <form method="POST" action="{{ route('site.borrower.payments.proof', $payment) }}" enctype="multipart/form-data" class="space-y-3"
+                  data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
                 @csrf
                 <x-site.single-image-document-upload
                     name="proof"

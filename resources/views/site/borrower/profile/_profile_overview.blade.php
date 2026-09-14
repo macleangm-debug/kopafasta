@@ -3,6 +3,9 @@
 @php
     $builder = app(\App\Services\ProfileSectionBuilderService::class);
     $sections = $builder->hubCards($customer);
+    $summary = app(\App\Services\ProfileCompletionService::class)->completionSummary($customer);
+    $remainingCount = (int) ($summary['remaining_count'] ?? count($summary['actionable'] ?? []));
+    $actionable = array_slice($summary['actionable'] ?? [], 0, 5);
 
     $statusColors = [
         'complete'     => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
@@ -15,6 +18,34 @@
         'not_started'  => 'bg-gray-100 text-gray-600 ring-gray-200',
     ];
 @endphp
+
+<section class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white p-5 sm:p-6">
+    <p class="text-[10px] uppercase tracking-widest font-bold text-brand">{{ __('borrower.profile.completion_summary_title') }}</p>
+    @if ($remainingCount > 0)
+        <h2 class="mt-1 text-xl font-extrabold text-gray-900 tracking-tight">
+            {{ trans_choice('borrower.profile.hub.things_remaining', $remainingCount, ['count' => $remainingCount]) }}
+        </h2>
+        <p class="mt-1 text-sm text-gray-600">{{ __('borrower.profile.hub.whats_next') }}</p>
+        <ul class="mt-4 space-y-2">
+            @foreach ($actionable as $item)
+                @if (! empty($item['url']))
+                    <li>
+                        <a href="{{ $item['url'] }}"
+                           class="flex items-center justify-between gap-3 rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 text-sm font-semibold text-gray-900 hover:ring-brand/30 transition">
+                            <span class="min-w-0 truncate">{{ $item['label'] }}</span>
+                            <span class="shrink-0 text-brand">→</span>
+                        </a>
+                    </li>
+                @else
+                    <li class="rounded-xl bg-white/80 ring-1 ring-gray-200 px-4 py-3 text-sm font-medium text-gray-700">{{ $item['label'] }}</li>
+                @endif
+            @endforeach
+        </ul>
+    @else
+        <h2 class="mt-1 text-xl font-extrabold text-gray-900 tracking-tight">{{ __('borrower.profile.hero_completion_done') }}</h2>
+        <p class="mt-1 text-sm text-gray-600">{{ __('borrower.profile.hub.all_set_hint') }}</p>
+    @endif
+</section>
 
 <section class="mb-6">
     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.hub.sections_title') }}</p>
@@ -45,7 +76,9 @@
                     </span>
                 </div>
                 <h3 class="mt-4 font-bold text-gray-900 group-hover:text-brand transition">{{ $section['label'] }}</h3>
-                @if (! empty($section['count']))
+                @if (! empty($section['progress']))
+                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.hub.of_complete', ['done' => $section['progress']['done'], 'total' => $section['progress']['total']]) }}</p>
+                @elseif (! empty($section['count']))
                     <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.registered_count', ['count' => $section['count']]) }}</p>
                 @elseif (! empty($section['description']))
                     <p class="text-xs text-gray-500 mt-1 line-clamp-3">{{ $section['description'] }}</p>
@@ -53,7 +86,7 @@
                 @if (! empty($section['missing']))
                     <ul class="mt-2 space-y-1">
                         @foreach (array_slice($section['missing'], 0, 3) as $gap)
-                            <li class="text-[11px] text-amber-800 font-medium">• {{ $gap['label'] }}</li>
+                            <li class="text-[11px] text-amber-800 font-medium">• {{ is_array($gap) ? ($gap['label'] ?? '') : $gap }}</li>
                         @endforeach
                     </ul>
                 @endif

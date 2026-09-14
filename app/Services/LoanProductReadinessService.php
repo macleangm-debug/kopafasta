@@ -289,6 +289,16 @@ class LoanProductReadinessService
 
         return $product->requirements
             ->where('is_required', true)
+            ->reject(function ($req) use ($product) {
+                if (strtoupper((string) $product->code) !== 'AB') {
+                    return false;
+                }
+
+                return \App\Models\LoanProductRequirement::nameIsAssetBackedProfileEvidence(
+                    (string) $req->name,
+                    (string) ($req->description ?? '')
+                );
+            })
             ->map(function ($req) use ($uploads) {
                 $reqName = strtolower($req->name);
                 $matched = $uploads->first(function (CustomerDocument $doc) use ($reqName) {

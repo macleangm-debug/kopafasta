@@ -65,6 +65,7 @@ export function applyWizard(config) {
                 feeLoyaltyOption: config.feeLoyaltyOption || null,
                 feeRedeemLoyalty: !!(config.feeLoyaltyOption?.can_redeem),
                 _gateTick: 0,
+                _lastDraftInputs: {},
                 returnTo: config.returnTo || null,
                 guarantorInviteError: '',
                 stepNotice: null,
@@ -572,8 +573,27 @@ export function applyWizard(config) {
                                 if (key === 'purpose') continue;
                                 inputs[key] = value;
                             }
+                            // Alpine :value / x-model hosts can lag FormData — harvest product_question explicitly.
+                            form.querySelectorAll('[name^="product_question["]').forEach((el) => {
+                                if (! el.name || el.type === 'file') return;
+                                if (el.type === 'radio' && ! el.checked) return;
+                                const val = (el.value || '').toString();
+                                if (val.trim() !== '' || ! (inputs[el.name] || '').toString().trim()) {
+                                    if (val.trim() !== '') inputs[el.name] = val;
+                                }
+                            });
                         }
                     }
+                    // Preserve previously saved overview fields if a later save races with empty DOM values.
+                    const prev = this._lastDraftInputs || {};
+                    Object.keys(prev).forEach((key) => {
+                        if (! key.startsWith('product_question[')) return;
+                        const next = (inputs[key] ?? '').toString().trim();
+                        if (next === '' && String(prev[key] || '').trim() !== '') {
+                            inputs[key] = prev[key];
+                        }
+                    });
+                    this._lastDraftInputs = { ...prev, ...inputs };
                     if (this.form.purpose) {
                         inputs.purpose = this.form.purpose;
                     }
@@ -1000,13 +1020,21 @@ export function applyWizard(config) {
                     this.applyExistingAsset();
                 },
 
-                assetIncompleteProfileUrl(asset) {
-                    if (! asset?.id) return this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
+                assetProfileReturnQuery() {
+                    return 'return_to=' + encodeURIComponent(window.location.pathname + window.location.search);
+                },
+
+                assetAddProfileUrl() {
                     const base = this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
-                    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                    return base + (base.includes('?') ? '&' : '?') + 'add=1&' + this.assetProfileReturnQuery();
+                },
+
+                assetIncompleteProfileUrl(asset) {
+                    if (! asset?.id) return this.assetAddProfileUrl();
+                    const base = this.profileAssetsUrl || this.profileUrl || '/borrower/profile';
                     return base + (base.includes('?') ? '&' : '?')
                         + 'edit=' + encodeURIComponent(asset.id)
-                        + '&return_to=' + returnUrl;
+                        + '&' + this.assetProfileReturnQuery();
                 },
 
                 assetIncompleteHint(asset) {
@@ -1436,6 +1464,7 @@ export function applyWizard(config) {
                     const root = this.formRoot();
                     if (! root) return;
                     const data = inputs || {};
+                    this._lastDraftInputs = { ...(this._lastDraftInputs || {}), ...data };
                     Object.entries(data).forEach(([name, value]) => {
                         if (name === 'purpose' && ! String(value || '').trim()) return;
                         // Farming district restored after region Alpine sync below.
@@ -1487,6 +1516,16 @@ export function applyWizard(config) {
                     }
 
                     this._gateTick++;
+                    // Re-sync Alpine selects/dates after nested components finish init.
+                    this.$nextTick?.(() => {
+                        Object.entries(data).forEach(([name, value]) => {
+                            if (! name.startsWith('product_question[')) return;
+                            const el = root.querySelector(`[name="${name}"]`);
+                            if (! el || el.type === 'file') return;
+                            this.syncAlpineBoundField(el, value == null ? '' : String(value));
+                        });
+                        this._gateTick++;
+                    });
                 },
 
                 syncAlpineBoundField(el, value) {
@@ -3131,18 +3170,34 @@ export function applyWizard(config) {
                         void this.educationDocuments;
                         void this._gateTick;
                         const root = this.formRoot();
-                        const region = (root?.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
-                        const district = (root?.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
+                        const fieldValue = (key) => {
+                            const name = `product_question[${key}]`;
+                            const el = root?.querySelector(`[name="${name}"]`);
+                            if (! el) return '';
+                            const raw = (el.value || '').toString().trim();
+                            if (raw) return raw;
+                            // Fallback to Alpine host state when :value lag empties the DOM property.
+                            try {
+                                const host = el.closest('[x-data]');
+                                const data = host && window.Alpine?.$data ? window.Alpine.$data(host) : null;
+                                if (data && 'selected' in data) return String(data.selected || '').trim();
+                                if (data && 'value' in data && 'draft' in data) return String(data.value || '').trim();
+                                if (data && key.includes('region') && 'region' in data) return String(data.region || '').trim();
+                                if (data && key.includes('district') && 'district' in data) return String(data.district || '').trim();
+                            } catch (e) { /* ignore */ }
+                            return '';
+                        };
+                        const region = fieldValue('farming_region')
+                            || (root?.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
+                        const district = fieldValue('farming_district')
+                            || (root?.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
                         const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
                         if (locationHidden) {
                             const ward = (root?.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
                             locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
                         }
                         const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
-                        const fieldsOk = required.every((key) => {
-                            const el = root?.querySelector(`[name="product_question[${key}]"]`);
-                            return !!(el?.value || '').toString().trim();
-                        });
+                        const fieldsOk = required.every((key) => !!fieldValue(key));
                         // Optional agriculture docs must not block; only required farm + land evidence.
                         const docsOk = !!this.educationDocuments?.farm_activity_photos?.customer_document_id
                             && !!this.educationDocuments?.land_use_evidence?.customer_document_id;
