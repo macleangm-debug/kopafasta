@@ -42,10 +42,18 @@
         this.region = value;
         this.onRegionChange();
         this.regionPickerOpen = false;
+        this.$nextTick(() => {
+            this.$refs.regionSelect?.dispatchEvent(new Event('change', { bubbles: true }));
+            this.$dispatch('profile-select', { name: @js($regionName), value: value });
+        });
     },
     pickDistrict(value) {
         this.district = value;
         this.districtPickerOpen = false;
+        this.$nextTick(() => {
+            this.$refs.districtHidden?.dispatchEvent(new Event('change', { bubbles: true }));
+            this.$dispatch('profile-select', { name: @js($districtName), value: value });
+        });
     },
 }">
     <div>
@@ -70,7 +78,7 @@
             </x-site.bottom-sheet>
         </div>
 
-        <select name="{{ $regionName }}" x-model="region" @change="onRegionChange()" @if($required) required @endif
+        <select name="{{ $regionName }}" x-model="region" x-ref="regionSelect" @change="onRegionChange()" @if($required) required @endif
                 class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm max-lg:sr-only">
             <option value="">{{ __('borrower.profile.select_region') }}</option>
             @foreach ($locations as $regionLabel => $districts)

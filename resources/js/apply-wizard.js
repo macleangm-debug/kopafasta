@@ -577,14 +577,40 @@ export function applyWizard(config) {
                                 inputs[key] = value;
                             }
                             // Alpine :value / x-model hosts can lag FormData — harvest product_question explicitly.
-                            form.querySelectorAll('[name^="product_question["]').forEach((el) => {
-                                if (! el.name || el.type === 'file') return;
-                                if (el.type === 'radio' && ! el.checked) return;
+                            for (const el of form.elements) {
+                                if (! el?.name || el.type === 'file') continue;
+                                if (! String(el.name).startsWith('product_question[')) continue;
+                                if (el.type === 'radio' && ! el.checked) continue;
                                 const val = (el.value || '').toString();
                                 if (val.trim() !== '' || ! (inputs[el.name] || '').toString().trim()) {
                                     if (val.trim() !== '') inputs[el.name] = val;
                                 }
-                            });
+                            }
+                            // Mobile address sheets update Alpine before the select value is reliable.
+                            try {
+                                const agro = form.querySelector('[data-wizard-step="agriculture_details"]');
+                                if (agro && window.Alpine?.$data) {
+                                    let region = '';
+                                    let district = '';
+                                    for (const host of agro.querySelectorAll('[x-data]')) {
+                                        const data = window.Alpine.$data(host);
+                                        if (! data) continue;
+                                        if (! region && String(data.region || '').trim()) {
+                                            region = String(data.region).trim();
+                                        }
+                                        if (! district && String(data.district || '').trim()) {
+                                            district = String(data.district).trim();
+                                        }
+                                        if (region && district) break;
+                                    }
+                                    if (region) inputs['product_question[farming_region]'] = region;
+                                    if (district) inputs['product_question[farming_district]'] = district;
+                                    if (region || district) {
+                                        const ward = (inputs['product_question[farming_ward]'] || '').toString().trim();
+                                        inputs['product_question[farming_location]'] = [region, district, ward].filter(Boolean).join(', ');
+                                    }
+                                }
+                            } catch (e) { /* ignore */ }
                         }
                     }
                     // Preserve previously saved overview fields if a later save races with empty DOM values.
@@ -1483,8 +1509,21 @@ export function applyWizard(config) {
                         if (name === 'purpose' && ! String(value || '').trim()) return;
                         // Farming district restored after region Alpine sync below.
                         if (name === 'product_question[farming_district]') return;
-                        const el = root.querySelector(`[name="${name}"]`);
+                        const el = root.elements?.namedItem?.(name)
+                            || root.elements?.[name]
+                            || root.querySelector(`[name="${name.replace(/"/g, '\\"')}"]`);
                         if (! el || el.type === 'file') return;
+                        if (el.length && ! el.tagName) {
+                            // RadioNodeList
+                            const radio = Array.from(el).find((node) => String(node.value) === String(value));
+                            if (radio) {
+                                radio.checked = true;
+                                this.syncAlpineBoundField(radio, radio.value);
+                                radio.dispatchEvent(new Event('input', { bubbles: true }));
+                                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            return;
+                        }
                         if (el.type === 'radio') {
                             const radio = root.querySelector(`[name="${name}"][value="${value}"]`);
                             if (radio) {
@@ -1501,7 +1540,9 @@ export function applyWizard(config) {
                         el.dispatchEvent(new Event('change', { bubbles: true }));
                     });
 
-                    const regionEl = root.querySelector('[name="product_question[farming_region]"]');
+                    const regionEl = root.elements?.namedItem?.('product_question[farming_region]')
+                        || root.elements?.['product_question[farming_region]']
+                        || root.querySelector('[name="product_question[farming_region]"]');
                     const addrRoot = regionEl?.closest('[x-data]');
                     if (addrRoot && window.Alpine?.$data) {
                         const addr = window.Alpine.$data(addrRoot);
@@ -1516,16 +1557,24 @@ export function applyWizard(config) {
                             } else {
                                 addr.district = district;
                             }
-                            const districtEl = root.querySelector('[name="product_question[farming_district]"]');
+                            const districtEl = root.elements?.namedItem?.('product_question[farming_district]')
+                                || root.elements?.['product_question[farming_district]'];
                             if (districtEl) districtEl.value = district;
                         }
                     }
 
-                    const locationHidden = root.querySelector('[name="product_question[farming_location]"]');
+                    const locationHidden = root.elements?.namedItem?.('product_question[farming_location]')
+                        || root.elements?.['product_question[farming_location]'];
                     if (locationHidden) {
-                        const region = (root.querySelector('[name="product_question[farming_region]"]')?.value || '').trim();
-                        const district = (root.querySelector('[name="product_question[farming_district]"]')?.value || '').trim();
-                        const ward = (root.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
+                        const region = (root.elements?.namedItem?.('product_question[farming_region]')?.value
+                            || root.elements?.['product_question[farming_region]']?.value
+                            || '').trim();
+                        const district = (root.elements?.namedItem?.('product_question[farming_district]')?.value
+                            || root.elements?.['product_question[farming_district]']?.value
+                            || '').trim();
+                        const ward = (root.elements?.namedItem?.('product_question[farming_ward]')?.value
+                            || root.elements?.['product_question[farming_ward]']?.value
+                            || '').trim();
                         locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
                     }
 
@@ -1534,8 +1583,10 @@ export function applyWizard(config) {
                     this.$nextTick?.(() => {
                         Object.entries(data).forEach(([name, value]) => {
                             if (! name.startsWith('product_question[')) return;
-                            const el = root.querySelector(`[name="${name}"]`);
-                            if (! el || el.type === 'file') return;
+                            const el = root.elements?.namedItem?.(name)
+                                || root.elements?.[name]
+                                || null;
+                            if (! el || el.type === 'file' || (el.length && ! el.tagName)) return;
                             this.syncAlpineBoundField(el, value == null ? '' : String(value));
                         });
                         this._gateTick++;
@@ -3115,12 +3166,55 @@ export function applyWizard(config) {
                     return true;
                 },
 
+                /** Prefer form.elements — CSS [name="a[b]"] selectors are unreliable across engines. */
+                agricultureNamedInput(name) {
+                    const root = this.formRoot();
+                    if (! root?.elements) return null;
+                    const el = root.elements.namedItem?.(name) ?? root.elements[name] ?? null;
+                    if (! el) {
+                        for (const node of root.elements) {
+                            if (node?.name === name) return node;
+                        }
+                        return null;
+                    }
+                    if (typeof el === 'object' && el !== null && 'length' in el && ! el.tagName) {
+                        for (const node of el) {
+                            if (node && node.type !== 'radio' && String(node.value || '').trim() !== '') return node;
+                            if (node?.type === 'radio' && node.checked) return node;
+                        }
+                        return el[0] || null;
+                    }
+                    return el;
+                },
+
+                agricultureAddressAlpine(part) {
+                    const root = this.formRoot();
+                    const agro = root?.querySelector('[data-wizard-step="agriculture_details"]');
+                    if (! agro || ! window.Alpine?.$data) return '';
+                    for (const host of agro.querySelectorAll('[x-data]')) {
+                        try {
+                            const data = window.Alpine.$data(host);
+                            if (data && Object.prototype.hasOwnProperty.call(data, part)) {
+                                const v = String(data[part] || '').trim();
+                                if (v) return v;
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+                    return '';
+                },
+
                 /** Push Alpine host state (profile-select / date / address) onto DOM before readiness reads. */
                 syncAgricultureFieldsFromAlpine() {
                     const root = this.formRoot();
                     if (! root || ! window.Alpine?.$data) return;
-                    root.querySelectorAll('[name^="product_question["]').forEach((el) => {
-                        if (! el || el.type === 'file') return;
+                    const region = this.agricultureAddressAlpine('region');
+                    const district = this.agricultureAddressAlpine('district');
+                    const regionEl = this.agricultureNamedInput('product_question[farming_region]');
+                    const districtEl = this.agricultureNamedInput('product_question[farming_district]');
+                    if (regionEl && region) regionEl.value = region;
+                    if (districtEl && district) districtEl.value = district;
+                    for (const el of root.elements || []) {
+                        if (! el?.name || ! String(el.name).startsWith('product_question[') || el.type === 'file') continue;
                         try {
                             let node = el;
                             while (node && node !== root) {
@@ -3140,34 +3234,26 @@ export function applyWizard(config) {
                                         if (v) el.value = v;
                                         break;
                                     }
-                                    if (String(el.name).includes('farming_region') && String(data.region || '').trim()) {
-                                        el.value = String(data.region).trim();
-                                        break;
-                                    }
-                                    if (String(el.name).includes('farming_district') && String(data.district || '').trim()) {
-                                        el.value = String(data.district).trim();
-                                        break;
-                                    }
                                 }
                                 node = node.parentElement;
                             }
                         } catch (e) { /* ignore */ }
-                    });
+                    }
                 },
 
                 agricultureFieldValue(key) {
                     const name = `product_question[${key}]`;
-                    const root = this.formRoot();
                     const draft = this._lastDraftInputs || {};
-                    const el = root?.querySelector(`[name="${name}"]`);
+                    const el = this.agricultureNamedInput(name);
                     if (el) {
                         const raw = (el.value || '').toString().trim();
                         if (raw) return raw;
                         try {
                             let node = el;
+                            const root = this.formRoot();
                             while (node && node !== root) {
                                 if (node.hasAttribute?.('x-data')) {
-                                    const data = window.Alpine.$data(node);
+                                    const data = window.Alpine?.$data?.(node);
                                     if (data && 'selected' in data && String(data.selected || '').trim()) {
                                         return String(data.selected).trim();
                                     }
@@ -3185,6 +3271,14 @@ export function applyWizard(config) {
                             }
                         } catch (e) { /* ignore */ }
                     }
+                    if (key === 'farming_region') {
+                        const live = this.agricultureAddressAlpine('region');
+                        if (live) return live;
+                    }
+                    if (key === 'farming_district') {
+                        const live = this.agricultureAddressAlpine('district');
+                        if (live) return live;
+                    }
                     return String(
                         draft[name]
                         ?? draft[`product_question.${key}`]
@@ -3199,16 +3293,14 @@ export function applyWizard(config) {
                         && docs.land_use_evidence?.customer_document_id) {
                         return true;
                     }
-                    const root = this.formRoot();
-                    const farm = (root?.querySelector('[name="product_question[farm_activity_photos_document_id]"]')?.value || '').trim();
-                    const land = (root?.querySelector('[name="product_question[land_use_evidence_document_id]"]')?.value || '').trim();
+                    const farm = (this.agricultureNamedInput('product_question[farm_activity_photos_document_id]')?.value || '').trim();
+                    const land = (this.agricultureNamedInput('product_question[land_use_evidence_document_id]')?.value || '').trim();
                     return !! farm && !! land;
                 },
 
                 agricultureStepReady() {
                     this.syncAgricultureFieldsFromAlpine();
                     try {
-                        // Refresh draft snapshot so Alpine-bound overview values count immediately.
                         this.buildDraftPayload();
                     } catch (e) { /* ignore */ }
                     const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
@@ -3220,8 +3312,7 @@ export function applyWizard(config) {
                         region = region || parts[0] || '';
                         district = district || parts[1] || '';
                     }
-                    const root = this.formRoot();
-                    const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
+                    const locationHidden = this.agricultureNamedInput('product_question[farming_location]');
                     if (locationHidden) {
                         const ward = this.agricultureFieldValue('farming_ward');
                         locationHidden.value = [region, district, ward].filter(Boolean).join(', ');

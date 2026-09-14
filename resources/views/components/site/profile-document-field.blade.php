@@ -28,7 +28,6 @@
     $meta = $document ? $docService->metadata($document) : [];
     $pageCount = (int) ($meta['page_count'] ?? 1);
     $fileName = (string) ($meta['original_name'] ?? ($document?->file_path ? basename($document->file_path) : ''));
-    $statusLabel = $document ? $docService->statusLabel($document) : '';
     $previewUrl = ($document && $document->file_path) ? asset('storage/'.$document->file_path) : null;
     $fileExt = strtoupper(pathinfo($fileName !== '' ? $fileName : (string) ($document?->file_path ?? ''), PATHINFO_EXTENSION) ?: 'FILE');
     $type = $document?->documentType
@@ -170,13 +169,6 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <p class="text-sm font-bold text-gray-900 truncate">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>
-                        @if ($statusLabel !== '')
-                            <span @class([
-                                'inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
-                                'bg-amber-50 text-amber-900 ring-amber-200' => $needsUpdate,
-                                'bg-emerald-50 text-emerald-800 ring-emerald-200' => ! $needsUpdate,
-                            ])>{{ $statusLabel }}</span>
-                        @endif
                     </div>
                     @if ($fileName !== '')
                         <p class="mt-1 text-xs text-gray-600 truncate" title="{{ $fileName }}">{{ $fileName }}</p>
@@ -235,9 +227,6 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <p class="text-sm font-bold text-gray-900">{{ $label ?: __('borrower.documents_page.add_document') }}</p>
-                        @if ($required)
-                            <span class="inline-flex rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{{ __('borrower.application.status_required') }}</span>
-                        @endif
                     </div>
                 </div>
                 <div class="shrink-0">

@@ -43,7 +43,8 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
 
         $this->assertStringContainsString('_lastDraftInputs', $js);
         $this->assertStringContainsString('agricultureStepReady', $js);
-        $this->assertStringContainsString('syncAgricultureFieldsFromAlpine', $js);
+        $this->assertStringContainsString('agricultureNamedInput', $js);
+        $this->assertStringContainsString('agricultureAddressAlpine', $js);
         $this->assertStringContainsString('farm_activity_photos', $js);
         $this->assertStringContainsString('land_use_evidence', $js);
     }
@@ -90,7 +91,19 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $this->assertStringContainsString('confirmRemoveDocument()', $blade);
         $this->assertStringContainsString('submitProfileDocumentForm()', $blade);
         $this->assertStringNotContainsString('@method(\'DELETE\')', $blade);
-        $this->assertStringContainsString('statusLabel', $blade);
+    }
+
+    public function test_member_facing_document_holders_hide_status_badges(): void
+    {
+        $profile = file_get_contents(resource_path('views/components/site/profile-document-field.blade.php'));
+        $apply = file_get_contents(resource_path('views/site/apply/_apply-document-holder.blade.php'));
+
+        $this->assertStringNotContainsString('status_required', $profile);
+        $this->assertStringNotContainsString('status_optional', $profile);
+        $this->assertStringNotContainsString('statusLabel', $profile);
+        $this->assertStringNotContainsString('status_required', $apply);
+        $this->assertStringNotContainsString('status_pending', $apply);
+        $this->assertStringNotContainsString('status_optional', $apply);
     }
 
     public function test_multi_page_supports_rotate_and_add_page_icons(): void
@@ -99,13 +112,6 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $this->assertStringContainsString('rotatePage(', $blade);
         $this->assertStringContainsString('document_upload.rotate', $blade);
         $this->assertStringContainsString('labels.addAnother', $blade);
-    }
-
-    public function test_apply_document_badges_hide_required_when_supplied(): void
-    {
-        $blade = file_get_contents(resource_path('views/site/apply/_apply-document-holder.blade.php'));
-        $this->assertStringContainsString('!educationDocuments[@js($docCode)]?.customer_document_id', $blade);
-        $this->assertStringContainsString('status_pending', $blade);
     }
 
     public function test_document_upload_skips_confirm_modal(): void
