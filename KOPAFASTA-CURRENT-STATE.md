@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production baseline** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | Operational production baseline until live production is re-verified. Do not casually overwrite. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | _(pending shared autosave)_ | Platform `kfAutosave` + Profile/Partner opt-in + registration draft resume + NIDA landscape. **Staging UAT. Do not promote.** | Identity tip: NIDA camera-only (+ opens shutter); no Upload / no Hifadhi·Tumia picha; face-style Saving overlay on capture. **Staging UAT before production.** |
+| **Current staging / development baseline** | `ef1030803e40c45f826aca79e233bf87d01c2db3` | Platform `kfAutosave` + Profile/Partner opt-in + registration draft resume + NIDA landscape. **Staging UAT. Do not promote.** | Identity tip: NIDA camera-only (+ opens shutter); no Upload / no Hifadhi·Tumia picha; face-style Saving overlay on capture. **Staging UAT before production.** |
 | **Current clean production candidate** | _(none yet)_ | After Identity UAT passes: cut from `8bb9bf5e…` with only owner-accepted changes → staging smoke → owner approve → promote that exact SHA. |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
