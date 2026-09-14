@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
 | **Failed staging (do not promote)** | `15bf3c71efd09214cba3f9c766d2abe385f1e6ed` | AG/AB/DOC owner UAT FAIL |
-| **Staging under UAT** | `08f358df3062068ff57fb54bd7556ef1d9c57540` | P0 mobile docs + AG Continue + Profile save (AB frozen) |
+| **Staging under UAT** | `bdedd6f10059fb5e4945517809dd27596d604326` | Economical P0: AG Continue readiness + canonical document autosave (AB frozen) |
 | **Prior staging (superseded)** | `83d8a820df78e8b8fd4fce41c32d1aa8a4c9848f` | Combined micropass — AB PASS; AG Continue / DOC FAIL |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
@@ -18,12 +18,13 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 - **AB-1** — Asset-Backed step graph, collateral-card, Profile `return_to`, insurance-not-an-apply-stage
 - PayIn / accounting / Marketplace / registration / product ordering / Sharia / guarantor·group **policy** / underwriting·recovery policy
 
-## Open defects (P0)
+## Open defects (P0) — staging `bdedd6f1` awaiting owner UAT
 
-1. **Mobile Upload/Camera** — bottom sheet opens; actions must open file picker / camera (shared `document-source-picker`)
-2. **AG-2 Continue** — UI can show 2/2 required docs while footer Continue stays hidden → Mdhamini
-3. **Profile document Save** — Replace/Camera needs Save/Use; no false ✓; no IMEFANIKIWA / Hifadhi mabadiliko? modal
-4. **Desktop + menu clipping** — Upload/Camera popover must not be cut by card overflow
+1. **AG-2 Continue** — Overview + farm + land ready → footer Ghairi → Endelea → Mdhamini (no refresh)
+2. **Canonical documents** — Camera Review → Use → autosave; Upload → native chooser → autosave; Replace same; Remove with confirm; no success modal
+3. **Profile ordinary fields** — where manual Save is unreliable, reuse existing save path (no new persistence engine)
+
+Prior mobile picker / desktop clipping fixes remain in this lineage from `08f358df`.
 
 ## UAT matrix (latest owner)
 
