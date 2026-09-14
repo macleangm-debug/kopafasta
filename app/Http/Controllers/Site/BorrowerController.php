@@ -2328,8 +2328,11 @@ class BorrowerController extends Controller
         }
 
         // Confetti only when compulsory hub profile is complete (collateral never required).
+        // Points award + celebration flash are idempotent via MemberEngagementRewardService.
         if (app(ProfileCompletionService::class)->isFullyComplete($customer->fresh())) {
-            Celebration::flashOne('profile_complete');
+            if (! in_array('profile_complete', \App\Support\Celebration::reasons(), true)) {
+                Celebration::flashOne('profile_complete');
+            }
             app(GuarantorInvitationService::class)
                 ->releaseHeldApplicationsForGuarantor($customer->fresh());
         }
@@ -2722,8 +2725,8 @@ class BorrowerController extends Controller
         $wizard = $faces->wizardState($customer);
         $previewUrl = $record->file_path ? asset('storage/'.$record->file_path) : null;
         $message = $progress['complete']
-            ? 'All face photos captured. Review them, then save.'
-            : 'Photo saved.';
+            ? __('borrower.document_upload.saved')
+            : __('borrower.document_upload.saved');
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -2758,6 +2761,12 @@ class BorrowerController extends Controller
         $this->auditBorrower('face_verification.submitted', $customer, [
             'complete' => true,
         ]);
+
+        try {
+            app(MemberEngagementRewardService::class)->afterProfileSectionSaved($customer->fresh(), 'face');
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         $message = __('borrower.profile.saved_inline');
 

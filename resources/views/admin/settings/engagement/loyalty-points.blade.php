@@ -15,7 +15,7 @@
             'In-app notification with CTA back to Rewards when points are earned or deducted.',
         ],
         'fields' => [
-            'Action points' => 'How many points each earn event awards. Keys are fixed in code (complete_profile, repay_on_time, etc.).',
+            'Action points' => 'How many points each earn event awards. Profile completion (complete_profile) defaults to 25 and awards once when the mandatory profile first reaches 100%. Keep upload_documents and update_information at 0 — do not award per image/section.',
             'Penalty points' => 'How many points to deduct for late_repayment (paid after due date) and late_fee_accrual (each LATE_FEE day). Deduction never goes below zero and is idempotent per schedule/fee.',
             'Benefit type / value' => 'Usually percent_discount + a number (e.g. 10 = 10% off).',
             'Fee type' => 'Which checkout the reward applies to: registration_fee, application_fee, etc. Must match the payment gate fee.',

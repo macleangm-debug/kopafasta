@@ -207,13 +207,9 @@
             </div>
             <div class="p-5 border-t border-gray-100 flex flex-wrap gap-3">
                 <button type="button" @click="phase = 'intro'" class="flex-1 min-w-[120px] bg-brand-muted/60 hover:bg-brand-muted text-brand font-semibold px-4 py-3 rounded-full text-sm">{{ __('borrower.nida.face_add_more') }}</button>
-                <button type="button" @click="submitVerification()" :disabled="isRemoving || isSubmitting" class="flex-1 min-w-[120px] inline-flex items-center justify-center gap-2 bg-brand-gold hover:bg-yellow-400 disabled:opacity-60 text-brand font-bold px-4 py-3 rounded-full text-sm shadow-sm">
-                    <svg x-show="isSubmitting" x-cloak class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                    </svg>
-                    <span x-text="isSubmitting ? @js(__('borrower.nida.face_submitting')) : @js(__('borrower.nida.face_submit_step'))"></span>
-                </button>
+                <p class="w-full text-center text-sm font-semibold text-emerald-700" x-show="isSubmitting" x-cloak>
+                    {{ __('borrower.document_upload.saving') }}
+                </p>
             </div>
         </div>
 
@@ -326,6 +322,10 @@
 
                         if (this.stepIndex >= this.steps.length) {
                             this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
+                            if (this.phase === 'review' && this.steps.every((s) => s.done && ! s.localBlob)) {
+                                // Already on server — finalize without asking again.
+                                this.$nextTick(() => this.submitVerification());
+                            }
                             if (this.phase === 'intro') {
                                 this.stepIndex = this.steps.findIndex(s => !s.done);
                                 if (this.stepIndex < 0) this.stepIndex = 0;
@@ -348,13 +348,11 @@
                     },
 
                     isDirty() {
-                        if (this.phase === 'done' || this.isSubmitting) {
+                        // Only warn when a capture exists that is not yet on the server.
+                        if (this.phase === 'done' || this.isSubmitting || this.phase === 'saving') {
                             return false;
                         }
-                        if (['scanning', 'saving', 'preview', 'review'].includes(this.phase)) {
-                            return true;
-                        }
-                        return (this.steps || []).some((step) => step.done);
+                        return (this.steps || []).some((step) => !! step.localBlob);
                     },
 
                     bindLeaveGuard() {
@@ -965,34 +963,13 @@
                         if (!step) {
                             return;
                         }
-                        if (step.previewUrl && String(step.previewUrl).startsWith('blob:')) {
-                            URL.revokeObjectURL(step.previewUrl);
-                        }
-                        step.done = true;
-                        step.localBlob = blob;
-                        step.previewUrl = URL.createObjectURL(blob);
-                        this.steps = this.steps.map((s) => ({ ...s }));
                         this.holdProgress = 0;
                         this.poseOk = false;
                         this.previewBlob = null;
                         this.previewUrl = null;
                         this.stopLoop();
-                        this.phase = 'saving';
-                        await new Promise((r) => setTimeout(r, 700));
-
-                        this.stepIndex++;
-                        while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
-                            this.stepIndex++;
-                        }
-                        if (this.stepIndex >= this.steps.length) {
-                            this.stopCamera();
-                            this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
-                            return;
-                        }
-                        this.phase = 'scanning';
-                        this.stepStartedAt = performance.now();
-                        await this.$nextTick();
-                        this.startLoop();
+                        // Autosave to server immediately — no separate Submit CTA.
+                        await this.uploadBlob(blob, step);
                     },
 
                     async retakePreview() {
@@ -1025,30 +1002,12 @@
 
                     async confirmPreview() {
                         if (!this.previewBlob || this.isUploading) return;
+                        const blob = this.previewBlob;
                         const step = this.currentStep;
                         if (!step) return;
-                        step.done = true;
-                        step.localBlob = this.previewBlob;
-                        step.previewUrl = this.previewUrl;
-                        this.steps = this.steps.map((s) => ({ ...s }));
-                        this.holdProgress = 0;
-                        this.poseOk = false;
                         this.previewBlob = null;
                         this.previewUrl = null;
-
-                        this.stepIndex++;
-                        while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
-                            this.stepIndex++;
-                        }
-                        if (this.stepIndex >= this.steps.length) {
-                            this.stopCamera();
-                            this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
-                            return;
-                        }
-                        this.phase = 'scanning';
-                        this.stepStartedAt = performance.now();
-                        await this.$nextTick();
-                        this.startLoop();
+                        await this.uploadBlob(blob, step);
                     },
 
                     captureBlob() {
@@ -1138,7 +1097,8 @@
 
                             if (data.complete) {
                                 this.stopCamera();
-                                this.phase = 'review';
+                                // Autosubmit for review — no extra Save CTA.
+                                await this.submitVerification();
                                 return;
                             }
 
@@ -1149,7 +1109,11 @@
 
                             if (this.stepIndex >= this.steps.length) {
                                 this.stopCamera();
-                                this.phase = this.steps.every(s => s.done) ? 'review' : 'intro';
+                                if (this.steps.every(s => s.done)) {
+                                    await this.submitVerification();
+                                } else {
+                                    this.phase = 'intro';
+                                }
                             } else {
                                 this.phase = 'scanning';
                                 this.startLoop();
@@ -1158,10 +1122,20 @@
                             if (silent) {
                                 throw e;
                             }
+                            // Keep the capture so the member can retry without recapturing.
+                            if (step && blob) {
+                                step.localBlob = blob;
+                                step.done = false;
+                                if (! step.previewUrl) {
+                                    step.previewUrl = URL.createObjectURL(blob);
+                                }
+                                this.steps = this.steps.map((s) => ({ ...s }));
+                            }
                             this.notice = e.message || 'Upload failed. Please try again.';
-                            this.phase = 'scanning';
+                            this.phase = 'preview';
+                            this.previewBlob = blob;
+                            this.previewUrl = step?.previewUrl || (blob ? URL.createObjectURL(blob) : null);
                             this.holdProgress = 0;
-                            this.startLoop();
                         } finally {
                             this.isUploading = false;
                         }

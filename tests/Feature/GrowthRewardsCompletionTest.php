@@ -66,7 +66,7 @@ class GrowthRewardsCompletionTest extends TestCase
         app(GrowthPointsService::class)->awardOwnerAction($invitee, 'complete_profile');
 
         $this->assertSame(0, app(LoyaltyPointsService::class)->balance($referrer->fresh()));
-        $this->assertSame(10, app(LoyaltyPointsService::class)->balance($invitee->fresh()));
+        $this->assertSame(25, app(LoyaltyPointsService::class)->balance($invitee->fresh()));
     }
 
     public function test_demo_accounts_cannot_earn_or_unlock_rewards(): void

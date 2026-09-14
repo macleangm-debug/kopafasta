@@ -65,13 +65,15 @@ return [
     'loyalty_points' => [
         'stack_with_promo' => false,
         'actions' => [
-            'complete_profile'  => ['label' => 'Complete profile / KYC', 'points' => 10],
+            /** One-time award when mandatory profile first reaches 100%. */
+            'complete_profile'  => ['label' => 'Profile completion', 'points' => 25],
             'refer_register'    => ['label' => 'Referred person registered', 'points' => 5],
             'refer_application' => ['label' => 'Referred person applied and paid the fee', 'points' => 25],
             'refer_friend'      => ['label' => 'Successful referral (legacy)', 'points' => 0],
             'repay_on_time'     => ['label' => 'Repay On Time', 'points' => 0],
-            'upload_documents'  => ['label' => 'Upload Documents', 'points' => 0],
-            'update_information'=> ['label' => 'Update Information', 'points' => 0],
+            /** Disabled for profile journey — do not award per document/section. */
+            'upload_documents'  => ['label' => 'Upload Documents (disabled)', 'points' => 0],
+            'update_information'=> ['label' => 'Update Information (disabled)', 'points' => 0],
             'plus_learn'        => ['label' => 'Complete selected Plus learning', 'points' => 5],
             'plus_money_checkin'=> ['label' => 'Complete a monthly Plus money check-in', 'points' => 5],
             'plus_goal'         => ['label' => 'Complete a Plus goal', 'points' => 10],

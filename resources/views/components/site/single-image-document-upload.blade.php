@@ -50,8 +50,11 @@
     {{-- Gate helper: filled when a preview exists --}}
     <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required && ! $autoSubmit) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
 
-    {{-- Pickers stay unnamed. A named file input is created in the host only after capture, so an empty file= is never posted. --}}
-    <div class="flex flex-wrap items-center gap-3" x-show="!(previewUrl || previewName || submitting || guideOpen)" @if($sourceDriven) x-cloak style="display:none" @endif>
+    {{-- Source-driven (+ picker) never shows permanent Upload/Camera — only hidden file input. --}}
+    @if ($sourceDriven)
+        <input type="file" accept="image/*,application/pdf" class="sr-only" x-ref="uploadInput" @change="setFile($event)">
+    @else
+    <div class="flex flex-wrap items-center gap-3" x-show="!(previewUrl || previewName || submitting || guideOpen)">
         @unless ($cameraOnly)
         <label class="inline-flex items-center justify-center bg-white hover:bg-brand-muted/40 text-brand font-bold px-5 py-3 rounded-xl text-sm cursor-pointer shadow-sm ring-1 ring-brand/20">
             <span>{{ __('borrower.profile.upload') }}</span>
@@ -68,8 +71,6 @@
             {{ __('borrower.document_upload.camera') }}
         </button>
     </div>
-    @if ($sourceDriven)
-        <input type="file" accept="image/*,application/pdf" class="sr-only" x-ref="uploadInput" @change="setFile($event)">
     @endif
 
     @if (filled($guide))
@@ -423,7 +424,8 @@
                         this.previewUrl = null;
                     }
                     this.emitPreview();
-                    // Upload path autosaves immediately. Camera waits for Review → Use photo.
+                    // Upload path autosaves immediately. Camera: brief review then Use photo → autosave.
+                    // Source-driven camera also offers Use photo; commitFile submits the parent form.
                     if (! this.sourceDriven || this.autoSubmit || ! this.fromCamera) {
                         this.commitFile(file);
                     }

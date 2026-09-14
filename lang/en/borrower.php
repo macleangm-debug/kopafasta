@@ -4,8 +4,9 @@ return [
     'portal' => 'Borrower portal',
 
     'celebration' => [
-        'profile_complete' => 'Required profile complete — you can submit your application.',
-        'profile_complete_title' => 'Profile ready to submit',
+        'profile_complete' => 'All required profile information has been added.',
+        'profile_complete_title' => 'Profile complete',
+        'profile_complete_points' => '+:points points earned',
         'loan_submitted' => 'Application submitted successfully!',
         'registration' => 'Welcome to Kopafasta!',
         'registration_title' => 'You\'re in',
@@ -3355,6 +3356,9 @@ return [
 
     'document_upload' => [
         'camera' => 'Camera',
+        'take_photo' => 'Take photo',
+        'upload' => 'Upload',
+        'add' => 'Add',
         'gallery' => 'Gallery',
         'pdf' => 'PDF',
         'guide_document' => 'Place the full document inside the frame. Make sure text is clear and readable, then review before accepting.',

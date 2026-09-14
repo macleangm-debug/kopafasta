@@ -63,15 +63,8 @@ class MemberEngagementRewardService
 
     public function afterProfileSectionSaved(Customer $customer, string $section): void
     {
-        // Idempotent: same section key never awards twice (even after delete/re-upload).
-        $this->loyalty->earn(
-            $customer->fresh(),
-            'update_information',
-            null,
-            'profile_section',
-            crc32($section),
-        );
-
+        // No per-section points — only the one-time full profile completion reward.
+        unset($section);
         $this->maybeAwardProfileComplete($customer->fresh());
     }
 
@@ -82,15 +75,7 @@ class MemberEngagementRewardService
             return;
         }
 
-        // Idempotent: same document code never awards twice after delete/re-add.
-        $this->loyalty->earn(
-            $customer->fresh(),
-            'upload_documents',
-            null,
-            'customer_document',
-            crc32($documentCode),
-        );
-
+        // No per-document points — only the one-time full profile completion reward.
         $this->maybeAwardProfileComplete($customer->fresh());
     }
 
@@ -201,13 +186,28 @@ class MemberEngagementRewardService
             return;
         }
 
-        $this->loyalty->earn(
+        // Idempotent across legacy Customer::class refs and the canonical profile_completion ref.
+        $alreadyAwarded = \App\Models\LoyaltyPointTransaction::query()
+            ->where('customer_id', $customer->id)
+            ->where('type', 'credit')
+            ->where('action_key', 'complete_profile')
+            ->exists();
+        if ($alreadyAwarded) {
+            return;
+        }
+
+        $points = $this->loyalty->earn(
             $customer,
             'complete_profile',
-            'Profile 100% complete',
-            Customer::class,
+            'Profile complete',
+            'profile_completion',
             (int) $customer->id,
         );
+
+        if ($points > 0) {
+            \App\Support\Celebration::flashOne('profile_complete');
+            session()->flash('celebration_points', $points);
+        }
     }
 
     /** @return array<string, mixed> */

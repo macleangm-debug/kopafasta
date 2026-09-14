@@ -71,8 +71,8 @@ class Phase74MemberEngagementFeatureTest extends TestCase
         $earned = $service->earn($customer, 'complete_profile');
         $customer->refresh();
 
-        $this->assertSame(10, $earned);
-        $this->assertSame(10, $service->balance($customer));
+        $this->assertSame(25, $earned);
+        $this->assertSame(25, $service->balance($customer));
         $this->assertSame(0, $service->earn($customer, 'complete_profile'));
     }
 

@@ -3,8 +3,9 @@
 return [
     'portal' => 'Portal ya Mkopaji',
     'celebration' => [
-        'profile_complete' => 'Wasifu wa lazima umekamilika — unaweza kuwasilisha ombi lako.',
-        'profile_complete_title' => 'Wasifu uko tayari kuwasilisha',
+        'profile_complete' => 'Taarifa zote za lazima za wasifu zimeongezwa.',
+        'profile_complete_title' => 'Wasifu umekamilika',
+        'profile_complete_points' => '+:points pointi zimepatikana',
         'loan_submitted' => 'Ombi limewasilishwa kwa mafanikio!',
         'registration' => 'Karibu Kopafasta!',
         'registration_title' => 'Umeingia',
@@ -3034,6 +3035,9 @@ return [
     ],
     'document_upload' => [
         'camera' => 'Kamera',
+        'take_photo' => 'Piga picha',
+        'upload' => 'Pakia',
+        'add' => 'Ongeza',
         'gallery' => 'Galeri',
         'pdf' => 'PDF',
         'guide_document' => 'Weka hati yote ndani ya fremu. Hakikisha maandishi yanaonekana wazi, kisha kagua kabla ya kukubali.',

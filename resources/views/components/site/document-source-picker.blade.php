@@ -6,8 +6,8 @@
 ])
 
 @php
-    $uploadLabel = $uploadLabel ?: __('borrower.profile.upload');
-    $cameraLabel = $cameraLabel ?: __('borrower.document_upload.camera');
+    $cameraLabel = $cameraLabel ?: __('borrower.document_upload.take_photo');
+    $uploadLabel = $uploadLabel ?: __('borrower.document_upload.upload');
     $title = $title ?: __('borrower.document_upload.add');
     $hostId = $hostId ? (string) $hostId : null;
 @endphp

@@ -33,7 +33,12 @@
             'remaining' => (int) ($streakPayload['remaining'] ?? 0),
             'points' => number_format((int) ($streakPayload['next_points'] ?? 0)),
         ]),
-        in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete'),
+        in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete')
+            .(
+                $pointsEarned > 0
+                    ? "\n\n".__('borrower.celebration.profile_complete_points', ['points' => number_format($pointsEarned)])
+                    : ''
+            ),
         in_array('loan_submitted', $reasons, true) => __('borrower.celebration.loan_submitted'),
         in_array('registration', $reasons, true) => __('borrower.celebration.registration'),
         in_array('application_fee', $reasons, true) => __('borrower.celebration.application_fee'),

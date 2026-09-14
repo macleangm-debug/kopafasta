@@ -43,7 +43,8 @@
 
 <div x-data="{
         replaceMode: false,
-        captureOpen: {{ $document ? 'false' : 'true' }},
+        {{-- Closed until + → Take photo / Upload. Never show permanent Upload+Camera. --}}
+        captureOpen: false,
         inlineUploading: false,
         inlineProgress: null,
         inlineMessage: @js(__('borrower.apply.document_saving')),

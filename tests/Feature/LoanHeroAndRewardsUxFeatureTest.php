@@ -62,8 +62,9 @@ class LoanHeroAndRewardsUxFeatureTest extends TestCase
 
         $earned = app(LoyaltyPointsService::class)->earn($customer, 'complete_profile');
 
-        $this->assertSame(10, $earned);
-        $this->assertContains('points_earned', Celebration::reasons());
+        $this->assertSame(25, $earned);
+        // Per-action points_earned modals are removed; full-profile celebration is separate.
+        $this->assertNotContains('points_earned', Celebration::reasons());
         $this->assertDatabaseHas('notification_logs', [
             'customer_id' => $customer->id,
             'template'     => 'loyalty_points_earned',
