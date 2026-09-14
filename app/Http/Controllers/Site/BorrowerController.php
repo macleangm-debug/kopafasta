@@ -1859,10 +1859,11 @@ class BorrowerController extends Controller
                     $request->request->remove($sigKey);
                 }
 
+            $isAutosave = (bool) $request->header('X-KF-Autosave');
             $identityRequired = app(ProfileCompletionService::class)->identityRequiredDuringProfile();
             $idImagesFocus = in_array($focus, ['identity', 'id_images', 'all'], true);
-            $kinRequired = in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
-            $familyRequired = in_array($focus, ['family', 'all'], true);
+            $kinRequired = ! $isAutosave && in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
+            $familyRequired = ! $isAutosave && in_array($focus, ['family', 'all'], true);
             $married = strtolower((string) $request->input('marital_status', $customer->marital_status)) === 'married';
 
             $rules = [
@@ -2062,10 +2063,11 @@ class BorrowerController extends Controller
         }
 
         if ($section === 'activity') {
+            $isAutosave = (bool) $request->header('X-KF-Autosave');
             $employed = $request->input('activity_type') === 'employed';
             $hasContract = $validation->hasDocument($customer, 'employment_contract');
             $contractPages = array_values(array_filter($request->file('employment_contract_pages', []) ?? []));
-            $needsContract = $employed && ! $hasContract && ! $request->hasFile('employment_contract') && $contractPages === [];
+            $needsContract = ! $isAutosave && $employed && ! $hasContract && ! $request->hasFile('employment_contract') && $contractPages === [];
 
             if ($request->filled('income_range')) {
                 $request->merge([
@@ -2074,9 +2076,13 @@ class BorrowerController extends Controller
             }
 
             $data = $request->validate([
-                'activity_type' => ['required', 'string', 'max:40'],
+                'activity_type' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:40'],
                 'activity_details' => ['nullable', 'array'],
-                'income_range' => ['required', 'string', 'in:'.implode(',', array_keys(config('income_ranges')))],
+                'income_range' => [
+                    $isAutosave ? 'nullable' : 'required',
+                    'string',
+                    'in:'.implode(',', array_keys(config('income_ranges'))),
+                ],
                 'employment_contract' => [
                     Rule::requiredIf($needsContract),
                     'nullable',
@@ -2088,15 +2094,27 @@ class BorrowerController extends Controller
                 'employment_contract_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
-            $incomeKey = normalize_income_range_key($data['income_range']) ?? $data['income_range'];
+            $fill = [];
+            if (array_key_exists('activity_type', $data) && filled($data['activity_type'] ?? null)) {
+                $fill['activity_type'] = $data['activity_type'];
+                $fill['employment_type'] = $data['activity_type'];
+            }
+            if (array_key_exists('activity_details', $data) && is_array($data['activity_details'])) {
+                $existingDetails = is_array($customer->activity_details) ? $customer->activity_details : [];
+                $fill['activity_details'] = array_merge($existingDetails, array_filter(
+                    $data['activity_details'],
+                    fn ($value) => $value !== null && $value !== ''
+                ));
+            }
+            if (filled($data['income_range'] ?? null)) {
+                $incomeKey = normalize_income_range_key($data['income_range']) ?? $data['income_range'];
+                $fill['income_range'] = $incomeKey;
+                $fill['monthly_income'] = config('income_ranges.'.$incomeKey.'.midpoint');
+            }
 
-            $customer->fill([
-                'activity_type' => $data['activity_type'],
-                'activity_details' => $data['activity_details'] ?? [],
-                'employment_type' => $data['activity_type'],
-                'income_range' => $incomeKey,
-                'monthly_income' => config('income_ranges.'.$incomeKey.'.midpoint'),
-            ])->save();
+            if ($fill !== []) {
+                $customer->fill($fill)->save();
+            }
 
             $this->persistProfileDocumentUpload(
                 $customer,
@@ -2118,30 +2136,43 @@ class BorrowerController extends Controller
         if ($section === 'residence') {
             $focus = (string) $request->input('focus', 'address');
             $isVerification = $focus === 'verification';
+            $isAutosave = (bool) $request->header('X-KF-Autosave');
 
             if ($isVerification) {
                 $data = $request->validate([
-                    'region' => ['required', 'string', 'max:100'],
-                    'district' => ['required', 'string', 'max:100'],
+                    'region' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:100'],
+                    'district' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:100'],
                     'ward' => ['nullable', 'string', 'max:100'],
-                    'street' => ['required', 'string', 'max:255'],
-                    'lga_officer_name' => ['required', 'string', 'max:150'],
-                    'lga_officer_position' => ['required', 'string', 'max:120'],
-                    'lga_officer_phone' => ['required', 'string', 'max:30'],
+                    'street' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:255'],
+                    'lga_officer_name' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:150'],
+                    'lga_officer_position' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:120'],
+                    'lga_officer_phone' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:30'],
                     'residence_letter' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                     'residence_letter_pages' => ['nullable', 'array'],
                     'residence_letter_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 ]);
-                $customer->fill([
-                    'region' => $data['region'],
-                    'district' => $data['district'],
+                $fill = array_filter([
+                    'region' => $data['region'] ?? null,
+                    'district' => $data['district'] ?? null,
                     'ward' => $data['ward'] ?? null,
-                    'street' => $data['street'],
-                    'lga_officer_name' => $data['lga_officer_name'],
-                    'lga_officer_position' => $data['lga_officer_position'],
-                    'lga_officer_phone' => preg_replace('/\D+/', '', (string) $data['lga_officer_phone']) ?: $data['lga_officer_phone'],
-                    'address' => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
-                ])->save();
+                    'street' => $data['street'] ?? null,
+                    'lga_officer_name' => $data['lga_officer_name'] ?? null,
+                    'lga_officer_position' => $data['lga_officer_position'] ?? null,
+                    'lga_officer_phone' => filled($data['lga_officer_phone'] ?? null)
+                        ? (preg_replace('/\D+/', '', (string) $data['lga_officer_phone']) ?: $data['lga_officer_phone'])
+                        : null,
+                ], fn ($value) => $value !== null && $value !== '');
+                if ($fill !== []) {
+                    if (isset($fill['street']) || isset($fill['ward']) || isset($fill['district']) || isset($fill['region'])) {
+                        $fill['address'] = trim(collect([
+                            $fill['street'] ?? $customer->street,
+                            $fill['ward'] ?? $customer->ward,
+                            $fill['district'] ?? $customer->district,
+                            $fill['region'] ?? $customer->region,
+                        ])->filter()->implode(', '));
+                    }
+                    $customer->fill($fill)->save();
+                }
 
                 $pageFiles = array_values(array_filter($request->file('residence_letter_pages', []) ?? []));
                 $this->persistProfileDocumentUpload(
@@ -2167,7 +2198,7 @@ class BorrowerController extends Controller
                     'wizard' => $request->boolean('wizard') ? 1 : null,
                 ]);
 
-                if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer->fresh())) {
+                if (! $isAutosave && $validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer->fresh())) {
                     return redirect()
                         ->route('site.borrower.profile', $residenceParams)
                         ->with('status', __('borrower.profile.residence_address_saved'))
@@ -2178,18 +2209,26 @@ class BorrowerController extends Controller
                 app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'residence');
             } else {
                 $data = $request->validate([
-                    'region' => ['required', 'string', 'max:100'],
-                    'district' => ['required', 'string', 'max:100'],
+                    'region' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:100'],
+                    'district' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:100'],
                     'ward' => ['nullable', 'string', 'max:100'],
-                    'street' => ['required', 'string', 'max:255'],
+                    'street' => [$isAutosave ? 'nullable' : 'required', 'string', 'max:255'],
                 ]);
-                $customer->fill([
-                    'region' => $data['region'],
-                    'district' => $data['district'],
+                $fill = array_filter([
+                    'region' => $data['region'] ?? null,
+                    'district' => $data['district'] ?? null,
                     'ward' => $data['ward'] ?? null,
-                    'street' => $data['street'],
-                    'address' => trim(collect([$data['street'], $data['ward'] ?? null, $data['district'], $data['region']])->filter()->implode(', ')),
-                ])->save();
+                    'street' => $data['street'] ?? null,
+                ], fn ($value) => $value !== null && $value !== '');
+                if ($fill !== []) {
+                    $fill['address'] = trim(collect([
+                        $fill['street'] ?? $customer->street,
+                        $fill['ward'] ?? $customer->ward,
+                        $fill['district'] ?? $customer->district,
+                        $fill['region'] ?? $customer->region,
+                    ])->filter()->implode(', '));
+                    $customer->fill($fill)->save();
+                }
             }
         }
 

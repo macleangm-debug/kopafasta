@@ -3379,7 +3379,7 @@ return [
         'retake' => 'Retake',
         'saving' => 'Saving…',
         'saved' => 'Saved',
-        'could_not_save' => 'Could not save',
+        'could_not_save' => 'Not saved',
         'retry' => 'Retry',
         'rotate' => 'Rotate',
         'start_camera' => 'Start camera',

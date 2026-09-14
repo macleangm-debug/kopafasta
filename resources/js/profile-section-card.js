@@ -18,10 +18,21 @@ export function registerProfileSectionCard(Alpine) {
 
         get showCompleteTick() {
             if (! this.editAllowed && this.complete) {
-                return ! this.open;
+                return ! this.open && ! this.expanded;
             }
-            // Collapsed + complete only — avoids Edit/Complete overlap and matches SSR tick.
-            return this.complete && ! this.open && ! this.showEditAction && ! this.expanded;
+            // Collapsed + complete only — Complete is lasting status; never "Saved".
+            return this.complete && ! this.open && ! this.expanded && ! this.showEditAction;
+        },
+
+        /** Edit / Hariri only while viewing or editing — never on a collapsed card. */
+        get showHeaderEdit() {
+            if (! this.editAllowed) {
+                return false;
+            }
+            if (this.showCompleteTick) {
+                return false;
+            }
+            return this.expanded || this.open;
         },
 
         toggleExpand() {
@@ -30,6 +41,7 @@ export function registerProfileSectionCard(Alpine) {
             }
             this.expanded = ! this.expanded;
             if (this.expanded) {
+                this.showEditAction = false;
                 window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
             } else {
                 this.showEditAction = false;

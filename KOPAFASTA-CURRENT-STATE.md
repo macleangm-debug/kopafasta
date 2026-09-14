@@ -36,7 +36,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 6. **Clean capture:** `fresh: true` / `clear-capture` / `resetCapture()`.
 7. **Camera UI:** bottom control area (shutter / facing / add / orientation) + portrait/landscape dotted guide; Finish primary.
 8. **NIDA number:** confirm before lock; images remain replaceable. Face: replaceable + Remove uses confirmForm.
-9. **Platform autosave (`kfAutosave`):** Idle → Saving… → ✓ Saved (server success only); fail → Retry. One shared primitive for Borrower + Partner shells — not per-role engines. Signature owns its own focus; never required on other Profile sections. No ordinary success modals; Profile Complete celebration once only.
+9. **Platform Profile UX (frozen pattern):** Collapsed → View all saved fields → Hariri/Edit → `kfAutosave`. One top-centre green tab only (`Inahifadhi…` / ✓ `Imehifadhiwa` / `Haijahifadhiwa · Jaribu tena`). No inline Saved labels. Autosave every valid change (partial OK); Complete ≠ Saved. Signature owns its own focus.
 10. **National ID:** one member-facing holder; Front → Back directed; landscape id-card guide; Replace picks side then source.
 
 ## Deploy

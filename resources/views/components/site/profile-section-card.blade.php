@@ -124,9 +124,10 @@
                         <span class="text-[11px] font-bold text-white/90 hidden sm:inline">{{ __('borrower.profile.section_complete') }}</span>
                     </span>
                 </template>
-                <template x-if="!(typeof showCompleteTick === 'boolean' ? showCompleteTick : @js($startWithTick))">
+                {{-- Edit only in View/Edit — collapsed cards use Angalia / View --}}
+                <template x-if="typeof showHeaderEdit === 'boolean' ? showHeaderEdit : false">
                     <button type="button"
-                            @click.stop="open ? requestClose() : (emptyOpensView && @js($empty) ? openView() : openEdit())"
+                            @click.stop="open ? requestClose() : openEdit()"
                             class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ring-1 transition"
                             :class="open
                                 ? 'text-gray-700 ring-gray-200 bg-gray-50'
@@ -134,10 +135,7 @@
                                     ? 'text-amber-800 ring-amber-300 bg-amber-50 hover:bg-amber-100'
                                     : 'text-brand ring-brand/20 bg-brand-muted/50 hover:bg-brand-muted')">
                         <span x-show="!open" class="inline-flex items-center gap-1.5">
-                            @if ($empty)
-                                <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                                <span>{{ $addLabel ?? __('borrower.profile.add_details') }}</span>
-                            @elseif ($isStale)
+                            @if ($isStale)
                                 <svg class="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
                                 <span>{{ __('borrower.profile.update_section') }}</span>
                             @else
@@ -228,7 +226,7 @@
         </div>
         <div x-show="!open && !expanded" @if ($startExpanded || $startOpen) x-cloak @endif class="px-5 sm:px-6 py-3">
             <button type="button" @click.stop="toggleExpand()" class="text-xs font-semibold text-brand hover:underline">
-                {{ $isComplete ? __('borrower.profile.hub.view') : ($isStale ? __('borrower.profile.hub.view_update') : __('borrower.profile.hub.view_edit')) }} →
+                {{ $isStale ? __('borrower.profile.hub.view_update') : __('borrower.profile.hub.view') }} →
             </button>
         </div>
         <div x-show="open" x-cloak class="p-5 sm:p-6 border-t border-gray-100/80 bg-gray-50/30" @click.stop>

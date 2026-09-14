@@ -1,9 +1,11 @@
 /**
  * Kopafasta shared autosave — ONE platform primitive for all account shells.
  *
- * Reuses Loan Wizard debounce (900ms) + saving-overlay Saving… → ✓ Saved feedback.
- * Forms opt in with data-kf-autosave (and optional data-kf-autosave-debounce-ms).
- * Each surface supplies its own action URL / domain rules — not a shell-specific engine.
+ * Save status belongs to the page shell (top-centre green tab via saving-overlay),
+ * never to individual forms. Forms must not render local Saved labels.
+ *
+ * Reuses Loan Wizard debounce (900ms). Select/radio/date save immediately.
+ * Partial valid changes persist — section completeness is independent.
  *
  * States: idle → saving → saved | error(+retry)
  * Saved only after server success. Stale responses cannot overwrite newer values.
@@ -21,13 +23,12 @@ function labelsFrom(form) {
     return {
         saving: form.getAttribute('data-kf-autosave-saving') || 'Saving…',
         saved: form.getAttribute('data-kf-autosave-saved') || 'Saved',
-        fail: form.getAttribute('data-kf-autosave-fail') || 'Could not save',
+        fail: form.getAttribute('data-kf-autosave-fail') || 'Not saved',
         retry: form.getAttribute('data-kf-autosave-retry') || 'Retry',
     };
 }
 
 function markAccountShellContext() {
-    // Partner + borrower shells share inline toast (never fullscreen modal).
     window.kfIsAccountShellContext = function (node) {
         if (typeof window.kfIsBorrowerProfileContext === 'function' && window.kfIsBorrowerProfileContext(node)) {
             return true;
@@ -45,6 +46,13 @@ function markAccountShellContext() {
     };
 }
 
+function isInstantControl(el) {
+    if (!(el instanceof HTMLElement)) return false;
+    if (el.matches('select')) return true;
+    const type = (el.getAttribute('type') || '').toLowerCase();
+    return ['radio', 'checkbox', 'date', 'datetime-local', 'time', 'month'].includes(type);
+}
+
 /**
  * Bind one form to the shared autosave contract.
  * @returns {{ flush: Function, destroy: Function, state: () => string }}
@@ -58,6 +66,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
     }
 
     form.dataset.kfAutosaveBound = '1';
+    form.setAttribute('novalidate', 'novalidate');
     const debounceMs = Number(options.debounceMs ?? form.getAttribute('data-kf-autosave-debounce-ms') ?? DEFAULT_DEBOUNCE_MS) || DEFAULT_DEBOUNCE_MS;
     const labels = { ...labelsFrom(form), ...(options.labels || {}) };
 
@@ -68,32 +77,9 @@ window.kfBindAutosaveForm = function (form, options = {}) {
     let lastError = null;
     let pendingFlush = false;
 
-    const statusEl = () => form.querySelector('[data-kf-autosave-status]');
-
-    function renderStatus() {
-        const el = statusEl();
-        if (! el) return;
-        if (state === 'saving') {
-            el.innerHTML = `<span class="inline-flex items-center gap-2 text-sm font-semibold text-brand"><span class="size-3.5 rounded-full border-2 border-brand/30 border-t-brand animate-spin" aria-hidden="true"></span>${labels.saving}</span>`;
-            el.classList.remove('hidden');
-        } else if (state === 'saved') {
-            el.innerHTML = `<span class="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">✓ ${labels.saved}</span>`;
-            el.classList.remove('hidden');
-        } else if (state === 'error') {
-            el.innerHTML = `<span class="inline-flex items-center gap-2 text-sm font-semibold text-amber-800">${lastError || labels.fail}</span>
-                <button type="button" data-kf-autosave-retry class="text-sm font-bold text-brand hover:underline">${labels.retry}</button>`;
-            el.classList.remove('hidden');
-            el.querySelector('[data-kf-autosave-retry]')?.addEventListener('click', () => flush(true));
-        } else {
-            el.classList.add('hidden');
-            el.innerHTML = '';
-        }
-    }
-
     function setState(next, errMsg = null) {
         state = next;
         lastError = errMsg;
-        renderStatus();
         form.dataset.kfAutosaveState = state;
         form.dispatchEvent(new CustomEvent('kf-autosave-state', {
             bubbles: true,
@@ -107,19 +93,28 @@ window.kfBindAutosaveForm = function (form, options = {}) {
         pendingFlush = true;
     }
 
+    function hasPersistablePayload(fd) {
+        for (const [key, value] of fd.entries()) {
+            if (['_token', '_method', 'focus', 'wizard', 'return', 'signature_touched'].includes(key)) {
+                continue;
+            }
+            if (typeof File !== 'undefined' && value instanceof File) {
+                if (value.size > 0) return true;
+                continue;
+            }
+            if (String(value ?? '').trim() !== '') {
+                return true;
+            }
+        }
+        return false;
+    }
+
     async function flush(force = false) {
         clearTimeout(timer);
         pendingFlush = false;
         if (! form.isConnected) return;
 
-        // HTML5 validity — never claim success for invalid incomplete data.
-        if (! form.checkValidity()) {
-            // Soft: wait until the user completes required fields in this section.
-            setState('idle');
-            return;
-        }
-
-        // Signature section: only persist a real drawn signature (never empty / unrelated).
+        // Signature section: only persist a real drawn signature.
         const focus = String(form.querySelector('input[name="focus"]')?.value || '');
         if (focus === 'signature') {
             const sig = form.querySelector('[name="signature_data"]')?.value || '';
@@ -129,16 +124,22 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             }
         }
 
+        const fd = new FormData(form);
+        if (! fd.get('_token')) {
+            fd.append('_token', csrfToken());
+        }
+        // Partial persistence: do not wait for the whole section to be complete.
+        // Still skip empty no-op posts.
+        if (! hasPersistablePayload(fd)) {
+            setState('idle');
+            return;
+        }
+
         const mySeq = ++seq;
         inflight += 1;
         setState('saving');
         if (typeof window.kfShowInlineSaving === 'function') {
             window.kfShowInlineSaving(labels.saving);
-        }
-
-        const fd = new FormData(form);
-        if (! fd.get('_token')) {
-            fd.append('_token', csrfToken());
         }
 
         const method = (form.querySelector('input[name=_method]')?.value || form.method || 'POST').toUpperCase();
@@ -181,7 +182,6 @@ window.kfBindAutosaveForm = function (form, options = {}) {
                 xhr.send(fd);
             });
 
-            // Stale guard: ignore older responses.
             if (mySeq !== seq) {
                 return;
             }
@@ -203,7 +203,9 @@ window.kfBindAutosaveForm = function (form, options = {}) {
                 return;
             }
             setState('error', e.message || labels.fail);
-            if (typeof window.kfHideSaving === 'function') {
+            if (typeof window.kfShowSaveError === 'function') {
+                window.kfShowSaveError(e.message || labels.fail, labels.retry, () => flush(true));
+            } else if (typeof window.kfHideSaving === 'function') {
                 window.kfHideSaving();
             }
         } finally {
@@ -216,15 +218,24 @@ window.kfBindAutosaveForm = function (form, options = {}) {
         if (! (t instanceof HTMLElement)) return;
         if (t.closest('[data-no-autosave]')) return;
         const type = (t.getAttribute('type') || '').toLowerCase();
-        if (['password', 'file', 'hidden'].includes(type) && type !== 'hidden') return;
         if (type === 'password' || type === 'file') return;
-        // Hidden _token/_method changes are ignored; real fields only.
-        if (t.matches('input[type=hidden][name=_token], input[type=hidden][name=_method]')) return;
-        schedule();
+        if (t.matches('input[type=hidden][name=_token], input[type=hidden][name=_method], input[type=hidden][name=focus], input[type=hidden][name=wizard], input[type=hidden][name=return]')) {
+            return;
+        }
+        // Selectors / radios / dates: save immediately after a valid change.
+        if (event.type === 'change' && isInstantControl(t)) {
+            clearTimeout(timer);
+            pendingFlush = true;
+            flush(true);
+            return;
+        }
+        // Text: debounce after typing stops.
+        if (event.type === 'input' || event.type === 'change') {
+            schedule();
+        }
     }
 
     function onSubmit(event) {
-        // Autosave forms should not full-page submit when JS is active.
         if (form.hasAttribute('data-kf-autosave-allow-submit')) return;
         event.preventDefault();
         flush(true);
@@ -232,7 +243,6 @@ window.kfBindAutosaveForm = function (form, options = {}) {
 
     function onPageHide() {
         if (pendingFlush || state === 'saving') {
-            // Best-effort sync on leave (same idea as Loan Wizard pagehide).
             try {
                 flush(true);
             } catch (e) { /* ignore */ }
@@ -244,13 +254,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
     form.addEventListener('submit', onSubmit);
     window.addEventListener('pagehide', onPageHide);
 
-    // Ensure a status host exists for Retry / inline chip.
-    if (! statusEl()) {
-        const host = document.createElement('div');
-        host.setAttribute('data-kf-autosave-status', '');
-        host.className = 'mt-3 hidden';
-        form.appendChild(host);
-    }
+    // Do not create per-form Saved chips — shell toast is the only indicator.
 
     return {
         flush: () => flush(true),
@@ -275,12 +279,11 @@ window.kfBindAllAutosaveForms = function (root = document) {
 export function registerKfAutosave(Alpine) {
     markAccountShellContext();
 
-    // Prefer account-shell inline toast over modal when on partner paths.
     const origShowSaving = window.kfShowSaving;
     if (typeof origShowSaving === 'function') {
         window.kfShowSaving = function (message, progress) {
             if (typeof window.kfIsAccountShellContext === 'function' && window.kfIsAccountShellContext()) {
-                window.kfShowInlineSaving(message);
+                window.kfShowInlineSaving(message, progress?.percent != null ? { percent: progress.percent } : undefined);
                 return;
             }
             return origShowSaving(message, progress);
@@ -314,6 +317,5 @@ export function registerKfAutosave(Alpine) {
     }));
 
     document.addEventListener('DOMContentLoaded', () => window.kfBindAllAutosaveForms());
-    // Alpine morph / late forms
     document.addEventListener('alpine:initialized', () => window.kfBindAllAutosaveForms());
 }

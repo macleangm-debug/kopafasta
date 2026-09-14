@@ -64,15 +64,18 @@
                         ['label' => __('borrower.profile.ward'), 'value' => $customer->ward],
                         ['label' => __('borrower.profile.street'), 'value' => $customer->street ?: $customer->address, 'span' => true],
                     ] as $field)
-                        <div @class(['sm:col-span-2' => ! empty($field['span'])])>
-                            <dt class="text-gray-500">{{ $field['label'] }}</dt>
-                            @if (filled($field['value']))
-                                <dd class="font-medium mt-0.5">{{ $field['value'] }}</dd>
-                            @else
-                                <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                            @endif
-                        </div>
+                        @if (filled($field['value']))
+                            <div @class(['sm:col-span-2' => ! empty($field['span'])])>
+                                <dt class="text-gray-500">{{ $field['label'] }}</dt>
+                                <dd class="font-medium text-gray-900 mt-0.5">{{ $field['value'] }}</dd>
+                            </div>
+                        @endif
                     @endforeach
+                    @if (! $residenceAddressComplete)
+                        <div class="sm:col-span-2">
+                            <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                        </div>
+                    @endif
                 </dl>
             </x-slot:view>
             <x-slot:form>
@@ -105,7 +108,6 @@
                     @if ($wizardMode ?? false)
                         <x-site.gated-submit class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile_wizard.save_continue')" />
                     @else
-                        <div data-kf-autosave-status class="mt-3 hidden"></div>
                     @endif
                 </form>
             </x-slot:form>
@@ -281,7 +283,6 @@
                                 :allow-empty="$verificationComplete"
                             />
                         @else
-                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         @endif
                     </form>
                 </x-slot:form>

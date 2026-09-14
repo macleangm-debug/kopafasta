@@ -3058,7 +3058,7 @@ return [
         'retake' => 'Piga tena',
         'saving' => 'Inahifadhi…',
         'saved' => 'Imehifadhiwa',
-        'could_not_save' => 'Imeshindikana kuhifadhi',
+        'could_not_save' => 'Haijahifadhiwa',
         'retry' => 'Jaribu tena',
         'rotate' => 'Zungusha',
         'start_camera' => 'Anza kamera',

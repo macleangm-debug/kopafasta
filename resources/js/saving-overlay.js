@@ -113,7 +113,7 @@ export function registerSavingOverlay(Alpine) {
         Alpine.store('kfSaving').uploading = false;
         Alpine.store('kfSaving').current = null;
         Alpine.store('kfSaving').total = null;
-        document.querySelectorAll('[data-kf-saving-toast]').forEach((el) => {
+        document.querySelectorAll('[data-kf-saving-toast],[data-kf-save-error-toast]').forEach((el) => {
             el.classList.add('hidden');
             el.style.display = 'none';
         });
@@ -121,6 +121,11 @@ export function registerSavingOverlay(Alpine) {
 
     window.kfFlashInlineSaved = function (message) {
         window.kfHideSaving();
+        // Hide any error toast.
+        document.querySelectorAll('[data-kf-save-error-toast]').forEach((el) => {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        });
         const label = message || document.querySelector('[data-kf-saved-toast] span:last-child')?.textContent?.trim() || 'Saved';
         let toast = document.querySelector('[data-kf-saved-toast]');
         if (! toast) {
@@ -139,10 +144,45 @@ export function registerSavingOverlay(Alpine) {
         if (toast._kfSavedTimer) {
             clearTimeout(toast._kfSavedTimer);
         }
+        // Brief confirmation only — Complete is the lasting card status.
         toast._kfSavedTimer = setTimeout(() => {
             toast.classList.add('hidden');
             toast.style.display = 'none';
-        }, 2500);
+        }, 1800);
+    };
+
+    /** Canonical failure toast with Retry — same top-centre position as Saving/Saved. */
+    window.kfShowSaveError = function (message, retryLabel, onRetry) {
+        window.kfHideSaving();
+        document.querySelectorAll('[data-kf-saved-toast]').forEach((el) => {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        });
+        let toast = document.querySelector('[data-kf-save-error-toast]');
+        if (! toast) {
+            toast = document.createElement('div');
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('data-kf-save-error-toast', '');
+            document.body.appendChild(toast);
+        }
+        toast.className = 'inline-flex items-center gap-2 rounded-full bg-amber-700 text-white shadow-lg px-4 py-2.5 text-sm font-bold';
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex;pointer-events:auto;';
+        const fail = message || 'Not saved';
+        const retry = retryLabel || 'Retry';
+        toast.innerHTML = `<span aria-hidden="true">!</span><span></span><button type="button" data-kf-save-retry class="ml-1 underline font-bold">${retry}</button>`;
+        toast.querySelector('span:not([aria-hidden])').textContent = fail;
+        toast.classList.remove('hidden');
+        toast.style.display = 'inline-flex';
+        const btn = toast.querySelector('[data-kf-save-retry]');
+        if (btn) {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                toast.classList.add('hidden');
+                toast.style.display = 'none';
+                if (typeof onRetry === 'function') onRetry();
+            };
+        }
     };
 
     window.kfFormNeedsSaving = function (form) {

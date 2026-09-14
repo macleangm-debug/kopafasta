@@ -50,27 +50,59 @@
             :default-open="false"
             :default-edit="$openActivity">
             <x-slot:view>
-                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <dt class="text-gray-500">{{ __('borrower.profile.activity_type') }}</dt>
-                        @if ($activityLabel)
-                            <dd class="font-medium mt-0.5">{{ $activityLabel }}</dd>
-                        @else
-                            <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                        @endif
-                    </div>
-                    <div>
-                        <dt class="text-gray-500">{{ __('borrower.profile.income_range') }}</dt>
-                        @if ($incomeLabel)
-                            <dd class="font-medium mt-0.5">{{ $incomeLabel }}</dd>
-                        @else
-                            <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                        @endif
-                    </div>
-                    @if ($customer->monthly_income)
-                        <div><dt class="text-gray-500">{{ __('borrower.profile.monthly_income') }}</dt><dd class="font-medium mt-0.5">{{ format_money($customer->monthly_income) }}</dd></div>
-                    @endif
-                </dl>
+                @php
+                    $activityDetails = is_array($customer->activity_details) ? $customer->activity_details : [];
+                    $activityTypeKey = $customer->activity_type ?? $customer->employment_type;
+                    $activityFieldDefs = activity_fields_localized()[$activityTypeKey] ?? [];
+                    $activityViewRows = [];
+                    $activityViewRows[] = [
+                        'label' => __('borrower.profile.activity_type'),
+                        'value' => $activityLabel,
+                    ];
+                    foreach ($activityFieldDefs as $field) {
+                        $key = $field['key'] ?? null;
+                        if (! $key || ($field['type'] ?? '') === 'document') {
+                            continue;
+                        }
+                        $raw = $activityDetails[$key] ?? null;
+                        if (! filled($raw)) {
+                            continue;
+                        }
+                        $display = $raw;
+                        if (! empty($field['options'][$raw])) {
+                            $display = $field['options'][$raw];
+                        }
+                        $activityViewRows[] = [
+                            'label' => $field['label'] ?? $key,
+                            'value' => $display,
+                        ];
+                    }
+                    if ($incomeLabel) {
+                        $activityViewRows[] = [
+                            'label' => __('borrower.profile.income_range'),
+                            'value' => $incomeLabel,
+                        ];
+                    }
+                    if ($customer->monthly_income) {
+                        $activityViewRows[] = [
+                            'label' => __('borrower.profile.monthly_income'),
+                            'value' => format_money($customer->monthly_income),
+                        ];
+                    }
+                @endphp
+                @if ($activityViewRows === [])
+                    <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
+                    <button type="button" @click="openEdit()" class="mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                @else
+                    <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                        @foreach ($activityViewRows as $row)
+                            <div>
+                                <dt class="text-gray-500">{{ $row['label'] }}</dt>
+                                <dd class="font-medium text-gray-900 mt-0.5">{{ $row['value'] }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                @endif
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
@@ -103,8 +135,6 @@
 
                     @if ($wizardMode ?? false)
                         <x-site.gated-submit class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile_wizard.save_continue')" />
-                    @else
-                        <div data-kf-autosave-status class="mt-3 hidden"></div>
                     @endif
                 </form>
             </x-slot:form>

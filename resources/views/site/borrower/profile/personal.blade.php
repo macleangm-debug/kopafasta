@@ -384,7 +384,6 @@
                                     <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">
                                 </div>
                             </div>
-                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -517,7 +516,6 @@
                                     @error('number_of_children')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
                             </div>
-                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -535,32 +533,26 @@
                     :default-edit="$editFocus === 'kin'">
                     <x-slot:view>
                         <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <dt class="text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt>
-                                @if ($kinName)
-                                    <dd class="font-medium mt-0.5">{{ $kinName }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
+                            @foreach ([
+                                ['label' => __('borrower.profile.fields.full_name'), 'value' => $kinName],
+                                ['label' => __('borrower.profile.fields.relationship'), 'value' => $customer->nok_relationship ? kin_relationship_label($customer->nok_relationship) : null],
+                                ['label' => __('borrower.profile.fields.phone'), 'value' => $customer->nok_phone],
+                                ['label' => __('borrower.profile.region'), 'value' => $customer->nok_region],
+                                ['label' => __('borrower.profile.district'), 'value' => $customer->nok_district],
+                                ['label' => __('borrower.profile.ward'), 'value' => $customer->nok_ward],
+                                ['label' => __('borrower.profile.street'), 'value' => $customer->nok_street, 'span' => true],
+                            ] as $field)
+                                @if (filled($field['value']))
+                                    <div @class(['sm:col-span-2' => ! empty($field['span'])])>
+                                        <dt class="text-gray-500">{{ $field['label'] }}</dt>
+                                        <dd class="font-medium text-gray-900 mt-0.5">{{ $field['value'] }}</dd>
+                                    </div>
                                 @endif
-                            </div>
-                            <div>
-                                <dt class="text-gray-500">{{ __('borrower.profile.fields.relationship') }}</dt>
-                                @if ($customer->nok_relationship)
-                                    <dd class="font-medium mt-0.5">{{ kin_relationship_label($customer->nok_relationship) }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                @endif
-                            </div>
-                            <div>
-                                <dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt>
-                                @if ($customer->nok_phone)
-                                    <dd class="font-medium mt-0.5">{{ $customer->nok_phone }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                @endif
-                            </div>
-                            @if (filled($customer->nok_region))
-                                <div><dt class="text-gray-500">{{ __('borrower.profile.region') }}</dt><dd class="font-medium mt-0.5">{{ $customer->nok_region }}</dd></div>
+                            @endforeach
+                            @if (! $kinComplete)
+                                <div class="sm:col-span-2">
+                                    <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                                </div>
                             @endif
                         </dl>
                     </x-slot:view>
@@ -580,7 +572,6 @@
                                 <x-site.kin-fields :customer="$customer" :input-class="$editable" />
                                 <x-site.address-fields prefix="nok" :region="old('nok_region', $customer->nok_region)" :district="old('nok_district', $customer->nok_district)" :ward="old('nok_ward', $customer->nok_ward)" :street="old('nok_street', $customer->nok_street)" />
                             </div>
-                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -702,7 +693,6 @@
                                 :include-in-form="true"
                                 :initial-data-url="$customer->legal_signature_data ?? ''"
                             />
-                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>

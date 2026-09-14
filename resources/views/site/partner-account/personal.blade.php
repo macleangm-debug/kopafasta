@@ -101,7 +101,6 @@
                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
                         </div>
                     </div>
-                    <div data-kf-autosave-status class="hidden"></div>
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>
