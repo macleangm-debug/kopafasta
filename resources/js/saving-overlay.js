@@ -37,19 +37,11 @@ export function registerSavingOverlay(Alpine) {
             toast = document.createElement('div');
             toast.setAttribute('role', 'status');
             toast.setAttribute('data-kf-saving-toast', '');
-            toast.className = 'mb-4 inline-flex items-center gap-2 rounded-full bg-brand/5 text-brand ring-1 ring-brand/15 px-3.5 py-1.5 text-xs font-bold';
-            const anchor = document.querySelector('[data-kf-profile-page]')
-                || document.querySelector('[data-kf-profile-shell-top]')
-                || document.querySelector('.glass-card');
-            if (anchor?.parentElement) {
-                anchor.parentElement.insertBefore(toast, anchor);
-            } else if (anchor) {
-                anchor.prepend(toast);
-            } else {
-                document.body.prepend(toast);
-            }
+            document.body.appendChild(toast);
         }
-        toast.innerHTML = '<span class="size-3.5 rounded-full border-2 border-brand/30 border-t-brand animate-spin" aria-hidden="true"></span><span></span>';
+        // Fixed viewport chip so NIDA/face autosave is always visible (no scroll / no Save CTA).
+        toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[10070] inline-flex items-center gap-2 rounded-full bg-brand/95 text-white shadow-lg ring-1 ring-white/20 px-4 py-2 text-sm font-bold';
+        toast.innerHTML = '<span class="size-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true"></span><span></span>';
         toast.querySelector('span:last-child').textContent = label;
         toast.classList.remove('hidden');
     };
@@ -102,19 +94,18 @@ export function registerSavingOverlay(Alpine) {
             toast = document.createElement('div');
             toast.setAttribute('role', 'status');
             toast.setAttribute('data-kf-saved-toast', '');
-            toast.className = 'mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 px-3.5 py-1.5 text-xs font-bold';
-            const shell = document.querySelector('[data-kf-profile-page]')
-                || document.querySelector('[data-kf-profile-shell-top]')
-                || document.querySelector('.glass-card');
-            if (shell?.parentElement) {
-                shell.parentElement.insertBefore(toast, shell);
-            } else {
-                document.body.prepend(toast);
-            }
+            document.body.appendChild(toast);
         }
+        toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[10070] inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white shadow-lg ring-1 ring-white/20 px-4 py-2 text-sm font-bold';
         toast.innerHTML = '<span aria-hidden="true">✓</span><span></span>';
         toast.querySelector('span:last-child').textContent = label;
         toast.classList.remove('hidden');
+        if (toast._kfSavedTimer) {
+            clearTimeout(toast._kfSavedTimer);
+        }
+        toast._kfSavedTimer = setTimeout(() => {
+            toast.classList.add('hidden');
+        }, 2200);
     };
 
     window.kfFormNeedsSaving = function (form) {

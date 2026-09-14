@@ -4613,7 +4613,7 @@ return [
         'use_photo' => 'Use this photo',
         'review_all_title' => 'Final check',
         'review_all_heading' => 'Review your photos',
-        'review_all_hint' => 'Confirm all photos, then save.',
+        'review_all_hint' => 'Confirm all photos. Replacements autosave — no Save button.',
         'done_title' => 'Photos saved',
         'done_body' => 'All photos captured and saved.',
         'back_dashboard' => 'Back to dashboard',

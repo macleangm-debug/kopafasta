@@ -210,8 +210,10 @@
                 </template>
             </div>
             <div class="p-5 border-t border-gray-100 flex flex-wrap gap-3">
-                <button type="button" @click="phase = 'intro'" class="flex-1 min-w-[120px] bg-brand-muted/60 hover:bg-brand-muted text-brand font-semibold px-4 py-3 rounded-full text-sm">{{ __('borrower.nida.face_add_more') }}</button>
-                <p class="w-full text-center text-sm font-semibold text-emerald-700" x-show="isSubmitting" x-cloak>
+                <button type="button" @click="phase = 'intro'" class="flex-1 min-w-[120px] bg-brand-muted/60 hover:bg-brand-muted text-brand font-semibold px-4 py-3 rounded-full text-sm"
+                        x-show="!isFaceAlreadySubmitted()">{{ __('borrower.nida.face_add_more') }}</button>
+                <p class="w-full text-center text-sm font-semibold text-brand inline-flex items-center justify-center gap-2" x-show="isUploading || phase === 'saving'" x-cloak>
+                    <span class="size-3.5 rounded-full border-2 border-brand/30 border-t-brand animate-spin" aria-hidden="true"></span>
                     {{ __('borrower.document_upload.saving') }}
                 </p>
             </div>
