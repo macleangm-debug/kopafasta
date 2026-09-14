@@ -3039,6 +3039,7 @@ return [
         'saved' => 'Imehifadhiwa',
         'could_not_save' => 'Imeshindikana kuhifadhi',
         'retry' => 'Jaribu tena',
+        'rotate' => 'Zungusha',
         'start_camera' => 'Anza kamera',
         'capture_page' => 'Piga ukurasa',
         'ready_to_upload' => 'Tayari kupakia',

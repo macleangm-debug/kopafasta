@@ -492,7 +492,9 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/borrower/settings', [BorrowerController::class, 'settings'])->name('borrower.settings');
             Route::put('/borrower/settings/preferences', [BorrowerController::class, 'updateSettingsPreferences'])->name('borrower.settings.preferences');
             Route::get('/borrower/profile/{section?}', [BorrowerController::class, 'profile'])->name('borrower.profile')->where('section', 'hub|personal|activity|residence|kin|kyc|security|payment|assets|membership');
-            Route::put('/borrower/profile/{section}', [BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
+            // HTML forms POST; Laravel method-spoofing maps _method=PUT. Accept POST on the same
+            // update handler so a lost spoof cannot 405 on /borrow/profile/{section}.
+            Route::match(['put', 'post'], '/borrower/profile/{section}', [BorrowerController::class, 'updateProfile'])->name('borrower.profile.update')->where('section', 'personal|activity|residence|kin|kyc|payment');
             Route::post('/borrower/profile/assets', [BorrowerController::class, 'storeAsset'])->name('borrower.profile.assets.store');
             Route::post('/borrower/profile/assets/{asset}/use', [BorrowerController::class, 'useAsset'])->name('borrower.profile.assets.use');
             Route::put('/borrower/profile/assets/{asset}', [BorrowerController::class, 'updateAsset'])->name('borrower.profile.assets.update');

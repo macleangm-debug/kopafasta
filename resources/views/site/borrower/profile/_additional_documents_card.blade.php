@@ -69,7 +69,7 @@
                   x-on:input="refreshReady()"
                   x-on:change="refreshReady()"
                   data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
-                  @submit="if (!docType || !ready) { $event.preventDefault(); return; } uploading = true">
+                  @submit="if (!docType) { $event.preventDefault(); return; } uploading = true">
                 @csrf @method('PUT')
                 @if ($wizardMode ?? false)
                     <input type="hidden" name="wizard" value="1">

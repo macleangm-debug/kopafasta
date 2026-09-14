@@ -453,7 +453,13 @@
                     }
                 },
                 submitClosestForm() {
-                    const form = this.$el.closest('form');
+                    let form = this.$el.closest('form');
+                    // Nested delete forms (or HTML re-association) must not steal autosave.
+                    while (form) {
+                        const spoof = String(form.querySelector('input[name=_method]')?.value || '').toUpperCase();
+                        if (spoof !== 'DELETE') break;
+                        form = form.parentElement?.closest('form') || null;
+                    }
                     if (!form || form.dataset.kfSubmitting === '1') {
                         return;
                     }

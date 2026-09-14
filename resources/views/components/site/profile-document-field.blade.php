@@ -57,6 +57,53 @@
                 }
             });
         },
+        submitProfileDocumentForm() {
+            let node = this.$el.parentElement;
+            while (node) {
+                if (node.tagName === 'FORM' && node.method && String(node.method).toLowerCase() === 'post') {
+                    const methodField = node.querySelector('input[name=_method]');
+                    const spoof = methodField ? String(methodField.value || '').toUpperCase() : '';
+                    // Skip nested delete forms; only submit the profile update form.
+                    if (spoof === 'DELETE') {
+                        node = node.parentElement;
+                        continue;
+                    }
+                    if (node.dataset.kfSubmitting === '1') return;
+                    node.dataset.kfSubmitting = '1';
+                    if (typeof node.requestSubmit === 'function') node.requestSubmit();
+                    else node.submit();
+                    return;
+                }
+                node = node.parentElement;
+            }
+        },
+        confirmRemoveDocument() {
+            window.confirmForm(null, {
+                title: @js(__('borrower.profile.remove_document_confirm_title')),
+                message: @js(__('borrower.profile.remove_document_confirm_named', ['document' => $label ?: __('borrower.profile.document_uploaded')])),
+                confirmLabel: @js(__('borrower.profile.remove_document_confirm_cta')),
+                confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                tone: 'warning',
+                onConfirm: () => {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = @js($removeUrl);
+                    form.style.display = 'none';
+                    const csrf = document.createElement('input');
+                    csrf.type = 'hidden';
+                    csrf.name = '_token';
+                    csrf.value = document.querySelector('meta[name=csrf-token]')?.content || '';
+                    const method = document.createElement('input');
+                    method.type = 'hidden';
+                    method.name = '_method';
+                    method.value = 'DELETE';
+                    form.appendChild(csrf);
+                    form.appendChild(method);
+                    document.body.appendChild(form);
+                    form.submit();
+                },
+            });
+        },
      }"
      @document-source.window="
         if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
@@ -64,12 +111,11 @@
      "
      @kf-document-pages-ready.window="
         if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
-        const form = $el.closest('form');
-        if (form && form.dataset.kfSubmitting !== '1') {
-            form.dataset.kfSubmitting = '1';
-            if (typeof form.requestSubmit === 'function') form.requestSubmit();
-            else form.submit();
-        }
+        submitProfileDocumentForm();
+     "
+     @kf-document-file.window="
+        if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
+        // Single-image commit already submits non-apply forms; keep as safety net.
      "
      @kf-inline-document-upload-start="
         inlineUploading = true;
@@ -85,7 +131,20 @@
      data-document-holder
      class="space-y-3">
     @if ($document)
-        <div @class([
+        <div x-show="replaceMode" x-cloak class="rounded-2xl px-4 py-3.5 ring-1 ring-brand/20 bg-brand/5 shadow-sm">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-gray-900">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>
+                    <p class="mt-1 text-xs text-gray-600">{{ __('borrower.profile.replace_document') }}</p>
+                </div>
+                @unless ($readOnly)
+                    <div class="shrink-0">
+                        <x-site.document-source-picker :host-id="$hostId" />
+                    </div>
+                @endunless
+            </div>
+        </div>
+        <div x-show="!replaceMode" x-cloak @class([
             'rounded-2xl px-4 py-3.5 ring-1 shadow-sm bg-white',
             'ring-amber-200' => $needsUpdate,
             'ring-gray-200' => ! $needsUpdate,
@@ -111,14 +170,13 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <p class="text-sm font-bold text-gray-900 truncate">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>
-                        @if ($required)
-                            <span class="inline-flex rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{{ __('borrower.application.status_required') }}</span>
+                        @if ($statusLabel !== '')
+                            <span @class([
+                                'inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
+                                'bg-amber-50 text-amber-900 ring-amber-200' => $needsUpdate,
+                                'bg-emerald-50 text-emerald-800 ring-emerald-200' => ! $needsUpdate,
+                            ])>{{ $statusLabel }}</span>
                         @endif
-                        <span @class([
-                            'inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
-                            'bg-amber-50 text-amber-900 ring-amber-200' => $needsUpdate,
-                            'bg-emerald-50 text-emerald-800 ring-emerald-200' => ! $needsUpdate,
-                        ])>{{ $statusLabel }}</span>
                     </div>
                     @if ($fileName !== '')
                         <p class="mt-1 text-xs text-gray-600 truncate" title="{{ $fileName }}">{{ $fileName }}</p>
@@ -127,15 +185,10 @@
                         <p class="mt-0.5 text-xs text-gray-500">{{ __('borrower.profile.document_page_count') }}: {{ $pageCount }}</p>
                     @endif
                 </div>
-                @unless ($readOnly)
-                    <div x-show="replaceMode" class="shrink-0">
-                        <x-site.document-source-picker :host-id="$hostId" />
-                    </div>
-                @endunless
             </div>
 
             @if ($document->file_path)
-                <div class="mt-3 flex flex-wrap gap-2" x-show="!replaceMode">
+                <div class="mt-3 flex flex-wrap gap-2">
                     @if ($previewUrl)
                         <button type="button"
                                 onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), @js($isPdf ? 'pdf' : 'image'))"
@@ -151,22 +204,11 @@
                         </button>
                     @endif
                     @if ($allowRemove && ($removeUrl ?? null))
-                        <form method="POST" action="{{ $removeUrl }}"
-                              @click.stop
-                              @submit.prevent="window.confirmForm($el, {
-                                  title: @js(__('borrower.profile.remove_document_confirm_title')),
-                                  message: @js(__('borrower.profile.remove_document_confirm_named', ['document' => $label ?: __('borrower.profile.document_uploaded')])),
-                                  confirmLabel: @js(__('borrower.profile.remove_document_confirm_cta')),
-                                  confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
-                                  tone: 'warning'
-                              })">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit"
-                                    class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
-                                {{ __('borrower.profile.remove_document') }}
-                            </button>
-                        </form>
+                        <button type="button"
+                                @click.stop="confirmRemoveDocument()"
+                                class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
+                            {{ __('borrower.profile.remove_document') }}
+                        </button>
                     @endif
                 </div>
             @endif
@@ -195,8 +237,6 @@
                         <p class="text-sm font-bold text-gray-900">{{ $label ?: __('borrower.documents_page.add_document') }}</p>
                         @if ($required)
                             <span class="inline-flex rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{{ __('borrower.application.status_required') }}</span>
-                        @else
-                            <span class="inline-flex rounded-full bg-gray-50 text-gray-600 ring-1 ring-gray-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{{ __('borrower.application.status_optional') }}</span>
                         @endif
                     </div>
                 </div>

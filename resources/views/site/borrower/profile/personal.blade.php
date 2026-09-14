@@ -333,16 +333,16 @@
                                     </div>
                                     @endunless
                                     <div class="space-y-3" x-show="altTypes.includes('passport')">
-                                        <x-site.profile-document-field :document="$altDocs->get('passport')" field-name="passport" mode="single" :label="__('borrower.nida.alt_passport')" input-host-id="passport-upload" :read-only="$idPhotosLocked" />
+                                        <x-site.profile-document-field :document="$altDocs->get('passport')" field-name="passport" mode="multi" :label="__('borrower.nida.alt_passport')" input-host-id="passport-upload" :read-only="$idPhotosLocked" />
                                     </div>
                                     <div class="space-y-3" x-show="altTypes.includes('voter_id')">
-                                        <x-site.profile-document-field :document="$altDocs->get('voter_id')" field-name="voter_id" mode="single" :label="__('borrower.nida.alt_voter')" input-host-id="voter-upload" :read-only="$idPhotosLocked" />
+                                        <x-site.profile-document-field :document="$altDocs->get('voter_id')" field-name="voter_id" mode="multi" :label="__('borrower.nida.alt_voter')" input-host-id="voter-upload" :read-only="$idPhotosLocked" />
                                     </div>
                                     <div class="space-y-3" x-show="altTypes.includes('driving_license')">
-                                        <x-site.profile-document-field :document="$altDocs->get('driving_license')" field-name="driving_license" mode="single" :label="__('borrower.nida.alt_driving')" input-host-id="license-upload" :read-only="$idPhotosLocked" />
+                                        <x-site.profile-document-field :document="$altDocs->get('driving_license')" field-name="driving_license" mode="multi" :label="__('borrower.nida.alt_driving')" input-host-id="license-upload" :read-only="$idPhotosLocked" />
                                     </div>
                                     <div class="space-y-3" x-show="altTypes.includes('other_id')">
-                                        <x-site.profile-document-field :document="$altDocs->get('other_id')" field-name="other_id" mode="single" :label="__('borrower.nida.alt_other')" input-host-id="other-id-upload" :read-only="$idPhotosLocked" />
+                                        <x-site.profile-document-field :document="$altDocs->get('other_id')" field-name="other_id" mode="multi" :label="__('borrower.nida.alt_other')" input-host-id="other-id-upload" :read-only="$idPhotosLocked" />
                                     </div>
                                 </div>
                             </div>

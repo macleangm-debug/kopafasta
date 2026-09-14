@@ -32,6 +32,7 @@
         'useBackCamera' => __('borrower.profile.use_back_camera'),
         'addPicture' => __('borrower.profile.add_picture'),
         'brand' => brand_name(),
+        'rotate' => __('borrower.document_upload.rotate'),
     ];
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
@@ -115,15 +116,21 @@
 
     {{-- Page gallery — same holder as submitted document thumbs --}}
     <div x-show="pages.length > 0" x-cloak>
-        <div class="flex items-center justify-between gap-3 mb-2">
+                <div class="flex items-center justify-between gap-3 mb-2">
             <p class="text-xs font-semibold text-gray-500">
                 <span x-text="labels.pagesReady.replace(':count', String(pages.length))"></span>
             </p>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
                 <button type="button" x-show="fromCamera" x-cloak @click="openCamera()" :disabled="pages.length >= maxPages"
-                        class="text-xs font-semibold text-brand hover:underline disabled:opacity-40" x-text="labels.addAnother"></button>
+                        class="inline-flex items-center justify-center size-9 rounded-full bg-white ring-1 ring-brand/20 text-brand hover:bg-brand/5 disabled:opacity-40"
+                        :title="labels.addAnother" :aria-label="labels.addAnother">
+                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/>
+                    </svg>
+                </button>
                 <button type="button" x-show="autoFinishUpload && !cameraOpen" x-cloak @click="finishUpload()"
-                        class="text-xs font-bold text-brand hover:underline" x-text="labels.finish"></button>
+                        class="inline-flex items-center justify-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm"
+                        :title="labels.finish" :aria-label="labels.finish" x-text="labels.finish"></button>
             </div>
         </div>
         <ul class="flex flex-wrap gap-2">
@@ -132,7 +139,8 @@
                     <template x-if="page.previewUrl">
                         <button type="button" @click="expanded = true"
                                 class="h-16 w-16 rounded-lg overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
-                            <img :src="page.previewUrl" alt="" class="h-full w-full object-cover">
+                            <img :src="page.previewUrl" alt="" class="h-full w-full object-cover"
+                                 :style="page.rotation ? ('transform: rotate(' + page.rotation + 'deg)') : ''">
                         </button>
                     </template>
                     <template x-if="!page.previewUrl">
@@ -140,6 +148,9 @@
                             <span class="text-[10px] font-bold text-brand">PDF</span>
                         </div>
                     </template>
+                    <button type="button" x-show="page.previewUrl" x-cloak @click="rotatePage(index)"
+                            class="absolute -bottom-1.5 -left-1.5 size-5 rounded-full bg-white text-brand text-[10px] font-bold ring-1 ring-gray-200 grid place-items-center"
+                            :title="labels.rotate || 'Rotate'" :aria-label="labels.rotate || 'Rotate'">⟳</button>
                     <button type="button" @click="removePage(index)"
                             class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-white text-red-600 text-xs font-bold ring-1 ring-gray-200 grid place-items-center"
                             :aria-label="labels.remove">×</button>
@@ -339,9 +350,37 @@
                 addBlob(blob, name) {
                     const isPdf = (blob.type || '').includes('pdf') || /\.pdf$/i.test(name || '');
                     const previewUrl = isPdf ? null : URL.createObjectURL(blob);
-                    this.pages.push({ id: this.nextId++, blob, name, previewUrl, isPdf });
+                    this.pages.push({ id: this.nextId++, blob, name, previewUrl, isPdf, rotation: 0 });
                     this.syncInputs();
                     this.$dispatch('document-pages-changed', { name: this.fieldName, count: this.pages.length });
+                },
+                rotatePage(index) {
+                    const page = this.pages[index];
+                    if (! page || ! page.previewUrl || page.isPdf) return;
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalHeight;
+                        canvas.height = img.naturalWidth;
+                        const ctx = canvas.getContext('2d');
+                        ctx.translate(canvas.width / 2, canvas.height / 2);
+                        ctx.rotate(Math.PI / 2);
+                        ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+                        canvas.toBlob((blob) => {
+                            if (! blob) return;
+                            if (page.previewUrl) URL.revokeObjectURL(page.previewUrl);
+                            const next = {
+                                ...page,
+                                blob,
+                                previewUrl: URL.createObjectURL(blob),
+                                rotation: 0,
+                                name: (page.name || 'page.jpg').replace(/\.[^.]+$/, '') + '.jpg',
+                            };
+                            this.pages.splice(index, 1, next);
+                            this.syncInputs();
+                        }, 'image/jpeg', 0.92);
+                    };
+                    img.src = page.previewUrl;
                 },
                 removePage(index) {
                     const page = this.pages[index];

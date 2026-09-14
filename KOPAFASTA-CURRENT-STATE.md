@@ -7,35 +7,30 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | Env | SHA | Note |
 | --- | --- | --- |
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
-| **Failed staging (do not promote)** | `15bf3c71efd09214cba3f9c766d2abe385f1e6ed` | AG/AB/DOC owner UAT FAIL |
-| **Staging under UAT** | `bdedd6f10059fb5e4945517809dd27596d604326` | Economical P0: AG Continue readiness + canonical document autosave (AB frozen) |
+| **Failed staging (do not promote)** | `15bf3c71efd09214cba3f9c766d2abe385f1d9c57540` | AG/AB/DOC owner UAT FAIL |
+| **Prior staging (do not promote)** | `bdedd6f10059fb5e4945517809dd27596d604326` | Mixed P0 — AG Continue / KYC still open |
+| **Staging under UAT** | `(pending deploy)` | Economical P0: AG Continue + KYC 405 + canonical multi-page camera |
 | **Prior staging (superseded)** | `83d8a820df78e8b8fd4fce41c32d1aa8a4c9848f` | Combined micropass — AB PASS; AG Continue / DOC FAIL |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
 
 ## Frozen (do not touch in the current correction)
 
+- **AG-1** — Agriculture overview persistence (accepted)
 - **AB-1** — Asset-Backed step graph, collateral-card, Profile `return_to`, insurance-not-an-apply-stage
 - PayIn / accounting / Marketplace / registration / product ordering / Sharia / guarantor·group **policy** / underwriting·recovery policy
 
-## Open defects (P0) — staging `bdedd6f1` awaiting owner UAT
+## Open defects (P0) — awaiting owner UAT after this deploy
 
 1. **AG-2 Continue** — Overview + farm + land ready → footer Ghairi → Endelea → Mdhamini (no refresh)
-2. **Canonical documents** — Camera Review → Use → autosave; Upload → native chooser → autosave; Replace same; Remove with confirm; no success modal
-3. **Profile ordinary fields** — where manual Save is unreliable, reuse existing save path (no new persistence engine)
+2. **Profile/KYC 405** — Camera/Upload must POST/PUT to profile update without Method Not Allowed
+3. **Canonical multi-page camera** — default for normal documents; exceptions: facial, NIDA directive, collateral/farm photos
+4. **Document badges** — Required disappears once supplied; Pending review only
 
-Prior mobile picker / desktop clipping fixes remain in this lineage from `08f358df`.
+## Canonical camera rule
 
-## UAT matrix (latest owner)
-
-| Item | Status |
-| --- | --- |
-| AG-1 Overview persistence | PASS (partial — blocked by mobile upload) |
-| AG-1 mobile document action | FAIL |
-| AG-2 Agriculture Continue | FAIL |
-| AB-1 | **PASS — FREEZE** |
-| DOC-1 / Profile document persistence UX | FAIL |
-| Staging performance | Needs attention (non-blocking vs P0) |
+- **Normal document** → `x-site.multi-page-document-upload` (pages → one PDF)
+- **Directive photograph** → specialized single/image capture (NIDA sides, face, collateral, farm activity photos)
 
 ## Canonical component map (reuse; do not duplicate)
 
@@ -43,31 +38,11 @@ Prior mobile picker / desktop clipping fixes remain in this lineage from `08f358
 | --- | --- |
 | + Upload / Camera | `x-site.document-source-picker` → window `document-source` |
 | Multi-page → one PDF | `x-site.multi-page-document-upload` |
-| Single image / photo | `x-site.single-image-document-upload` (+ Save/Use when source-driven) |
+| Single image / photo | `x-site.single-image-document-upload` |
 | Profile doc holder | `x-site.profile-document-field` |
 | Apply doc holder | `site.apply._apply-document-holder` |
-| Inline upload progress | `data-inline-document-progress` + saving-overlay skip |
-| AB asset | `x-site.collateral-card` + Profile asset |
-| Region/District | `x-site.address-fields` / profile-select |
 | Wizard Continue gate | `apply-wizard.js` → `isCurrentStepReady()` + `wizard-footer` |
-| Profile completion | `ProfileCompletionService` (one formula) |
-| Mobile sheet / desktop popover | `x-site.bottom-sheet` / teleported menus |
-
-## Low-cost development mode
-
-Do not ask an agent to rediscover architecture from the whole repository for every micropass.
-
-For borrower / Profile / application work, read only:
-
-1. This file (`KOPAFASTA-CURRENT-STATE.md`)
-2. Current micropass instruction
-3. When available in the handoff package: `00-START-HERE-COMPREHENSIVE.md`, `01-BORROWER-DEVELOPER-BRIEF.md`, `kopafasta-borrower-shell-audit.md`, `kopafasta-profile-plus-deep-review.md`
-
-Then inspect **only the code paths named by the defect**.
-
-- One micropass = one primary workstream
-- Prefer cheaper models for locate/grep/tests/mechanical edits
-- Escalate reasoning only when canonical systems conflict, policy is ambiguous, or a defect remains unexplained after direct tracing
+| Profile update | `PUT|POST /borrower/profile/{section}` → `updateProfile` |
 
 ## Deploy
 

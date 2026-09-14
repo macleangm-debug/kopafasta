@@ -3360,6 +3360,7 @@ return [
         'saved' => 'Saved',
         'could_not_save' => 'Could not save',
         'retry' => 'Retry',
+        'rotate' => 'Rotate',
         'start_camera' => 'Start camera',
         'capture_page' => 'Capture page',
         'ready_to_upload' => 'Ready to upload',

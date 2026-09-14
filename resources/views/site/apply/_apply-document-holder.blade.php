@@ -70,11 +70,13 @@
             <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                     <p class="text-sm font-bold text-gray-900">{{ $label }}</p>
-                    @if ($required)
-                        <span class="inline-flex rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{{ __('borrower.application.status_required') }}</span>
-                    @else
-                        <span class="inline-flex rounded-full bg-gray-50 text-gray-600 ring-1 ring-gray-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{{ __('borrower.application.status_optional') }}</span>
-                    @endif
+                    <template x-if="!educationDocuments[@js($docCode)]?.customer_document_id">
+                        <span>
+                            @if ($required)
+                                <span class="inline-flex rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">{{ __('borrower.application.status_required') }}</span>
+                            @endif
+                        </span>
+                    </template>
                     <span x-show="educationDocuments[@js($docCode)]?.customer_document_id && !replaceMode" x-cloak
                           class="inline-flex rounded-full bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                         {{ __('borrower.documents_page.status_pending') }}

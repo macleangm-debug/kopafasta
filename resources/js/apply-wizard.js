@@ -3207,6 +3207,10 @@ export function applyWizard(config) {
 
                 agricultureStepReady() {
                     this.syncAgricultureFieldsFromAlpine();
+                    try {
+                        // Refresh draft snapshot so Alpine-bound overview values count immediately.
+                        this.buildDraftPayload();
+                    } catch (e) { /* ignore */ }
                     const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
                     let region = this.agricultureFieldValue('farming_region');
                     let district = this.agricultureFieldValue('farming_district');
@@ -3223,7 +3227,9 @@ export function applyWizard(config) {
                         locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
                     }
                     const fieldsOk = required.every((key) => !! this.agricultureFieldValue(key));
-                    return fieldsOk && !! region && !! district && this.agricultureDocsReady();
+                    const ready = fieldsOk && !! region && !! district && this.agricultureDocsReady();
+                    this._agricultureReady = ready;
+                    return ready;
                 },
 
                 /** Silent completeness check — used to show Continue only when the step is ready. */
