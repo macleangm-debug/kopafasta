@@ -15,6 +15,13 @@
     'allowReplace' => true,
     /** @deprecated Replace always stays inline (Upload/Camera). Add-document CTAs open the section form. */
     'replaceOpensEdit' => false,
+    'guide' => null,
+    'guideFrame' => null,
+    'startOpen' => false,
+    'compactLabel' => false,
+    'showReplaceButton' => true,
+    'showViewButton' => true,
+    'holderSide' => null,
 ])
 
 @php
@@ -36,15 +43,20 @@
     $expiresAt = $document ? $docService->expiryDate($document) : null;
     $needsUpdate = $document ? $docService->isExpired($document) : false;
     $expiresField = $fieldName.'_expires_at';
-    $guideText = __('borrower.document_upload.guide_document_compact');
+    $guideText = $guide ?: __('borrower.document_upload.guide_document_compact');
+    $guideFrame = in_array($guideFrame, ['id-card', 'oval'], true) ? $guideFrame : null;
     // Ordinary documents use multi-page. Only explicit mode=single stays directive/single-image.
     $mode = in_array($mode, ['single', 'multi'], true) ? $mode : 'multi';
+    $startOpen = (bool) $startOpen;
+    $showReplaceButton = (bool) $showReplaceButton;
+    $showViewButton = (bool) $showViewButton;
+    $holderSide = filled($holderSide) ? (string) $holderSide : null;
 @endphp
 
 <div x-data="{
         replaceMode: false,
         {{-- Closed until + → Take photo / Upload. Never show permanent Upload+Camera. --}}
-        captureOpen: false,
+        captureOpen: @js($startOpen && ! $document),
         inlineUploading: false,
         inlineProgress: null,
         inlineMessage: @js(__('borrower.apply.document_saving')),
@@ -116,6 +128,15 @@
      @document-source.window="
         if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
         openCapture($event.detail?.source);
+     "
+     @nida-holder-replace.window="
+        if (@js($holderSide) && $event.detail?.side === @js($holderSide)) {
+            startReplace();
+            return;
+        }
+        if ($event.detail?.hostId && $event.detail.hostId === @js($hostId)) {
+            startReplace();
+        }
      "
      @kf-document-pages-ready.window="
         if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
@@ -190,14 +211,14 @@
 
             @if ($document->file_path)
                 <div class="mt-3 flex flex-wrap gap-2">
-                    @if ($previewUrl)
+                    @if ($previewUrl && $showViewButton)
                         <button type="button"
                                 onclick="window.kfSiteOpenDocumentPreview(@js($previewUrl), @js($label ?: __('borrower.profile.view_document')), @js($isPdf ? 'pdf' : 'image'))"
                                 class="inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
                             {{ __('borrower.profile.view_document') }}
                         </button>
                     @endif
-                    @if ($allowReplace)
+                    @if ($allowReplace && $showReplaceButton)
                         <button type="button"
                                 @click="startReplace()"
                                 class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
@@ -256,6 +277,7 @@
                 facing="environment"
                 :required="$required"
                 :guide="$guideText"
+                :guide-frame="$guideFrame"
                 :source-driven="true"
             />
         @else

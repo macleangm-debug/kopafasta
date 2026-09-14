@@ -105,24 +105,52 @@ class ProfileCompletionService
                 || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'nida_docs');
             $faceRevision = $faceStatus === 'revision_required'
                 || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face');
+            $validation = app(ProfileValidationService::class);
+            $idImagesUrl = route('site.borrower.profile', ['section' => 'personal', 'focus' => 'id_images']).'#profile-id-images';
+            $identityUrl = route('site.borrower.profile', ['section' => 'personal', 'focus' => 'identity']).'#profile-identity';
+            $numberPresent = filled($customer->national_id);
 
+            // Granular identity gaps — never treat a saved NIDA number as missing when only images lack.
             if ($nidaRequired) {
-                $identityComplete = app(ProfileValidationService::class)->nationalIdUploadsComplete($customer);
-                if ($requireIdentity) {
-                    $identityComplete = $identityComplete
-                        && app(ProfileRevisionService::class)->nidaStepComplete($customer);
+                if ($requireIdentity && ! app(NidaVerificationService::class)->isVerified($customer)) {
+                    $sections[] = [
+                        'key'        => 'nida',
+                        'label'      => __('borrower.profile.gaps.nida_verify'),
+                        'status'     => $nidaRevision ? 'stale' : 'missing',
+                        'action_url' => $identityUrl,
+                    ];
+                } elseif (! $numberPresent) {
+                    $sections[] = [
+                        'key'        => 'nida_number',
+                        'label'      => __('borrower.profile.gaps.nida_number'),
+                        'status'     => 'missing',
+                        'action_url' => $identityUrl,
+                    ];
                 }
-                $sections[] = [
-                    'key'        => 'identity',
-                    'label'      => __('borrower.nida.title'),
-                    'status'     => $identityComplete ? 'complete' : ($nidaRevision ? 'stale' : 'missing'),
-                    'action_url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'id_images']).'#profile-id-images',
-                ];
+
+                if (! (bool) $customer->no_physical_nida_card) {
+                    if (! $validation->hasDocument($customer, 'national_id_front')) {
+                        $sections[] = [
+                            'key'        => 'nida_front',
+                            'label'      => __('borrower.profile.gaps.nida_front'),
+                            'status'     => $nidaRevision ? 'stale' : 'missing',
+                            'action_url' => $idImagesUrl,
+                        ];
+                    }
+                    if (! $validation->hasDocument($customer, 'national_id_back')) {
+                        $sections[] = [
+                            'key'        => 'nida_back',
+                            'label'      => __('borrower.profile.gaps.nida_back'),
+                            'status'     => $nidaRevision ? 'stale' : 'missing',
+                            'action_url' => $idImagesUrl,
+                        ];
+                    }
+                }
             }
             if ($facialRequired) {
                 $sections[] = [
                     'key'        => 'face',
-                    'label'      => __('borrower.nida.face_title'),
+                    'label'      => __('borrower.profile.gaps.face'),
                     'status'     => match (true) {
                         app(ProfileRevisionService::class)->faceStepComplete($customer) => 'complete',
                         $faceRevision => 'stale',

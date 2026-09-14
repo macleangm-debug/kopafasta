@@ -183,6 +183,13 @@ class ApplicationProgressService
                     'complete'   => $nidaVerified,
                     'action_url' => $identityUrl,
                 ];
+            } elseif (! filled($customer->national_id)) {
+                $items[] = [
+                    'key'        => 'nida_number',
+                    'label'      => __('borrower.profile.gaps.nida_number'),
+                    'complete'   => false,
+                    'action_url' => $identityUrl,
+                ];
             }
 
             if (! $noPhysical) {

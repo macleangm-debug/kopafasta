@@ -2,20 +2,25 @@
 
 Short release memory for economical micropasses. Prefer this file + one relevant handoff brief over rediscovering the whole repo.
 
-## SHAs
+## SHAs (four distinct states — do not conflate)
 
-| Env | SHA | Note |
+| State | SHA | Note |
 | --- | --- | --- |
-| **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
-| **Prior staging (do not promote)** | `d748536efc6a18062ec0fd67a818bb855dd04299` | FINAL economical: AG Region/District, Quote Continue, canonical camera, Replace |
-| **Staging under UAT** | `ff7bb132add5e792d825d3880064c0e9b09b6fed` | P0: face focus loop + ID image completion |
+| **Accepted production baseline** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | Operational production baseline until live production is re-verified. Do not casually overwrite. |
+| **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
+| **Current staging / development baseline** | `946a4594ee489fd16b4e114014b7119c0c747b7d` | Linear descendant of production history. Contains `73fbbbfe` (National ID 500 fix). Identity closure continues here. **Do not push this mixed tip to `origin/main` yet.** |
+| **Current clean production candidate** | _(none yet)_ | After Identity UAT passes: cut from `8bb9bf5e…` with only owner-accepted changes → staging smoke → owner approve → promote that exact SHA. |
+| **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
-**Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
+**Typo note:** `73fbbfbe` does not exist — use `73fbbbfe`.
+
+**Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`. Never push mixed staging tip to `origin/main` merely to sync GitHub.
 
 ## Frozen
 
 - **AG-1**, **AB-1**, PayIn, Accounting, Marketplace, registration, product ordering, Sharia
 - Document holder status cleanup, KYC 405, native Upload chooser, Remove confirmation
+- Face focus/reload loop fix (preserve no-snap)
 
 ## Canonical rules (this pass)
 
@@ -31,6 +36,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 7. **Camera UI:** bottom control area (shutter / facing / add / orientation) + portrait/landscape dotted guide; Finish primary.
 8. **NIDA number:** confirm before lock; images remain replaceable. Face: replaceable + Remove uses confirmForm.
 9. **Profile autosave:** Saving… → ✓ Saved; no ordinary success modals. Signature holder = presentation only.
+10. **National ID:** one member-facing holder; Front → Back directed; landscape id-card guide; Replace picks side then source.
 
 ## Deploy
 

@@ -327,7 +327,8 @@
                             // Never re-finalize when already pending/verified — that POST→redirect→focus=face
                             // loop is what snaps /personal?focus=face back and forth.
                             if (this.isFaceAlreadySubmitted()) {
-                                this.phase = 'done';
+                                // Stay on review so Change picture can replace one angle — never the dead-end "saved" screen.
+                                this.phase = 'review';
                             } else if (this.phase === 'review' && this.steps.every((s) => s.done && ! s.localBlob)) {
                                 // Photos already on server, status still incomplete — finalize once.
                                 this.$nextTick(() => this.submitVerification());
@@ -348,6 +349,12 @@
                         // hidden profile section (videoWidth stays 0). User must click Start.
                         this.observeVisibility();
                         this.bindLeaveGuard();
+                        this._onFaceRetakeAngle = (event) => {
+                            const idx = Number(event?.detail?.index);
+                            if (! Number.isFinite(idx) || idx < 0) return;
+                            this.retakeStep(idx);
+                        };
+                        window.addEventListener('face-retake-angle', this._onFaceRetakeAngle);
 
                         // Alpine cleanup when the component is torn down.
                         return () => this.destroy();
@@ -468,6 +475,10 @@
                             window.removeEventListener('beforeunload', this._onBeforeUnload);
                             this._onBeforeUnload = null;
                         }
+                        if (this._onFaceRetakeAngle) {
+                            window.removeEventListener('face-retake-angle', this._onFaceRetakeAngle);
+                            this._onFaceRetakeAngle = null;
+                        }
                     },
 
                     isFaceAlreadySubmitted() {
@@ -477,7 +488,7 @@
                     async submitVerification() {
                         if (this.isSubmitting || this.isRemoving || this.isUploading) return;
                         if (this.isFaceAlreadySubmitted()) {
-                            this.phase = 'done';
+                            this.phase = 'review';
                             return;
                         }
                         if (!this.submitUrl) {
@@ -545,6 +556,7 @@
                         this.stepIndex = index;
                         this.holdProgress = 0;
                         this.notice = null;
+                        this.phase = 'intro';
                         await this.startScan();
                     },
 

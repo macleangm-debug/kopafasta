@@ -7,6 +7,7 @@
     'cameraOnly' => false,
     'autoSubmit' => false,
     'guide' => null,
+    'guideFrame' => null,
     'showOval' => null,
     'largePreview' => false,
     'sourceDriven' => false,
@@ -20,7 +21,11 @@
     $autoSubmit = (bool) $autoSubmit;
     $largePreview = (bool) $largePreview;
     $sourceDriven = (bool) $sourceDriven;
-    $showOval = $showOval === null ? $facingMode === 'user' : (bool) $showOval;
+    $guideFrame = in_array($guideFrame, ['id-card', 'oval'], true) ? $guideFrame : null;
+    $showOval = $showOval === null
+        ? ($guideFrame === 'oval' || ($guideFrame === null && $facingMode === 'user'))
+        : (bool) $showOval;
+    $showIdCard = $guideFrame === 'id-card';
     $labelDefaults = [
         'captureImage' => __('borrower.profile.capture_image'),
         'close' => __('borrower.profile.multi_page_close'),
@@ -155,6 +160,10 @@
             @if ($showOval)
                 <div class="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
                     <div class="w-[78%] max-w-[340px] aspect-[4/5] rounded-[50%] border-[3px] border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.3)]"></div>
+                </div>
+            @elseif ($showIdCard)
+                <div class="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none px-6">
+                    <div class="w-full max-w-md aspect-[1.586] rounded-xl border-[2.5px] border-dashed border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.25)]"></div>
                 </div>
             @endif
             <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">

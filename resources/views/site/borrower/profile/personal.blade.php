@@ -204,7 +204,7 @@
                     :default-open="$focusHash === 'id_images'"
                     :default-edit="$idImagesDefaultEdit">
                     <x-slot:view>
-                        <div x-data="{ expandedUrl: null }" class="space-y-3">
+                        <div class="space-y-3">
                             @if ($customer->no_physical_nida_card)
                                 <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3">
                                     <p class="text-sm font-semibold text-amber-900">{{ __('borrower.nida.no_card_saved_title') }}</p>
@@ -215,76 +215,37 @@
                                         ->map(fn ($code) => $altDocs->get($code))
                                         ->filter();
                                 @endphp
-                                @forelse ($altPreview as $doc)
-                                    @if ($doc?->file_path)
-                                        @php $url = asset('storage/'.$doc->file_path); @endphp
-                                        <button type="button" @click="expandedUrl = @js($url)"
-                                                class="h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
-                                            <img src="{{ $url }}" alt="" class="h-full w-full object-cover">
-                                        </button>
-                                    @endif
-                                @empty
-                                    <p class="text-sm text-gray-500">{{ __('borrower.profile.id_images_empty') }}</p>
-                                    <button type="button" @click="$dispatch('profile-card-open-edit', 'profile-id-images')" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                                @endforelse
-                            @else
-                                <div class="grid sm:grid-cols-2 gap-3">
-                                    <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
-                                          enctype="multipart/form-data"
-                                          data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
-                                        @csrf @method('PUT')
-                                        <input type="hidden" name="focus" value="id_images">
-                                        @if (! empty($returnUrl))
-                                            <input type="hidden" name="return" value="{{ $returnUrl }}">
+                                <div x-data="{ expandedUrl: null }" class="space-y-3">
+                                    @forelse ($altPreview as $doc)
+                                        @if ($doc?->file_path)
+                                            @php $url = asset('storage/'.$doc->file_path); @endphp
+                                            <button type="button" @click="expandedUrl = @js($url)"
+                                                    class="h-28 w-28 rounded-xl overflow-hidden ring-1 ring-gray-200 bg-white cursor-zoom-in block">
+                                                <img src="{{ $url }}" alt="" class="h-full w-full object-cover">
+                                            </button>
                                         @endif
-                                        @if ($nidaSaved)
-                                            <input type="hidden" name="national_id" value="{{ $customer->national_id }}">
-                                        @endif
-                                        <x-site.profile-document-field
-                                            :document="$nidaFront"
-                                            field-name="national_id_front"
-                                            mode="single"
-                                            :label="__('borrower.profile.nida_front')"
-                                            input-host-id="nida-front-view"
-                                            document-code="national_id_front"
-                                            :read-only="false"
-                                            :allow-remove="false"
-                                        />
-                                    </form>
-                                    <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
-                                          enctype="multipart/form-data"
-                                          data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
-                                        @csrf @method('PUT')
-                                        <input type="hidden" name="focus" value="id_images">
-                                        @if (! empty($returnUrl))
-                                            <input type="hidden" name="return" value="{{ $returnUrl }}">
-                                        @endif
-                                        @if ($nidaSaved)
-                                            <input type="hidden" name="national_id" value="{{ $customer->national_id }}">
-                                        @endif
-                                        <x-site.profile-document-field
-                                            :document="$nidaBack"
-                                            field-name="national_id_back"
-                                            mode="single"
-                                            :label="__('borrower.profile.nida_back')"
-                                            input-host-id="nida-back-view"
-                                            document-code="national_id_back"
-                                            :read-only="false"
-                                            :allow-remove="false"
-                                        />
-                                    </form>
+                                    @empty
+                                        <p class="text-sm text-gray-500">{{ __('borrower.profile.id_images_empty') }}</p>
+                                        <button type="button" @click="$dispatch('profile-card-open-edit', 'profile-id-images')" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                                    @endforelse
+                                    <div x-show="expandedUrl" x-cloak x-transition
+                                         class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
+                                         @keydown.escape.window="expandedUrl = null"
+                                         @click.self="expandedUrl = null">
+                                        <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
+                                        <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
+                                    </div>
                                 </div>
-                                @unless ($uploadsComplete)
-                                    <button type="button" @click="$dispatch('profile-card-open-edit', 'profile-id-images')" class="mt-1 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                                @endunless
+                            @else
+                                @include('site.borrower.profile._national_id_holder', [
+                                    'nidaFront' => $nidaFront,
+                                    'nidaBack' => $nidaBack,
+                                    'nidaSaved' => $nidaSaved,
+                                    'nationalId' => $customer->national_id,
+                                    'returnUrl' => $returnUrl ?? null,
+                                    'uploadsComplete' => $uploadsComplete,
+                                ])
                             @endif
-                            <div x-show="expandedUrl" x-cloak x-transition
-                                 class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
-                                 @keydown.escape.window="expandedUrl = null"
-                                 @click.self="expandedUrl = null">
-                                <button type="button" class="absolute top-4 right-4 text-white/90 text-sm font-semibold" @click="expandedUrl = null">{{ __('borrower.profile.cancel') }}</button>
-                                <img :src="expandedUrl" alt="" class="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl">
-                            </div>
                         </div>
                     </x-slot:view>
                     <x-slot:form>
@@ -302,11 +263,6 @@
                                 noCard: @js($noPhysicalCard),
                                 altTypes: @js(array_values(old('alternate_id_types', $customer->alternate_id_types ?? []))),
                             }">
-                                @if ($idPhotosReviewHint)
-                                    <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-3 text-sm text-amber-950">
-                                        {{ __('borrower.profile.id_photos_replace_hint') }}
-                                    </div>
-                                @endif
                                 @unless ($locked)
                                     <label class="flex items-start gap-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3 cursor-pointer">
                                         <input type="checkbox" name="no_physical_nida_card" value="1" x-model="noCard"
@@ -318,33 +274,9 @@
                                         </span>
                                     </label>
                                 @endunless
-                                <div x-show="!noCard" x-cloak class="space-y-4" x-ref="nidaCam">
-                                    <div class="grid sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.profile.nida_front') }}</p>
-                                            <x-site.profile-document-field
-                                                :document="$nidaFront"
-                                                field-name="national_id_front"
-                                                mode="single"
-                                                :label="__('borrower.profile.nida_front')"
-                                                input-host-id="nida-front-upload"
-                                                document-code="national_id_front"
-                                            />
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-900 mb-2">{{ __('borrower.profile.nida_back') }}</p>
-                                            <x-site.profile-document-field
-                                                :document="$nidaBack"
-                                                field-name="national_id_back"
-                                                mode="single"
-                                                :label="__('borrower.profile.nida_back')"
-                                                input-host-id="nida-back-upload"
-                                                document-code="national_id_back"
-                                            />
-                                        </div>
-                                    </div>
-                                    @error('national_id_front')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                    @error('national_id_back')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                <div x-show="!noCard" x-cloak class="space-y-3">
+                                    <p class="text-sm text-gray-600">{{ __('borrower.profile.national_id_holder_hint') }}</p>
+                                    <p class="text-xs text-gray-500">{{ __('borrower.profile.id_photos_replace_hint') }}</p>
                                 </div>
                                 <div x-show="noCard" x-cloak class="space-y-4 rounded-xl bg-amber-50/80 ring-1 ring-amber-200 p-4">
                                     <div>

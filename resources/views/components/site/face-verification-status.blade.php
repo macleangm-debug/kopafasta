@@ -45,7 +45,10 @@
         current() { return this.photos[this.index] || null; },
     }"
     @photo-carousel-open="openPreview($event.detail.url, $event.detail.label)"
-    @photo-carousel-retake="window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }))"
+    @photo-carousel-retake="
+        window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }));
+        setTimeout(() => window.dispatchEvent(new CustomEvent('face-retake-angle', { detail: { index: $event.detail?.index ?? 0 } })), 80);
+    "
     @class([
         'rounded-3xl ring-1 ring-brand/15 bg-white' => ! $compact,
     ])
@@ -78,7 +81,7 @@
     {{-- Horizontal carousel so the page stays short on phone and desktop --}}
     <div @class(['p-5' => ! $compact])>
         <p class="text-[11px] text-gray-500 mb-3">{{ __('borrower.profile.tap_to_enlarge') }}</p>
-        <x-site.photo-carousel :retake="false" :photos="$captured->map(fn ($entry, $i) => [
+        <x-site.photo-carousel :retake="true" :photos="$captured->map(fn ($entry, $i) => [
             'url' => $entry['url'],
             'label' => $entry['label'],
             'index' => $i,
@@ -103,7 +106,10 @@
             </button>
         @endif
         <button type="button"
-                @click="window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }))"
+                @click="
+                    window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }));
+                    $nextTick(() => window.dispatchEvent(new CustomEvent('face-retake-angle', { detail: { index: index } })));
+                "
                 class="inline-flex items-center justify-center font-semibold px-4 py-2 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand">
             {{ __('borrower.nida.face_replace') }}
         </button>
@@ -132,15 +138,18 @@
                         if (Math.abs(dx) > 40) { dx < 0 ? next() : prev(); }
                      ">
             </div>
-            @if (true)
-                <div class="absolute bottom-6 left-1/2 -translate-x-1/2">
-                    <button type="button"
-                            @click="closePreview(); window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }))"
-                            class="inline-flex font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
-                        {{ __('borrower.nida.face_replace') }}
-                    </button>
-                </div>
-            @endif
+            <div class="absolute bottom-6 left-1/2 -translate-x-1/2">
+                <button type="button"
+                        @click="
+                            const i = index;
+                            closePreview();
+                            window.dispatchEvent(new CustomEvent('profile-card-open-edit', { detail: 'profile-face' }));
+                            setTimeout(() => window.dispatchEvent(new CustomEvent('face-retake-angle', { detail: { index: i } })), 80);
+                        "
+                        class="inline-flex font-semibold px-5 py-2.5 rounded-full text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-lg">
+                    {{ __('borrower.nida.face_replace') }}
+                </button>
+            </div>
         </div>
     </template>
 </div>
