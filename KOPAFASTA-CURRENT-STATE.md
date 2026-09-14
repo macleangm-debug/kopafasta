@@ -9,7 +9,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
 | **Failed staging (do not promote)** | `15bf3c71efd09214cba3f9c766d2abe385f1d9c57540` | AG/AB/DOC owner UAT FAIL |
 | **Prior staging (do not promote)** | `51f205454122242cfc1d48abad584330e803ef05` | Docs PASS; AG-2 FAIL (region/district not reaching footer gate) |
-| **Staging under UAT** | `(pending deploy)` | Final closure: AG-2 location harvest + member badges removed |
+| **Staging under UAT** | `95c36dadf39b3611c1d492e91b0ac0c4a034d60b` | Final closure: AG-2 location harvest + member badges removed |
 | **Prior staging (superseded)** | `83d8a820df78e8b8fd4fce41c32d1aa8a4c9848f` | Combined micropass — AB PASS; AG Continue / DOC FAIL |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
