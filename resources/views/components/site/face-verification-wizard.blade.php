@@ -476,13 +476,16 @@
 
                         try {
                             await this.flushLocalUploads();
-                            if (typeof window.kfShowSaving === 'function') {
-                                window.kfShowSaving(@js(__('borrower.profile.uploading_documents')));
+                            if (typeof window.kfShowInlineSaving === 'function') {
+                                window.kfShowInlineSaving(@js(__('borrower.document_upload.saving')));
+                            } else if (typeof window.kfShowSaving === 'function') {
+                                window.kfShowSaving(@js(__('borrower.document_upload.saving')));
                             }
                             const form = document.createElement('form');
                             form.method = 'POST';
                             form.action = this.submitUrl;
                             form.style.display = 'none';
+                            form.setAttribute('data-no-saving', '1');
                             const csrf = document.createElement('input');
                             csrf.type = 'hidden';
                             csrf.name = '_token';
@@ -505,8 +508,10 @@
                             return;
                         }
                         const total = pending.length;
-                        if (typeof window.kfShowSaving === 'function') {
-                            window.kfShowSaving(@js(__('borrower.profile.uploading_documents')), { current: 0, total });
+                        if (typeof window.kfShowInlineSaving === 'function') {
+                            window.kfShowInlineSaving(@js(__('borrower.document_upload.saving')));
+                        } else if (typeof window.kfShowSaving === 'function') {
+                            window.kfShowSaving(@js(__('borrower.document_upload.saving')), { current: 0, total });
                         }
                         for (let i = 0; i < pending.length; i++) {
                             await this.uploadBlob(pending[i].localBlob, pending[i], true);

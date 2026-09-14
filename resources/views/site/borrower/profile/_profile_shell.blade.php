@@ -27,6 +27,9 @@
     </div>
 @endif
 
+{{-- Marker for shared saving-overlay: Profile never uses the blocking modal. --}}
+<div data-kf-profile-page hidden aria-hidden="true"></div>
+
 {{-- Hub uses the identity hero only — no redundant Akaunti yangu / My account heading. --}}
 @include('site.borrower.profile._heading', [
     'title' => null,
