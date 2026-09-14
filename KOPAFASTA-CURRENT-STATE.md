@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
 | **Prior staging (do not promote)** | `d748536efc6a18062ec0fd67a818bb855dd04299` | FINAL economical: AG Region/District, Quote Continue, canonical camera, Replace |
-| **Staging under UAT** | `42705ff7400195b20e4c934c93fd5a13c1d0724e` | P0: Profile saving modal removed → inline Saving/Saved |
+| **Staging under UAT** | `ff7bb132add5e792d825d3880064c0e9b09b6fed` | P0: face focus loop + ID image completion |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
 
