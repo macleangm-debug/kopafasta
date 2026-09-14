@@ -43,6 +43,9 @@
     if ($autoSubmit) {
         $labelDefaults['saving'] = __('site.partner_portal.valuation_photo_saving');
     }
+    if ($sourceDriven || $cameraOnly) {
+        $labelDefaults['saving'] = $labelDefaults['saving'] ?? __('borrower.document_upload.saving');
+    }
     $mergedLabels = array_merge($labelDefaults, $labels);
     $inlinePreview = $autoSubmit && $cameraOnly;
 @endphp
@@ -56,7 +59,7 @@
         if ($event.detail?.source === 'camera') {
             clearFile();
             requestCamera();
-        } else if ($event.detail?.source === 'upload') {
+        } else if ($event.detail?.source === 'upload' && ! cameraOnly) {
             clearFile();
             $refs.uploadInput?.click();
         }
@@ -118,7 +121,8 @@
                     aria-label="{{ __('borrower.document_upload.remove') }}">×</button>
         </div>
         @endif
-        @if ($sourceDriven && ! $autoSubmit)
+        {{-- NIDA camera-only path autosaves on shutter — never show Hifadhi / Tumia picha. --}}
+        @if ($sourceDriven && ! $autoSubmit && ! $cameraOnly)
             <div x-show="awaitingReview" x-cloak class="mt-3 flex flex-col sm:flex-row gap-2">
                 <button type="button"
                         @click="retake()"
@@ -131,10 +135,13 @@
                     {{ __('borrower.document_upload.use_photo') }}
                 </button>
             </div>
-            <p x-show="saveState === 'saving'" x-cloak class="mt-2 text-xs font-semibold text-brand">
+        @endif
+        @if ($sourceDriven && ! $autoSubmit)
+            <p x-show="saveState === 'saving'" x-cloak class="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand">
+                <span class="size-3.5 rounded-full border-2 border-brand/30 border-t-brand animate-spin" aria-hidden="true"></span>
                 {{ __('borrower.document_upload.saving') }}
             </p>
-            <p x-show="saveState === 'saved'" x-cloak class="mt-2 text-xs font-semibold text-emerald-700">
+            <p x-show="saveState === 'saved'" x-cloak class="mt-2 text-sm font-semibold text-emerald-700">
                 ✓ {{ __('borrower.document_upload.saved') }}
             </p>
             <div x-show="saveState === 'error'" x-cloak class="mt-2 flex items-center gap-2">
@@ -181,10 +188,16 @@
                     <button type="button" x-show="!lockFront" x-cloak @click="toggleFacing()"
                             class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3.5 py-3.5 ring-1 ring-white/30 min-w-[7.5rem]"
                             x-text="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera"></button>
-                    <button type="button" @click="captureImage()"
-                            class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm shadow-sm"
-                            x-text="labels.captureImage"></button>
+                    <button type="button" @click="captureImage()" :disabled="saveState === 'saving'"
+                            class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm shadow-sm disabled:opacity-60"
+                            x-text="saveState === 'saving' ? (labels.saving || labels.captureImage) : labels.captureImage"></button>
                 </div>
+            </div>
+            <div x-show="saveState === 'saving'" x-cloak class="absolute inset-0 z-[6] bg-black/60 flex items-center justify-center">
+                <p class="inline-flex items-center gap-2 font-semibold text-white">
+                    <span class="size-4 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true"></span>
+                    <span x-text="labels.saving || @js(__('borrower.document_upload.saving'))"></span>
+                </p>
             </div>
         </div>
     </template>
@@ -259,24 +272,32 @@
                 markSaved() {
                     if (this.saveState === 'saving') {
                         this.saveState = 'saved';
+                        this.closeCamera();
                     }
                 },
                 markSaveError() {
                     if (this.saveState === 'saving') {
                         this.saveState = 'error';
+                        this.closeCamera();
                     }
                 },
                 init() {
                     this._onDocsChanged = () => this.markSaved();
+                    this._onDocsSaved = (e) => {
+                        if (e?.detail?.hostId && e.detail.hostId !== this.hostId) return;
+                        this.markSaved();
+                    };
                     this._onDocsFailed = (e) => {
                         if (e?.detail?.hostId && e.detail.hostId !== this.hostId) return;
                         this.markSaveError();
                     };
                     window.addEventListener('education-documents-changed', this._onDocsChanged);
+                    window.addEventListener('kf-document-saved', this._onDocsSaved);
                     window.addEventListener('kf-document-save-failed', this._onDocsFailed);
                 },
                 destroy() {
                     window.removeEventListener('education-documents-changed', this._onDocsChanged);
+                    window.removeEventListener('kf-document-saved', this._onDocsSaved);
                     window.removeEventListener('kf-document-save-failed', this._onDocsFailed);
                 },
                 async openCamera() {
@@ -355,7 +376,7 @@
                 },
                 captureImage() {
                     const video = this.$refs.camVideo;
-                    if (!video?.videoWidth) return;
+                    if (!video?.videoWidth || this.saveState === 'saving') return;
                     const canvas = document.createElement('canvas');
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
@@ -367,7 +388,17 @@
                     ctx.drawImage(video, 0, 0);
                     canvas.toBlob(blob => {
                         if (!blob) return;
-                        this.syncFile(new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' }), { fromCamera: true });
+                        const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+                        // National ID camera-only: keep camera up with Saving… (face-style), then close.
+                        if (this.cameraOnly && this.sourceDriven) {
+                            this.saveState = 'saving';
+                            if (typeof window.kfShowInlineSaving === 'function') {
+                                window.kfShowInlineSaving(this.labels.saving || @js(__('borrower.document_upload.saving')));
+                            }
+                            this.syncFile(file, { fromCamera: true });
+                            return;
+                        }
+                        this.syncFile(file, { fromCamera: true });
                         this.closeCamera();
                     }, 'image/jpeg', 0.92);
                 },
@@ -432,7 +463,9 @@
                     }
                     this.pendingFile = file;
                     this.fromCamera = !!opts.fromCamera;
-                    this.awaitingReview = !!(this.sourceDriven && this.fromCamera && ! this.autoSubmit);
+                    // Camera-only (National ID): shutter autosaves — no Hifadhi / Tumia picha review.
+                    // Other source-driven camera paths may still offer a brief Use-photo confirm.
+                    this.awaitingReview = !!(this.sourceDriven && this.fromCamera && ! this.autoSubmit && ! this.cameraOnly);
                     this.saveState = '';
                     this.previewName = file.name || 'capture.jpg';
                     if (file.type && file.type.startsWith('image/')) {
@@ -443,9 +476,9 @@
                         this.previewUrl = null;
                     }
                     this.emitPreview();
-                    // Upload path autosaves immediately. Camera: brief review then Use photo → autosave.
-                    // Source-driven camera also offers Use photo; commitFile submits the parent form.
-                    if (! this.sourceDriven || this.autoSubmit || ! this.fromCamera) {
+                    // Upload path + camera-only NIDA: autosave immediately.
+                    // Other source-driven camera: brief review then Use photo → autosave.
+                    if (! this.sourceDriven || this.autoSubmit || ! this.fromCamera || this.cameraOnly) {
                         this.commitFile(file);
                     }
                 },
@@ -516,6 +549,7 @@
                     this.saveState = '';
                     this.previewUrl = null;
                     this.previewName = null;
+                    this.closeCamera();
                     this.emitPreview();
                 },
             };

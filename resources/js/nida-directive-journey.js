@@ -134,6 +134,13 @@ export function registerNidaDirectiveJourney(Alpine) {
                     window.kfHideSaving();
                 }
 
+                window.dispatchEvent(new CustomEvent('kf-document-saved', {
+                    detail: { hostId: step.hostId },
+                }));
+                window.dispatchEvent(new CustomEvent('clear-capture', {
+                    detail: { hostId: step.hostId },
+                }));
+
                 if (data.complete || this.allDone) {
                     this.phase = 'complete';
                     this.replaceSide = null;
@@ -151,6 +158,9 @@ export function registerNidaDirectiveJourney(Alpine) {
                 if (typeof window.kfHideSaving === 'function') {
                     window.kfHideSaving();
                 }
+                window.dispatchEvent(new CustomEvent('kf-document-save-failed', {
+                    detail: { hostId: step.hostId },
+                }));
             } finally {
                 this.saving = false;
             }

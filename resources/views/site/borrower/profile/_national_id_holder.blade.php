@@ -128,11 +128,16 @@
                 <p class="mt-1 text-sm font-semibold text-gray-900" x-text="current?.instruction"></p>
             </div>
 
-            {{-- Front step --}}
+            {{-- Front step — camera only; shutter autosaves (no Upload, no Hifadhi / Tumia picha). --}}
             <div x-show="stepIndex === 0" class="space-y-3">
                 <div class="flex items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 shadow-sm">
                     <p class="text-sm font-bold text-gray-900">{{ __('borrower.profile.national_id_side_front') }}</p>
-                    <x-site.document-source-picker host-id="nida-front-directive" />
+                    <x-site.document-source-picker
+                        host-id="nida-front-directive"
+                        :camera-only="true"
+                        :camera-label="__('borrower.document_upload.take_photo')"
+                        :title="__('borrower.document_upload.take_photo')"
+                    />
                 </div>
                 <x-site.single-image-document-upload
                     name="national_id_front"
@@ -141,14 +146,20 @@
                     guide-frame="id-card"
                     :guide="__('borrower.document_upload.nida_front_guide')"
                     :source-driven="true"
+                    :camera-only="true"
                 />
             </div>
 
-            {{-- Back step --}}
+            {{-- Back step — camera only; shutter autosaves. --}}
             <div x-show="stepIndex === 1" x-cloak class="space-y-3">
                 <div class="flex items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 shadow-sm">
                     <p class="text-sm font-bold text-gray-900">{{ __('borrower.profile.national_id_side_back') }}</p>
-                    <x-site.document-source-picker host-id="nida-back-directive" />
+                    <x-site.document-source-picker
+                        host-id="nida-back-directive"
+                        :camera-only="true"
+                        :camera-label="__('borrower.document_upload.take_photo')"
+                        :title="__('borrower.document_upload.take_photo')"
+                    />
                 </div>
                 <x-site.single-image-document-upload
                     name="national_id_back"
@@ -157,6 +168,7 @@
                     guide-frame="id-card"
                     :guide="__('borrower.document_upload.nida_back_guide')"
                     :source-driven="true"
+                    :camera-only="true"
                 />
             </div>
 

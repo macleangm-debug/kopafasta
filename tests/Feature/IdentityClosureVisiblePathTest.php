@@ -56,6 +56,18 @@ class IdentityClosureVisiblePathTest extends TestCase
         $this->assertStringContainsString('x-show="noCard"', file_get_contents(resource_path('views/site/borrower/profile/personal.blade.php')));
         $this->assertStringContainsString('kfShowInlineSaving', file_get_contents(resource_path('js/nida-directive-journey.js')));
         $this->assertStringContainsString('kfFlashInlineSaved', file_get_contents(resource_path('js/saving-overlay.js')));
+
+        $holder = file_get_contents(resource_path('views/site/borrower/profile/_national_id_holder.blade.php'));
+        $this->assertStringContainsString(':camera-only="true"', $holder);
+        $this->assertStringNotContainsString("document_upload.use_photo", $holder);
+
+        $single = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));
+        $this->assertStringContainsString('! this.cameraOnly', $single);
+        $this->assertStringContainsString("cameraOnly && this.sourceDriven", $single);
+
+        $picker = file_get_contents(resource_path('views/components/site/document-source-picker.blade.php'));
+        $this->assertStringContainsString("'cameraOnly' => false", $picker);
+        $this->assertStringContainsString('if (this.cameraOnly)', $picker);
     }
 
     public function test_saved_nida_number_does_not_surface_as_add_number_gap(): void

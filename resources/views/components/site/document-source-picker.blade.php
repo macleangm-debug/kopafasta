@@ -3,6 +3,7 @@
     'uploadLabel' => null,
     'cameraLabel' => null,
     'title' => null,
+    'cameraOnly' => false,
 ])
 
 @php
@@ -10,14 +11,16 @@
     $uploadLabel = $uploadLabel ?: __('borrower.document_upload.upload');
     $title = $title ?: __('borrower.document_upload.add');
     $hostId = $hostId ? (string) $hostId : null;
+    $cameraOnly = (bool) $cameraOnly;
 @endphp
 
-{{-- Canonical + → Upload / Camera.
+{{-- Canonical + → Upload / Camera (or camera-only: + opens shutter immediately).
      Owns its own open state. Mobile sheet + desktop menu teleport to body so
      (1) taps reach Upload/Camera and (2) desktop menu is never clipped. --}}
 <div class="relative inline-flex shrink-0"
      x-data="{
         open: false,
+        cameraOnly: @js($cameraOnly),
         menuStyle: {},
         placeMenu() {
             const btn = this.$refs.trigger;
@@ -40,6 +43,10 @@
             }));
         },
         openPicker() {
+            if (this.cameraOnly) {
+                this.pick('camera');
+                return;
+            }
             this.open = true;
             if (window.matchMedia('(min-width: 1024px)').matches) {
                 this.placeMenu();
@@ -52,15 +59,16 @@
      ">
     <button type="button"
             x-ref="trigger"
-            @click="open = !open; if (open) placeMenu()"
+            @click="cameraOnly ? openPicker() : (open = !open, open && placeMenu())"
             class="kf-request-add"
             :class="open && 'is-open'"
-            aria-label="{{ $title }}">
+            aria-label="{{ $cameraOnly ? $cameraLabel : $title }}">
         <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
         </svg>
     </button>
 
+    @unless ($cameraOnly)
     <template x-teleport="body">
         <div x-cloak
              x-show="open && window.matchMedia('(min-width: 1024px)').matches"
@@ -107,4 +115,5 @@
             </div>
         </x-site.bottom-sheet>
     </div>
+    @endunless
 </div>
