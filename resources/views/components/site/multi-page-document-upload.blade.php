@@ -33,6 +33,9 @@
         'addPicture' => __('borrower.profile.add_picture'),
         'brand' => brand_name(),
         'rotate' => __('borrower.document_upload.rotate'),
+        'fitFrame' => __('borrower.document_upload.fit_document_frame'),
+        'orientationPortrait' => __('borrower.document_upload.orientation_portrait'),
+        'orientationLandscape' => __('borrower.document_upload.orientation_landscape'),
     ];
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
@@ -77,13 +80,35 @@
                     <x-site.brand-mark size="sm" variant="light" />
                     <p class="mt-1 text-[10px] uppercase tracking-widest text-brand-gold font-semibold truncate" x-text="labels.brand"></p>
                 </div>
-                <button type="button" @click="dismissCamera()"
-                        class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
-                        x-text="labels.close"></button>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" @click="frameOrientation = frameOrientation === 'portrait' ? 'landscape' : 'portrait'"
+                            class="rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25 inline-flex items-center gap-1.5"
+                            :title="frameOrientation === 'portrait' ? labels.orientationLandscape : labels.orientationPortrait"
+                            :aria-label="frameOrientation === 'portrait' ? labels.orientationLandscape : labels.orientationPortrait">
+                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"
+                             :class="frameOrientation === 'landscape' ? 'rotate-90' : ''">
+                            <rect x="7" y="3" width="10" height="18" rx="1.5"/>
+                        </svg>
+                    </button>
+                    <button type="button" @click="dismissCamera()"
+                            class="rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
+                            x-text="labels.close"></button>
+                </div>
             </div>
             <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
                    class="absolute inset-0 w-full h-full object-cover"
                    :class="facingMode === 'user' ? 'mirror' : ''"></video>
+            {{-- Framing guide only — does not crop the capture. --}}
+            <div class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-6"
+                 aria-hidden="true">
+                <div class="relative transition-all duration-200 ease-out border-2 border-dashed border-white/70 rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]"
+                     :class="frameOrientation === 'portrait'
+                        ? 'w-[min(78vw,22rem)] aspect-[3/4] max-h-[62vh]'
+                        : 'w-[min(92vw,34rem)] aspect-[4/3] max-h-[48vh]'">
+                    <p class="absolute -bottom-8 left-0 right-0 text-center text-[11px] font-semibold tracking-wide text-white/90"
+                       x-text="labels.fitFrame"></p>
+                </div>
+            </div>
             <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">
                 <div x-show="pages.length" class="flex gap-2 overflow-x-auto justify-center mb-4 pb-1">
                     <template x-for="(page, index) in pages" :key="'live-'+page.id">
@@ -97,7 +122,7 @@
                             <span class="absolute -top-1.5 -left-1.5 size-5 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center ring-2 ring-brand"
                                   x-text="index + 1"></span>
                             <button type="button" @click="removePage(index)"
-                                    class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-black/70 text-white text-xs font-bold grid place-items-center ring-1 ring-white/40"
+                                    class="pointer-events-auto absolute -top-1.5 -right-1.5 size-5 rounded-full bg-black/70 text-white text-xs font-bold grid place-items-center ring-1 ring-white/40"
                                     :title="labels.remove" :aria-label="labels.remove">×</button>
                         </div>
                     </template>
@@ -123,9 +148,13 @@
                         </span>
                     </button>
                     <button type="button" x-show="pages.length" x-cloak @click="finishFromCamera()"
-                            class="shrink-0 min-w-[5.5rem] rounded-full bg-brand-gold text-brand font-bold px-4 py-3 text-sm shadow-sm"
-                            :title="labels.finish" :aria-label="labels.finish"
-                            x-text="labels.finish"></button>
+                            class="shrink-0 min-w-[5.5rem] rounded-full bg-brand-gold text-brand font-bold px-4 py-3 text-sm shadow-sm inline-flex items-center justify-center gap-1.5"
+                            :title="labels.finish" :aria-label="labels.finish">
+                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span x-text="labels.finish"></span>
+                    </button>
                     <div x-show="!pages.length" class="shrink-0 min-w-[5.5rem]" aria-hidden="true"></div>
                 </div>
                 <div x-show="pages.length && pages.length < maxPages" class="mt-3 flex justify-center">
@@ -222,6 +251,7 @@
                 cameraNotice: null,
                 stream: null,
                 facingMode: 'environment',
+                frameOrientation: 'portrait',
                 nextId: 1,
                 resetCapture() {
                     this.pages.forEach((page) => {
@@ -231,6 +261,7 @@
                     this.nextId = 1;
                     this.cameraNotice = null;
                     this.fromCamera = false;
+                    this.frameOrientation = 'portrait';
                     this.syncInputs();
                     this.$dispatch('document-pages-changed', { name: this.fieldName, count: 0 });
                 },

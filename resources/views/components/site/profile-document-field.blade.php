@@ -13,7 +13,7 @@
     'nested' => false,
     'allowRemove' => true,
     'allowReplace' => true,
-    /** When true, Replace opens the parent profile-section-card edit surface (`open = true`) instead of inline replaceMode. */
+    /** @deprecated Replace always stays inline (Upload/Camera). Add-document CTAs open the section form. */
     'replaceOpensEdit' => false,
 ])
 
@@ -37,6 +37,8 @@
     $needsUpdate = $document ? $docService->isExpired($document) : false;
     $expiresField = $fieldName.'_expires_at';
     $guideText = __('borrower.document_upload.guide_document_compact');
+    // Ordinary documents use multi-page. Only explicit mode=single stays directive/single-image.
+    $mode = in_array($mode, ['single', 'multi'], true) ? $mode : 'multi';
 @endphp
 
 <div x-data="{
@@ -45,6 +47,11 @@
         inlineUploading: false,
         inlineProgress: null,
         inlineMessage: @js(__('borrower.apply.document_saving')),
+        startReplace() {
+            this.replaceMode = true;
+            this.captureOpen = true;
+            this.$dispatch('clear-capture', { hostId: @js($hostId) });
+        },
         openCapture(source) {
             this.captureOpen = true;
             this.replaceMode = true;
@@ -84,6 +91,7 @@
                 confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
                 tone: 'warning',
                 onConfirm: () => {
+                    this.$dispatch('clear-capture', { hostId: @js($hostId) });
                     const form = document.createElement('form');
                     form.method = 'POST';
                     form.action = @js($removeUrl);
@@ -188,9 +196,9 @@
                             {{ __('borrower.profile.view_document') }}
                         </button>
                     @endif
-                    @if ($allowReplace && ($replaceOpensEdit || ! $readOnly))
+                    @if ($allowReplace)
                         <button type="button"
-                                @click="{{ $replaceOpensEdit ? 'open = true' : "replaceMode = true; captureOpen = true; \$dispatch('clear-capture', { hostId: '".$hostId."' })" }}"
+                                @click="startReplace()"
                                 class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
                             {{ __('borrower.profile.replace_document') }}
                         </button>
@@ -236,7 +244,8 @@
         </div>
     @endif
 
-    @unless ($readOnly || $replaceOpensEdit)
+    {{-- Capture UI: available for add (non-readonly) and for Replace on an existing document. --}}
+    @if ((! $readOnly) || ($allowReplace && $document))
     <div x-show="(!@js((bool) $document) && captureOpen) || replaceMode" x-cloak class="space-y-3">
         @if ($mode === 'single')
             <x-site.single-image-document-upload
@@ -282,7 +291,7 @@
             </button>
         @endif
     </div>
-    @endunless
+    @endif
 
     @error($fieldName)<p class="text-xs text-red-600">{{ $message }}</p>@enderror
     @error($pagesName)<p class="text-xs text-red-600">{{ $message }}</p>@enderror

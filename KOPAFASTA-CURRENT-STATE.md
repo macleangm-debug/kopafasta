@@ -7,22 +7,24 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | Env | SHA | Note |
 | --- | --- | --- |
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
-| **Failed staging (do not promote)** | `15bf3c71efd09214cba3f9c766d2abe385f1d9c57540` | AG/AB/DOC owner UAT FAIL |
-| **Prior staging (do not promote)** | `95c36dadf39b3611c1d492e91b0ac0c4a034d60b` | Region/District HTML break + AG Continue FAIL |
-| **Staging under UAT** | `237a4bfc430fecd278773c625e9af0251015cfe1` | FINAL P0 hotfix: address-fields Blade comment crash |
+| **Prior staging (do not promote)** | `237a4bfc430fecd278773c625e9af0251015cfe1` | address-fields @js() comment hotfix |
+| **Staging under UAT** | _(pending deploy)_ | FINAL economical: AG Region/District, Quote Continue, canonical camera, Replace |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
 
 ## Frozen
 
 - **AG-1**, **AB-1**, PayIn, Accounting, Marketplace, registration, product ordering, Sharia
-- Document holder status cleanup, KYC 405, Upload autosave, multi-page PDF, Replace persistence, Remove confirmation
+- Document holder status cleanup, KYC 405, native Upload chooser, Remove confirmation
 
-## FINAL P0 root causes
+## Canonical rules (this pass)
 
-1. **Region/District missing:** `95c36dad` embedded `@js($regionName)` inside a double-quoted Alpine `x-data` attribute → truncated HTML → address controls broke.
-2. **AG Continue:** same location break left `farming_region`/`farming_district` empty → footer gate hid Endelea. Overview readiness now uses Quote-style `KopaFastaForm.isComplete` on `data-agro-overview` + required docs.
-3. **Ghost camera preview:** replace/delete reopened capture without resetting pages/preview; holders now pass `fresh: true` / `clear-capture`.
+1. **Region → District:** `x-site.address-fields` only. AG Overview hides ward/street (`show-ward`/`show-street` false) so Region/District stay visible.
+2. **Continue:** Loan Quote pattern — required Overview complete (`KopaFastaForm.isComplete` on `data-agro-overview`) + farm/land docs → footer Endelea.
+3. **Ordinary document camera:** shared `x-site.multi-page-document-upload` via holders (`profile-document-field` default `mode=multi`, apply holder default multi-page). Directive photo flows stay `mode=single` / `capture=images`.
+4. **Replace:** never asks document type — `startReplace()` → Upload/Camera with type already on the form. Only **Ongeza hati** opens the type picker.
+5. **Clean capture:** `fresh: true` / `clear-capture` / `resetCapture()` at shared camera.
+6. **Camera UI:** icon shutter/facing/add/rotate + portrait/landscape dotted frame guide (no crop).
 
 ## Deploy
 

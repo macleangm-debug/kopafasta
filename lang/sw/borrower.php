@@ -3031,6 +3031,7 @@ return [
         'pdf' => 'PDF',
         'guide_document' => 'Weka hati yote ndani ya fremu. Hakikisha maandishi yanaonekana wazi, kisha kagua kabla ya kukubali.',
         'guide_document_compact' => 'Weka hati yote kwenye fremu na hakikisha inaonekana vizuri.',
+        'fit_document_frame' => 'Weka hati yako ndani ya fremu',
         'uploading' => 'Inapakia…',
         'processing' => 'Inachakata hati…',
         'use_photo' => 'Hifadhi / Tumia picha',

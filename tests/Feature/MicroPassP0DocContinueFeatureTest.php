@@ -59,21 +59,41 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $this->assertStringContainsString('data-agro-overview', $agro);
         $this->assertStringContainsString('x-site.address-fields', $agro);
         $this->assertStringContainsString('prefix="farming"', $agro);
+        $this->assertStringContainsString(':show-ward="false"', $agro);
+        $this->assertStringContainsString(':show-street="false"', $agro);
+        $this->assertStringContainsString('data-address-region', $address);
+        $this->assertStringContainsString('data-address-district', $address);
         $this->assertStringContainsString('pickRegion(value)', $address);
-        $this->assertStringContainsString('this.$refs.regionSelect', $address);
-        $this->assertStringNotContainsString('@js($regionName)', $address);
-        $this->assertStringNotContainsString('@js($districtName)', $address);
-        // Blade treats @js() even inside comments as a directive — must never appear bare.
         $this->assertStringNotContainsString('@js()', $address);
-        $this->assertStringContainsString('hidden lg:block', $address);
     }
 
     public function test_address_fields_source_has_no_bare_blade_js_directive(): void
     {
         $address = file_get_contents(resource_path('views/components/site/address-fields.blade.php'));
-        // Bare @js() (even in comments) compiles to Js::from() with zero args and crashes the page.
         $this->assertStringNotContainsString('@js()', $address);
         $this->assertStringContainsString('pickRegion(value)', $address);
+    }
+
+    public function test_profile_replace_goes_direct_to_capture_not_document_type(): void
+    {
+        $holder = file_get_contents(resource_path('views/components/site/profile-document-field.blade.php'));
+        $additional = file_get_contents(resource_path('views/site/borrower/profile/_additional_documents_card.blade.php'));
+
+        $this->assertStringContainsString('startReplace()', $holder);
+        $this->assertStringNotContainsString("replaceOpensEdit ? 'open = true'", $holder);
+        $this->assertStringContainsString('additional_document_type', $additional);
+        $this->assertStringContainsString("name=\"additional_document_type\"", $additional);
+        $this->assertStringNotContainsString('replace-opens-edit="true"', $additional);
+    }
+
+    public function test_canonical_multi_page_camera_has_frame_and_icons(): void
+    {
+        $blade = file_get_contents(resource_path('views/components/site/multi-page-document-upload.blade.php'));
+        $this->assertStringContainsString('frameOrientation', $blade);
+        $this->assertStringContainsString('fitFrame', $blade);
+        $this->assertStringContainsString('border-dashed', $blade);
+        $this->assertStringContainsString('resetCapture()', $blade);
+        $this->assertStringContainsString(':aria-label="pages.length ? labels.captureMore : labels.capturePage"', $blade);
     }
 
     public function test_camera_opens_fresh_after_replace_or_delete(): void

@@ -118,15 +118,28 @@
 
                     @if ($requiresLetter)
                         @if ($residenceLetter ?? null)
-                            <x-site.profile-document-field
-                                :document="$residenceLetter"
-                                field-name="residence_letter"
-                                mode="multi"
-                                :label="__('borrower.profile.residence_letter')"
-                                input-host-id="residence-letter-view"
-                                :read-only="true"
-                                :replace-opens-edit="true"
-                            />
+                            <form method="POST"
+                                  action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
+                                  enctype="multipart/form-data"
+                                  data-inline-document-progress
+                                  data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
+                                @csrf @method('PUT')
+                                @if ($wizardMode ?? false)
+                                    <input type="hidden" name="wizard" value="1">
+                                @endif
+                                @if (! empty($returnUrl))
+                                    <input type="hidden" name="return" value="{{ $returnUrl }}">
+                                @endif
+                                <x-site.profile-document-field
+                                    :document="$residenceLetter"
+                                    field-name="residence_letter"
+                                    pages-field-name="residence_letter_pages"
+                                    mode="multi"
+                                    :label="__('borrower.profile.residence_letter')"
+                                    input-host-id="residence-letter-view"
+                                    :read-only="false"
+                                />
+                            </form>
                         @else
                             <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.missing') }}</p>
                             <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>

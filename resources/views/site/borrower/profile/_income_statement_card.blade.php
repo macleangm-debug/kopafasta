@@ -71,7 +71,7 @@
                             :label="$item['label']"
                             :input-host-id="'income-view-'.($item['key'] ?? $loop->index)"
                             :read-only="true"
-                            :replace-opens-edit="true"
+                            :allow-replace="false"
                             :nested="true"
                         />
                     </div>

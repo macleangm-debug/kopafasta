@@ -3352,6 +3352,7 @@ return [
         'pdf' => 'PDF',
         'guide_document' => 'Place the full document inside the frame. Make sure text is clear and readable, then review before accepting.',
         'guide_document_compact' => 'Keep the whole document in frame and make sure it is clear.',
+        'fit_document_frame' => 'Fit your document in the frame',
         'uploading' => 'Uploading…',
         'processing' => 'Processing document…',
         'use_photo' => 'Save / Use photo',

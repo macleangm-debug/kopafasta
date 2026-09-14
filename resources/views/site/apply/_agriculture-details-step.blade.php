@@ -99,6 +99,8 @@
                                     prefix="farming"
                                     :required="! empty($field['required'])"
                                     :require-street="false"
+                                    :show-ward="false"
+                                    :show-street="false"
                                 />
                                 <input type="hidden" name="product_question[farming_location]" value="">
                             </div>

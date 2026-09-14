@@ -24,16 +24,30 @@
             @if ($uploadedOptional->isNotEmpty())
                 <div class="space-y-4">
                     @foreach ($uploadedOptional as $item)
-                        <x-site.profile-document-field
-                            :document="$item['document']"
-                            :field-name="$item['key']"
-                            :document-code="$item['key']"
-                            mode="multi"
-                            :label="$item['label']"
-                            :input-host-id="'additional-view-'.$item['key']"
-                            :read-only="true"
-                            :replace-opens-edit="true"
-                        />
+                        <form method="POST"
+                              action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
+                              enctype="multipart/form-data"
+                              data-inline-document-progress
+                              data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
+                            @csrf @method('PUT')
+                            @if ($wizardMode ?? false)
+                                <input type="hidden" name="wizard" value="1">
+                            @endif
+                            @if (! empty($returnUrl))
+                                <input type="hidden" name="return" value="{{ $returnUrl }}">
+                            @endif
+                            <input type="hidden" name="focus" value="additional">
+                            <input type="hidden" name="additional_document_type" value="{{ $item['key'] }}">
+                            <x-site.profile-document-field
+                                :document="$item['document']"
+                                :field-name="$item['key']"
+                                :document-code="$item['key']"
+                                mode="multi"
+                                :label="$item['label']"
+                                :input-host-id="'additional-view-'.$item['key']"
+                                :read-only="false"
+                            />
+                        </form>
                     @endforeach
                     <button type="button" @click="open = true"
                             class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
@@ -152,12 +166,7 @@
                     @endforeach
                 </div>
 
-                <button type="submit"
-                        x-show="ready"
-                        x-cloak
-                        class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm">
-                    {{ __('borrower.profile.save_documents') }}
-                </button>
+                {{-- Camera/Upload autosave through the document holder — no extra Hifadhi after Finish. --}}
 
             </form>
         </x-slot:form>
