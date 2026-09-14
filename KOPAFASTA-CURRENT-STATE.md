@@ -9,7 +9,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
 | **Failed staging (do not promote)** | `15bf3c71efd09214cba3f9c766d2abe385f1d9c57540` | AG/AB/DOC owner UAT FAIL |
 | **Prior staging (do not promote)** | `95c36dadf39b3611c1d492e91b0ac0c4a034d60b` | Region/District HTML break + AG Continue FAIL |
-| **Staging under UAT** | `87892e419b71a5b2f6178697faf40481bcdeda48` | FINAL P0: restore Region/District, Quote-style Continue, clean camera |
+| **Staging under UAT** | `237a4bfc430fecd278773c625e9af0251015cfe1` | FINAL P0 hotfix: address-fields Blade comment crash |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
 
