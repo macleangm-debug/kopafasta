@@ -68,20 +68,12 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $this->assertStringContainsString('hidden lg:block', $address);
     }
 
-    public function test_address_fields_component_renders_without_blade_js_crash(): void
+    public function test_address_fields_source_has_no_bare_blade_js_directive(): void
     {
-        $html = $this->view('components.site.address-fields', [
-            'prefix' => 'nok',
-            'required' => true,
-            'locations' => [
-                'Dar es Salaam' => ['Ilala', 'Kinondoni'],
-                'Morogoro' => ['Morogoro', 'Kilosa'],
-            ],
-        ])->render();
-
-        $this->assertStringContainsString('name="nok_region"', $html);
-        $this->assertStringContainsString('name="nok_district"', $html);
-        $this->assertStringContainsString('Dar es Salaam', $html);
+        $address = file_get_contents(resource_path('views/components/site/address-fields.blade.php'));
+        // Bare @js() (even in comments) compiles to Js::from() with zero args and crashes the page.
+        $this->assertStringNotContainsString('@js()', $address);
+        $this->assertStringContainsString('pickRegion(value)', $address);
     }
 
     public function test_camera_opens_fresh_after_replace_or_delete(): void
