@@ -51,11 +51,18 @@ export function registerNidaDirectiveJourney(Alpine) {
                 this.beginReplace(side);
             };
             window.addEventListener('nida-holder-replace', this._onReplace);
+
+            this._onOpenSource = () => {
+                if (this.phase !== 'journey') return;
+                this.$nextTick(() => this.openActiveSourcePicker());
+            };
+            window.addEventListener('nida-open-source', this._onOpenSource);
         },
 
         destroy() {
             if (this._onFile) window.removeEventListener('kf-document-file', this._onFile);
             if (this._onReplace) window.removeEventListener('nida-holder-replace', this._onReplace);
+            if (this._onOpenSource) window.removeEventListener('nida-open-source', this._onOpenSource);
         },
 
         beginReplace(side) {
@@ -69,13 +76,23 @@ export function registerNidaDirectiveJourney(Alpine) {
                 window.dispatchEvent(new CustomEvent('clear-capture', {
                     detail: { hostId: this.steps[idx].hostId },
                 }));
+                this.openActiveSourcePicker();
             });
+        },
+
+        openActiveSourcePicker() {
+            const hostId = this.current?.hostId;
+            if (! hostId) return;
+            window.dispatchEvent(new CustomEvent('document-source-open', {
+                detail: { hostId },
+            }));
         },
 
         async persistSide(step, file) {
             if (this.saving || !this.updateUrl) return;
             this.saving = true;
             this.notice = null;
+            // Exact document autosave loader (spinner + Saving… → ✓ Saved).
             if (typeof window.kfShowInlineSaving === 'function') {
                 window.kfShowInlineSaving(config.savingLabel || 'Saving…');
             }
@@ -128,6 +145,7 @@ export function registerNidaDirectiveJourney(Alpine) {
                 this.stepIndex = next >= 0 ? next : this.stepIndex;
                 this.phase = 'journey';
                 this.replaceSide = null;
+                this.$nextTick(() => this.openActiveSourcePicker());
             } catch (e) {
                 this.notice = e.message || config.failLabel || 'Could not save · Retry';
                 if (typeof window.kfHideSaving === 'function') {

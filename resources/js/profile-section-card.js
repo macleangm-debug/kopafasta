@@ -53,6 +53,11 @@ export function registerProfileSectionCard(Alpine) {
             this.expanded = true;
             this.showEditAction = false;
             window.dispatchEvent(new CustomEvent('profile-accordion', { detail: this.id }));
+            if (this.sectionHash === 'profile-id-images') {
+                this.$nextTick(() => {
+                    window.dispatchEvent(new CustomEvent('nida-open-source'));
+                });
+            }
         },
 
         openEdit() {

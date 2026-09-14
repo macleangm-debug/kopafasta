@@ -155,7 +155,7 @@
                 />
             </div>
 
-            <p x-show="saving" x-cloak class="inline-flex items-center gap-2 text-sm font-semibold text-brand">
+            <p x-show="saving" x-cloak class="inline-flex items-center gap-2 text-sm font-semibold text-brand" data-kf-nida-saving>
                 <span class="size-3.5 rounded-full border-2 border-brand/30 border-t-brand animate-spin" aria-hidden="true"></span>
                 {{ __('borrower.document_upload.saving') }}
             </p>

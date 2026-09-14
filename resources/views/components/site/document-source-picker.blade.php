@@ -39,7 +39,17 @@
                 detail: { source: source, hostId: @js($hostId) },
             }));
         },
-     }">
+        openPicker() {
+            this.open = true;
+            if (window.matchMedia('(min-width: 1024px)').matches) {
+                this.placeMenu();
+            }
+        },
+     }"
+     @document-source-open.window="
+        if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
+        openPicker();
+     ">
     <button type="button"
             x-ref="trigger"
             @click="open = !open; if (open) placeMenu()"

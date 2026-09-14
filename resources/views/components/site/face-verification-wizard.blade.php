@@ -1071,6 +1071,10 @@
                         this.isUploading = true;
                         if (! silent) {
                             this.phase = 'saving';
+                            // Exact document autosave loader — real request state, not a timer.
+                            if (typeof window.kfShowInlineSaving === 'function') {
+                                window.kfShowInlineSaving(@js(__('borrower.document_upload.saving')));
+                            }
                         }
 
                         const step = stepOverride || this.currentStep;
@@ -1078,6 +1082,9 @@
                             this.isUploading = false;
                             if (! silent) {
                                 this.phase = 'scanning';
+                                if (typeof window.kfHideSaving === 'function') {
+                                    window.kfHideSaving();
+                                }
                             }
                             this.holdProgress = 0;
                             return;
@@ -1119,10 +1126,6 @@
                                 return;
                             }
 
-                            if (typeof window.kfShowInlineSaving === 'function') {
-                                window.kfShowInlineSaving(@js(__('borrower.document_upload.saving')));
-                            }
-
                             const blobPreview = this.previewUrl;
                             this.poseOk = false;
                             this.stepStartedAt = performance.now();
@@ -1132,8 +1135,7 @@
                                 URL.revokeObjectURL(blobPreview);
                             }
 
-                            // Clear uploading BEFORE finalize — submitVerification() no-ops while isUploading,
-                            // which left the UI stuck on "Picha imehifadhiwa" after angle replace.
+                            // Clear uploading BEFORE finalize — submitVerification() no-ops while isUploading.
                             this.isUploading = false;
 
                             if (data.complete || this.steps.every((s) => s.done)) {
@@ -1150,6 +1152,10 @@
                                 }
                                 await this.submitVerification();
                                 return;
+                            }
+
+                            if (typeof window.kfFlashInlineSaved === 'function') {
+                                window.kfFlashInlineSaved(@js(__('borrower.document_upload.saved')));
                             }
 
                             this.stepIndex++;

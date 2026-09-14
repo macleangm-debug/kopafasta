@@ -111,5 +111,12 @@ class IdentityClosureVisiblePathTest extends TestCase
         $this->assertStringContainsString("phase === 'intro' && !steps.every(s => s.done)", $blade);
         $this->assertStringContainsString('face-retake-angle', $blade);
         $this->assertStringContainsString('Clear uploading BEFORE finalize', $blade);
+        $this->assertStringContainsString('kfShowInlineSaving', $blade);
+
+        $single = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));
+        $this->assertStringContainsString('@document-source.window', $single);
+
+        $picker = file_get_contents(resource_path('views/components/site/document-source-picker.blade.php'));
+        $this->assertStringContainsString('document-source-open', $picker);
     }
 }

@@ -51,6 +51,16 @@
      @clear-capture.window="if ($event.detail && $event.detail.hostId === hostId) clearFile()"
      @document-open-camera.window="if ($event.detail?.hostId === hostId) { if ($event.detail?.fresh) clearFile(); requestCamera(); }"
      @document-open-upload.window="if ($event.detail?.hostId === hostId) { if ($event.detail?.fresh) clearFile(); $refs.uploadInput?.click(); }"
+     @document-source.window="
+        if ($event.detail?.hostId && $event.detail.hostId !== hostId) return;
+        if ($event.detail?.source === 'camera') {
+            clearFile();
+            requestCamera();
+        } else if ($event.detail?.source === 'upload') {
+            clearFile();
+            $refs.uploadInput?.click();
+        }
+     "
      @if ($autoSubmit) data-auto-submit="1" @endif>
     {{-- Gate helper: filled when a preview exists --}}
     <input type="hidden" value="" x-bind:value="previewUrl || previewName ? '1' : ''" @if($required && ! $autoSubmit) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
