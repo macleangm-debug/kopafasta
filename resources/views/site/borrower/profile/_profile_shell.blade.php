@@ -23,7 +23,7 @@
     <div class="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 px-3.5 py-1.5 text-xs font-bold"
          role="status" data-kf-saved-toast>
         <span aria-hidden="true">✓</span>
-        <span>{{ __('borrower.profile.saved_inline') }}</span>
+        <span>{{ session('status') }}</span>
     </div>
 @endif
 

@@ -119,6 +119,16 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             return;
         }
 
+        // Signature section: only persist a real drawn signature (never empty / unrelated).
+        const focus = String(form.querySelector('input[name="focus"]')?.value || '');
+        if (focus === 'signature') {
+            const sig = form.querySelector('[name="signature_data"]')?.value || '';
+            if (! String(sig).startsWith('data:image/png;base64,')) {
+                setState('idle');
+                return;
+            }
+        }
+
         const mySeq = ++seq;
         inflight += 1;
         setState('saving');
@@ -133,30 +143,51 @@ window.kfBindAutosaveForm = function (form, options = {}) {
 
         const method = (form.querySelector('input[name=_method]')?.value || form.method || 'POST').toUpperCase();
         const action = form.getAttribute('action') || window.location.href;
+        const hasFiles = [...fd.values()].some((v) => typeof File !== 'undefined' && v instanceof File && v.size > 0);
+        const uploadLabel = form.getAttribute('data-kf-autosave-uploading') || labels.saving;
 
         try {
-            const res = await fetch(action, {
-                method: method === 'GET' ? 'POST' : 'POST',
-                body: fd,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    Accept: 'application/json',
-                    'X-KF-Autosave': '1',
-                },
-                credentials: 'same-origin',
+            const data = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open(method === 'GET' ? 'POST' : 'POST', action);
+                xhr.withCredentials = true;
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.setRequestHeader('Accept', 'application/json');
+                xhr.setRequestHeader('X-KF-Autosave', '1');
+                if (hasFiles && xhr.upload && typeof window.kfShowInlineSaving === 'function') {
+                    xhr.upload.onprogress = (evt) => {
+                        if (! evt.lengthComputable || mySeq !== seq) return;
+                        const percent = Math.max(0, Math.min(99, Math.round((evt.loaded / evt.total) * 100)));
+                        window.kfShowInlineSaving(uploadLabel, { percent });
+                    };
+                }
+                xhr.onload = () => {
+                    let parsed = {};
+                    try {
+                        parsed = JSON.parse(xhr.responseText || '{}');
+                    } catch (e) {
+                        parsed = {};
+                    }
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(parsed);
+                        return;
+                    }
+                    const msg = parsed.message
+                        || (parsed.errors && Object.values(parsed.errors).flat()[0])
+                        || labels.fail;
+                    reject(new Error(String(msg)));
+                };
+                xhr.onerror = () => reject(new Error(labels.fail));
+                xhr.send(fd);
             });
-            const data = await res.json().catch(() => ({}));
 
             // Stale guard: ignore older responses.
             if (mySeq !== seq) {
                 return;
             }
 
-            if (! res.ok || data.ok === false) {
-                const msg = data.message
-                    || (data.errors && Object.values(data.errors).flat()[0])
-                    || labels.fail;
-                throw new Error(String(msg));
+            if (data && data.ok === false) {
+                throw new Error(String(data.message || labels.fail));
             }
 
             setState('saved');

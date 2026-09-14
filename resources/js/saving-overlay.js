@@ -25,10 +25,20 @@ export function registerSavingOverlay(Alpine) {
         return !! document.querySelector('[data-kf-profile-page]');
     };
 
-    window.kfShowInlineSaving = function (message) {
-        const label = message
+    window.kfShowInlineSaving = function (message, progress) {
+        let label = message
             || document.querySelector('[data-kf-saving-toast] span:last-child')?.textContent?.trim()
             || 'Saving…';
+        const pct = progress?.percent;
+        if (typeof pct === 'number' && Number.isFinite(pct) && pct >= 0) {
+            const rounded = Math.max(0, Math.min(100, Math.round(pct)));
+            // Prefer real byte progress only — never invent a fake %.
+            if (! /\d+\s*%/.test(label)) {
+                label = `${label.replace(/…\s*$/, '').replace(/\.\.\.\s*$/, '').trim()}… ${rounded}%`;
+            } else {
+                label = label.replace(/\d+\s*%/, `${rounded}%`);
+            }
+        }
         // Hide any leftover saved toast while saving.
         document.querySelectorAll('[data-kf-saved-toast]').forEach((el) => {
             el.classList.add('hidden');
@@ -59,21 +69,26 @@ export function registerSavingOverlay(Alpine) {
     };
 
     window.kfShowSaving = function (message, progress) {
-        // Profile must never use the blocking “Inahifadhi nyaraka…” modal.
-        if (window.kfIsBorrowerProfileContext()) {
-            window.kfShowInlineSaving(message);
+        // Profile / account shells must never use the blocking overlay.
+        if (window.kfIsBorrowerProfileContext()
+            || (typeof window.kfIsAccountShellContext === 'function' && window.kfIsAccountShellContext())) {
+            window.kfShowInlineSaving(message, progress?.percent != null ? { percent: progress.percent } : undefined);
             return;
         }
         Alpine.store('kfSaving').uploading = true;
         Alpine.store('kfSaving').message = message || '';
         Alpine.store('kfSaving').current = progress?.current ?? null;
         Alpine.store('kfSaving').total = progress?.total ?? null;
+        if (progress?.percent != null) {
+            Alpine.store('kfSaving').percent = progress.percent;
+        }
     };
 
     window.kfUpdateSaving = function (progress) {
-        if (window.kfIsBorrowerProfileContext()) {
-            if (progress?.message) {
-                window.kfShowInlineSaving(progress.message);
+        if (window.kfIsBorrowerProfileContext()
+            || (typeof window.kfIsAccountShellContext === 'function' && window.kfIsAccountShellContext())) {
+            if (progress?.message || progress?.percent != null) {
+                window.kfShowInlineSaving(progress.message, progress?.percent != null ? { percent: progress.percent } : undefined);
             }
             return;
         }
@@ -88,6 +103,9 @@ export function registerSavingOverlay(Alpine) {
         }
         if (progress.total != null) {
             Alpine.store('kfSaving').total = progress.total;
+        }
+        if (progress.percent != null) {
+            Alpine.store('kfSaving').percent = progress.percent;
         }
     };
 

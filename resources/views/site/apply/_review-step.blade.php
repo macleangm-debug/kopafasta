@@ -6,6 +6,13 @@
         :subtitle="__('borrower.apply.review_step.subtitle')"
     />
 
+    {{-- Informational only — does not create a collateral step or block submit. --}}
+    <div x-show="! isAssetBackedProduct(current) && ! assetApplication"
+         x-cloak
+         class="mb-6 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-sm text-gray-800">
+        <p class="font-medium">{{ __('borrower.apply.review_step.collateral_disclosure') }}</p>
+    </div>
+
     {{-- Progress rail — sticky within the review step --}}
     <nav class="sticky top-[4.5rem] z-10 -mx-2 px-2 py-3 mb-8 bg-white/95 backdrop-blur-md border-b border-gray-200/60"
          aria-label="{{ __('borrower.apply.review_step.pages_nav') }}">

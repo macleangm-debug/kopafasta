@@ -368,9 +368,18 @@
                             xhr.upload.onprogress = (evt) => {
                                 if (! evt.lengthComputable) {
                                     this.inlineProgress = null;
+                                    if (typeof window.kfShowInlineSaving === 'function') {
+                                        window.kfShowInlineSaving(this.labels.uploading || this.labels.saving || 'Uploading…');
+                                    }
                                     return;
                                 }
                                 this.inlineProgress = Math.max(0, Math.min(99, Math.round((evt.loaded / evt.total) * 100)));
+                                if (typeof window.kfShowInlineSaving === 'function') {
+                                    window.kfShowInlineSaving(
+                                        this.labels.uploading || this.labels.saving || 'Uploading…',
+                                        { percent: this.inlineProgress },
+                                    );
+                                }
                             };
                         }
                         xhr.onload = async () => {

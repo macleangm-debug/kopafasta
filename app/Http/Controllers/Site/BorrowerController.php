@@ -1840,6 +1840,25 @@ class BorrowerController extends Controller
 
         if ($section === 'personal') {
             $focus = (string) $request->input('focus', 'all');
+
+            // Signature owns its own persistence/validation. Never require it on
+            // contact / family / kin / identity / id_images (or any other) focus.
+            if ($focus === 'signature') {
+                $sigData = $request->validate([
+                    'signature_data' => ['required', 'string', 'starts_with:data:image/png;base64,'],
+                    'signer_name' => ['nullable', 'string', 'max:120'],
+                ]);
+                app(BorrowerSignatureService::class)->saveProfileSignature(
+                    $customer->fresh(),
+                    $sigData['signature_data'],
+                    $sigData['signer_name'] ?? $customer->full_name,
+                );
+            } else {
+                // Drop leaked signature fields from unrelated Profile autosaves/submits.
+                foreach (['signature_data', 'signer_name', 'signature_touched'] as $sigKey) {
+                    $request->request->remove($sigKey);
+                }
+
             $identityRequired = app(ProfileCompletionService::class)->identityRequiredDuringProfile();
             $idImagesFocus = in_array($focus, ['identity', 'id_images', 'all'], true);
             $kinRequired = in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
@@ -1978,18 +1997,6 @@ class BorrowerController extends Controller
                 }
             }
 
-            if ($focus === 'signature') {
-                $sigData = $request->validate([
-                    'signature_data' => ['required', 'string', 'starts_with:data:image/png;base64,'],
-                    'signer_name' => ['nullable', 'string', 'max:120'],
-                ]);
-                app(BorrowerSignatureService::class)->saveProfileSignature(
-                    $customer->fresh(),
-                    $sigData['signature_data'],
-                    $sigData['signer_name'] ?? $customer->full_name,
-                );
-            }
-
             if ($idImagesFocus) {
                 $uploadedFront = $request->hasFile('national_id_front');
                 $uploadedBack = $request->hasFile('national_id_back');
@@ -2051,6 +2058,7 @@ class BorrowerController extends Controller
                     ]);
                 }
             }
+            } // end non-signature personal focuses
         }
 
         if ($section === 'activity') {
@@ -2353,12 +2361,9 @@ class BorrowerController extends Controller
             $redirect = $this->redirectWithGuarantorResume($request, $customer, $profileRedirect);
         }
 
-        // Confetti only when compulsory hub profile is complete (collateral never required).
-        // Points award + celebration flash are idempotent via MemberEngagementRewardService.
+        // Confetti / points are idempotent in MemberEngagementRewardService
+        // (complete_profile awarded once). Do not re-flash celebration on later saves.
         if (app(ProfileCompletionService::class)->isFullyComplete($customer->fresh())) {
-            if (! in_array('profile_complete', \App\Support\Celebration::reasons(), true)) {
-                Celebration::flashOne('profile_complete');
-            }
             app(GuarantorInvitationService::class)
                 ->releaseHeldApplicationsForGuarantor($customer->fresh());
         }
@@ -2474,13 +2479,24 @@ class BorrowerController extends Controller
             return $redirect;
         }
 
+        if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+            return response()->json([
+                'ok' => true,
+                'saved' => true,
+                'section' => 'payment',
+                'account_id' => $saved->id,
+                'message' => $status,
+            ]);
+        }
+
         return redirect()
             ->route('site.borrower.profile', [
                 'section' => 'payment',
                 'open' => 1,
                 'account' => $saved->id,
             ])
-            ->with('status', $status);
+            ->with('status', $status)
+            ->with('kf_status_inline', true);
     }
 
     public function destroyPaymentAccount(Request $request, CustomerDisbursementAccount $account): RedirectResponse

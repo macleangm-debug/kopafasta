@@ -55,7 +55,11 @@
         </div>
     </div>
     <input type="hidden" @if ($includeInForm) name="{{ $name }}" @endif x-ref="hidden" :value="dataUrl">
-    <input type="hidden" name="signature_touched" value="0" x-ref="touched">
+    @if ($includeInForm)
+        <input type="hidden" name="signature_touched" value="0" x-ref="touched">
+    @else
+        <input type="hidden" value="0" x-ref="touched">
+    @endif
 </div>
 
 @once
@@ -151,6 +155,9 @@
                         if (this.$refs.touched?.value === '1') {
                             this.dataUrl = this.$refs.canvas.toDataURL('image/png');
                             this.syncInput();
+                            // Notify shared kfAutosave (and any listeners) after a coherent stroke.
+                            this.$el.dispatchEvent(new Event('input', { bubbles: true }));
+                            this.$el.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                     },
                     clear() {
@@ -161,6 +168,8 @@
                             this.$refs.touched.value = '0';
                         }
                         this.syncInput();
+                        this.$el.dispatchEvent(new Event('input', { bubbles: true }));
+                        this.$el.dispatchEvent(new Event('change', { bubbles: true }));
                     },
                 }));
             });

@@ -437,7 +437,11 @@
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
-                              data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
+                              data-kf-autosave
+                              data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                              data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                              data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                              data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
                               x-data="{
                                   marital: @js(old('marital_status', $customer->marital_status)),
                                   maritalOpen: false,
@@ -450,6 +454,7 @@
                                   pickMarital(value) {
                                       this.marital = value;
                                       this.maritalOpen = false;
+                                      this.$nextTick(() => this.$el.dispatchEvent(new Event('change', { bubbles: true })));
                                   },
                               }">
                             @csrf @method('PUT')
@@ -493,7 +498,7 @@
                                 <div x-show="marital === 'married'" x-cloak class="grid sm:grid-cols-3 gap-4">
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_first_name') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="spouse_first_name" value="{{ old('spouse_first_name', $customer->spouse_first_name) }}" class="{{ $editable }}" autocomplete="off">
+                                        <input type="text" name="spouse_first_name" value="{{ old('spouse_first_name', $customer->spouse_first_name) }}" class="{{ $editable }}" autocomplete="off" x-bind:required="marital === 'married'">
                                         @error('spouse_first_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                     <div>
@@ -502,7 +507,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_last_name') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="spouse_last_name" value="{{ old('spouse_last_name', $customer->spouse_last_name) }}" class="{{ $editable }}" autocomplete="off">
+                                        <input type="text" name="spouse_last_name" value="{{ old('spouse_last_name', $customer->spouse_last_name) }}" class="{{ $editable }}" autocomplete="off" x-bind:required="marital === 'married'">
                                         @error('spouse_last_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                 </div>
@@ -512,7 +517,7 @@
                                     @error('number_of_children')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                 </div>
                             </div>
-                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
+                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -670,6 +675,11 @@
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" class="space-y-4"
+                              data-kf-autosave
+                              data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                              data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                              data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                              data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
                               x-data
                               @submit="
                                   const pad = $el.querySelector('[data-signature-pad]');
@@ -692,7 +702,7 @@
                                 :include-in-form="true"
                                 :initial-data-url="$customer->legal_signature_data ?? ''"
                             />
-                            <x-site.gated-submit class="bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
+                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
