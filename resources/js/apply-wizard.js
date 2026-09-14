@@ -1479,6 +1479,9 @@ export function applyWizard(config) {
                         })
                           .then((data) => {
                               this.draftSavedAt = new Date().toLocaleTimeString();
+                              if (typeof window.kfFlashInlineSaved === 'function') {
+                                  window.kfFlashInlineSaved();
+                              }
                               if (data?.draft_reference) {
                                   this.draftReference = data.draft_reference;
                               }
@@ -1490,7 +1493,14 @@ export function applyWizard(config) {
                           });
                     };
 
-                    return sync ? request().catch(() => {}) : request().catch(() => {});
+                    if (typeof window.kfShowInlineSaving === 'function') {
+                        window.kfShowInlineSaving();
+                    }
+                    return sync ? request().catch(() => {
+                        if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
+                    }) : request().catch(() => {
+                        if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
+                    });
                 },
 
                 draftHeaders() {
