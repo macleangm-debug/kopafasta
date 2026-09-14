@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production baseline** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | Operational production baseline until live production is re-verified. Do not casually overwrite. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | _(set after this Identity hotfix deploy)_ | Linear descendant of production history. Contains `73fbbbfe` (National ID 500 fix). Final Identity hotfix: NIDA number Complete, Front→Back holder, face retake unstick. **Do not push this mixed tip to `origin/main` yet.** |
+| **Current staging / development baseline** | `01e90e7f0b711d1b5bd79acfaff02b4619211333` | Linear descendant of production history. Contains `73fbbbfe` (National ID 500 fix). Final Identity hotfix: NIDA number Complete, Front→Back holder, face retake unstick. **Do not push this mixed tip to `origin/main` yet.** |
 | **Current clean production candidate** | _(none yet)_ | After Identity UAT passes: cut from `8bb9bf5e…` with only owner-accepted changes → staging smoke → owner approve → promote that exact SHA. |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
