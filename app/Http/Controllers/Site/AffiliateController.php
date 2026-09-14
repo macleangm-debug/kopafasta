@@ -240,7 +240,20 @@ class AffiliateController extends Controller
         try {
             app(PartnerProfileService::class)->updateSection($vendor, $section, $request);
         } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
+
             return back()->withErrors(['affiliate_code' => $e->getMessage()])->withInput();
+        }
+
+        if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+            return response()->json([
+                'ok' => true,
+                'saved' => true,
+                'section' => $section,
+                'message' => __('site.affiliate_portal.profile_saved'),
+            ]);
         }
 
         return back()->with('status', __('site.affiliate_portal.profile_saved'));

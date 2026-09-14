@@ -78,7 +78,14 @@
             <x-slot:form>
                 <form method="POST"
                       action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
-                      novalidate>
+                      novalidate
+                      @unless ($wizardMode ?? false)
+                          data-kf-autosave
+                          data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                          data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                          data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                          data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
+                      @endunless>
                     @csrf @method('PUT')
                     @if ($wizardMode ?? false)
                         <input type="hidden" name="wizard" value="1">
@@ -95,7 +102,11 @@
                         :street="old('street', $customer->street ?? $customer->address)"
                     />
 
-                    <x-site.gated-submit class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="($wizardMode ?? false) ? __('borrower.profile_wizard.save_continue') : __('borrower.profile.save')" />
+                    @if ($wizardMode ?? false)
+                        <x-site.gated-submit class="mt-6 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile_wizard.save_continue')" />
+                    @else
+                        <div data-kf-autosave-status class="mt-3 hidden"></div>
+                    @endif
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>

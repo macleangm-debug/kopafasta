@@ -360,7 +360,12 @@
                         </dl>
                     </x-slot:view>
                     <x-slot:form>
-                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}">
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
+                              data-kf-autosave
+                              data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                              data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                              data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                              data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="contact">
                             @if (! empty($returnUrl))
@@ -379,7 +384,7 @@
                                     <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">
                                 </div>
                             </div>
-                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
+                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>
@@ -555,7 +560,12 @@
                         </dl>
                     </x-slot:view>
                     <x-slot:form>
-                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}">
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
+                              data-kf-autosave
+                              data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                              data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                              data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                              data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="kin">
                             @if (! empty($returnUrl))
@@ -565,7 +575,7 @@
                                 <x-site.kin-fields :customer="$customer" :input-class="$editable" />
                                 <x-site.address-fields prefix="nok" :region="old('nok_region', $customer->nok_region)" :district="old('nok_district', $customer->nok_district)" :ward="old('nok_ward', $customer->nok_ward)" :street="old('nok_street', $customer->nok_street)" />
                             </div>
-                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" />
+                            <div data-kf-autosave-status class="mt-3 hidden"></div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>

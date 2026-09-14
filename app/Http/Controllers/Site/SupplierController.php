@@ -362,6 +362,15 @@ class SupplierController extends Controller
 
         app(PartnerProfileService::class)->updateSection($vendor, $section, $request);
 
+        if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+            return response()->json([
+                'ok' => true,
+                'saved' => true,
+                'section' => $section,
+                'message' => __('site.partner_account.save_profile'),
+            ]);
+        }
+
         return back()->with('status', __('site.partner_account.save_profile').' ✓');
     }
 }

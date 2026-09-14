@@ -172,16 +172,14 @@ class AuthController extends Controller
         }
 
         if (! $this->pins->hasPin($user)) {
-            // Incomplete registration — continue with password, then setup-pin. Never a Got it modal.
+            // Incomplete registration — resume PIN setup (no password). Never a Got it modal.
             if ($user->role === 'borrower') {
+                Auth::login($user);
+                $request->session()->regenerate();
+
                 return redirect()
-                    ->route('site.login', [
-                        'auth_method' => 'password',
-                        'login' => $phone,
-                        'phone' => $phone,
-                        'finish_registration' => 1,
-                    ])
-                    ->with('login_inline', __('site.auth.finish_registration_password'));
+                    ->route('site.borrower.setup-pin')
+                    ->with('status', __('site.auth.finish_registration_password'));
             }
 
             return back()
@@ -1053,7 +1051,7 @@ class AuthController extends Controller
                 'string',
                 'max:20',
             ],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['nullable', 'string'], // ignored — borrower auth is phone + PIN only
             'referral_code' => ['nullable', 'string', 'max:32'],
             'affiliate_code' => ['nullable', 'string', 'max:32'],
             'promo_code' => ['nullable', 'string', 'max:40'],
@@ -1066,14 +1064,16 @@ class AuthController extends Controller
         $data = $request->validate($rules);
 
         $phoneDigits = preg_replace('/\D/', '', $data['phone']);
-        $phoneTaken = User::query()
+        $existingUser = User::query()
             ->where('role', 'borrower')
             ->where(function ($query) use ($data, $phoneDigits) {
                 $query->where('phone', $data['phone'])
                     ->orWhere('phone', $phoneDigits)
                     ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
             })
-            ->exists()
+            ->first();
+
+        $phoneTaken = $existingUser !== null
             || Customer::query()
                 ->where(function ($query) use ($data, $phoneDigits) {
                     $query->where('phone', $data['phone'])
@@ -1083,6 +1083,16 @@ class AuthController extends Controller
                 ->exists();
 
         if ($phoneTaken && ! $isGuarantorRegistration) {
+            // Same phone with incomplete registration → resume PIN setup (do not create another account).
+            if ($existingUser && ! $this->pins->hasPin($existingUser)) {
+                Auth::login($existingUser);
+                $request->session()->regenerate();
+
+                return redirect()
+                    ->route('site.borrower.setup-pin')
+                    ->with('status', __('site.auth.finish_registration_password'));
+            }
+
             return redirect()
                 ->route('site.login', [
                     'phone' => $data['phone'],
@@ -1118,11 +1128,12 @@ class AuthController extends Controller
             $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
 
             // Pending until PIN + security questions complete (finalizeBorrowerRegistration).
+            // Password is never collected — placeholder hash only; auth is phone + 4-digit PIN.
             $user = User::create([
                 'name' => $fullName,
                 'email' => $email,
                 'phone' => $data['phone'],
-                'password' => Hash::make($data['password']),
+                'password' => Hash::make(Str::password(32)),
                 'role' => 'borrower',
                 'is_active' => false,
             ]);

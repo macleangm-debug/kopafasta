@@ -5,7 +5,7 @@
     $isInviteRegistration = $isGuarantorRegistration || $isGroupInviteRegistration;
     $initialStep = $isInviteRegistration && ! empty($prefill['local_phone']) ? 2 : (int) old('step', 1);
 @endphp
-{{-- Professional 3-step borrower registration wizard --}}
+{{-- Professional 2-step borrower registration → PIN setup (no password). --}}
 <x-site.layout :auth="true" :title="$isGuarantorRegistration ? brand_title(__('borrower.guarantor_invite.create_account')) : ($isGroupInviteRegistration ? brand_title(__('borrower.apply.group.register_title')) : brand_title(__('borrower.register.title')))">
     <section class="min-h-full grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
@@ -31,7 +31,6 @@
                     @foreach ([
                         [__('borrower.register.step_country'), __('borrower.register.step_country_hint')],
                         [__('borrower.register.step_details'), __('borrower.register.step_details_hint')],
-                        [__('borrower.register.step_password'), __('borrower.register.step_password_hint')],
                     ] as $i => [$label, $hint])
                         <li class="flex items-start gap-3">
                             <span class="size-8 grid place-items-center rounded-full text-xs font-bold flex-shrink-0 bg-white/10 text-white/70">{{ $i + 1 }}</span>
@@ -76,8 +75,8 @@
 
                 <div class="lg:hidden mb-6">
                     <div class="flex items-center justify-between text-xs font-medium text-gray-500">
-                        <span><span x-text="@js(__('borrower.register.step_label')) + ' ' + step + '/3'"></span></span>
-                        <span x-text="[@js(__('borrower.register.step_country')), @js(__('borrower.register.step_details')), @js(__('borrower.register.step_password'))][step-1]"></span>
+                        <span><span x-text="@js(__('borrower.register.step_label')) + ' ' + step + '/2'"></span></span>
+                        <span x-text="[@js(__('borrower.register.step_country')), @js(__('borrower.register.step_details'))][step-1]"></span>
                     </div>
                     <div class="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                         <div class="h-full bg-brand transition-all duration-300" :style="`width: ${(step/3)*100}%`"></div>
@@ -271,48 +270,7 @@
                             </div>
                         </div>
 
-                        {{-- Step 3: Password --}}
-                        <div x-show="step === 3" x-cloak>
-                            <h2 class="text-2xl font-bold text-gray-900">{{ __('borrower.register.password_title') }}</h2>
-                            <p class="mt-1 text-sm text-gray-600">{{ __('borrower.register.password_body') }}</p>
-
-                            <div class="mt-6 space-y-4" x-data="{ show: false }">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.password') }} <span class="text-red-500">*</span></label>
-                                    <div class="relative">
-                                        <input :type="show ? 'text' : 'password'" name="password" x-model="form.password" @input="validatePasswords()" required minlength="8"
-                                               autocomplete="new-password" value=""
-                                               readonly onfocus="this.removeAttribute('readonly')"
-                                               data-lpignore="true" data-1p-ignore="true"
-                                               class="w-full pr-14 px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
-                                               :class="errors.password ? 'border-red-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
-                                        <button type="button" @click="show = !show" class="absolute inset-y-0 right-0 grid place-items-center pr-3 text-xs text-gray-500 font-medium">
-                                            <span x-text="show ? @js(__('borrower.register.hide')) : @js(__('borrower.register.show'))"></span>
-                                        </button>
-                                    </div>
-                                    <p x-show="errors.password" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password"></p>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.password_confirm') }} <span class="text-red-500">*</span></label>
-                                    <input :type="show ? 'text' : 'password'" name="password_confirmation" x-model="form.password_confirmation" @input="validatePasswords()" required minlength="8"
-                                           autocomplete="new-password" value=""
-                                           readonly onfocus="this.removeAttribute('readonly')"
-                                           data-lpignore="true" data-1p-ignore="true"
-                                           class="w-full px-3.5 py-3 rounded-xl bg-white border text-sm outline-none transition"
-                                           :class="errors.password_confirmation ? 'border-red-400' : 'border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10'">
-                                    <p x-show="errors.password_confirmation" x-cloak class="mt-1 text-xs text-red-600" x-text="errors.password_confirmation"></p>
-                                </div>
-
-                                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 text-sm text-gray-800 leading-relaxed">
-                                    <p>
-                                        {!! __('borrower.register.terms_agree', [
-                                            'terms' => '<a href="'.route('site.legal.terms').'" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">'.e(__('borrower.register.terms')).'</a>',
-                                            'privacy' => '<a href="'.route('site.legal.privacy').'" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">'.e(__('borrower.register.privacy')).'</a>',
-                                        ]) !!}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                        
 
                         {{-- Footer nav: Continue always present; disabled until stage is ready (never stranded). --}}
                         <div class="mt-8 flex items-center justify-between gap-3">
@@ -329,17 +287,18 @@
                                 <span x-cloak x-show="checkingPhone">{{ __('borrower.register.checking') }}</span>
                                 <svg x-show="!checkingPhone" class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                             </button>
-                            <button type="button" @click="next()" x-show="step === 2" x-cloak
-                                    :disabled="!canContinueStep2"
-                                    class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm disabled:opacity-40 disabled:pointer-events-none">
-                                {{ __('borrower.register.continue') }}
-                                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
-                            </button>
-
-                            <div x-show="step === 3" x-cloak class="w-full sm:w-auto sm:ml-auto space-y-3">
+                            <div x-show="step === 2" x-cloak class="w-full sm:w-auto sm:ml-auto space-y-3">
+                                <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 text-sm text-gray-800 leading-relaxed">
+                                    <p>
+                                        {!! __('borrower.register.terms_agree', [
+                                            'terms' => '<a href="'.route('site.legal.terms').'" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">'.e(__('borrower.register.terms')).'</a>',
+                                            'privacy' => '<a href="'.route('site.legal.privacy').'" target="_blank" class="underline font-semibold text-brand whitespace-nowrap">'.e(__('borrower.register.privacy')).'</a>',
+                                        ]) !!}
+                                    </p>
+                                </div>
                                 <x-site.turnstile action="register" />
                                 <button type="submit"
-                                        :disabled="!canContinueStep3"
+                                        :disabled="!canContinueStep2"
                                         class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 px-7 rounded-xl transition shadow-sm disabled:opacity-40 disabled:pointer-events-none">
                                     {{ __('borrower.register.create') }}
                                 </button>
@@ -378,15 +337,13 @@
                     last_name: initial.last_name || '',
                     gender: initial.gender || @js(old('gender', '')),
                     email: initial.email || '',
-                    password: '',
-                    password_confirmation: '',
                 },
                 countries: @js($registrationCountries ?? []),
                 countryOpen: false,
                 checkingPhone: false,
                 step1Error: '',
                 step2Error: '',
-                errors: { phone: '', email: '', password: '', password_confirmation: '' },
+                errors: { phone: '', email: '' },
                 get activeCountry() {
                     return this.countries.find(c => c.code === this.form.country) ?? this.countries[0];
                 },
@@ -409,11 +366,7 @@
                         if (gender) this.form.gender = gender;
                     });
                 },
-                get canContinueStep3() {
-                    const password = this.form.password || '';
-                    const confirm = this.form.password_confirmation || '';
-                    return password.length >= 8 && password === confirm;
-                },
+
                 fullPhone() {
                     const prefix = (this.activeCountry.prefix || '').replace(/\D/g, '');
                     const local = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
@@ -437,12 +390,7 @@
                     if (!this.form.email) { this.errors.email = ''; return; }
                     this.errors.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email) ? '' : 'Enter a valid email address.';
                 },
-                validatePasswords() {
-                    const password = this.form.password || '';
-                    const confirm = this.form.password_confirmation || '';
-                    this.errors.password = password.length === 0 ? '' : (password.length >= 8 ? '' : @js(__('borrower.register.password_min')));
-                    this.errors.password_confirmation = confirm.length === 0 ? '' : (password === confirm ? '' : @js(__('borrower.register.password_mismatch')));
-                },
+
                 chooseCountry(country) {
                     this.form.country = country.code;
                     this.form.dial_code = country.prefix;
@@ -497,7 +445,7 @@
                         }
                         this.step2Error = '';
                     }
-                    if (this.step < 3) this.step++;
+                    if (this.step < 2) this.step++;
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
                 prev() {

@@ -67,7 +67,7 @@
                     <p class="text-xs text-gray-500" x-text="step.label"></p>
                     <div class="mt-2 flex items-start gap-3">
                         <button type="button"
-                                class="h-28 w-24 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm relative"
+                                class="h-24 w-36 shrink-0 rounded-lg ring-1 ring-brand/15 overflow-hidden bg-white cursor-zoom-in block shadow-sm relative aspect-[1.586]"
                                 @click="step.previewUrl && window.kfSiteOpenDocumentPreview(step.previewUrl, step.label, 'image')">
                             <img :src="step.previewUrl" :alt="step.label" class="absolute inset-0 w-full h-full object-cover">
                         </button>
@@ -78,16 +78,6 @@
                         </button>
                     </div>
                 </div>
-            </template>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <template x-for="step in steps" :key="'view-' + step.key">
-                <button type="button"
-                        x-show="step.previewUrl"
-                        @click="window.kfSiteOpenDocumentPreview(step.previewUrl, step.label, 'image')"
-                        class="inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
-                    <span x-text="'{{ __('borrower.profile.view_document') }} · ' + step.label"></span>
-                </button>
             </template>
         </div>
     </div>
@@ -184,7 +174,7 @@
                 <template x-for="step in steps" :key="'thumb-' + step.key">
                     <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-3 py-3" x-show="step.done && step.previewUrl">
                         <p class="text-xs font-semibold text-emerald-800">✓ <span x-text="step.label"></span></p>
-                        <img :src="step.previewUrl" alt="" class="mt-2 h-20 w-16 object-cover rounded-lg ring-1 ring-emerald-100">
+                        <img :src="step.previewUrl" alt="" class="mt-2 h-16 w-28 object-cover rounded-lg ring-1 ring-emerald-100 aspect-[1.586]">
                     </div>
                 </template>
             </div>

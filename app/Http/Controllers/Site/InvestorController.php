@@ -566,6 +566,15 @@ class InvestorController extends Controller
             ], fn ($value) => $value !== null));
         }
 
+        if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+            return response()->json([
+                'ok' => true,
+                'saved' => true,
+                'section' => $section,
+                'message' => 'Profile updated.',
+            ]);
+        }
+
         return back()->with('status', 'Profile updated.');
     }
 

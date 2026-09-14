@@ -75,7 +75,13 @@
                 </dl>
             </x-slot:view>
             <x-slot:form>
-                <form method="POST" action="{{ route($updateRoute, ['section' => 'personal']) }}" class="space-y-4">
+                <form method="POST" action="{{ route($updateRoute, ['section' => 'personal']) }}" class="space-y-4"
+                      data-kf-autosave
+                      data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                      data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                      data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                      data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
+                      data-kf-account-shell>
                     @csrf @method('PUT')
                     <input type="hidden" name="focus" value="contact">
                     <div>
@@ -95,7 +101,7 @@
                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
                         </div>
                     </div>
-                    <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
+                    <div data-kf-autosave-status class="hidden"></div>
                 </form>
             </x-slot:form>
         </x-site.profile-section-card>

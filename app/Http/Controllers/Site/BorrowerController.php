@@ -2363,6 +2363,17 @@ class BorrowerController extends Controller
                 ->releaseHeldApplicationsForGuarantor($customer->fresh());
         }
 
+        // Shared platform autosave (data-kf-autosave): JSON only — never fake Saved without persist.
+        if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+            return response()->json([
+                'ok' => true,
+                'saved' => true,
+                'section' => $section,
+                'focus' => $request->input('focus'),
+                'message' => __('borrower.profile.saved_inline'),
+            ]);
+        }
+
         return $redirect;
     }
 
