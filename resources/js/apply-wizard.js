@@ -414,6 +414,9 @@ export function applyWizard(config) {
                     this.syncValuationFeePaidState();
                     window.applyWizardSaveDraft = () => this.persistDraft(true);
                     setInterval(() => { this._gateTick++; }, 400);
+                    window.addEventListener('kf-agro-bump', () => { this._gateTick++; });
+                    window.addEventListener('kf-document-file', () => { this._gateTick++; });
+                    window.addEventListener('kf-document-pages-ready', () => { this._gateTick++; });
                     this.$watch('phase', (value, oldValue) => {
                         this.scheduleDraftSave();
                         if (value === 'application' && oldValue !== 'application') {
@@ -1151,8 +1154,13 @@ export function applyWizard(config) {
                         this._gateTick++;
                         // Force Alpine to re-evaluate footer Continue after docs land.
                         this.$nextTick?.(() => { this._gateTick++; });
+                        window.dispatchEvent(new CustomEvent('kf-agro-bump'));
+                        window.dispatchEvent(new CustomEvent('education-documents-changed'));
                     } catch (e) {
                         this.educationDocumentUploadError = e?.message || (this.i18n.educationDetails?.uploadFailed || 'Upload failed');
+                        window.dispatchEvent(new CustomEvent('kf-document-save-failed', {
+                            detail: { code: this.educationDocumentUploadCode },
+                        }));
                     } finally {
                         this.educationDocumentUploading = false;
                         this.educationDocumentUploadProgress = null;
@@ -1182,7 +1190,11 @@ export function applyWizard(config) {
                             throw new Error(data.message || 'Could not remove document');
                         }
                         this.educationDocuments = data.education_documents || {};
+                        this._gateTick++;
                         await this.persistDraft(true);
+                        this._gateTick++;
+                        window.dispatchEvent(new CustomEvent('kf-agro-bump'));
+                        window.dispatchEvent(new CustomEvent('education-documents-changed'));
                     } catch (e) {
                         showWizardFeedback(e?.message || 'Could not remove document');
                     }
@@ -3103,6 +3115,117 @@ export function applyWizard(config) {
                     return true;
                 },
 
+                /** Push Alpine host state (profile-select / date / address) onto DOM before readiness reads. */
+                syncAgricultureFieldsFromAlpine() {
+                    const root = this.formRoot();
+                    if (! root || ! window.Alpine?.$data) return;
+                    root.querySelectorAll('[name^="product_question["]').forEach((el) => {
+                        if (! el || el.type === 'file') return;
+                        try {
+                            let node = el;
+                            while (node && node !== root) {
+                                if (node.hasAttribute?.('x-data')) {
+                                    const data = window.Alpine.$data(node);
+                                    if (! data) {
+                                        node = node.parentElement;
+                                        continue;
+                                    }
+                                    if ('selected' in data && typeof data.labelFor === 'function') {
+                                        const v = String(data.selected || '').trim();
+                                        if (v) el.value = v;
+                                        break;
+                                    }
+                                    if ('value' in data && 'draft' in data && typeof data.confirm === 'function') {
+                                        const v = String(data.value || '').trim();
+                                        if (v) el.value = v;
+                                        break;
+                                    }
+                                    if (String(el.name).includes('farming_region') && String(data.region || '').trim()) {
+                                        el.value = String(data.region).trim();
+                                        break;
+                                    }
+                                    if (String(el.name).includes('farming_district') && String(data.district || '').trim()) {
+                                        el.value = String(data.district).trim();
+                                        break;
+                                    }
+                                }
+                                node = node.parentElement;
+                            }
+                        } catch (e) { /* ignore */ }
+                    });
+                },
+
+                agricultureFieldValue(key) {
+                    const name = `product_question[${key}]`;
+                    const root = this.formRoot();
+                    const draft = this._lastDraftInputs || {};
+                    const el = root?.querySelector(`[name="${name}"]`);
+                    if (el) {
+                        const raw = (el.value || '').toString().trim();
+                        if (raw) return raw;
+                        try {
+                            let node = el;
+                            while (node && node !== root) {
+                                if (node.hasAttribute?.('x-data')) {
+                                    const data = window.Alpine.$data(node);
+                                    if (data && 'selected' in data && String(data.selected || '').trim()) {
+                                        return String(data.selected).trim();
+                                    }
+                                    if (data && 'value' in data && 'draft' in data && String(data.value || '').trim()) {
+                                        return String(data.value).trim();
+                                    }
+                                    if (data && key.includes('region') && String(data.region || '').trim()) {
+                                        return String(data.region).trim();
+                                    }
+                                    if (data && key.includes('district') && String(data.district || '').trim()) {
+                                        return String(data.district).trim();
+                                    }
+                                }
+                                node = node.parentElement;
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+                    return String(
+                        draft[name]
+                        ?? draft[`product_question.${key}`]
+                        ?? this.form?.[name]
+                        ?? ''
+                    ).trim();
+                },
+
+                agricultureDocsReady() {
+                    const docs = this.educationDocuments || {};
+                    if (docs.farm_activity_photos?.customer_document_id
+                        && docs.land_use_evidence?.customer_document_id) {
+                        return true;
+                    }
+                    const root = this.formRoot();
+                    const farm = (root?.querySelector('[name="product_question[farm_activity_photos_document_id]"]')?.value || '').trim();
+                    const land = (root?.querySelector('[name="product_question[land_use_evidence_document_id]"]')?.value || '').trim();
+                    return !! farm && !! land;
+                },
+
+                agricultureStepReady() {
+                    this.syncAgricultureFieldsFromAlpine();
+                    const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
+                    let region = this.agricultureFieldValue('farming_region');
+                    let district = this.agricultureFieldValue('farming_district');
+                    const location = this.agricultureFieldValue('farming_location');
+                    if ((! region || ! district) && location) {
+                        const parts = location.split(',').map((p) => p.trim()).filter(Boolean);
+                        region = region || parts[0] || '';
+                        district = district || parts[1] || '';
+                    }
+                    const root = this.formRoot();
+                    const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
+                    if (locationHidden) {
+                        const ward = this.agricultureFieldValue('farming_ward');
+                        locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
+                    }
+                    const fieldsOk = required.every((key) => !! this.agricultureFieldValue(key));
+                    return fieldsOk && !! region && !! district && this.agricultureDocsReady();
+                },
+
                 /** Silent completeness check — used to show Continue only when the step is ready. */
                 isCurrentStepReady() {
                     void this._gateTick;
@@ -3171,53 +3294,8 @@ export function applyWizard(config) {
                     if (this.stepKey === 'agriculture_details') {
                         void this.educationDocuments;
                         void this._gateTick;
-                        const root = this.formRoot();
-                        const draft = this._lastDraftInputs || {};
-                        const fieldValue = (key) => {
-                            const name = `product_question[${key}]`;
-                            const el = root?.querySelector(`[name="${name}"]`);
-                            if (el) {
-                                const raw = (el.value || '').toString().trim();
-                                if (raw) return raw;
-                                // Fallback to Alpine host state when :value lag empties the DOM property.
-                                try {
-                                    const host = el.closest('[x-data]');
-                                    const data = host && window.Alpine?.$data ? window.Alpine.$data(host) : null;
-                                    if (data && 'selected' in data) {
-                                        const selected = String(data.selected || '').trim();
-                                        if (selected) return selected;
-                                    }
-                                    if (data && 'value' in data && 'draft' in data) {
-                                        const v = String(data.value || '').trim();
-                                        if (v) return v;
-                                    }
-                                    if (data && key.includes('region') && 'region' in data) {
-                                        const v = String(data.region || '').trim();
-                                        if (v) return v;
-                                    }
-                                    if (data && key.includes('district') && 'district' in data) {
-                                        const v = String(data.district || '').trim();
-                                        if (v) return v;
-                                    }
-                                } catch (e) { /* ignore */ }
-                            }
-                            const fromDraft = draft[name] ?? draft[`product_question.${key}`] ?? this.form?.[name];
-                            return String(fromDraft ?? '').trim();
-                        };
-                        const region = fieldValue('farming_region');
-                        const district = fieldValue('farming_district');
-                        const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
-                        if (locationHidden) {
-                            const ward = fieldValue('farming_ward')
-                                || (root?.querySelector('[name="product_question[farming_ward]"]')?.value || '').trim();
-                            locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
-                        }
-                        const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
-                        const fieldsOk = required.every((key) => !!fieldValue(key));
-                        // Optional agriculture docs must not block; only required farm + land evidence.
-                        const docsOk = !!this.educationDocuments?.farm_activity_photos?.customer_document_id
-                            && !!this.educationDocuments?.land_use_evidence?.customer_document_id;
-                        return fieldsOk && !!region && !!district && docsOk;
+                        void this._lastDraftInputs;
+                        return this.agricultureStepReady();
                     }
                     if (this.stepKey === 'group_setup' && this.hasStep('group_setup')) {
                         const count = this.groupTargetCount();
@@ -4185,47 +4263,12 @@ export function applyWizard(config) {
                     }
                     if (this.stepKey === 'agriculture_details') {
                         void this.educationDocuments;
-                        const root = this.formRoot();
-                        const draft = this._lastDraftInputs || {};
-                        const fieldValue = (key) => {
-                            const name = `product_question[${key}]`;
-                            const el = root?.querySelector(`[name="${name}"]`);
-                            if (el) {
-                                const raw = (el.value || '').toString().trim();
-                                if (raw) return raw;
-                                try {
-                                    const host = el.closest('[x-data]');
-                                    const data = host && window.Alpine?.$data ? window.Alpine.$data(host) : null;
-                                    if (data && 'selected' in data && String(data.selected || '').trim()) return String(data.selected).trim();
-                                    if (data && 'value' in data && 'draft' in data && String(data.value || '').trim()) return String(data.value).trim();
-                                    if (data && key.includes('region') && String(data.region || '').trim()) return String(data.region).trim();
-                                    if (data && key.includes('district') && String(data.district || '').trim()) return String(data.district).trim();
-                                } catch (e) { /* ignore */ }
-                            }
-                            return String(draft[name] ?? this.form?.[name] ?? '').trim();
-                        };
-                        const region = fieldValue('farming_region');
-                        const district = fieldValue('farming_district');
-                        const locationHidden = root?.querySelector('[name="product_question[farming_location]"]');
-                        if (locationHidden) {
-                            const ward = fieldValue('farming_ward');
-                            locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
-                        }
-                        const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
-                        for (const key of required) {
-                            if (! fieldValue(key)) {
+                        if (! this.agricultureStepReady()) {
+                            if (! this.agricultureDocsReady()) {
+                                showWizardFeedback(this.i18n.agricultureDetails?.docsRequired || 'Add the required farm photos and land-use evidence to continue.');
+                            } else {
                                 showWizardFeedback(this.i18n.agricultureDetails?.incomplete || 'Complete the agriculture details before continuing.');
-                                root?.querySelector(`[name="product_question[${key}]"]`)?.focus?.();
-                                return false;
                             }
-                        }
-                        if (! region || ! district) {
-                            showWizardFeedback(this.i18n.agricultureDetails?.incomplete || 'Complete the agriculture details before continuing.');
-                            return false;
-                        }
-                        if (! this.educationDocuments?.farm_activity_photos?.customer_document_id
-                            || ! this.educationDocuments?.land_use_evidence?.customer_document_id) {
-                            showWizardFeedback(this.i18n.agricultureDetails?.docsRequired || 'Add the required farm photos and land-use evidence to continue.');
                             return false;
                         }
                         return true;

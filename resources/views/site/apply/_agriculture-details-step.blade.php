@@ -7,8 +7,9 @@
             return this.requiredDocCodes.filter((code) => !!educationDocuments[code]?.customer_document_id).length;
         },
         bumpAgroReady() {
-            _gateTick++;
-            scheduleDraftSave();
+            if (typeof syncAgricultureFieldsFromAlpine === 'function') syncAgricultureFieldsFromAlpine();
+            window.dispatchEvent(new CustomEvent('kf-agro-bump'));
+            if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
         },
      }">
     <x-site.wizard-step-header
@@ -96,6 +97,7 @@
                                     form-key="product_question"
                                     prefix="farming"
                                     :required="! empty($field['required'])"
+                                    :require-street="false"
                                 />
                                 <input type="hidden" name="product_question[farming_location]" value="">
                             </div>
@@ -142,7 +144,7 @@
                        x-text="@js(__('borrower.apply.agriculture_details.documents_progress')).replace(':done', String(docDone())).replace(':total', String(requiredDocCodes.length))"></p>
                 </div>
 
-                <div class="space-y-3" @education-documents-changed.window="_gateTick++">
+                <div class="space-y-3" @education-documents-changed.window="window.dispatchEvent(new CustomEvent('kf-agro-bump'))">
                     @foreach ($documentFields as $field)
                         @php
                             $label = ! empty($field['label_key']) ? __($field['label_key']) : ($field['label'] ?? '');

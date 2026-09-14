@@ -103,12 +103,28 @@
         </div>
         @endif
         @if ($sourceDriven && ! $autoSubmit)
-            <button type="button"
-                    x-show="previewUrl || previewName"
-                    @click="confirmUse()"
-                    class="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-3 text-sm shadow-sm">
-                {{ __('borrower.document_upload.use_photo') }}
-            </button>
+            <div x-show="awaitingReview" x-cloak class="mt-3 flex flex-col sm:flex-row gap-2">
+                <button type="button"
+                        @click="retake()"
+                        class="flex-1 inline-flex items-center justify-center rounded-xl bg-white ring-1 ring-gray-200 text-gray-800 font-bold px-4 py-3 text-sm hover:bg-gray-50">
+                    {{ __('borrower.document_upload.retake') }}
+                </button>
+                <button type="button"
+                        @click="confirmUse()"
+                        class="flex-1 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-3 text-sm shadow-sm">
+                    {{ __('borrower.document_upload.use_photo') }}
+                </button>
+            </div>
+            <p x-show="saveState === 'saving'" x-cloak class="mt-2 text-xs font-semibold text-brand">
+                {{ __('borrower.document_upload.saving') }}
+            </p>
+            <p x-show="saveState === 'saved'" x-cloak class="mt-2 text-xs font-semibold text-emerald-700">
+                ✓ {{ __('borrower.document_upload.saved') }}
+            </p>
+            <div x-show="saveState === 'error'" x-cloak class="mt-2 flex items-center gap-2">
+                <p class="text-xs font-semibold text-rose-700">{{ __('borrower.document_upload.could_not_save') }}</p>
+                <button type="button" @click="retrySave()" class="text-xs font-bold text-brand underline">{{ __('borrower.document_upload.retry') }}</button>
+            </div>
         @endif
     </div>
 
@@ -192,6 +208,9 @@
                 previewName: null,
                 expanded: false,
                 pendingFile: null,
+                fromCamera: false,
+                awaitingReview: false,
+                saveState: '', // '' | saving | saved | error
                 requestCamera() {
                     if (this.hasGuide) {
                         this.guideOpen = true;
@@ -203,9 +222,42 @@
                     this.guideOpen = false;
                     this.openCamera();
                 },
+                retake() {
+                    this.clearFile();
+                    this.requestCamera();
+                },
                 confirmUse() {
                     if (! this.pendingFile && ! this.previewName) return;
+                    this.awaitingReview = false;
                     this.commitFile(this.pendingFile);
+                },
+                retrySave() {
+                    if (this.pendingFile) {
+                        this.commitFile(this.pendingFile);
+                    }
+                },
+                markSaved() {
+                    if (this.saveState === 'saving') {
+                        this.saveState = 'saved';
+                    }
+                },
+                markSaveError() {
+                    if (this.saveState === 'saving') {
+                        this.saveState = 'error';
+                    }
+                },
+                init() {
+                    this._onDocsChanged = () => this.markSaved();
+                    this._onDocsFailed = (e) => {
+                        if (e?.detail?.hostId && e.detail.hostId !== this.hostId) return;
+                        this.markSaveError();
+                    };
+                    window.addEventListener('education-documents-changed', this._onDocsChanged);
+                    window.addEventListener('kf-document-save-failed', this._onDocsFailed);
+                },
+                destroy() {
+                    window.removeEventListener('education-documents-changed', this._onDocsChanged);
+                    window.removeEventListener('kf-document-save-failed', this._onDocsFailed);
                 },
                 async openCamera() {
                     this.cameraNotice = null;
@@ -295,7 +347,7 @@
                     ctx.drawImage(video, 0, 0);
                     canvas.toBlob(blob => {
                         if (!blob) return;
-                        this.syncFile(new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' }));
+                        this.syncFile(new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' }), { fromCamera: true });
                         this.closeCamera();
                     }, 'image/jpeg', 0.92);
                 },
@@ -317,7 +369,7 @@
                         event.target.value = '';
                         return;
                     }
-                    this.syncFile(this.normalizeFile(file));
+                    this.syncFile(this.normalizeFile(file), { fromCamera: false });
                     event.target.value = '';
                 },
                 normalizeFile(file) {
@@ -342,7 +394,7 @@
                         return file;
                     }
                 },
-                syncFile(file) {
+                syncFile(file, opts = {}) {
                     const host = document.getElementById(this.hostId);
                     if (!host) return;
                     host.innerHTML = '';
@@ -359,6 +411,9 @@
                         URL.revokeObjectURL(this.previewUrl);
                     }
                     this.pendingFile = file;
+                    this.fromCamera = !!opts.fromCamera;
+                    this.awaitingReview = !!(this.sourceDriven && this.fromCamera && ! this.autoSubmit);
+                    this.saveState = '';
                     this.previewName = file.name || 'capture.jpg';
                     if (file.type && file.type.startsWith('image/')) {
                         this.previewUrl = URL.createObjectURL(file);
@@ -368,14 +423,16 @@
                         this.previewUrl = null;
                     }
                     this.emitPreview();
-                    // Source-driven holders require explicit Save / Use photo (preview alone is not persistence).
-                    if (! this.sourceDriven || this.autoSubmit) {
+                    // Upload path autosaves immediately. Camera waits for Review → Use photo.
+                    if (! this.sourceDriven || this.autoSubmit || ! this.fromCamera) {
                         this.commitFile(file);
                     }
                 },
                 commitFile(file) {
                     const payload = file || this.pendingFile;
                     if (! payload) return;
+                    this.saveState = 'saving';
+                    this.awaitingReview = false;
                     window.dispatchEvent(new CustomEvent('kf-document-file', {
                         detail: { hostId: this.hostId, fieldName: this.fieldName, file: payload },
                     }));
@@ -383,12 +440,15 @@
                         this.submitClosestForm();
                         return;
                     }
-                    // Profile / form holders: submit so the server persists the attachment.
+                    // Profile / form holders: autosave by submitting the existing section form.
                     if (this.sourceDriven) {
                         const form = this.$el.closest('form');
                         const isApply = !!(form && (form.id === 'apply-wizard-form' || form.hasAttribute('data-apply-wizard-form')));
                         if (form && ! isApply) {
                             this.submitClosestForm();
+                        } else if (isApply) {
+                            // Apply AJAX upload owns persistence; mark saved when holder clears pending.
+                            this.saveState = 'saving';
                         }
                     }
                 },
@@ -399,6 +459,7 @@
                     }
                     form.dataset.kfSubmitting = '1';
                     this.submitting = true;
+                    this.saveState = 'saving';
                     this.$nextTick(() => {
                         if (typeof form.requestSubmit === 'function') {
                             form.requestSubmit();
@@ -420,6 +481,9 @@
                         URL.revokeObjectURL(this.previewUrl);
                     }
                     this.pendingFile = null;
+                    this.fromCamera = false;
+                    this.awaitingReview = false;
+                    this.saveState = '';
                     this.previewUrl = null;
                     this.previewName = null;
                     this.emitPreview();

@@ -6,6 +6,7 @@
     'ward' => '',
     'street' => '',
     'required' => true,
+    'requireStreet' => null,
     'locations' => location_tree('TZ'),
 ])
 
@@ -27,6 +28,7 @@
     $initialRegion = old($oldKey('region'), $region);
     $initialDistrict = old($oldKey('district'), $district);
     $regionOptions = array_keys($locations instanceof \Illuminate\Support\Collection ? $locations->all() : (array) $locations);
+    $streetRequired = $requireStreet ?? $required;
 @endphp
 
 <div class="grid sm:grid-cols-2 gap-4" x-data="{
@@ -115,8 +117,8 @@
                placeholder="{{ __('borrower.profile.ward_placeholder') }}">
     </div>
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.street') }} @if($required)<span class="text-red-500">*</span>@endif</label>
-        <input name="{{ $streetName }}" value="{{ old($oldKey('street'), $street) }}" @if($required) required @endif
+        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.street') }} @if($streetRequired)<span class="text-red-500">*</span>@endif</label>
+        <input name="{{ $streetName }}" value="{{ old($oldKey('street'), $street) }}" @if($streetRequired) required @endif
                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
                placeholder="{{ __('borrower.profile.street_placeholder') }}">
     </div>

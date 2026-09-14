@@ -33,7 +33,7 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
 
         $this->assertStringContainsString('confirmUse()', $blade);
         $this->assertStringContainsString('document_upload.use_photo', $blade);
-        $this->assertStringContainsString('if (! this.sourceDriven || this.autoSubmit)', $blade);
+        $this->assertStringContainsString('if (! this.sourceDriven || this.autoSubmit || ! this.fromCamera)', $blade);
         $this->assertStringContainsString('commitFile', $blade);
     }
 
@@ -42,9 +42,26 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $js = file_get_contents(resource_path('js/apply-wizard.js'));
 
         $this->assertStringContainsString('_lastDraftInputs', $js);
-        $this->assertStringContainsString("draft[name]", $js);
+        $this->assertStringContainsString('agricultureStepReady', $js);
+        $this->assertStringContainsString('syncAgricultureFieldsFromAlpine', $js);
         $this->assertStringContainsString('farm_activity_photos', $js);
         $this->assertStringContainsString('land_use_evidence', $js);
+    }
+
+    public function test_apply_document_remove_uses_confirm_form(): void
+    {
+        $blade = file_get_contents(resource_path('views/site/apply/_apply-document-holder.blade.php'));
+        $this->assertStringContainsString('confirmForm(null', $blade);
+        $this->assertStringContainsString('removeEducationDocument', $blade);
+    }
+
+    public function test_single_image_shows_saving_saved_states(): void
+    {
+        $blade = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));
+        $this->assertStringContainsString("saveState === 'saving'", $blade);
+        $this->assertStringContainsString("saveState === 'saved'", $blade);
+        $this->assertStringContainsString('document_upload.could_not_save', $blade);
+        $this->assertStringContainsString('retrySave()', $blade);
     }
 
     public function test_borrower_layout_skips_feedback_modal_for_inline_status(): void

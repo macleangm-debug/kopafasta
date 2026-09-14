@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
 | **Failed staging (do not promote)** | `15bf3c71efd09214cba3f9c766d2abe385f1e6ed` | AG/AB/DOC owner UAT FAIL |
-| **Staging under UAT** | `a528425294d035466e27c85381964d5cb648a4f1` | P0 mobile docs + AG Continue + Profile save (AB still frozen) |
+| **Staging under UAT** | `08f358df3062068ff57fb54bd7556ef1d9c57540` | P0 mobile docs + AG Continue + Profile save (AB frozen) |
 | **Prior staging (superseded)** | `83d8a820df78e8b8fd4fce41c32d1aa8a4c9848f` | Combined micropass — AB PASS; AG Continue / DOC FAIL |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.

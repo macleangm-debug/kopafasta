@@ -104,7 +104,15 @@
                     class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
                 {{ __('borrower.profile.replace_document') }}
             </button>
-            <button type="button" @click="removeEducationDocument(@js($docCode)); replaceMode = false"
+            <button type="button"
+                    @click="window.confirmForm(null, {
+                        title: @js(__('borrower.profile.remove_document_confirm_title')),
+                        message: @js(__('borrower.profile.remove_document_confirm_named', ['document' => $label])),
+                        confirmLabel: @js(__('borrower.profile.remove_document_confirm_cta')),
+                        confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                        tone: 'warning',
+                        onConfirm: () => { removeEducationDocument(@js($docCode)); replaceMode = false; },
+                    })"
                     class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
                 {{ __('borrower.profile.remove_document') }}
             </button>

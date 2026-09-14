@@ -62,6 +62,15 @@
         if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
         openCapture($event.detail?.source);
      "
+     @kf-document-pages-ready.window="
+        if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
+        const form = $el.closest('form');
+        if (form && form.dataset.kfSubmitting !== '1') {
+            form.dataset.kfSubmitting = '1';
+            if (typeof form.requestSubmit === 'function') form.requestSubmit();
+            else form.submit();
+        }
+     "
      @kf-inline-document-upload-start="
         inlineUploading = true;
         inlineProgress = null;
@@ -218,6 +227,7 @@
                 :required="$required"
                 :camera-first="true"
                 :source-driven="true"
+                :auto-finish-upload="true"
             />
             <p class="text-xs text-gray-500">{{ $guideText }}</p>
         @endif
