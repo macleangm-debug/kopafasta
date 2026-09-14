@@ -45,7 +45,7 @@
         this.$nextTick(() => {
             const el = this.$refs.regionSelect;
             el?.dispatchEvent(new Event('change', { bubbles: true }));
-            // Read name from the control — never embed @js() strings inside this quoted x-data.
+            // Read name from the control — do not embed Blade Js helpers inside this quoted x-data.
             this.$dispatch('profile-select', { name: el?.name || '', value: value });
         });
     },

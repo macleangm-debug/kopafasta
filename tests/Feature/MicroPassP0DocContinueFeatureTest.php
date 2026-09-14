@@ -63,7 +63,25 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $this->assertStringContainsString('this.$refs.regionSelect', $address);
         $this->assertStringNotContainsString('@js($regionName)', $address);
         $this->assertStringNotContainsString('@js($districtName)', $address);
+        // Blade treats @js() even inside comments as a directive — must never appear bare.
+        $this->assertStringNotContainsString('@js()', $address);
         $this->assertStringContainsString('hidden lg:block', $address);
+    }
+
+    public function test_address_fields_component_renders_without_blade_js_crash(): void
+    {
+        $html = $this->view('components.site.address-fields', [
+            'prefix' => 'nok',
+            'required' => true,
+            'locations' => [
+                'Dar es Salaam' => ['Ilala', 'Kinondoni'],
+                'Morogoro' => ['Morogoro', 'Kilosa'],
+            ],
+        ])->render();
+
+        $this->assertStringContainsString('name="nok_region"', $html);
+        $this->assertStringContainsString('name="nok_district"', $html);
+        $this->assertStringContainsString('Dar es Salaam', $html);
     }
 
     public function test_camera_opens_fresh_after_replace_or_delete(): void
