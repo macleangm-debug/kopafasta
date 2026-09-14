@@ -1880,6 +1880,7 @@ class BorrowerController extends Controller
                 'voter_id' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'driving_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
                 'other_id' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'lock_national_id' => ['nullable', 'boolean'],
             ];
 
             $data = $request->validate($rules);
@@ -1901,15 +1902,18 @@ class BorrowerController extends Controller
             }
 
             if (in_array($focus, ['identity', 'all'], true) && filled($data['national_id'] ?? null)) {
-                // National ID is sensitive: allow first entry only; never overwrite once saved.
-                if (! filled($customer->national_id) && ! $customer->identity_locked) {
+                if ($customer->identity_locked) {
+                    if (filled($customer->national_id)
+                        && (string) $customer->national_id !== (string) $data['national_id']) {
+                        return back()
+                            ->withInput()
+                            ->withErrors(['national_id' => __('borrower.nida.cannot_change')]);
+                    }
+                } else {
                     $customer->national_id = $data['national_id'];
-                } elseif (filled($customer->national_id)
-                    && (string) $customer->national_id !== (string) $data['national_id']
-                    && ! $customer->identity_locked) {
-                    return back()
-                        ->withInput()
-                        ->withErrors(['national_id' => __('borrower.nida.cannot_change')]);
+                    if ($request->boolean('lock_national_id')) {
+                        $customer->identity_locked = true;
+                    }
                 }
             }
 
@@ -2755,7 +2759,7 @@ class BorrowerController extends Controller
             'complete' => true,
         ]);
 
-        $message = 'Face photos saved.';
+        $message = __('borrower.profile.saved_inline');
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -2767,13 +2771,17 @@ class BorrowerController extends Controller
         }
 
         if ($return = $this->validatedReturnUrl($request)) {
-            return redirect($return)->with('status', $message);
+            return redirect($return)
+                ->with('status', $message)
+                ->with('kf_status_inline', true);
         }
 
         return $this->redirectWithGuarantorResume(
             $request,
             $customer,
-            $this->redirectToFaceProfile($request)->with('status', $message),
+            $this->redirectToFaceProfile($request)
+                ->with('status', $message)
+                ->with('kf_status_inline', true),
         );
     }
 
@@ -2810,7 +2818,9 @@ class BorrowerController extends Controller
             ]);
         }
 
-        return $this->redirectToFaceProfile($request)->with('status', $message);
+        return $this->redirectToFaceProfile($request)
+            ->with('status', __('borrower.profile.saved_inline'))
+            ->with('kf_status_inline', true);
     }
 
     public function kycReconfirm(Request $request, KycFreshnessService $freshness): View|RedirectResponse

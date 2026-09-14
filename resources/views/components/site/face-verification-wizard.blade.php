@@ -478,23 +478,20 @@
 
                         try {
                             await this.flushLocalUploads();
-                            const res = await fetch(this.submitUrl, {
-                                method: 'POST',
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                    'Accept': 'application/json',
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-                                },
-                                credentials: 'same-origin',
-                                body: JSON.stringify({}),
-                            });
-                            const data = await res.json().catch(() => ({}));
-                            if (!res.ok || !data.ok) {
-                                throw new Error(data.message || 'Could not submit verification');
+                            if (typeof window.kfShowSaving === 'function') {
+                                window.kfShowSaving(@js(__('borrower.profile.uploading_documents')));
                             }
-                            const next = data.redirect || this.returnUrl;
-                            window.location.href = next || window.location.href;
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = this.submitUrl;
+                            form.style.display = 'none';
+                            const csrf = document.createElement('input');
+                            csrf.type = 'hidden';
+                            csrf.name = '_token';
+                            csrf.value = document.querySelector('meta[name=csrf-token]')?.content || '';
+                            form.appendChild(csrf);
+                            document.body.appendChild(form);
+                            form.submit();
                         } catch (e) {
                             this.notice = e.message || 'Could not submit verification. Please try again.';
                             this.isSubmitting = false;
@@ -559,65 +556,84 @@
                     async removePhoto(angle) {
                         if (this.isRemoving || this.isUploading || this.isSubmitting) return;
                         const step = this.steps.find(s => s.key === angle);
-                        if (step?.localBlob) {
-                            if (step.previewUrl && String(step.previewUrl).startsWith('blob:')) {
-                                URL.revokeObjectURL(step.previewUrl);
-                            }
-                            step.localBlob = null;
-                            step.done = false;
-                            step.previewUrl = null;
-                            this.steps = this.steps.map((s) => ({ ...s }));
-                            if (!this.steps.every(s => s.done)) {
-                                this.phase = 'intro';
-                            }
-                            return;
-                        }
-                        const url = this.deleteUrls[angle];
-                        if (!url) return;
-
-                        this.isRemoving = true;
-                        this.notice = null;
-
-                        try {
-                            const res = await fetch(url, {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                    'Accept': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-                                },
-                                credentials: 'same-origin',
-                            });
-                            const data = await res.json();
-                            if (!res.ok || !data.ok) {
-                                throw new Error(data.message || 'Could not remove photo');
-                            }
-
-                            const step = this.steps.find(s => s.key === angle);
-                            if (step) {
-                                const oldPreview = step.previewUrl;
+                        const runRemove = async () => {
+                            if (step?.localBlob) {
+                                if (step.previewUrl && String(step.previewUrl).startsWith('blob:')) {
+                                    URL.revokeObjectURL(step.previewUrl);
+                                }
+                                step.localBlob = null;
                                 step.done = false;
                                 step.previewUrl = null;
-                                if (oldPreview && String(oldPreview).startsWith('blob:')) {
-                                    URL.revokeObjectURL(oldPreview);
+                                this.steps = this.steps.map((s) => ({ ...s }));
+                                if (!this.steps.every(s => s.done)) {
+                                    this.phase = 'intro';
                                 }
+                                return;
                             }
+                            const url = this.deleteUrls[angle];
+                            if (!url) return;
 
-                            if (!this.steps.every(s => s.done)) {
-                                this.phase = 'intro';
-                                while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
-                                    this.stepIndex++;
+                            this.isRemoving = true;
+                            this.notice = null;
+
+                            try {
+                                const res = await fetch(url, {
+                                    method: 'DELETE',
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                    },
+                                    credentials: 'same-origin',
+                                });
+                                const data = await res.json();
+                                if (!res.ok || !data.ok) {
+                                    throw new Error(data.message || 'Could not remove photo');
                                 }
-                                if (this.stepIndex >= this.steps.length) {
-                                    this.stepIndex = this.steps.findIndex(s => !s.done);
-                                    if (this.stepIndex < 0) this.stepIndex = 0;
+
+                                const target = this.steps.find(s => s.key === angle);
+                                if (target) {
+                                    const oldPreview = target.previewUrl;
+                                    target.done = false;
+                                    target.previewUrl = null;
+                                    if (oldPreview && String(oldPreview).startsWith('blob:')) {
+                                        URL.revokeObjectURL(oldPreview);
+                                    }
                                 }
+
+                                if (!this.steps.every(s => s.done)) {
+                                    this.phase = 'intro';
+                                    while (this.stepIndex < this.steps.length && this.steps[this.stepIndex]?.done) {
+                                        this.stepIndex++;
+                                    }
+                                    if (this.stepIndex >= this.steps.length) {
+                                        this.stepIndex = this.steps.findIndex(s => !s.done);
+                                        if (this.stepIndex < 0) this.stepIndex = 0;
+                                    }
+                                }
+                                if (typeof window.kfFlashInlineSaved === 'function') {
+                                    window.kfFlashInlineSaved();
+                                }
+                            } catch (e) {
+                                this.notice = e.message || 'Could not remove photo. Please try again.';
+                            } finally {
+                                this.isRemoving = false;
                             }
-                        } catch (e) {
-                            this.notice = e.message || 'Could not remove photo. Please try again.';
-                        } finally {
-                            this.isRemoving = false;
+                        };
+
+                        if (typeof window.confirmForm === 'function') {
+                            window.confirmForm(null, {
+                                title: @js(__('borrower.nida.face_remove_confirm_title')),
+                                message: @js(__('borrower.nida.face_remove_confirm_message')),
+                                confirmLabel: @js(__('borrower.nida.face_remove')),
+                                confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                tone: 'warning',
+                                onConfirm: () => { runRemove(); },
+                            });
+                            return;
                         }
+
+                        await runRemove();
                     },
 
                     async waitForVideoReady(video) {

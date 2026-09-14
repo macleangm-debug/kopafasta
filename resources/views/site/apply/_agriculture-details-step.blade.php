@@ -78,22 +78,12 @@
                                 />
                             </div>
                         @elseif ($type === 'location')
-                            <div class="sm:col-span-2 space-y-3 min-w-0"
-                                 x-data="{
-                                    syncFarmLocation() {
-                                        const root = $el;
-                                        const val = (name) => root.querySelector(`[name=\"${name}\"]`)?.value?.trim() || '';
-                                        const composed = [val('product_question[farming_region]'), val('product_question[farming_district]'), val('product_question[farming_ward]')].filter(Boolean).join(', ');
-                                        const hidden = root.querySelector('[name=\"product_question[farming_location]\"]');
-                                        if (hidden) hidden.value = composed;
-                                        bumpAgroReady();
-                                    }
-                                 }"
-                                 @change="syncFarmLocation()">
+                            <div class="sm:col-span-2 space-y-3 min-w-0" data-agro-location>
                                 <label class="block text-sm font-semibold text-gray-700">
                                     {{ $label }}
                                     @if (! empty($field['required'])) <span class="text-rose-500">*</span> @endif
                                 </label>
+                                {{-- Same canonical Profile Region→District (mobile sheet + desktop select). --}}
                                 <x-site.address-fields
                                     form-key="product_question"
                                     prefix="farming"
@@ -102,7 +92,8 @@
                                     :show-ward="false"
                                     :show-street="false"
                                 />
-                                <input type="hidden" name="product_question[farming_location]" value="">
+                                <input type="hidden" name="product_question[farming_location]" value=""
+                                       data-farming-location-composed>
                             </div>
                         @elseif ($type === 'date')
                             <div class="min-w-0">

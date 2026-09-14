@@ -9,6 +9,8 @@
     'requireStreet' => null,
     'showWard' => true,
     'showStreet' => true,
+    /** When true, always show native selects (no mobile-only sheet). Use on wizard Overview where fields must never disappear. */
+    'forceNative' => false,
     'locations' => location_tree('TZ'),
 ])
 
@@ -33,9 +35,14 @@
     $streetRequired = ($showStreet && ($requireStreet ?? $required));
     $showWard = (bool) $showWard;
     $showStreet = (bool) $showStreet;
+    $forceNative = (bool) $forceNative;
+    $sheetClass = $forceNative ? 'hidden' : 'lg:hidden';
+    $selectClass = $forceNative
+        ? 'block w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-brand px-4 py-3 text-sm'
+        : 'hidden lg:block w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-brand px-4 py-3 text-sm';
 @endphp
 
-<div class="grid sm:grid-cols-2 gap-4" x-data="{
+<div class="grid sm:grid-cols-2 gap-4" data-kf-address-fields x-data="{
     ...tzAddress(@js($locations), @js($initialRegion), @js($initialDistrict), @js([
         'selectRegion' => __('borrower.profile.select_region'),
         'selectDistrict' => __('borrower.profile.select_district'),
@@ -65,7 +72,7 @@
     <div data-address-region>
         <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ __('borrower.profile.fields.region') }} @if($required)<span class="text-red-500">*</span>@endif</label>
 
-        <div class="lg:hidden">
+        <div class="{{ $sheetClass }}">
             <button type="button" @click="regionPickerOpen = true"
                     class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
                 <span class="flex-1 text-left truncate" x-text="region || labels.selectRegion"></span>
@@ -85,7 +92,7 @@
         </div>
 
         <select name="{{ $regionName }}" x-model="region" x-ref="regionSelect" @change="onRegionChange()" @if($required) required @endif
-                class="hidden lg:block w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-brand px-4 py-3 text-sm">
+                class="{{ $selectClass }}">
             <option value="">{{ __('borrower.profile.select_region') }}</option>
             @foreach ($locations as $regionLabel => $districts)
                 <option value="{{ $regionLabel }}" @selected($initialRegion === $regionLabel)>{{ $regionLabel }}</option>
@@ -95,7 +102,7 @@
     <div data-address-district>
         <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ __('borrower.profile.fields.district') }} @if($required)<span class="text-red-500">*</span>@endif</label>
 
-        <div class="lg:hidden">
+        <div class="{{ $sheetClass }}">
             <button type="button" @click="districtPickerOpen = true" :disabled="!region"
                     class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition disabled:opacity-50">
                 <span class="flex-1 text-left truncate" x-text="district || labels.selectDistrict"></span>
@@ -113,10 +120,9 @@
             </x-site.bottom-sheet>
         </div>
 
-        {{-- Submitted value. required lives here so mobile (select hidden) still gates Continue. --}}
         <input type="hidden" name="{{ $districtName }}" :value="district" x-ref="districtHidden" @if($required) required @endif>
         <select x-model="district"
-                class="hidden lg:block w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-brand px-4 py-3 text-sm"
+                class="{{ $selectClass }}"
                 @change="district = $event.target.value">
             <option value="">{{ __('borrower.profile.select_district') }}</option>
             <template x-for="d in districtOptions" :key="'opt-' + d">

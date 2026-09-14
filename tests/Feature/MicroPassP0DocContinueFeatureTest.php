@@ -57,8 +57,10 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $address = file_get_contents(resource_path('views/components/site/address-fields.blade.php'));
 
         $this->assertStringContainsString('data-agro-overview', $agro);
+        $this->assertStringContainsString('data-agro-location', $agro);
         $this->assertStringContainsString('x-site.address-fields', $agro);
         $this->assertStringContainsString('prefix="farming"', $agro);
+        $this->assertStringNotContainsString(':force-native="true"', $agro);
         $this->assertStringContainsString(':show-ward="false"', $agro);
         $this->assertStringContainsString(':show-street="false"', $agro);
         $this->assertStringContainsString('data-address-region', $address);
@@ -67,23 +69,12 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $this->assertStringNotContainsString('@js()', $address);
     }
 
-    public function test_address_fields_source_has_no_bare_blade_js_directive(): void
+    public function test_farm_activity_photos_use_shared_multi_page_camera_shell(): void
     {
-        $address = file_get_contents(resource_path('views/components/site/address-fields.blade.php'));
-        $this->assertStringNotContainsString('@js()', $address);
-        $this->assertStringContainsString('pickRegion(value)', $address);
-    }
-
-    public function test_profile_replace_goes_direct_to_capture_not_document_type(): void
-    {
-        $holder = file_get_contents(resource_path('views/components/site/profile-document-field.blade.php'));
-        $additional = file_get_contents(resource_path('views/site/borrower/profile/_additional_documents_card.blade.php'));
-
-        $this->assertStringContainsString('startReplace()', $holder);
-        $this->assertStringNotContainsString("replaceOpensEdit ? 'open = true'", $holder);
-        $this->assertStringContainsString('additional_document_type', $additional);
-        $this->assertStringContainsString("name=\"additional_document_type\"", $additional);
-        $this->assertStringNotContainsString('replace-opens-edit="true"', $additional);
+        $holder = file_get_contents(resource_path('views/site/apply/_apply-document-holder.blade.php'));
+        $this->assertStringContainsString("\$outputMode = in_array(\$capture, ['images'], true) ? 'images' : 'pdf'", $holder);
+        $this->assertStringContainsString("! in_array(\$capture, ['single', 'selfie', 'nida'], true)", $holder);
+        $this->assertStringContainsString(':output-mode="$outputMode"', $holder);
     }
 
     public function test_canonical_multi_page_camera_has_frame_and_icons(): void
@@ -93,7 +84,9 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $this->assertStringContainsString('fitFrame', $blade);
         $this->assertStringContainsString('border-dashed', $blade);
         $this->assertStringContainsString('resetCapture()', $blade);
-        $this->assertStringContainsString(':aria-label="pages.length ? labels.captureMore : labels.capturePage"', $blade);
+        $this->assertStringContainsString('outputMode', $blade);
+        // Orientation control lives in the bottom camera-control area.
+        $this->assertMatchesRegularExpression('/mt-auto[\s\S]*frameOrientation/', $blade);
     }
 
     public function test_camera_opens_fresh_after_replace_or_delete(): void

@@ -1118,7 +1118,7 @@ export function applyWizard(config) {
                     return this._postEducationDocumentUpload(code, (formData) => formData.append('file', file));
                 },
 
-                async uploadEducationDocumentPages(code, hostId) {
+                async uploadEducationDocumentPages(code, hostId, outputMode = 'pdf') {
                     if (! this.educationDocumentUploadUrl || ! this.form.loan_product_id) return;
                     const host = document.getElementById(hostId);
                     const inputs = host ? Array.from(host.querySelectorAll('input[type=file]')) : [];
@@ -1128,7 +1128,9 @@ export function applyWizard(config) {
                         this.educationDocumentUploadError = this.i18n.educationDetails?.uploadFailed || 'Upload failed';
                         return;
                     }
+                    const mode = outputMode === 'images' ? 'images' : 'pdf';
                     return this._postEducationDocumentUpload(code, (formData) => {
+                        formData.append('output_mode', mode);
                         files.forEach((file) => formData.append('pages[]', file));
                     });
                 },
@@ -3300,8 +3302,8 @@ export function applyWizard(config) {
 
                 /**
                  * Agriculture Overview completeness — same rule as Loan Quote:
-                 * once every required input on the step panel is filled, Continue may appear.
-                 * Optional documents never block. Region/District live in data-agro-overview.
+                 * required current-step inputs complete → Continue may appear.
+                 * Harvest Alpine/profile-select/address values; do not rely only on raw DOM [required].
                  */
                 agricultureOverviewReady() {
                     this.syncAgricultureFieldsFromAlpine();
@@ -3317,25 +3319,16 @@ export function applyWizard(config) {
                         region = region || parts[0] || '';
                         district = district || parts[1] || '';
                     }
-                    const locationHidden = this.agricultureNamedInput('product_question[farming_location]');
+                    const locationHidden = this.agricultureNamedInput('product_question[farming_location]')
+                        || this.formRoot()?.querySelector('[data-farming-location-composed]');
                     if (locationHidden) {
                         const ward = this.agricultureFieldValue('farming_ward');
                         locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
                     }
 
-                    const root = this.formRoot();
-                    const overview = root?.querySelector('[data-wizard-step="agriculture_details"] [data-agro-overview]');
-                    if (overview && window.KopaFastaForm?.isComplete) {
-                        // onlyVisible:false — Overview may be on the other tab while Documents is open.
-                        if (! window.KopaFastaForm.isComplete(overview, { onlyVisible: false, allowEmpty: false })) {
-                            return false;
-                        }
-                        return !! region && !! district;
-                    }
-
-                    // Fallback if the Overview panel is not mounted yet.
                     const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
-                    return required.every((key) => !! this.agricultureFieldValue(key)) && !! region && !! district;
+                    const fieldsOk = required.every((key) => !! this.agricultureFieldValue(key));
+                    return fieldsOk && !! region && !! district;
                 },
 
                 agricultureStepReady() {

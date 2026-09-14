@@ -37,6 +37,26 @@ export function registerSavingOverlay(Alpine) {
         Alpine.store('kfSaving').total = null;
     };
 
+    window.kfFlashInlineSaved = function (message) {
+        const label = message || document.querySelector('[data-kf-saved-toast] span:last-child')?.textContent?.trim() || 'Saved';
+        let toast = document.querySelector('[data-kf-saved-toast]');
+        if (! toast) {
+            toast = document.createElement('div');
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('data-kf-saved-toast', '');
+            toast.className = 'mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 px-3.5 py-1.5 text-xs font-bold';
+            const shell = document.querySelector('[data-kf-profile-shell-top]') || document.querySelector('.glass-card');
+            if (shell?.parentElement) {
+                shell.parentElement.insertBefore(toast, shell);
+            } else {
+                document.body.prepend(toast);
+            }
+        }
+        toast.innerHTML = '<span aria-hidden="true">✓</span><span></span>';
+        toast.querySelector('span:last-child').textContent = label;
+        toast.classList.remove('hidden');
+    };
+
     window.kfFormNeedsSaving = function (form) {
         if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-no-saving')) {
             return false;

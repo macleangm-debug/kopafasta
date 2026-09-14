@@ -1499,6 +1499,7 @@ class ApplyController extends Controller
         $data = $request->validate([
             'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
             'document_code' => ['required', 'string', 'max:60'],
+            'output_mode' => ['nullable', 'string', 'in:pdf,images'],
             'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'pages' => ['nullable', 'array', 'min:1', 'max:12'],
             'pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
@@ -1543,22 +1544,43 @@ class ApplyController extends Controller
         );
 
         $folder = strtolower((string) $product->code) ?: 'apply';
+        $directory = "borrower/{$customer->id}/{$folder}";
+        // Field capture=images (farm/activity) keeps image files; ordinary docs become one PDF.
+        $asImages = (($field['capture'] ?? null) === 'images')
+            || (($data['output_mode'] ?? 'pdf') === 'images');
+        $imagePaths = [];
         if ($pageFiles !== []) {
-            $path = app(\App\Services\DocumentPageMerger::class)->mergeTo(
-                $pageFiles,
-                "borrower/{$customer->id}/{$folder}",
-                $code
-            );
+            if ($asImages) {
+                $stored = app(\App\Services\DocumentPageMerger::class)->storeImages(
+                    $pageFiles,
+                    $directory,
+                    $code
+                );
+                $path = $stored['primary'];
+                $imagePaths = $stored['paths'];
+            } else {
+                $path = app(\App\Services\DocumentPageMerger::class)->mergeTo(
+                    $pageFiles,
+                    $directory,
+                    $code
+                );
+            }
             $originalName = basename($path);
         } else {
-            $path = $single->store("borrower/{$customer->id}/{$folder}", 'public');
+            $path = $single->store($directory, 'public');
             $originalName = $single->getClientOriginalName();
+            if ($asImages) {
+                $imagePaths = [$path];
+            }
         }
         $document = CustomerDocument::create([
             'customer_id' => $customer->id,
             'document_type_id' => $docType->id,
             'file_path' => $path,
             'status' => 'pending',
+            'notes' => $imagePaths !== []
+                ? json_encode(['image_paths' => $imagePaths, 'page_count' => count($imagePaths)])
+                : null,
         ]);
 
         $payload = $draft->payload ?? [];
@@ -1571,6 +1593,7 @@ class ApplyController extends Controller
             'file_name' => $originalName,
             'uploaded_at' => now()->format('d M Y, H:i'),
             'is_pdf' => str_ends_with(strtolower($path), '.pdf'),
+            'image_paths' => $imagePaths,
             'verified' => false,
         ];
         $payload['education_documents'] = $educationDocuments;

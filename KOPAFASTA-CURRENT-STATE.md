@@ -7,8 +7,8 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | Env | SHA | Note |
 | --- | --- | --- |
 | **Accepted production** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | C1 accepted-only baseline (do not casually overwrite) |
-| **Prior staging (do not promote)** | `237a4bfc430fecd278773c625e9af0251015cfe1` | address-fields @js() comment hotfix |
-| **Staging under UAT** | `d748536efc6a18062ec0fd67a818bb855dd04299` | FINAL economical: AG Region/District, Quote Continue, canonical camera, Replace |
+| **Prior staging (do not promote)** | `d748536efc6a18062ec0fd67a818bb855dd04299` | FINAL economical: AG Region/District, Quote Continue, canonical camera, Replace |
+| **Staging under UAT** | `(pending deploy)` | Closure: browser AG journey + one shared camera shell + NIDA confirm |
 
 **Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`.
 
@@ -19,12 +19,18 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 
 ## Canonical rules (this pass)
 
-1. **Region → District:** `x-site.address-fields` only. AG Overview hides ward/street (`show-ward`/`show-street` false) so Region/District stay visible.
-2. **Continue:** Loan Quote pattern — required Overview complete (`KopaFastaForm.isComplete` on `data-agro-overview`) + farm/land docs → footer Endelea.
-3. **Ordinary document camera:** shared `x-site.multi-page-document-upload` via holders (`profile-document-field` default `mode=multi`, apply holder default multi-page). Directive photo flows stay `mode=single` / `capture=images`.
-4. **Replace:** never asks document type — `startReplace()` → Upload/Camera with type already on the form. Only **Ongeza hati** opens the type picker.
-5. **Clean capture:** `fresh: true` / `clear-capture` / `resetCapture()` at shared camera.
-6. **Camera UI:** icon shutter/facing/add/rotate + portrait/landscape dotted frame guide (no crop).
+1. **Region → District:** `x-site.address-fields` only (Profile-identical: mobile bottom sheet + desktop select). AG Overview hides ward/street.
+2. **Continue:** Quote pattern — required Overview (`Region`, `District`, activity fields) + farm/land docs → footer Endelea. Optional docs never block.
+3. **Three camera families only:**
+   - **Shared general shell** `x-site.multi-page-document-upload` — Profile docs, AG docs, farm/activity photos, residence/income/supporting/guarantor/group/partner ordinary Camera CTAs.
+   - **Identity directive** — facial/selfie + NIDA front/back (`mode=single` / `capture=selfie|nida`).
+   - **Collateral directive** — asset photographs.
+4. **Same shell, output by field:** `outputMode=pdf` → one PDF; `capture=images` / `outputMode=images` → image collection (no forced PDF).
+5. **Replace:** never asks document type — `startReplace()` → Upload/Camera. Only **Ongeza hati** opens the type picker.
+6. **Clean capture:** `fresh: true` / `clear-capture` / `resetCapture()`.
+7. **Camera UI:** bottom control area (shutter / facing / add / orientation) + portrait/landscape dotted guide; Finish primary.
+8. **NIDA number:** confirm before lock; images remain replaceable. Face: replaceable + Remove uses confirmForm.
+9. **Profile autosave:** Saving… → ✓ Saved; no ordinary success modals. Signature holder = presentation only.
 
 ## Deploy
 

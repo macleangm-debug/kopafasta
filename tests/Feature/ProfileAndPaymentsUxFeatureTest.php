@@ -74,17 +74,45 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
         $this->assertStringContainsString(__('kin.relationships.parent', [], 'sw'), $html);
     }
 
-    public function test_saved_national_id_is_readonly_and_shows_photo_fields(): void
+    public function test_saved_national_id_stays_editable_until_confirmed_lock(): void
     {
         $customer = $this->makeCustomer();
         $customer->update(['national_id' => '19800101123456789012']);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.profile', ['section' => 'personal']))
+            ->assertOk()
+            ->assertDontSee(__('borrower.nida.saved_locked_title'), false)
+            ->assertSee(__('borrower.nida.confirm_lock_pending_hint'), false)
+            ->assertSee(__('borrower.profile.nida_front'), false)
+            ->assertSee(__('borrower.profile.nida_back'), false);
+
+        $this->actingAs($customer->user)
+            ->put(route('site.borrower.profile.update', ['section' => 'personal']), [
+                'focus'            => 'identity',
+                'national_id'      => '19900101123456789099',
+                'lock_national_id' => 1,
+            ])
+            ->assertRedirect();
+
+        $customer->refresh();
+        $this->assertSame('19900101123456789099', $customer->national_id);
+        $this->assertTrue($customer->identity_locked);
+    }
+
+    public function test_locked_national_id_is_readonly_and_id_photos_remain_replaceable(): void
+    {
+        $customer = $this->makeCustomer();
+        $customer->update([
+            'national_id'     => '19800101123456789012',
+            'identity_locked' => true,
+        ]);
 
         $html = $this->actingAs($customer->user)
             ->get(route('site.borrower.profile', ['section' => 'personal']))
             ->assertOk()
             ->assertSee(__('borrower.nida.saved_locked_title'), false)
-            ->assertSee(__('borrower.profile.nida_front'), false)
-            ->assertSee(__('borrower.profile.nida_back'), false)
+            ->assertSee(__('borrower.profile.replace_document'), false)
             ->getContent();
 
         $this->assertStringContainsString('readonly', $html);

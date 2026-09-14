@@ -7,12 +7,15 @@
     'cameraFirst' => false,
     'autoFinishUpload' => false,
     'sourceDriven' => false,
+    /** pdf = combine to one PDF on persist; images = keep image files (farm/activity evidence). */
+    'outputMode' => 'pdf',
 ])
 
 @php
     $hostId = $inputHostId ?? ('doc-pages-'.md5($name));
     $autoFinishUpload = (bool) $autoFinishUpload;
     $sourceDriven = (bool) $sourceDriven || $autoFinishUpload;
+    $outputMode = in_array($outputMode, ['pdf', 'images'], true) ? $outputMode : 'pdf';
     $labelDefaults = [
         'hint' => '',
         'uploadFile' => __('borrower.profile.multi_page_upload'),
@@ -40,7 +43,8 @@
     $mergedLabels = array_merge($labelDefaults, $labels);
 @endphp
 
-<div class="space-y-4" x-data="multiPageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), {{ (int) $maxPages }}, @js($autoFinishUpload))"
+<div class="space-y-4" x-data="multiPageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), {{ (int) $maxPages }}, @js($autoFinishUpload), @js($outputMode))"
+     data-output-mode="{{ $outputMode }}"
      @document-open-camera.window="if ($event.detail?.hostId === hostId) { fromCamera = true; if ($event.detail?.fresh) resetCapture(); openCamera(); }"
      @document-open-upload.window="if ($event.detail?.hostId === hostId) { if ($event.detail?.fresh) resetCapture(); $refs.fileInput?.click(); }"
      @clear-capture.window="if ($event.detail?.hostId === hostId) resetCapture()">
@@ -80,37 +84,25 @@
                     <x-site.brand-mark size="sm" variant="light" />
                     <p class="mt-1 text-[10px] uppercase tracking-widest text-brand-gold font-semibold truncate" x-text="labels.brand"></p>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <button type="button" @click="frameOrientation = frameOrientation === 'portrait' ? 'landscape' : 'portrait'"
-                            class="rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25 inline-flex items-center gap-1.5"
-                            :title="frameOrientation === 'portrait' ? labels.orientationLandscape : labels.orientationPortrait"
-                            :aria-label="frameOrientation === 'portrait' ? labels.orientationLandscape : labels.orientationPortrait">
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"
-                             :class="frameOrientation === 'landscape' ? 'rotate-90' : ''">
-                            <rect x="7" y="3" width="10" height="18" rx="1.5"/>
-                        </svg>
-                    </button>
-                    <button type="button" @click="dismissCamera()"
-                            class="rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
-                            x-text="labels.close"></button>
-                </div>
+                <button type="button" @click="dismissCamera()"
+                        class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
+                        x-text="labels.close"></button>
             </div>
             <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
                    class="absolute inset-0 w-full h-full object-cover"
                    :class="facingMode === 'user' ? 'mirror' : ''"></video>
             {{-- Framing guide only — does not crop the capture. --}}
-            <div class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-6"
+            <div class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-6 pb-40"
                  aria-hidden="true">
                 <div class="relative transition-all duration-200 ease-out border-2 border-dashed border-white/70 rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]"
                      :class="frameOrientation === 'portrait'
-                        ? 'w-[min(78vw,22rem)] aspect-[3/4] max-h-[62vh]'
-                        : 'w-[min(92vw,34rem)] aspect-[4/3] max-h-[48vh]'">
-                    <p class="absolute -bottom-8 left-0 right-0 text-center text-[11px] font-semibold tracking-wide text-white/90"
-                       x-text="labels.fitFrame"></p>
+                        ? 'w-[min(78vw,22rem)] aspect-[3/4] max-h-[52vh]'
+                        : 'w-[min(92vw,34rem)] aspect-[4/3] max-h-[40vh]'">
                 </div>
             </div>
-            <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">
-                <div x-show="pages.length" class="flex gap-2 overflow-x-auto justify-center mb-4 pb-1">
+            <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 bg-gradient-to-t from-brand via-brand/95 to-transparent">
+                <p class="text-center text-[11px] font-semibold tracking-wide text-white/90 mb-3" x-text="labels.fitFrame"></p>
+                <div x-show="pages.length" class="flex gap-2 overflow-x-auto justify-center mb-3 pb-1">
                     <template x-for="(page, index) in pages" :key="'live-'+page.id">
                         <div class="relative shrink-0">
                             <template x-if="page.previewUrl">
@@ -127,14 +119,23 @@
                         </div>
                     </template>
                 </div>
-                <div class="flex items-center justify-center gap-5 max-w-lg mx-auto">
+                <div class="flex items-center justify-center gap-3 max-w-lg mx-auto">
                     <button type="button" @click="toggleFacing()"
-                            class="shrink-0 size-12 rounded-full bg-white/15 text-white ring-1 ring-white/30 grid place-items-center"
+                            class="shrink-0 size-11 rounded-full bg-white/15 text-white ring-1 ring-white/30 grid place-items-center"
                             :title="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera"
                             :aria-label="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera">
-                        <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16 4h2a2 2 0 0 1 2 2v2M8 4H6a2 2 0 0 0-2 2v2m0 8v2a2 2 0 0 0 2 2h2m8 0h2a2 2 0 0 0 2-2v-2"/>
                             <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 12a4.5 4.5 0 0 0 7.2 3.6L16 17m.5-5a4.5 4.5 0 0 0-7.2-3.6L8 7"/>
+                        </svg>
+                    </button>
+                    <button type="button" @click="frameOrientation = frameOrientation === 'portrait' ? 'landscape' : 'portrait'"
+                            class="shrink-0 size-11 rounded-full bg-white/15 text-white ring-1 ring-white/30 grid place-items-center"
+                            :title="frameOrientation === 'portrait' ? labels.orientationLandscape : labels.orientationPortrait"
+                            :aria-label="frameOrientation === 'portrait' ? labels.orientationLandscape : labels.orientationPortrait">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"
+                             :class="frameOrientation === 'landscape' ? 'rotate-90' : ''">
+                            <rect x="7" y="3" width="10" height="18" rx="1.5"/>
                         </svg>
                     </button>
                     <button type="button" @click="capturePage()"
@@ -147,26 +148,23 @@
                             </svg>
                         </span>
                     </button>
+                    <button type="button" x-show="pages.length && pages.length < maxPages" x-cloak @click="capturePage()"
+                            class="shrink-0 size-11 rounded-full bg-white/15 text-white ring-1 ring-white/30 grid place-items-center"
+                            :title="labels.addAnother" :aria-label="labels.addAnother">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/>
+                            <rect x="3" y="6" width="18" height="14" rx="2"/>
+                        </svg>
+                    </button>
                     <button type="button" x-show="pages.length" x-cloak @click="finishFromCamera()"
-                            class="shrink-0 min-w-[5.5rem] rounded-full bg-brand-gold text-brand font-bold px-4 py-3 text-sm shadow-sm inline-flex items-center justify-center gap-1.5"
+                            class="shrink-0 min-w-[5.25rem] rounded-full bg-brand-gold text-brand font-bold px-3.5 py-3 text-sm shadow-sm inline-flex items-center justify-center gap-1.5"
                             :title="labels.finish" :aria-label="labels.finish">
                         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                         </svg>
                         <span x-text="labels.finish"></span>
                     </button>
-                    <div x-show="!pages.length" class="shrink-0 min-w-[5.5rem]" aria-hidden="true"></div>
-                </div>
-                <div x-show="pages.length && pages.length < maxPages" class="mt-3 flex justify-center">
-                    <button type="button" @click="capturePage()"
-                            class="inline-flex items-center gap-2 rounded-full bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/30"
-                            :title="labels.addAnother" :aria-label="labels.addAnother">
-                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/>
-                            <rect x="3" y="6" width="18" height="14" rx="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        <span x-text="labels.addAnother"></span>
-                    </button>
+                    <div x-show="!pages.length" class="shrink-0 min-w-[5.25rem]" aria-hidden="true"></div>
                 </div>
             </div>
         </div>
@@ -238,13 +236,14 @@
     @endpush
     @push('scripts')
     <script>
-        function multiPageDocumentUpload(labels, fieldName, hostId, maxPages = 12, autoFinishUpload = false) {
+        function multiPageDocumentUpload(labels, fieldName, hostId, maxPages = 12, autoFinishUpload = false, outputMode = 'pdf') {
             return {
                 labels: labels || {},
                 fieldName,
                 hostId,
                 maxPages: maxPages || 12,
                 autoFinishUpload: !!autoFinishUpload,
+                outputMode: outputMode === 'images' ? 'images' : 'pdf',
                 pages: [],
                 fromCamera: false,
                 cameraOpen: false,
@@ -357,6 +356,7 @@
                         hostId: this.hostId,
                         name: this.fieldName,
                         count: this.pages.length,
+                        outputMode: this.outputMode,
                     });
                 },
                 stopStream() {

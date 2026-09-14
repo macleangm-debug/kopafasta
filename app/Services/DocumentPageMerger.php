@@ -61,6 +61,46 @@ class DocumentPageMerger
     }
 
     /**
+     * Store pages as image files (no PDF merge). Used for farm/activity photo evidence.
+     *
+     * @param  list<UploadedFile>  $files
+     * @return array{primary: string, paths: list<string>}
+     */
+    public function storeImages(array $files, string $directory, string $basename = 'photo'): array
+    {
+        $valid = array_values(array_filter(
+            $files,
+            fn ($file) => $file instanceof UploadedFile && $file->isValid()
+        ));
+
+        if ($valid === []) {
+            throw new \InvalidArgumentException('No valid files to store.');
+        }
+
+        $directory = trim($directory, '/');
+        $paths = [];
+
+        foreach ($valid as $index => $file) {
+            $mime = strtolower((string) ($file->getMimeType() ?? ''));
+            $ext = match (true) {
+                str_contains($mime, 'png') => 'png',
+                str_contains($mime, 'webp') => 'webp',
+                str_contains($mime, 'gif') => 'gif',
+                default => 'jpg',
+            };
+            $filename = Str::slug($basename).'-'.($index + 1).'-'.Str::uuid().'.'.$ext;
+            $path = $directory.'/'.$filename;
+            Storage::disk('public')->put($path, file_get_contents($file->getRealPath()));
+            $paths[] = $path;
+        }
+
+        return [
+            'primary' => $paths[0],
+            'paths' => $paths,
+        ];
+    }
+
+    /**
      * @param  list<UploadedFile>  $files
      */
     private function imagesToPdf(array $files, string $directory, string $basename): string

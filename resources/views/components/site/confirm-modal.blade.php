@@ -23,12 +23,14 @@
         title: @js($title),
         message: @js($message),
         confirmLabel: @js($confirmLabel),
+        cancelLabel: @js($cancelLabel),
         confirmClass: @js($confirmClass),
         tone: @js($tone),
         defaults: {
             title: @js($title),
             message: @js($message),
             confirmLabel: @js($confirmLabel),
+            cancelLabel: @js($cancelLabel),
             confirmClass: @js($confirmClass),
             tone: @js($tone),
         },
@@ -129,6 +131,7 @@
         title = $event.detail?.title ?? defaults.title;
         message = $event.detail?.message ?? defaults.message;
         confirmLabel = $event.detail?.confirmLabel ?? defaults.confirmLabel;
+        cancelLabel = $event.detail?.cancelLabel ?? defaults.cancelLabel;
         confirmClass = $event.detail?.confirmClass ?? defaults.confirmClass;
         tone = $event.detail?.tone ?? defaults.tone;
         onCancel = $event.detail?.onCancel ?? null;
@@ -196,9 +199,8 @@
                         :class="confirmClass"
                         x-text="confirmLabel"></button>
                 <button type="button" @click="cancel()"
-                        class="inline-flex w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white ring-1 ring-gray-200 hover:bg-gray-50">
-                    {{ $cancelLabel }}
-                </button>
+                        class="inline-flex w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white ring-1 ring-gray-200 hover:bg-gray-50"
+                        x-text="cancelLabel"></button>
             </div>
         </div>
     </div>

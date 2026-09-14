@@ -2,8 +2,8 @@
   Canonical Document Holder for apply-wizard product documents.
   Compact card + branded + → Upload / Camera (document-source-picker).
   Expects: $docCode, $label, $required, $hint?, $hostPrefix, $multiPage?, $guideCompact?, $capture?
-  Generic documents default to multi-page camera → one PDF. Pass capture=images (or multiPage=false)
-  only for photo collections / specialized single captures.
+  Ordinary documents and farm/activity photo evidence share the multi-page camera shell.
+  Pass capture=selfie|nida for true identity directive single-image flows only.
 --}}
 @php
     $docCode = $docCode ?? 'document';
@@ -15,12 +15,15 @@
     $errorKey = $errorKey ?? null;
     $capture = $capture ?? null;
     $multiPageArg = $multiPage ?? null;
+    // Shared camera shell for ordinary docs AND farm/activity photos.
+    // Only identity directive captures stay on the single-image component.
     if ($multiPageArg === null) {
-        // Generic documents → multi-page PDF. Photo collections / specialized flows opt out.
-        $multiPage = ! in_array($capture, ['images', 'single', 'selfie', 'nida'], true);
+        $multiPage = ! in_array($capture, ['single', 'selfie', 'nida'], true);
     } else {
         $multiPage = (bool) $multiPageArg;
     }
+    // Farm/activity photos keep image output (not forced PDF) via output=images.
+    $outputMode = in_array($capture, ['images'], true) ? 'images' : 'pdf';
     $guideCompact = (bool) ($guideCompact ?? true);
     $guideText = $guideCompact
         ? __('borrower.document_upload.guide_document_compact')
@@ -123,7 +126,7 @@
              "
              @kf-document-pages-ready.window="
                 if ($event.detail?.hostId === @js($hostId)) {
-                    uploadEducationDocumentPages(@js($docCode), @js($hostId))
+                    uploadEducationDocumentPages(@js($docCode), @js($hostId), $event.detail?.outputMode || @js($outputMode))
                         .then(() => { replaceMode = false; captureOpen = false; @if($errorKey) educationErrors[@js($errorKey)] = ''; @endif });
                 }
              ">
@@ -135,6 +138,7 @@
                     :camera-first="true"
                     :max-pages="12"
                     :auto-finish-upload="true"
+                    :output-mode="$outputMode"
                 />
                 <p class="text-xs text-gray-500">{{ $guideText }}</p>
             @else
