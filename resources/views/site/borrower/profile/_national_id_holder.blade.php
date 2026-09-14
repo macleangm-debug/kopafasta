@@ -50,9 +50,14 @@
         savedLabel: @js(__('borrower.document_upload.saved')),
         failLabel: @js(__('borrower.document_upload.could_not_save').' · '.__('borrower.document_upload.retry')),
     })"
-    x-init="init()"
 >
     <p class="text-xs text-gray-500">{{ __('borrower.profile.national_id_holder_hint') }}</p>
+    <p x-show="saving" x-cloak
+       class="sticky top-2 z-10 inline-flex items-center gap-2 rounded-full bg-brand text-white px-3 py-1.5 text-sm font-bold shadow-md"
+       data-kf-nida-saving>
+        <span class="size-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true"></span>
+        {{ __('borrower.document_upload.saving') }}
+    </p>
 
     {{-- Complete: both sides saved --}}
     <div x-show="phase === 'complete'" x-cloak class="space-y-4">
@@ -155,10 +160,6 @@
                 />
             </div>
 
-            <p x-show="saving" x-cloak class="inline-flex items-center gap-2 text-sm font-semibold text-brand" data-kf-nida-saving>
-                <span class="size-3.5 rounded-full border-2 border-brand/30 border-t-brand animate-spin" aria-hidden="true"></span>
-                {{ __('borrower.document_upload.saving') }}
-            </p>
             <div x-show="notice" x-cloak class="flex flex-wrap items-center gap-2">
                 <p class="text-sm font-semibold text-amber-800" x-text="notice"></p>
                 <button type="button" @click="notice = null"

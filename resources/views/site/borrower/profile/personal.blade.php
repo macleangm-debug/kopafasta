@@ -201,6 +201,7 @@
                     :complete="$uploadsComplete"
                     :empty="! $uploadsComplete"
                     :empty-opens-view="! $noPhysicalCard"
+                    :edit-allowed="$noPhysicalCard"
                     :default-open="$idImagesDefaultOpen"
                     :default-edit="$idImagesDefaultEdit">
                     <x-slot:view>
@@ -274,10 +275,11 @@
                                         </span>
                                     </label>
                                 @endunless
+                                {{-- Physical NIDA: capture only via view + (never this Save form). --}}
                                 <div x-show="!noCard" x-cloak class="space-y-3">
                                     <p class="text-sm text-gray-600">{{ __('borrower.profile.national_id_holder_hint') }}</p>
-                                    <p class="text-xs text-amber-800">{{ __('borrower.profile.id_photos_replace_hint') }}</p>
-                                    <button type="button" @click="$dispatch('profile-section-close-edit')"
+                                    <button type="button"
+                                            @click="$dispatch('profile-section-close-edit'); window.dispatchEvent(new CustomEvent('nida-open-source'))"
                                             class="text-sm font-semibold text-brand hover:underline">
                                         {{ __('borrower.profile.national_id_next_front') }} →
                                     </button>
@@ -324,7 +326,10 @@
                                     </div>
                                 </div>
                             </div>
-                            <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" :allow-empty="$uploadsComplete" />
+                            {{-- Hifadhi only for alternate-ID / no-physical-card path. Physical NIDA autosaves from +. --}}
+                            <div x-show="noCard" x-cloak>
+                                <x-site.gated-submit class="mt-5 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-5 py-2.5 rounded-full text-sm" :label="__('borrower.profile.save')" :allow-empty="$uploadsComplete" />
+                            </div>
                         </form>
                     </x-slot:form>
                 </x-site.profile-section-card>

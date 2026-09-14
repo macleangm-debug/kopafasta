@@ -30,20 +30,32 @@ export function registerSavingOverlay(Alpine) {
             || document.querySelector('[data-kf-saving-toast] span:last-child')?.textContent?.trim()
             || 'Saving…';
         // Hide any leftover saved toast while saving.
-        document.querySelectorAll('[data-kf-saved-toast]').forEach((el) => el.classList.add('hidden'));
+        document.querySelectorAll('[data-kf-saved-toast]').forEach((el) => {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        });
 
         let toast = document.querySelector('[data-kf-saving-toast]');
         if (! toast) {
             toast = document.createElement('div');
             toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
             toast.setAttribute('data-kf-saving-toast', '');
             document.body.appendChild(toast);
         }
-        // Fixed viewport chip so NIDA/face autosave is always visible (no scroll / no Save CTA).
-        toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[10070] inline-flex items-center gap-2 rounded-full bg-brand/95 text-white shadow-lg ring-1 ring-white/20 px-4 py-2 text-sm font-bold';
-        toast.innerHTML = '<span class="size-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true"></span><span></span>';
+        // Inline styles beat Tailwind purge + sit above camera (z-95) and sheets (z-10060).
+        toast.className = 'inline-flex items-center gap-2 rounded-full bg-brand text-white shadow-lg px-4 py-2.5 text-sm font-bold';
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex;pointer-events:none;';
+        toast.innerHTML = '<span style="width:14px;height:14px;border-radius:9999px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:kf-spin .7s linear infinite" aria-hidden="true"></span><span></span>';
+        if (! document.getElementById('kf-inline-save-spin')) {
+            const s = document.createElement('style');
+            s.id = 'kf-inline-save-spin';
+            s.textContent = '@keyframes kf-spin{to{transform:rotate(360deg)}}';
+            document.head.appendChild(s);
+        }
         toast.querySelector('span:last-child').textContent = label;
         toast.classList.remove('hidden');
+        toast.style.display = 'inline-flex';
     };
 
     window.kfShowSaving = function (message, progress) {
@@ -83,7 +95,10 @@ export function registerSavingOverlay(Alpine) {
         Alpine.store('kfSaving').uploading = false;
         Alpine.store('kfSaving').current = null;
         Alpine.store('kfSaving').total = null;
-        document.querySelectorAll('[data-kf-saving-toast]').forEach((el) => el.classList.add('hidden'));
+        document.querySelectorAll('[data-kf-saving-toast]').forEach((el) => {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        });
     };
 
     window.kfFlashInlineSaved = function (message) {
@@ -93,19 +108,23 @@ export function registerSavingOverlay(Alpine) {
         if (! toast) {
             toast = document.createElement('div');
             toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
             toast.setAttribute('data-kf-saved-toast', '');
             document.body.appendChild(toast);
         }
-        toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[10070] inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white shadow-lg ring-1 ring-white/20 px-4 py-2 text-sm font-bold';
+        toast.className = 'inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white shadow-lg px-4 py-2.5 text-sm font-bold';
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex;pointer-events:none;';
         toast.innerHTML = '<span aria-hidden="true">✓</span><span></span>';
         toast.querySelector('span:last-child').textContent = label;
         toast.classList.remove('hidden');
+        toast.style.display = 'inline-flex';
         if (toast._kfSavedTimer) {
             clearTimeout(toast._kfSavedTimer);
         }
         toast._kfSavedTimer = setTimeout(() => {
             toast.classList.add('hidden');
-        }, 2200);
+            toast.style.display = 'none';
+        }, 2500);
     };
 
     window.kfFormNeedsSaving = function (form) {

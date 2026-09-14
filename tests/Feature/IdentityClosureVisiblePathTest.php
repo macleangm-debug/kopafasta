@@ -51,6 +51,11 @@ class IdentityClosureVisiblePathTest extends TestCase
         $this->assertStringContainsString('nidaDirectiveJourney', $html);
         $this->assertStringContainsString(__('borrower.profile.national_id_holder_hint'), $html);
         $this->assertStringContainsString(__('borrower.profile.id_images_title'), $html);
+        // Physical NIDA: no orange Hifadhi — capture via + / autosave only.
+        $this->assertStringContainsString(':edit-allowed="$noPhysicalCard"', file_get_contents(resource_path('views/site/borrower/profile/personal.blade.php')));
+        $this->assertStringContainsString('x-show="noCard"', file_get_contents(resource_path('views/site/borrower/profile/personal.blade.php')));
+        $this->assertStringContainsString('kfShowInlineSaving', file_get_contents(resource_path('js/nida-directive-journey.js')));
+        $this->assertStringContainsString('kfFlashInlineSaved', file_get_contents(resource_path('js/saving-overlay.js')));
     }
 
     public function test_saved_nida_number_does_not_surface_as_add_number_gap(): void
