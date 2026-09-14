@@ -36,9 +36,9 @@
             this.captureOpen = true;
             this.$nextTick(() => {
                 if (source === 'camera') {
-                    this.$dispatch('document-open-camera', { hostId: @js($hostId) });
+                    this.$dispatch('document-open-camera', { hostId: @js($hostId), fresh: true });
                 } else {
-                    this.$dispatch('document-open-upload', { hostId: @js($hostId) });
+                    this.$dispatch('document-open-upload', { hostId: @js($hostId), fresh: true });
                 }
             });
         },
@@ -91,7 +91,7 @@
                     class="inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
                 {{ __('borrower.profile.view_document') }}
             </button>
-            <button type="button" @click="replaceMode = true"
+            <button type="button" @click="replaceMode = true; $dispatch('clear-capture', { hostId: @js($hostId) })"
                     class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
                 {{ __('borrower.profile.replace_document') }}
             </button>
@@ -102,7 +102,12 @@
                         confirmLabel: @js(__('borrower.profile.remove_document_confirm_cta')),
                         confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
                         tone: 'warning',
-                        onConfirm: () => { removeEducationDocument(@js($docCode)); replaceMode = false; },
+                        onConfirm: () => {
+                            removeEducationDocument(@js($docCode));
+                            replaceMode = false;
+                            captureOpen = false;
+                            $dispatch('clear-capture', { hostId: @js($hostId) });
+                        },
                     })"
                     class="inline-flex items-center rounded-full bg-white ring-1 ring-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
                 {{ __('borrower.profile.remove_document') }}

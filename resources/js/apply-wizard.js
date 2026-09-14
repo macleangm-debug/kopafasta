@@ -3298,12 +3298,17 @@ export function applyWizard(config) {
                     return !! farm && !! land;
                 },
 
-                agricultureStepReady() {
+                /**
+                 * Agriculture Overview completeness — same rule as Loan Quote:
+                 * once every required input on the step panel is filled, Continue may appear.
+                 * Optional documents never block. Region/District live in data-agro-overview.
+                 */
+                agricultureOverviewReady() {
                     this.syncAgricultureFieldsFromAlpine();
                     try {
                         this.buildDraftPayload();
                     } catch (e) { /* ignore */ }
-                    const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
+
                     let region = this.agricultureFieldValue('farming_region');
                     let district = this.agricultureFieldValue('farming_district');
                     const location = this.agricultureFieldValue('farming_location');
@@ -3317,8 +3322,24 @@ export function applyWizard(config) {
                         const ward = this.agricultureFieldValue('farming_ward');
                         locationHidden.value = [region, district, ward].filter(Boolean).join(', ');
                     }
-                    const fieldsOk = required.every((key) => !! this.agricultureFieldValue(key));
-                    const ready = fieldsOk && !! region && !! district && this.agricultureDocsReady();
+
+                    const root = this.formRoot();
+                    const overview = root?.querySelector('[data-wizard-step="agriculture_details"] [data-agro-overview]');
+                    if (overview && window.KopaFastaForm?.isComplete) {
+                        // onlyVisible:false — Overview may be on the other tab while Documents is open.
+                        if (! window.KopaFastaForm.isComplete(overview, { onlyVisible: false, allowEmpty: false })) {
+                            return false;
+                        }
+                        return !! region && !! district;
+                    }
+
+                    // Fallback if the Overview panel is not mounted yet.
+                    const required = ['farming_activity_type', 'production_stage', 'cycle_end_date', 'activity_budget', 'expected_revenue'];
+                    return required.every((key) => !! this.agricultureFieldValue(key)) && !! region && !! district;
+                },
+
+                agricultureStepReady() {
+                    const ready = this.agricultureOverviewReady() && this.agricultureDocsReady();
                     this._agricultureReady = ready;
                     return ready;
                 },

@@ -38,8 +38,9 @@
 @endphp
 
 <div class="space-y-4" x-data="multiPageDocumentUpload(@js($mergedLabels), @js($name), @js($hostId), {{ (int) $maxPages }}, @js($autoFinishUpload))"
-     @document-open-camera.window="if ($event.detail?.hostId === hostId) { fromCamera = true; openCamera(); }"
-     @document-open-upload.window="if ($event.detail?.hostId === hostId) $refs.fileInput?.click()">
+     @document-open-camera.window="if ($event.detail?.hostId === hostId) { fromCamera = true; if ($event.detail?.fresh) resetCapture(); openCamera(); }"
+     @document-open-upload.window="if ($event.detail?.hostId === hostId) { if ($event.detail?.fresh) resetCapture(); $refs.fileInput?.click(); }"
+     @clear-capture.window="if ($event.detail?.hostId === hostId) resetCapture()">
     <input type="hidden" value="" x-bind:value="pages.length ? String(pages.length) : ''" @if($required) required @endif aria-hidden="true" tabindex="-1" class="sr-only">
     <div class="flex flex-wrap items-center gap-3" x-show="pages.length === 0 && !@js($sourceDriven)" x-cloak>
         @if ($cameraFirst)
@@ -95,20 +96,48 @@
                             </template>
                             <span class="absolute -top-1.5 -left-1.5 size-5 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center ring-2 ring-brand"
                                   x-text="index + 1"></span>
+                            <button type="button" @click="removePage(index)"
+                                    class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-black/70 text-white text-xs font-bold grid place-items-center ring-1 ring-white/40"
+                                    :title="labels.remove" :aria-label="labels.remove">×</button>
                         </div>
                     </template>
                 </div>
-                <div class="flex items-center gap-2 max-w-lg mx-auto">
+                <div class="flex items-center justify-center gap-5 max-w-lg mx-auto">
                     <button type="button" @click="toggleFacing()"
-                            class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3.5 py-3.5 ring-1 ring-white/30 min-w-[7.5rem]"
-                            x-text="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera"></button>
+                            class="shrink-0 size-12 rounded-full bg-white/15 text-white ring-1 ring-white/30 grid place-items-center"
+                            :title="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera"
+                            :aria-label="facingMode === 'user' ? labels.useBackCamera : labels.useFrontCamera">
+                        <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 4h2a2 2 0 0 1 2 2v2M8 4H6a2 2 0 0 0-2 2v2m0 8v2a2 2 0 0 0 2 2h2m8 0h2a2 2 0 0 0 2-2v-2"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 12a4.5 4.5 0 0 0 7.2 3.6L16 17m.5-5a4.5 4.5 0 0 0-7.2-3.6L8 7"/>
+                        </svg>
+                    </button>
                     <button type="button" @click="capturePage()"
-                            class="flex-1 font-bold px-4 py-3.5 rounded-full text-sm"
-                            :class="pages.length ? 'bg-white/15 text-white ring-1 ring-white/30' : 'bg-brand-gold text-brand'"
-                            x-text="pages.length ? labels.captureMore : labels.capturePage"></button>
+                            class="shrink-0 size-[4.25rem] rounded-full bg-brand-gold text-brand shadow-lg ring-4 ring-white/25 grid place-items-center"
+                            :title="pages.length ? labels.captureMore : labels.capturePage"
+                            :aria-label="pages.length ? labels.captureMore : labels.capturePage">
+                        <span class="size-14 rounded-full bg-brand-gold ring-2 ring-brand/20 grid place-items-center">
+                            <svg class="size-8" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M9 3.75A1.5 1.5 0 0 1 10.35 3h3.3A1.5 1.5 0 0 1 15 3.75V5.25h2.25A2.25 2.25 0 0 1 19.5 7.5v10.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 18V7.5A2.25 2.25 0 0 1 6.75 5.25H9V3.75zm3 14a4.125 4.125 0 1 0 0-8.25 4.125 4.125 0 0 0 0 8.25z"/>
+                            </svg>
+                        </span>
+                    </button>
                     <button type="button" x-show="pages.length" x-cloak @click="finishFromCamera()"
-                            class="flex-1 bg-brand-gold text-brand font-bold px-4 py-3.5 rounded-full text-sm"
+                            class="shrink-0 min-w-[5.5rem] rounded-full bg-brand-gold text-brand font-bold px-4 py-3 text-sm shadow-sm"
+                            :title="labels.finish" :aria-label="labels.finish"
                             x-text="labels.finish"></button>
+                    <div x-show="!pages.length" class="shrink-0 min-w-[5.5rem]" aria-hidden="true"></div>
+                </div>
+                <div x-show="pages.length && pages.length < maxPages" class="mt-3 flex justify-center">
+                    <button type="button" @click="capturePage()"
+                            class="inline-flex items-center gap-2 rounded-full bg-white/15 text-white text-xs font-semibold px-3.5 py-2 ring-1 ring-white/30"
+                            :title="labels.addAnother" :aria-label="labels.addAnother">
+                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/>
+                            <rect x="3" y="6" width="18" height="14" rx="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span x-text="labels.addAnother"></span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -149,8 +178,13 @@
                         </div>
                     </template>
                     <button type="button" x-show="page.previewUrl" x-cloak @click="rotatePage(index)"
-                            class="absolute -bottom-1.5 -left-1.5 size-5 rounded-full bg-white text-brand text-[10px] font-bold ring-1 ring-gray-200 grid place-items-center"
-                            :title="labels.rotate || 'Rotate'" :aria-label="labels.rotate || 'Rotate'">⟳</button>
+                            class="absolute -bottom-1.5 -left-1.5 size-5 rounded-full bg-white text-brand ring-1 ring-gray-200 grid place-items-center"
+                            :title="labels.rotate || 'Rotate'" :aria-label="labels.rotate || 'Rotate'">
+                        <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 4.5a7.5 7.5 0 1 1-9.2 11.7"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 4.5V9h-4.5"/>
+                        </svg>
+                    </button>
                     <button type="button" @click="removePage(index)"
                             class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-white text-red-600 text-xs font-bold ring-1 ring-gray-200 grid place-items-center"
                             :aria-label="labels.remove">×</button>
@@ -189,6 +223,17 @@
                 stream: null,
                 facingMode: 'environment',
                 nextId: 1,
+                resetCapture() {
+                    this.pages.forEach((page) => {
+                        if (page?.previewUrl) URL.revokeObjectURL(page.previewUrl);
+                    });
+                    this.pages = [];
+                    this.nextId = 1;
+                    this.cameraNotice = null;
+                    this.fromCamera = false;
+                    this.syncInputs();
+                    this.$dispatch('document-pages-changed', { name: this.fieldName, count: 0 });
+                },
                 async openCamera() {
                     this.cameraNotice = null;
                     if (this.pages.length >= this.maxPages) {

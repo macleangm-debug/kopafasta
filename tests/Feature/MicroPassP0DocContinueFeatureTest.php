@@ -43,10 +43,40 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
 
         $this->assertStringContainsString('_lastDraftInputs', $js);
         $this->assertStringContainsString('agricultureStepReady', $js);
+        $this->assertStringContainsString('agricultureOverviewReady', $js);
         $this->assertStringContainsString('agricultureNamedInput', $js);
         $this->assertStringContainsString('agricultureAddressAlpine', $js);
         $this->assertStringContainsString('farm_activity_photos', $js);
         $this->assertStringContainsString('land_use_evidence', $js);
+        $this->assertStringContainsString('KopaFastaForm.isComplete', $js);
+    }
+
+    public function test_agriculture_overview_exposes_region_district_address_fields(): void
+    {
+        $agro = file_get_contents(resource_path('views/site/apply/_agriculture-details-step.blade.php'));
+        $address = file_get_contents(resource_path('views/components/site/address-fields.blade.php'));
+
+        $this->assertStringContainsString('data-agro-overview', $agro);
+        $this->assertStringContainsString('x-site.address-fields', $agro);
+        $this->assertStringContainsString('prefix="farming"', $agro);
+        $this->assertStringContainsString('pickRegion(value)', $address);
+        $this->assertStringContainsString('this.$refs.regionSelect', $address);
+        $this->assertStringNotContainsString('@js($regionName)', $address);
+        $this->assertStringNotContainsString('@js($districtName)', $address);
+        $this->assertStringContainsString('hidden lg:block', $address);
+    }
+
+    public function test_camera_opens_fresh_after_replace_or_delete(): void
+    {
+        $multi = file_get_contents(resource_path('views/components/site/multi-page-document-upload.blade.php'));
+        $single = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));
+        $apply = file_get_contents(resource_path('views/site/apply/_apply-document-holder.blade.php'));
+
+        $this->assertStringContainsString('resetCapture()', $multi);
+        $this->assertStringContainsString('fresh', $multi);
+        $this->assertStringContainsString('fresh: true', $apply);
+        $this->assertStringContainsString("clear-capture", $apply);
+        $this->assertStringContainsString('$event.detail?.fresh', $single);
     }
 
     public function test_apply_document_remove_uses_confirm_form(): void
@@ -112,6 +142,9 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
         $this->assertStringContainsString('rotatePage(', $blade);
         $this->assertStringContainsString('document_upload.rotate', $blade);
         $this->assertStringContainsString('labels.addAnother', $blade);
+        $this->assertStringContainsString(':aria-label="pages.length ? labels.captureMore : labels.capturePage"', $blade);
+        $this->assertStringContainsString(':aria-label="labels.addAnother"', $blade);
+        $this->assertStringContainsString('size-[4.25rem]', $blade);
     }
 
     public function test_document_upload_skips_confirm_modal(): void

@@ -50,9 +50,9 @@
             this.replaceMode = true;
             this.$nextTick(() => {
                 if (source === 'camera') {
-                    this.$dispatch('document-open-camera', { hostId: @js($hostId) });
+                    this.$dispatch('document-open-camera', { hostId: @js($hostId), fresh: true });
                 } else {
-                    this.$dispatch('document-open-upload', { hostId: @js($hostId) });
+                    this.$dispatch('document-open-upload', { hostId: @js($hostId), fresh: true });
                 }
             });
         },
@@ -190,7 +190,7 @@
                     @endif
                     @if ($allowReplace && ($replaceOpensEdit || ! $readOnly))
                         <button type="button"
-                                @click="{{ $replaceOpensEdit ? 'open = true' : 'replaceMode = true; captureOpen = true' }}"
+                                @click="{{ $replaceOpensEdit ? 'open = true' : "replaceMode = true; captureOpen = true; \$dispatch('clear-capture', { hostId: '".$hostId."' })" }}"
                                 class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
                             {{ __('borrower.profile.replace_document') }}
                         </button>

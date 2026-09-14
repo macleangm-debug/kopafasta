@@ -43,16 +43,19 @@
         this.onRegionChange();
         this.regionPickerOpen = false;
         this.$nextTick(() => {
-            this.$refs.regionSelect?.dispatchEvent(new Event('change', { bubbles: true }));
-            this.$dispatch('profile-select', { name: @js($regionName), value: value });
+            const el = this.$refs.regionSelect;
+            el?.dispatchEvent(new Event('change', { bubbles: true }));
+            // Read name from the control — never embed @js() strings inside this quoted x-data.
+            this.$dispatch('profile-select', { name: el?.name || '', value: value });
         });
     },
     pickDistrict(value) {
         this.district = value;
         this.districtPickerOpen = false;
         this.$nextTick(() => {
-            this.$refs.districtHidden?.dispatchEvent(new Event('change', { bubbles: true }));
-            this.$dispatch('profile-select', { name: @js($districtName), value: value });
+            const el = this.$refs.districtHidden;
+            el?.dispatchEvent(new Event('change', { bubbles: true }));
+            this.$dispatch('profile-select', { name: el?.name || '', value: value });
         });
     },
 }">
@@ -79,7 +82,7 @@
         </div>
 
         <select name="{{ $regionName }}" x-model="region" x-ref="regionSelect" @change="onRegionChange()" @if($required) required @endif
-                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm max-lg:sr-only">
+                class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
             <option value="">{{ __('borrower.profile.select_region') }}</option>
             @foreach ($locations as $regionLabel => $districts)
                 <option value="{{ $regionLabel }}" @selected($initialRegion === $regionLabel)>{{ $regionLabel }}</option>
@@ -107,10 +110,10 @@
             </x-site.bottom-sheet>
         </div>
 
-        {{-- Visible control (mobile sheet + desktop select). Hidden field is the submitted value. --}}
-        <input type="hidden" name="{{ $districtName }}" :value="district" x-ref="districtHidden">
-        <select x-model="district" @if($required) required @endif
-                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm max-lg:sr-only"
+        {{-- Submitted value. required lives here so mobile (select hidden) still gates Continue. --}}
+        <input type="hidden" name="{{ $districtName }}" :value="district" x-ref="districtHidden" @if($required) required @endif>
+        <select x-model="district"
+                class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
                 @change="district = $event.target.value">
             <option value="">{{ __('borrower.profile.select_district') }}</option>
             <template x-for="d in districtOptions" :key="'opt-' + d">
