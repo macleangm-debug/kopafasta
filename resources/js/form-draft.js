@@ -167,7 +167,7 @@ function collect(form) {
     return { values, ...wizardState, savedAt: Date.now() };
 }
 
-function applyValues(form, values) {
+function applyValues(form, values, { emitEvents = true } = {}) {
     Object.entries(values || {}).forEach(([name, value]) => {
         const fields = [...form.querySelectorAll(`[name="${CSS.escape(name)}"]`)];
         if (fields.length === 0) {
@@ -190,6 +190,11 @@ function applyValues(form, values) {
         const field = fields[0];
         field.value = value ?? '';
         setSimpleAlpineModel(field, value ?? '');
+        // Never emit during draft restore — that stampeded kfAutosave across every
+        // Profile card (Contact/Family/Kin) and caused empty-200 / Unauthenticated races.
+        if (! emitEvents) {
+            return;
+        }
         field.dispatchEvent(new Event('input', { bubbles: true }));
         if (! field.hasAttribute('x-model') && field.tagName !== 'SELECT') {
             field.dispatchEvent(new Event('change', { bubbles: true }));
@@ -239,7 +244,7 @@ function syncAddressWidgets(form, values) {
 }
 
 function applyDraft(form, payload) {
-    applyValues(form, payload.values);
+    applyValues(form, payload.values, { emitEvents: false });
     syncPhoneWidgets(form);
     syncAddressWidgets(form, payload.values || {});
 
@@ -303,10 +308,11 @@ function restore(form) {
 
     form.dataset.draftRestored = '1';
     restoring = true;
+    window.__kfDraftRestoring = true;
     applyDraft(form, payload);
 
     const replay = () => {
-        applyValues(form, payload.values);
+        applyValues(form, payload.values, { emitEvents: false });
         syncPhoneWidgets(form);
         syncAddressWidgets(form, payload.values || {});
         const wizard = form.querySelector('.admin-wizard');
@@ -323,6 +329,11 @@ function restore(form) {
         setTimeout(() => {
             replay();
             restoring = false;
+            window.__kfDraftRestoring = false;
+            // Drop any autosave timers that raced the restore window.
+            document.querySelectorAll('form[data-kf-autosave]').forEach((f) => {
+                f._kfAutosave?.cancelPending?.();
+            });
             const wizard = form.querySelector('.admin-wizard');
             if (wizard) {
                 delete wizard.dataset.restoreStep;

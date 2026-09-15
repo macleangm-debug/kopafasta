@@ -126,6 +126,9 @@ window.kfBindAutosaveForm = function (form, options = {}) {
     }
 
     function schedule() {
+        if (window.__kfDraftRestoring) {
+            return;
+        }
         clearTimeout(timer);
         clearTimeout(coalesceTimer);
         timer = setTimeout(() => flush(false), debounceMs);
@@ -138,6 +141,9 @@ window.kfBindAutosaveForm = function (form, options = {}) {
      * intermittent empty 200 / Unauthenticated races while a prior save succeeded.
      */
     function scheduleImmediate() {
+        if (window.__kfDraftRestoring) {
+            return;
+        }
         clearTimeout(timer);
         clearTimeout(coalesceTimer);
         pendingFlush = true;
@@ -145,6 +151,20 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             coalesceTimer = null;
             flush(true);
         }, 50);
+    }
+
+    function cancelPending() {
+        clearTimeout(timer);
+        clearTimeout(coalesceTimer);
+        coalesceTimer = null;
+        timer = null;
+        pendingFlush = false;
+        if (state === 'saving') {
+            // Allow in-flight to finish; bump seq so stale success cannot paint Saved.
+            seq += 1;
+        } else if (state !== 'saved') {
+            setState('idle');
+        }
     }
 
     function hasPersistablePayload(fd) {
@@ -168,6 +188,10 @@ window.kfBindAutosaveForm = function (form, options = {}) {
         clearTimeout(coalesceTimer);
         pendingFlush = false;
         if (! form.isConnected) return;
+        if (window.__kfDraftRestoring) {
+            setState('idle');
+            return;
+        }
 
         // Signature section: only persist a real drawn signature.
         const focus = String(form.querySelector('input[name="focus"]')?.value || '');
@@ -349,6 +373,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
     }
 
     function onInput(event) {
+        if (window.__kfDraftRestoring) return;
         const t = event.target;
         if (! (t instanceof HTMLElement)) return;
         if (t.closest('[data-no-autosave]')) return;
@@ -397,6 +422,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
 
     const api = {
         flush: () => flush(true),
+        cancelPending,
         destroy() {
             clearTimeout(timer);
             clearTimeout(coalesceTimer);
@@ -594,6 +620,7 @@ export function registerKfAutosave(Alpine) {
     // profile-select / address pickers: sync value, then use the form's coalesced flush
     // (same 50ms window as change/input on the hidden — never a second competing POST).
     document.addEventListener('profile-select', (e) => {
+        if (window.__kfDraftRestoring) return;
         const name = e.detail?.name || '';
         const value = e.detail?.value;
         let form = e.target instanceof Element ? e.target.closest('form[data-kf-autosave]') : null;
