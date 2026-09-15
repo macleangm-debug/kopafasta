@@ -449,11 +449,21 @@ class LoanApplicationDraftService
         $incomingInputs = is_array($data['inputs'] ?? null) ? $data['inputs'] : [];
         $existingInputs = is_array($existing?->payload['inputs'] ?? null) ? $existing->payload['inputs'] : [];
         $mergedInputs = $existingInputs;
+        $incomingRegion = $incomingInputs['product_question[farming_region]'] ?? null;
+        $existingRegion = $existingInputs['product_question[farming_region]'] ?? null;
+        $regionChanged = $incomingRegion !== null
+            && (string) $incomingRegion !== (string) ($existingRegion ?? '');
         foreach ($incomingInputs as $key => $value) {
             $isProductQuestion = is_string($key) && str_starts_with($key, 'product_question[');
             $trimmed = is_string($value) ? trim($value) : $value;
             if ($isProductQuestion && ($trimmed === '' || $trimmed === null)
                 && filled($existingInputs[$key] ?? null)) {
+                // Region change must be allowed to clear an incompatible district.
+                if ($regionChanged && $key === 'product_question[farming_district]') {
+                    $mergedInputs[$key] = $value;
+
+                    continue;
+                }
                 continue;
             }
             $mergedInputs[$key] = $value;

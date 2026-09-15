@@ -102,18 +102,20 @@
         <video x-ref="video" autoplay playsinline webkit-playsinline muted class="absolute inset-0 z-[1] w-full h-full object-cover mirror bg-gray-900"></video>
         <canvas x-ref="overlay" class="absolute inset-0 z-[2] w-full h-full pointer-events-none"></canvas>
 
-        {{-- Top: brand + step --}}
+        {{-- Top: brand + cancel only — instruction sits centred over the capture oval --}}
         <div class="relative z-[4] pt-[max(1rem,env(safe-area-inset-top))] px-4 flex items-start justify-between gap-3 bg-gradient-to-b from-brand to-transparent pb-6">
-            <div class="min-w-0 max-w-md">
-                <x-site.brand-mark size="sm" variant="light" />
-                <div class="mt-3 rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
-                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-bold"
-                       x-text="@js(__('borrower.face_verification_page.shot_of', ['current' => '__C__', 'total' => '__T__'])).replace('__C__', String(stepIndex + 1)).replace('__T__', String(steps.length))"></p>
-                    <p class="text-2xl font-extrabold mt-1.5 leading-tight" x-text="guideTitle"></p>
-                    <p class="text-sm text-white/85 mt-2">{{ __('borrower.face_verification_page.oval_hint') }}</p>
-                </div>
-            </div>
+            <x-site.brand-mark size="sm" variant="light" />
             <button type="button" @click="cancelScan()" class="shrink-0 text-xs font-semibold text-white/90 bg-white/15 ring-1 ring-white/25 px-3 py-2 rounded-full">{{ __('borrower.face_verification_page.cancel') }}</button>
+        </div>
+
+        {{-- Centred capture guide (same treatment as shared camera shell) --}}
+        <div class="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none px-6 pb-36 pt-28">
+            <div class="w-full max-w-md text-center rounded-2xl bg-black/45 backdrop-blur-sm ring-1 ring-white/20 px-4 py-3 text-white shadow-lg">
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-bold"
+                   x-text="@js(__('borrower.face_verification_page.shot_of', ['current' => '__C__', 'total' => '__T__'])).replace('__C__', String(stepIndex + 1)).replace('__T__', String(steps.length))"></p>
+                <p class="text-2xl font-extrabold mt-1.5 leading-tight" x-text="guideTitle"></p>
+                <p class="text-sm text-white/90 mt-2 leading-snug" x-text="guideHint"></p>
+            </div>
         </div>
 
         {{-- Oval only --}}
@@ -295,6 +297,13 @@
                         void this.uiTick;
                         if (this.phase === 'saving') return @js(__('borrower.face_verification_page.saving'));
                         const step = this.currentStep;
+                        return step?.label || step?.step_title || step?.instruction
+                            || @js(__('borrower.face_verification_page.oval_hint'));
+                    },
+
+                    get guideHint() {
+                        void this.uiTick;
+                        const step = this.currentStep;
                         return step?.instruction || @js(__('borrower.face_verification_page.oval_hint'));
                     },
 
@@ -307,7 +316,7 @@
                     },
 
                     get statusSubtitle() {
-                        return @js(__('borrower.face_verification_page.oval_hint'));
+                        return this.guideHint;
                     },
 
                     startUiTimer() {

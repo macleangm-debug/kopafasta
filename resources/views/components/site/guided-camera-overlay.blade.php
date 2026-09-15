@@ -17,19 +17,20 @@
                     </button>
                 </div>
             </div>
-            <div class="px-4 pt-3 pb-2">
-                <div class="kf-cam-guide">
-                    <p x-show="subjectLine || subjectName" x-cloak class="text-xs font-semibold tracking-tight text-white/70">
-                        <span x-text="subjectLine || subjectName"></span>
-                    </p>
-                    <p class="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-gold"
-                       :class="(subjectLine || subjectName) ? 'mt-2' : ''"
-                       x-show="current() && current().required"
-                       x-text="captureOrdinal() + ' ' + @js(__('site.partner_portal.valuation_shot_of')) + ' ' + requiredTotal()"></p>
-                    <p class="text-2xl sm:text-3xl font-extrabold mt-1.5 leading-tight"
-                       x-text="current()?.headline || current()?.label || ''"></p>
-                    <p class="text-sm font-semibold mt-2 leading-snug text-white/90" x-text="current()?.guidance || ''"></p>
-                </div>
+        </div>
+        {{-- Instruction centred over the live capture area (shared NIDA / collateral / valuer shell) --}}
+        <div class="kf-cam-guide-centre z-[4]">
+            <div class="kf-cam-guide">
+                <p x-show="subjectLine || subjectName" x-cloak class="text-xs font-semibold tracking-tight text-white/70">
+                    <span x-text="subjectLine || subjectName"></span>
+                </p>
+                <p class="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-gold"
+                   :class="(subjectLine || subjectName) ? 'mt-2' : ''"
+                   x-show="current() && current().required"
+                   x-text="captureOrdinal() + ' ' + @js(__('site.partner_portal.valuation_shot_of')) + ' ' + requiredTotal()"></p>
+                <p class="text-2xl sm:text-3xl font-extrabold mt-1.5 leading-tight"
+                   x-text="current()?.headline || current()?.label || ''"></p>
+                <p class="text-sm font-semibold mt-2 leading-snug text-white/90" x-text="current()?.guidance || ''"></p>
             </div>
         </div>
         <div x-show="guideFrame === 'id-card'" x-cloak

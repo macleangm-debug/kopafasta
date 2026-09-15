@@ -2,119 +2,86 @@
 
 @php
     $builder = app(\App\Services\ProfileSectionBuilderService::class);
-    $sections = $builder->hubCards($customer);
+    $sectionsByKey = collect($builder->hubCards($customer))->keyBy('key');
     $summary = app(\App\Services\ProfileCompletionService::class)->completionSummary($customer);
+    $percent = (int) ($summary['percent'] ?? 0);
     $remainingCount = (int) ($summary['remaining_count'] ?? count($summary['actionable'] ?? []));
-    $actionable = array_slice($summary['actionable'] ?? [], 0, 5);
+    $continueItem = collect($summary['actionable'] ?? [])->first(fn ($item) => ! empty($item['url']));
+    $continueUrl = $continueItem['url'] ?? route('site.borrower.profile', ['section' => 'personal']);
 
-    $statusColors = [
-        'complete'     => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-        'in_progress'  => 'bg-sky-100 text-sky-800 ring-sky-200',
-        'needs_work'   => 'bg-amber-100 text-amber-900 ring-amber-200',
-        'under_review' => 'bg-violet-100 text-violet-800 ring-violet-200',
-        'rejected'     => 'bg-red-100 text-red-800 ring-red-200',
-        'pending'      => 'bg-orange-100 text-orange-800 ring-orange-200',
-        'optional'     => 'bg-slate-100 text-slate-700 ring-slate-200',
-        'not_started'  => 'bg-gray-100 text-gray-600 ring-gray-200',
-    ];
+    // Layperson order — same five categories, no workflow badges / gap lists on the landing page.
+    $order = ['personal', 'activity', 'residence', 'payment', 'assets'];
 @endphp
 
 <section class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white p-5 sm:p-6">
-    <p class="text-[10px] uppercase tracking-widest font-bold text-brand">{{ __('borrower.profile.completion_summary_title') }}</p>
+    <p class="text-[10px] uppercase tracking-widest font-bold text-brand">{{ __('borrower.profile.hub.sections_title') }}</p>
+    <p class="mt-2 text-2xl font-extrabold text-gray-900 tracking-tight">
+        {{ __('borrower.profile.completion_summary_percent', ['percent' => $percent]) }}
+    </p>
+    <div class="mt-3 h-2.5 bg-white/80 ring-1 ring-brand/10 rounded-full overflow-hidden" role="progressbar" aria-valuenow="{{ $percent }}" aria-valuemin="0" aria-valuemax="100">
+        <div class="h-full bg-brand transition-all" style="width: {{ min(100, max(0, $percent)) }}%"></div>
+    </div>
+
     @if ($remainingCount > 0)
-        <h2 class="mt-1 text-xl font-extrabold text-gray-900 tracking-tight">
+        <p class="mt-4 text-sm font-semibold text-gray-800">
             {{ trans_choice('borrower.profile.hub.things_remaining', $remainingCount, ['count' => $remainingCount]) }}
-        </h2>
-        <p class="mt-1 text-sm text-gray-600">{{ __('borrower.profile.hub.whats_next') }}</p>
-        <ul class="mt-4 space-y-2">
-            @foreach ($actionable as $item)
-                @if (! empty($item['url']))
-                    <li>
-                        <a href="{{ $item['url'] }}"
-                           class="flex items-center justify-between gap-3 rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 text-sm font-semibold text-gray-900 hover:ring-brand/30 transition">
-                            <span class="min-w-0 truncate">{{ $item['label'] }}</span>
-                            <span class="shrink-0 text-brand">→</span>
-                        </a>
-                    </li>
-                @else
-                    <li class="rounded-xl bg-white/80 ring-1 ring-gray-200 px-4 py-3 text-sm font-medium text-gray-700">{{ $item['label'] }}</li>
-                @endif
-            @endforeach
-        </ul>
+        </p>
+        <a href="{{ $continueUrl }}"
+           class="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-brand hover:underline">
+            {{ __('borrower.profile.hub.continue_completing') }}
+            <span aria-hidden="true">→</span>
+        </a>
     @else
-        <h2 class="mt-1 text-xl font-extrabold text-gray-900 tracking-tight">{{ __('borrower.profile.hero_completion_done') }}</h2>
+        <p class="mt-4 text-sm font-semibold text-emerald-800">{{ __('borrower.profile.hero_completion_done') }}</p>
         <p class="mt-1 text-sm text-gray-600">{{ __('borrower.profile.hub.all_set_hint') }}</p>
     @endif
 </section>
 
-<section class="mb-6">
-    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('borrower.profile.hub.sections_title') }}</p>
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        @foreach ($sections as $section)
-            @php
-                $status = $section['status'] ?? 'not_started';
-                $tagClass = $statusColors[$status] ?? $statusColors['not_started'];
-            @endphp
-            <a href="{{ $section['url'] }}"
-               data-kf-share="kf-prof-{{ $section['key'] }}"
-               class="group rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white p-5 transition hover:shadow-md">
-                <div class="flex items-start justify-between gap-3">
-                    <span class="text-2xl leading-none" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
-                    <span class="inline-flex items-center gap-1.5">
-                        @if (($section['status'] ?? '') === 'complete')
-                            <span class="size-7 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm ring-2 ring-brand-gold/40"
-                                  title="{{ __('borrower.profile.section_complete') }}"
-                                  aria-label="{{ __('borrower.profile.section_complete') }}">
-                                <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-                                </svg>
-                            </span>
-                        @endif
-                        <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 {{ $tagClass }}">
-                            {{ $section['status_label'] ?? $status }}
-                        </span>
-                    </span>
-                </div>
-                <h3 class="mt-4 font-bold text-gray-900 group-hover:text-brand transition">{{ $section['label'] }}</h3>
-                @if (! empty($section['progress']))
-                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.hub.of_complete', ['done' => $section['progress']['done'], 'total' => $section['progress']['total']]) }}</p>
-                @elseif (! empty($section['count']))
-                    <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.registered_count', ['count' => $section['count']]) }}</p>
-                @elseif (! empty($section['description']))
-                    <p class="text-xs text-gray-500 mt-1 line-clamp-3">{{ $section['description'] }}</p>
-                @endif
-                @if (! empty($section['missing']))
-                    <ul class="mt-2 space-y-1">
-                        @foreach (array_slice($section['missing'], 0, 3) as $gap)
-                            @php
-                                $gapLabel = is_array($gap) ? ($gap['label'] ?? '') : $gap;
-                                $gapUrl = is_array($gap) ? ($gap['url'] ?? null) : null;
-                            @endphp
-                            @if ($gapLabel !== '')
-                                <li class="text-[11px] text-amber-800 font-medium">
-                                    @if ($gapUrl)
-                                        <a href="{{ $gapUrl }}" class="hover:underline" @click.stop>• {{ $gapLabel }}</a>
-                                    @else
-                                        • {{ $gapLabel }}
-                                    @endif
-                                </li>
-                            @endif
-                        @endforeach
-                    </ul>
-                @endif
-                @if (($section['key'] ?? '') === 'assets' || empty($section['required']))
-                    <p class="mt-3 text-xs text-gray-500">
-                        @if (($section['key'] ?? '') === 'assets' && empty($section['count']))
-                            {{ __('borrower.profile.hub.optional_none_added') }}
-                        @else
-                            {{ __('borrower.profile.hub.optional_for_apply') }}
-                        @endif
-                    </p>
-                @endif
-                <p class="mt-4 text-xs font-semibold text-brand">{{ $section['action_label'] ?? __('borrower.profile.hub.view_edit') }} →</p>
-            </a>
-        @endforeach
-    </div>
+<section class="mb-6 space-y-3">
+    @foreach ($order as $key)
+        @php
+            $section = $sectionsByKey->get($key);
+            if (! $section) {
+                continue;
+            }
+            $isComplete = ($section['status'] ?? '') === 'complete';
+            $isAssets = $key === 'assets';
+            $isPayment = $key === 'payment';
+            $progress = $section['progress'] ?? null;
+            if ($isPayment && empty($progress)) {
+                $done = (int) ($section['count'] ?? 0) > 0 ? 1 : 0;
+                $progress = ['done' => $done, 'total' => 1];
+            }
+
+            if ($isAssets) {
+                $progressLabel = __('borrower.profile.status.optional');
+                $cta = __('borrower.profile.hub.add_optional');
+            } elseif ($isComplete) {
+                $progressLabel = __('borrower.profile.status.complete');
+                $cta = __('borrower.profile.hub.view_edit');
+            } elseif ($progress) {
+                $progressLabel = __('borrower.profile.hub.of_complete', [
+                    'done' => $progress['done'],
+                    'total' => $progress['total'],
+                ]);
+                $cta = $isPayment && (int) ($progress['done'] ?? 0) === 0
+                    ? __('borrower.profile.hub.add_account')
+                    : __('borrower.profile.hub.continue');
+            } else {
+                $progressLabel = __('borrower.profile.hub.of_complete', ['done' => 0, 'total' => 1]);
+                $cta = __('borrower.profile.hub.continue');
+            }
+        @endphp
+        <a href="{{ $section['url'] }}"
+           data-kf-share="kf-prof-{{ $key }}"
+           class="flex items-center justify-between gap-4 rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white px-5 py-4 transition hover:shadow-sm">
+            <div class="min-w-0">
+                <p class="font-bold text-gray-900">{{ $section['label'] }}</p>
+                <p class="mt-0.5 text-xs font-medium text-gray-500">{{ $progressLabel }}</p>
+            </div>
+            <span class="shrink-0 text-sm font-semibold text-brand">{{ $cta }} →</span>
+        </a>
+    @endforeach
 </section>
 
 <section class="space-y-5">

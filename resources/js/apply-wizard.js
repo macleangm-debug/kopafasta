@@ -125,6 +125,7 @@ export function applyWizard(config) {
                     || null,
                 draftSavedAt: null,
                 draftSaveTimer: null,
+                draftSaveSeq: 0,
                 draftReference: config.savedDraft?.draft_reference || '',
                 profileSignature: config.profileSignature || null,
                 borrowerSignature: config.savedDraft?.borrower_signature || config.profileSignature || null,
@@ -614,15 +615,26 @@ export function applyWizard(config) {
                         }
                     }
                     // Preserve previously saved overview fields if a later save races with empty DOM values.
+                    // Do NOT restore dependents cleared by a parent change (e.g. region → district).
                     const prev = this._lastDraftInputs || {};
+                    const regionKey = 'product_question[farming_region]';
+                    const districtKey = 'product_question[farming_district]';
+                    const regionChanged = Object.prototype.hasOwnProperty.call(inputs, regionKey)
+                        && String(inputs[regionKey] ?? '') !== String(prev[regionKey] ?? '');
                     Object.keys(prev).forEach((key) => {
                         if (! key.startsWith('product_question[')) return;
+                        if (regionChanged && key === districtKey) {
+                            return;
+                        }
                         const next = (inputs[key] ?? '').toString().trim();
                         if (next === '' && String(prev[key] || '').trim() !== '') {
                             inputs[key] = prev[key];
                         }
                     });
                     this._lastDraftInputs = { ...prev, ...inputs };
+                    if (regionChanged) {
+                        this._lastDraftInputs[districtKey] = inputs[districtKey] ?? '';
+                    }
                     if (this.form.purpose) {
                         inputs.purpose = this.form.purpose;
                     }
@@ -1443,64 +1455,71 @@ export function applyWizard(config) {
                     if (! this.draftSaveUrl || this.phase === 'browse' || this.resumeLoading) {
                         return Promise.resolve();
                     }
-                    const request = () => {
-                        let payload;
-                        try {
-                            payload = this.buildDraftPayload();
-                        } catch (e) {
-                            console.warn('apply wizard draft payload failed', e);
-                            payload = {
-                                phase: this.phase,
-                                step: this.step,
-                                step_key: this.stepKey,
-                                loan_product_id: this.form.loan_product_id,
-                                asset_reservation_id: this.reservationId,
-                                form: this.form,
-                                inputs: {},
-                                guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
-                                application_fee: this.applicationFeeState,
-                                external_guarantor: this.externalGuarantor,
-                        internal_guarantor: this.internalGuarantor,
-                                borrower_signature: this.borrowerSignature,
-                                declaration_accepted: this.declarationAccepted,
-                            };
-                        }
-                        return fetch(this.draftSaveUrl, {
-                            method: 'PUT',
-                            headers: this.draftHeaders(),
-                            credentials: 'same-origin',
-                            body: JSON.stringify(payload),
-                        }).then(res => {
-                            if (res.status === 410) {
-                                this.draftBlocked = true;
-                                return Promise.reject(res);
+                    // Serialize saves; each hop builds a fresh payload so older in-flight
+                    // requests cannot overwrite newer browser state on the server.
+                    this._draftSaveChain = (this._draftSaveChain || Promise.resolve())
+                        .catch(() => {})
+                        .then(() => {
+                            const seq = ++this.draftSaveSeq;
+                            let payload;
+                            try {
+                                payload = this.buildDraftPayload();
+                            } catch (e) {
+                                console.warn('apply wizard draft payload failed', e);
+                                payload = {
+                                    phase: this.phase,
+                                    step: this.step,
+                                    step_key: this.stepKey,
+                                    loan_product_id: this.form.loan_product_id,
+                                    asset_reservation_id: this.reservationId,
+                                    form: this.form,
+                                    inputs: {},
+                                    guarantor_lookup: this.guarantorLookup.ok ? this.guarantorLookup : null,
+                                    application_fee: this.applicationFeeState,
+                                    external_guarantor: this.externalGuarantor,
+                                    internal_guarantor: this.internalGuarantor,
+                                    borrower_signature: this.borrowerSignature,
+                                    declaration_accepted: this.declarationAccepted,
+                                };
                             }
-                            return res.ok ? res.json() : Promise.reject(res);
-                        })
-                          .then((data) => {
-                              this.draftSavedAt = new Date().toLocaleTimeString();
-                              if (typeof window.kfFlashInlineSaved === 'function') {
-                                  window.kfFlashInlineSaved();
-                              }
-                              if (data?.draft_reference) {
-                                  this.draftReference = data.draft_reference;
-                              }
-                              if (data?.step_key && data.step_key !== this.stepKey
-                                  && this.needsFeeGateBefore(this.stepKey)
-                                  && ! this.isPreFeeSetupStep(this.stepKey)) {
-                                  this.payApplicationFee();
-                              }
-                          });
-                    };
-
-                    if (typeof window.kfShowInlineSaving === 'function') {
-                        window.kfShowInlineSaving();
-                    }
-                    return sync ? request().catch(() => {
-                        if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
-                    }) : request().catch(() => {
-                        if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
-                    });
+                            if (typeof window.kfShowInlineSaving === 'function') {
+                                window.kfShowInlineSaving();
+                            }
+                            return fetch(this.draftSaveUrl, {
+                                method: 'PUT',
+                                headers: this.draftHeaders(),
+                                credentials: 'same-origin',
+                                body: JSON.stringify(payload),
+                            }).then((res) => {
+                                if (res.status === 410) {
+                                    this.draftBlocked = true;
+                                    return Promise.reject(res);
+                                }
+                                return res.ok ? res.json() : Promise.reject(res);
+                            }).then((data) => {
+                                // Stale ack only — never rebuild the live form from the response.
+                                if (seq !== this.draftSaveSeq) {
+                                    return;
+                                }
+                                this.draftSavedAt = new Date().toLocaleTimeString();
+                                if (typeof window.kfFlashInlineSaved === 'function') {
+                                    window.kfFlashInlineSaved();
+                                }
+                                if (data?.draft_reference) {
+                                    this.draftReference = data.draft_reference;
+                                }
+                                if (data?.step_key && data.step_key !== this.stepKey
+                                    && this.needsFeeGateBefore(this.stepKey)
+                                    && ! this.isPreFeeSetupStep(this.stepKey)) {
+                                    this.payApplicationFee();
+                                }
+                            }).catch(() => {
+                                if (typeof window.kfHideSaving === 'function') {
+                                    window.kfHideSaving();
+                                }
+                            });
+                        });
+                    return this._draftSaveChain;
                 },
 
                 draftHeaders() {

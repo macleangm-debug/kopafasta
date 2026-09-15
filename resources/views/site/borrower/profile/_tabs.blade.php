@@ -40,7 +40,7 @@
                 @if ($activeComplete)
                     <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
                 @elseif ($activeRemaining > 0)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ $activeRemaining }} {{ __('borrower.profile.hub.remaining_short') }}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}</span>
                 @endif
             </span>
             <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
@@ -70,7 +70,7 @@
                         @if ($isComplete)
                             <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
                         @elseif ($remaining > 0)
-                            <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ $remaining }} {{ __('borrower.profile.hub.remaining_short') }}</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}</span>
                         @endif
                     </a>
                 @endforeach
@@ -88,7 +88,7 @@
                 @if ($activeComplete)
                     <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
                 @elseif ($activeRemaining > 0)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ $activeRemaining }} {{ __('borrower.profile.hub.remaining_short') }}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}</span>
                 @endif
                 <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="sectionsOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
@@ -112,7 +112,7 @@
                     @if ($isComplete)
                         <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
                     @elseif ($remaining > 0)
-                        <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ $remaining }} {{ __('borrower.profile.hub.remaining_short') }}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}</span>
                     @endif
                 </a>
             @endforeach

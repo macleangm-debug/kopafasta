@@ -33,7 +33,7 @@ return [
         'holding_nida' => [
             'label'       => 'Hold national ID',
             'step_title'  => 'Hold national ID → Capture photo',
-            'instruction' => 'Hold your NIDA next to your face, then tap Capture.',
+            'instruction' => 'Hold your National ID next to your face so both your face and the ID are clearly visible, then tap Capture.',
             'hint'        => 'Both your face and the ID must be clearly visible.',
             'icon'        => 'id',
             'require_face' => false,

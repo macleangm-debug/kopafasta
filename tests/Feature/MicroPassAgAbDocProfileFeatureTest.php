@@ -271,6 +271,14 @@ class MicroPassAgAbDocProfileFeatureTest extends TestCase
             || str_contains($html, __('borrower.profile.hero_completion_done')),
             'Profile home should show remaining count or all-set state'
         );
+        $this->assertTrue(
+            str_contains($html, __('borrower.profile.hub.continue_completing'))
+            || str_contains($html, __('borrower.profile.hero_completion_done')),
+            'Profile home should offer Continue completing or all-set state'
+        );
+        $this->assertStringNotContainsString(__('borrower.profile.status.in_progress'), $html);
+        $this->assertStringNotContainsString(__('borrower.profile.status.not_started'), $html);
+        $this->assertStringNotContainsString(__('borrower.profile.status.under_review'), $html);
 
         $this->assertStringContainsString('data-inline-document-progress', file_get_contents(
             resource_path('views/components/site/document-upload.blade.php')
