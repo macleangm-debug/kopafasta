@@ -36,7 +36,9 @@ export function registerProfileSectionCard(Alpine) {
         },
 
         toggleExpand() {
+            // Header click again collapses — including when Hariri/Edit is open.
             if (this.open) {
+                this.requestClose();
                 return;
             }
             this.expanded = ! this.expanded;

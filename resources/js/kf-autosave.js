@@ -46,11 +46,23 @@ function markAccountShellContext() {
     };
 }
 
+function isSystemFieldName(name) {
+    return ['_token', '_method', 'focus', 'wizard', 'return', 'signature_touched'].includes(String(name || ''));
+}
+
 function isInstantControl(el) {
     if (!(el instanceof HTMLElement)) return false;
     if (el.matches('select')) return true;
     const type = (el.getAttribute('type') || '').toLowerCase();
-    return ['radio', 'checkbox', 'date', 'datetime-local', 'time', 'month'].includes(type);
+    if (['radio', 'checkbox', 'date', 'datetime-local', 'time', 'month'].includes(type)) {
+        return true;
+    }
+    // profile-select / Alpine mirrors persist via named hidden inputs.
+    if (type === 'hidden') {
+        const name = el.getAttribute('name') || '';
+        return name !== '' && ! isSystemFieldName(name);
+    }
+    return false;
 }
 
 /**
@@ -123,6 +135,13 @@ window.kfBindAutosaveForm = function (form, options = {}) {
                 return;
             }
         }
+
+        // Phone widgets keep the real value on a hidden input — sync before FormData.
+        form.querySelectorAll('[data-phone-input]').forEach((root) => {
+            if (typeof window.syncSitePhoneInput === 'function') {
+                window.syncSitePhoneInput(root);
+            }
+        });
 
         const fd = new FormData(form);
         if (! fd.get('_token')) {
@@ -227,7 +246,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
         if (t.closest('[data-no-autosave]')) return;
         const type = (t.getAttribute('type') || '').toLowerCase();
         if (type === 'password' || type === 'file') return;
-        if (t.matches('input[type=hidden][name=_token], input[type=hidden][name=_method], input[type=hidden][name=focus], input[type=hidden][name=wizard], input[type=hidden][name=return]')) {
+        if (t.matches('input[type=hidden]') && isSystemFieldName(t.getAttribute('name'))) {
             return;
         }
         // Selectors / radios / dates: save immediately after a valid change.

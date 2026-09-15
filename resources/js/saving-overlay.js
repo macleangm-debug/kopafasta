@@ -62,8 +62,9 @@ export function registerSavingOverlay(Alpine) {
         hideCanonicalToasts('data-kf-canonical-saving');
 
         const toast = ensureCanonicalToast('data-kf-canonical-saving', 'status');
-        toast.className = 'inline-flex items-center gap-2 rounded-full bg-brand text-white shadow-lg px-4 py-2.5 text-sm font-bold';
-        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:none;visibility:visible;opacity:1;';
+        toast.className = 'inline-flex items-center gap-2 rounded-full text-white shadow-lg px-4 py-2.5 text-sm font-bold';
+        // Inline colors — do not depend on Tailwind purge for dynamically created nodes.
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:none;visibility:visible;opacity:1;background:#004d40;color:#fff;';
         toast.innerHTML = '<span style="width:14px;height:14px;border-radius:9999px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:kf-spin .7s linear infinite" aria-hidden="true"></span><span></span>';
         if (! document.getElementById('kf-inline-save-spin')) {
             const s = document.createElement('style');
@@ -128,8 +129,8 @@ export function registerSavingOverlay(Alpine) {
         hideCanonicalToasts();
         const label = message || 'Saved';
         const toast = ensureCanonicalToast('data-kf-canonical-saved', 'status');
-        toast.className = 'inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white shadow-lg px-4 py-2.5 text-sm font-bold';
-        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:none;visibility:visible;opacity:1;';
+        toast.className = 'inline-flex items-center gap-2 rounded-full text-white shadow-lg px-4 py-2.5 text-sm font-bold';
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:none;visibility:visible;opacity:1;background:#059669;color:#fff;';
         toast.innerHTML = '<span aria-hidden="true">✓</span><span></span>';
         toast.querySelector('span:last-child').textContent = label;
         toast.classList.remove('hidden');
@@ -145,8 +146,8 @@ export function registerSavingOverlay(Alpine) {
     window.kfShowSaveError = function (message, retryLabel, onRetry) {
         hideCanonicalToasts();
         const toast = ensureCanonicalToast('data-kf-canonical-save-error', 'alert');
-        toast.className = 'inline-flex items-center gap-2 rounded-full bg-amber-700 text-white shadow-lg px-4 py-2.5 text-sm font-bold';
-        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:auto;visibility:visible;opacity:1;';
+        toast.className = 'inline-flex items-center gap-2 rounded-full text-white shadow-lg px-4 py-2.5 text-sm font-bold';
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:auto;visibility:visible;opacity:1;background:#b45309;color:#fff;';
         const fail = message || 'Not saved';
         const retry = retryLabel || 'Retry';
         toast.innerHTML = `<span aria-hidden="true">!</span><span></span><button type="button" data-kf-save-retry class="ml-1 underline font-bold">${retry}</button>`;

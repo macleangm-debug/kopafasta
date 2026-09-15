@@ -55,19 +55,23 @@
                     $activityTypeKey = $customer->activity_type ?? $customer->employment_type;
                     $activityFieldDefs = activity_fields_localized()[$activityTypeKey] ?? [];
                     $activityViewRows = [];
-                    $activityViewRows[] = [
-                        'label' => __('borrower.profile.activity_type'),
-                        'value' => $activityLabel,
-                    ];
+                    $seenDetailKeys = [];
+                    if (filled($activityLabel)) {
+                        $activityViewRows[] = [
+                            'label' => __('borrower.profile.activity_type'),
+                            'value' => $activityLabel,
+                        ];
+                    }
                     foreach ($activityFieldDefs as $field) {
                         $key = $field['key'] ?? null;
                         if (! $key || ($field['type'] ?? '') === 'document') {
                             continue;
                         }
                         $raw = $activityDetails[$key] ?? null;
-                        if (! filled($raw)) {
+                        if (! filled($raw) || is_array($raw)) {
                             continue;
                         }
+                        $seenDetailKeys[$key] = true;
                         $display = $raw;
                         if (! empty($field['options'][$raw])) {
                             $display = $field['options'][$raw];
@@ -75,6 +79,19 @@
                         $activityViewRows[] = [
                             'label' => $field['label'] ?? $key,
                             'value' => $display,
+                        ];
+                    }
+                    // Any persisted detail not covered by the type schema still belongs in View.
+                    foreach ($activityDetails as $key => $raw) {
+                        if (isset($seenDetailKeys[$key]) || is_array($raw) || ! filled($raw)) {
+                            continue;
+                        }
+                        if (str_starts_with((string) $key, '_') || in_array($key, ['income_proof_method'], true)) {
+                            continue;
+                        }
+                        $activityViewRows[] = [
+                            'label' => display_label((string) $key, 'activity'),
+                            'value' => $raw,
                         ];
                     }
                     if ($incomeLabel) {

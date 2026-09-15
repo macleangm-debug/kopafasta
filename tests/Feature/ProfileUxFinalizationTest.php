@@ -16,6 +16,8 @@ class ProfileUxFinalizationTest extends TestCase
         $this->assertStringContainsString('hasPersistablePayload', $autosave);
         $this->assertStringContainsString('queueMicrotask', $autosave);
         $this->assertStringContainsString('requestAnimationFrame', $autosave);
+        $this->assertStringContainsString('isSystemFieldName', $autosave);
+        $this->assertStringContainsString('syncSitePhoneInput', $autosave);
         $this->assertStringContainsString('profile-section-edit', $autosave);
         $this->assertStringNotContainsString('data-kf-autosave-status', $autosave);
         $this->assertStringNotContainsString('✓ ${labels.saved}', $autosave);
@@ -74,9 +76,21 @@ class ProfileUxFinalizationTest extends TestCase
         $this->assertStringContainsString('fields.middle_name', $personal);
         $this->assertStringContainsString('fields.last_name', $personal);
         $this->assertStringContainsString('name="marital_status"', $personal);
+        $this->assertStringContainsString('contactEmail', $personal);
+        $this->assertStringContainsString("fields.email') }}", $personal);
 
         $shell = file_get_contents(resource_path('views/site/borrower/profile/_profile_shell.blade.php'));
         $this->assertStringContainsString('data-kf-page-status', $shell);
         $this->assertStringNotContainsString('data-kf-saved-toast', $shell);
+
+        $autosave = file_get_contents(resource_path('js/kf-autosave.js'));
+        $this->assertStringContainsString('isSystemFieldName', $autosave);
+        $this->assertStringContainsString('syncSitePhoneInput', $autosave);
+
+        $card = file_get_contents(resource_path('js/profile-section-card.js'));
+        $this->assertStringContainsString('requestClose()', $card);
+
+        $activity = file_get_contents(resource_path('views/site/borrower/profile/activity.blade.php'));
+        $this->assertStringContainsString('seenDetailKeys', $activity);
     }
 }

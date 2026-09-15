@@ -1990,11 +1990,14 @@ class BorrowerController extends Controller
                 if ($validation->requiresMarriageCertificate()
                     && $validation->isMarried($customer->fresh())
                     && ! $validation->hasMarriageCertificate($customer->fresh())) {
-                    return redirect()
-                        ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'family'])
-                        ->withErrors(['marriage_certificate' => __('borrower.profile.marriage_certificate_required')])
-                        ->withInput()
-                        ->withFragment('profile-family');
+                    // Partial autosave must still return JSON Saved — missing cert is completeness, not a failed persist.
+                    if (! $isAutosave) {
+                        return redirect()
+                            ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'family'])
+                            ->withErrors(['marriage_certificate' => __('borrower.profile.marriage_certificate_required')])
+                            ->withInput()
+                            ->withFragment('profile-family');
+                    }
                 }
             }
 

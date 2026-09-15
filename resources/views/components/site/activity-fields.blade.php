@@ -296,8 +296,16 @@
                 },
                 pickActivity(key) {
                     this.activityType = key;
-                    this.onTypeChange();
                     this.activityPickerOpen = false;
+                    this.$nextTick(() => {
+                        const sel = this.$root.querySelector('select[name="activity_type"]');
+                        if (sel) {
+                            sel.value = key;
+                            sel.dispatchEvent(new Event('change', { bubbles: true }));
+                        } else {
+                            this.onTypeChange();
+                        }
+                    });
                 },
                 openDetailPicker(field) {
                     this.detailPickerField = field;
@@ -335,12 +343,22 @@
                 pickDetail(value) {
                     if (! this.detailPickerField) return;
                     const key = this.detailPickerField.key;
+                    const fieldType = this.detailPickerField.type;
                     this.details[key] = value;
-                    if (this.detailPickerField.type === 'region') {
+                    if (fieldType === 'region') {
                         this.onRegionChange();
                     }
                     this.detailPickerOpen = false;
                     this.detailPickerField = null;
+                    this.$nextTick(() => {
+                        const sel = this.$root.querySelector('select[name="activity_details[' + key + ']"]');
+                        if (sel) {
+                            sel.dispatchEvent(new Event('change', { bubbles: true }));
+                            return;
+                        }
+                        const form = this.$root.closest('form');
+                        form?.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
                 },
                 onTypeChange() {
                     this.details = {};

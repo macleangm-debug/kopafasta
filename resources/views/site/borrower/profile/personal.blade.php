@@ -352,9 +352,15 @@
                                     <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
                                 @endif
                             </div>
-                            @if (filled($customer->email) && ! str_ends_with(strtolower($customer->email), '@phone.kopafasta.local'))
-                                <div><dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt><dd class="font-medium text-gray-900 mt-0.5">{{ $customer->email }}</dd></div>
-                            @endif
+                            @php
+                                $contactEmail = filled($customer->email) && ! str_ends_with(strtolower((string) $customer->email), '@phone.kopafasta.local')
+                                    ? $customer->email
+                                    : null;
+                            @endphp
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt>
+                                <dd class="font-medium text-gray-900 mt-0.5">{{ $contactEmail ?: '—' }}</dd>
+                            </div>
                         </dl>
                     </x-slot:view>
                     <x-slot:form>
@@ -379,7 +385,13 @@
                                 />
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.email') }}</label>
-                                    <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="{{ $editable }}">
+                                    @php
+                                        $emailEdit = old('email', $customer->email);
+                                        if (is_string($emailEdit) && str_ends_with(strtolower($emailEdit), '@phone.kopafasta.local')) {
+                                            $emailEdit = '';
+                                        }
+                                    @endphp
+                                    <input type="email" name="email" value="{{ $emailEdit }}" class="{{ $editable }}">
                                 </div>
                             </div>
                         </form>
@@ -479,7 +491,14 @@
                                   pickMarital(value) {
                                       this.marital = value;
                                       this.maritalOpen = false;
-                                      this.$nextTick(() => this.$el.dispatchEvent(new Event('change', { bubbles: true })));
+                                      this.$nextTick(() => {
+                                          const sel = this.$el.querySelector('select[name="marital_status"]');
+                                          if (sel) {
+                                              sel.dispatchEvent(new Event('change', { bubbles: true }));
+                                          } else {
+                                              this.$el.dispatchEvent(new Event('change', { bubbles: true }));
+                                          }
+                                      });
                                   },
                               }">
                             @csrf @method('PUT')
