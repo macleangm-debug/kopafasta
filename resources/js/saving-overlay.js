@@ -140,7 +140,7 @@ export function registerSavingOverlay(Alpine) {
         toast._kfSavedTimer = setTimeout(() => {
             toast.classList.add('hidden');
             toast.style.display = 'none';
-        }, 1800);
+        }, 2800);
     };
 
     window.kfShowSaveError = function (message, retryLabel, onRetry) {

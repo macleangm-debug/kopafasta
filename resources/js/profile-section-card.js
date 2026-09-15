@@ -96,8 +96,10 @@ export function registerProfileSectionCard(Alpine) {
             const detail = {
                 id: this.id,
                 proceed: () => {
+                    // Leave the View panel open so mirrored autosave values are visible
+                    // without a reload (collapsing hid View and looked like a save failure).
                     this.open = false;
-                    this.expanded = false;
+                    this.expanded = true;
                     this.showEditAction = false;
                 },
                 stay: () => {

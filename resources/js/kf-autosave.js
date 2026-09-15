@@ -231,13 +231,27 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             }
             xhr.onload = () => {
                 let parsed = {};
+                const raw = String(xhr.responseText || '').trim();
                 try {
-                    parsed = JSON.parse(xhr.responseText || '{}');
+                    parsed = raw ? JSON.parse(raw) : {};
                 } catch (e) {
                     parsed = {};
                 }
                 parsed.__httpStatus = xhr.status;
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    // Empty or non-JSON 200 (aborted race / session bounce) is not a save.
+                    if (parsed.ok !== true) {
+                        const msg = parsed.message
+                            || (raw === '' ? labels.fail : raw.slice(0, 120))
+                            || labels.fail;
+                        const err = new Error(String(msg));
+                        err.status = xhr.status === 200 && /unauthenticated/i.test(String(msg))
+                            ? 401
+                            : xhr.status;
+                        err.payload = parsed;
+                        reject(err);
+                        return;
+                    }
                     resolve(parsed);
                     return;
                 }
@@ -261,6 +275,9 @@ window.kfBindAutosaveForm = function (form, options = {}) {
                 if (data && data.ok === false) {
                     throw new Error(String(data.message || labels.fail));
                 }
+                if (! data || data.ok !== true) {
+                    throw new Error(String((data && data.message) || labels.fail));
+                }
 
                 setState('saved');
                 if (typeof window.kfFlashInlineSaved === 'function') {
@@ -276,13 +293,13 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             } catch (e) {
                 if (mySeq !== seq) return;
                 // One retry on auth/CSRF race (stale meta token vs rotated XSRF cookie).
-                if (e && (e.status === 419 || e.status === 401)) {
+                if (e && (e.status === 419 || e.status === 401 || e.status === 200)) {
                     try {
                         syncCsrfIntoForm(form);
                         const retry = await sendOnce();
                         if (mySeq !== seq) return;
-                        if (retry && retry.ok === false) {
-                            throw new Error(String(retry.message || labels.fail));
+                        if (! retry || retry.ok !== true) {
+                            throw new Error(String((retry && retry.message) || labels.fail));
                         }
                         setState('saved');
                         if (typeof window.kfFlashInlineSaved === 'function') {
@@ -557,6 +574,7 @@ export function registerKfAutosave(Alpine) {
     let profileSelectFlushTimer = null;
     document.addEventListener('profile-select', (e) => {
         const name = e.detail?.name || '';
+        const value = e.detail?.value;
         let form = e.target instanceof Element ? e.target.closest('form[data-kf-autosave]') : null;
         if (! form && name) {
             try {
@@ -566,11 +584,21 @@ export function registerKfAutosave(Alpine) {
             }
         }
         if (! form) return;
+        // Ensure the named control carries the picked value before FormData (Alpine :value races).
+        if (name) {
+            try {
+                const input = form.querySelector(`[name="${CSS.escape(name)}"]`);
+                if (input && value != null) {
+                    input.value = String(value);
+                    input.setAttribute('value', String(value));
+                }
+            } catch (err) { /* ignore */ }
+        }
         window.kfBindAutosaveForm(form);
         clearTimeout(profileSelectFlushTimer);
         profileSelectFlushTimer = setTimeout(() => {
             profileSelectFlushTimer = null;
-            form._kfAutosave?.flush?.();
-        }, 0);
+            form._kfAutosave?.flush?.(true);
+        }, 50);
     });
 }
