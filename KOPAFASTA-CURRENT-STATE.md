@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production baseline** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | Operational production baseline until live production is re-verified. Do not casually overwrite. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | `01fd80d4d52e12f6cbe87be2cb77c900ded6aa0e` | Profile UX finalization: one shell save tab, Collapsed→View→Edit, partial autosave. **Staging UAT. Do not promote.** |
+| **Current staging / development baseline** | `b0ec338b2ca5f4c2c919c6efd1222c70a89382fe` | Profile closure: full Angalia View fields + canonical green autosave toast (no page-banner collision). **Staging UAT. Do not promote.** |
 | **Current clean production candidate** | _(none yet)_ | After Identity UAT passes: cut from `8bb9bf5e…` with only owner-accepted changes → staging smoke → owner approve → promote that exact SHA. |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
