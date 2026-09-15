@@ -8,13 +8,13 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production baseline** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | Operational production baseline until live production is re-verified. Do not casually overwrite. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | `f814c8c8e8c3c5941efe3ec975c668395490f6df` | Profile Family/Kin shared autosave + desktop select teleport. **Staging UAT. Do not promote.** |
-| **Current clean production candidate** | _(none yet)_ | After Identity UAT passes: cut from `8bb9bf5e…` with only owner-accepted changes → staging smoke → owner approve → promote that exact SHA. |
+| **Current staging / development baseline** | `b4ea89ef7457aa3b0e56f2069d99d9664b49e785` | Profile Family/Kin race fix + Activity conditional redraw + Support V1. **Staging UAT. Do not promote wholesale.** |
+| **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
 **Typo note:** `73fbbfbe` does not exist — use `73fbbbfe`.
 
-**Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`. Never push mixed staging tip to `origin/main` merely to sync GitHub.
+**Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`. Never push mixed staging tip to `origin/main` merely to sync GitHub. **Do not promote staging HEAD wholesale.**
 
 ## Frozen
 
@@ -22,6 +22,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 - Registration password removed this pass (phone + PIN + incomplete draft resume)
 - Document holder status cleanup, KYC 405, native Upload chooser, Remove confirmation
 - Face focus/reload loop fix (preserve no-snap)
+- Partner Experience Consistency (CLOSED)
 
 ## Canonical rules (this pass)
 
@@ -38,10 +39,10 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 8. **NIDA number:** confirm before lock; images remain replaceable. Face: replaceable + Remove uses confirmForm.
 9. **Platform Profile UX (frozen pattern):** Collapsed → View all saved fields → Hariri/Edit → `kfAutosave`. One top-centre green tab only (`Inahifadhi…` / ✓ `Imehifadhiwa` / `Haijahifadhiwa · Jaribu tena`). No inline Saved labels. Autosave every valid change (partial OK); Complete ≠ Saved. Signature owns its own focus.
 10. **National ID:** one member-facing holder; Front → Back directed; landscape id-card guide; Replace picks side then source.
+11. **Public company contact:** one primary email + one primary phone from Settings Hub Company Profile → `support_emails()` / `support_phones()` → footer.
+12. **Support V1:** `SupportTicket` + guest fields + round-robin `agent` assignment + `support_ticket_events`. No SupportUser. Staging only until UAT.
 
-## Open / in progress
-
-- **Support Operations V1** (local): extend `SupportTicket` with guest fields + `support_ticket_events`, `SupportTicketService` auto-assign round-robin for role `agent`, Feedback non-complaint → tickets, agent `console_access` + `user_form` true. Do not promote until owner UAT.
+## Deploy
 
 ```bash
 SSH_IDENTITY_FILE=~/.ssh/kopafasta_server \
