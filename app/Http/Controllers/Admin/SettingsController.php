@@ -59,7 +59,20 @@ class SettingsController extends Controller
             ]);
         }
 
-        Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["company.$k" => $v])->all());
+        // Canonical phone storage — strip duplicate prefixes like ++255 before persist.
+        foreach (['phone', 'phone_2', 'phone_3', 'whatsapp', 'complaints_phone'] as $phoneKey) {
+            if (! array_key_exists($phoneKey, $data) || ! filled($data[$phoneKey] ?? null)) {
+                continue;
+            }
+            $normalized = \App\Support\PhoneNumber::fromRequest($request, $phoneKey, 'TZ')
+                ?? \App\Support\PhoneNumber::normalizeForCountry((string) $data[$phoneKey], 'TZ');
+            if (filled($normalized)) {
+                $data[$phoneKey] = $normalized;
+            }
+        }
+
+        Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["company.$k" => $v])->all());
+
         return back()->with('status', 'Company profile saved.');
     }
 

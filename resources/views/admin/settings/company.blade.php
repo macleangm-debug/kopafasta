@@ -28,10 +28,49 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <x-admin.input name="email"           label="Primary contact email" type="email" :value="$values['email'] ?? ''" />
                     <x-admin.input name="support_email"   label="Support email (optional 2nd)" type="email" :value="$values['support_email'] ?? ''" />
-                    <x-admin.input name="phone"           label="Hotline / phone 1"     :value="$values['phone'] ?? ''" />
-                    <x-admin.input name="phone_2"         label="Phone 2 (optional)"    :value="$values['phone_2'] ?? ''" />
-                    <x-admin.input name="phone_3"         label="Phone 3 (optional)"    :value="$values['phone_3'] ?? ''" />
-                    <x-admin.input name="whatsapp"        label="WhatsApp (digits, e.g. 2557…)" :value="$values['whatsapp'] ?? ''" />
+                    <div>
+                        <x-site.phone-input
+                            name="phone"
+                            :label="'Hotline / phone 1'"
+                            :value="$values['phone'] ?? ''"
+                            locked-country="TZ"
+                            variant="rounded"
+                            :help="null"
+                        />
+                    </div>
+                    <div>
+                        <x-site.phone-input
+                            name="phone_2"
+                            :label="'Phone 2 (optional)'"
+                            :value="$values['phone_2'] ?? ''"
+                            locked-country="TZ"
+                            variant="rounded"
+                            :required="false"
+                            :help="null"
+                        />
+                    </div>
+                    <div>
+                        <x-site.phone-input
+                            name="phone_3"
+                            :label="'Phone 3 (optional)'"
+                            :value="$values['phone_3'] ?? ''"
+                            locked-country="TZ"
+                            variant="rounded"
+                            :required="false"
+                            :help="null"
+                        />
+                    </div>
+                    <div>
+                        <x-site.phone-input
+                            name="whatsapp"
+                            :label="'WhatsApp'"
+                            :value="$values['whatsapp'] ?? ''"
+                            locked-country="TZ"
+                            variant="rounded"
+                            :required="false"
+                            :help="'Stored as national MSISDN digits for wa.me links.'"
+                        />
+                    </div>
                     <x-admin.input name="hotline_label"   label="Hotline label (e.g. Customer care)" :value="$values['hotline_label'] ?? ''" />
                     <x-admin.input name="website"         label="Website"           :value="$values['website'] ?? ''" />
                     <x-admin.input name="app_base_url"    label="App base URL"      :value="$values['app_base_url'] ?? ''" placeholder="https://www.kopafasta.com" />
@@ -44,7 +83,17 @@
                         <p class="text-sm text-gray-600 mt-1">If left blank, the agreement uses the company phone, support email, and address above.</p>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <x-admin.input name="complaints_phone" label="Complaints phone" :value="$values['complaints_phone'] ?? ''" />
+                        <div>
+                            <x-site.phone-input
+                                name="complaints_phone"
+                                :label="'Complaints phone'"
+                                :value="$values['complaints_phone'] ?? ''"
+                                locked-country="TZ"
+                                variant="rounded"
+                                :required="false"
+                                :help="null"
+                            />
+                        </div>
                         <x-admin.input name="complaints_email" label="Complaints email" type="email" :value="$values['complaints_email'] ?? ''" />
                         <div class="md:col-span-2">
                             <x-admin.input name="complaints_address" label="Complaints physical address" :value="$values['complaints_address'] ?? ''" />

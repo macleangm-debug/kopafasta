@@ -16,7 +16,8 @@ class ProfileCompletionService
 
     /**
      * Activity section fields only (type, income, type-specific details) — used for UI ticks.
-     * Income proof / employment contract live on their own cards.
+     * Document evidence configured on the activity type (e.g. employment contract) still blocks Complete.
+     * Income proof remains on its own card via isActivityComplete().
      */
     public function isActivityFieldsComplete(Customer $customer): bool
     {
@@ -25,12 +26,16 @@ class ProfileCompletionService
             return false;
         }
 
+        $validation = app(ProfileValidationService::class);
         $fields = config('activity_profiles.fields.'.$type, []);
         $details = $customer->activity_details ?? [];
 
         foreach ($fields as $field) {
-            // Employment contract / docs live on their own upload UI — not this card's Complete tick.
             if (($field['type'] ?? 'text') === 'document') {
+                if (($field['required'] ?? false) && ! $validation->hasDocument($customer, $field['document_code'] ?? $field['key'])) {
+                    return false;
+                }
+
                 continue;
             }
 

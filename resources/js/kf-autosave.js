@@ -370,6 +370,20 @@ export function registerKfAutosave(Alpine) {
         if (form) window.kfBindAutosaveForm(form);
     }, true);
 
+    // Capture-phase bind BEFORE bubble listeners run — Contact email and other text fields
+    // were silent when the form was not yet bound at first keystroke.
+    if (! window.__kfAutosaveDelegated) {
+        window.__kfAutosaveDelegated = true;
+        const ensureBound = (e) => {
+            const form = e.target instanceof Element ? e.target.closest('form[data-kf-autosave]') : null;
+            if (form && ! form.hasAttribute('data-no-autosave')) {
+                window.kfBindAutosaveForm(form);
+            }
+        };
+        document.addEventListener('input', ensureBound, true);
+        document.addEventListener('change', ensureBound, true);
+    }
+
     // profile-select / address pickers notify here — flush even when change targeting is awkward.
     document.addEventListener('profile-select', (e) => {
         const name = e.detail?.name || '';

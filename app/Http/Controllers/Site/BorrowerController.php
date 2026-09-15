@@ -1915,8 +1915,10 @@ class BorrowerController extends Controller
             }
 
             if (in_array($focus, ['contact', 'all'], true)) {
+                $phone = \App\Support\PhoneNumber::fromRequest($request, 'phone', $customer->country_code ?? 'TZ')
+                    ?? ($data['phone'] ?? $customer->phone);
                 $customer->fill(array_filter([
-                    'phone' => $data['phone'] ?? $customer->phone,
+                    'phone' => $phone,
                     'email' => $data['email'] ?? $customer->email,
                 ], fn ($value) => $value !== null));
             }

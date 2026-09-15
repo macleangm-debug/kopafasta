@@ -26,12 +26,16 @@ if (! function_exists('support_contact')) {
             if (str_starts_with($settingKey, 'company.') && class_exists(\App\Models\Setting::class)) {
                 $value = \App\Models\Setting::get($settingKey);
                 if (filled($value)) {
-                    return (string) $value;
+                    return $key === 'email'
+                        ? (string) $value
+                        : (string) (\App\Support\PhoneNumber::format((string) $value) ?? $value);
                 }
             } else {
                 $value = brand($settingKey);
                 if (filled($value)) {
-                    return (string) $value;
+                    return $key === 'email'
+                        ? (string) $value
+                        : (string) (\App\Support\PhoneNumber::format((string) $value) ?? $value);
                 }
             }
         }
@@ -39,7 +43,8 @@ if (! function_exists('support_contact')) {
         return match ($key) {
             'email' => (string) brand('support_email', 'hello@kopafasta.com'),
             'whatsapp' => preg_replace('/\D+/', '', (string) brand('support_phone', '255700000000')) ?: '255700000000',
-            default => (string) brand('support_phone', '+255 700 000 000'),
+            default => (string) (\App\Support\PhoneNumber::format((string) brand('support_phone', '+255 700 000 000'))
+                ?? brand('support_phone', '+255 700 000 000')),
         };
     }
 }
@@ -55,8 +60,14 @@ if (! function_exists('support_phones')) {
         $phones = [];
         foreach (['company.phone', 'company.phone_2', 'company.phone_3'] as $key) {
             $value = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get($key) : null;
-            if (filled($value)) {
-                $phones[] = (string) $value;
+            if (! filled($value)) {
+                continue;
+            }
+            $display = \App\Support\PhoneNumber::format((string) $value) ?? (string) $value;
+            // Collapse accidental ++ prefixes from legacy free-text admin saves.
+            $display = preg_replace('/^\++/', '+', $display) ?: $display;
+            if (filled($display)) {
+                $phones[] = $display;
             }
         }
 

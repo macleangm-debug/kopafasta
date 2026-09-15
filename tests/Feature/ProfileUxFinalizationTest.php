@@ -89,6 +89,7 @@ class ProfileUxFinalizationTest extends TestCase
         $this->assertStringContainsString('kfFlushAutosaveForm', $autosave);
         $this->assertStringContainsString('focusin', $autosave);
         $this->assertStringContainsString("addEventListener('profile-select'", $autosave);
+        $this->assertStringContainsString('__kfAutosaveDelegated', $autosave);
 
         $card = file_get_contents(resource_path('js/profile-section-card.js'));
         $this->assertStringContainsString('requestClose()', $card);
@@ -98,6 +99,6 @@ class ProfileUxFinalizationTest extends TestCase
 
         $completion = file_get_contents(app_path('Services/ProfileCompletionService.php'));
         $this->assertStringContainsString('employment_type', $completion);
-        $this->assertStringContainsString("=== 'document'", $completion);
+        $this->assertStringContainsString('hasDocument', $completion);
     }
 }
