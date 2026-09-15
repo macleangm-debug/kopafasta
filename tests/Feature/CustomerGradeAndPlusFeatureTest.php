@@ -500,6 +500,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.plus.home'))
             ->assertOk()
             ->assertSee(__('plus.home.explore'), false)
+            ->assertSee(__('plus.home.optional_chip'), false)
             ->assertSee(__('plus.home.benefit_money_title'), false)
             ->assertSee(__('plus.home.join_disclosure'), false)
             ->assertSee(__('plus.home.join'), false)
