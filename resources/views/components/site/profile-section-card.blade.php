@@ -212,12 +212,11 @@
     @if ($useInline)
         {{-- SSR/hydration agree: cloak only the panel that should be hidden on first paint --}}
         <div x-show="!open && expanded" @unless ($startExpanded && ! $startOpen) x-cloak @endunless class="p-5 sm:p-6" @click.stop>
-            @if ($empty && $addUrl && ! $emptyOpensView)
+            @if ($empty && ! $emptyOpensView)
                 <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-5 py-8 text-center">
-                    <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
                     <button type="button" @click="openEdit()"
-                            class="inline-flex mt-4 items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm">
-                        {{ $addLabel ?? __('borrower.profile.add_details') }}
+                            class="inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                        {{ $addLabel ?? __('borrower.profile.add_details') }} →
                     </button>
                 </div>
             @else
@@ -225,8 +224,12 @@
             @endif
         </div>
         <div x-show="!open && !expanded" @if ($startExpanded || $startOpen) x-cloak @endif class="px-5 sm:px-6 py-3">
-            <button type="button" @click.stop="toggleExpand()" class="text-xs font-semibold text-brand hover:underline">
-                {{ $isStale ? __('borrower.profile.hub.view_update') : __('borrower.profile.hub.view') }} →
+            <button type="button" @click.stop="{{ $empty && ! $emptyOpensView ? 'openEdit()' : 'toggleExpand()' }}" class="text-xs font-semibold text-amber-700 hover:text-amber-800">
+                @if ($empty && ! $emptyOpensView)
+                    {{ $addLabel ?? __('borrower.profile.add_details') }} →
+                @else
+                    {{ $isStale ? __('borrower.profile.hub.view_update') : __('borrower.profile.hub.view') }} →
+                @endif
             </button>
         </div>
         <div x-show="open" x-cloak class="p-5 sm:p-6 border-t border-gray-100/80 bg-gray-50/30" @click.stop>

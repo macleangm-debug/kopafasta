@@ -1944,6 +1944,7 @@ return [
             'all_set_hint' => 'Bado unaweza kusasisha sehemu yoyote hapa chini yanapobadilika.',
             'of_complete' => ':done kati ya :total zimekamilika',
             'switch_section' => 'Badilisha sehemu',
+            'remaining_short' => 'vinavyobaki',
             'layperson' => [
                 'about_you' => 'Kuhusu wewe',
                 'about_you_hint' => 'Jina, kitambulisho, picha za uso, familia na watu wa karibu.',

@@ -13,10 +13,11 @@
         <div class="relative">
             <select wire:model.live="status"
                     class="appearance-none text-sm bg-white border border-gray-300 rounded-lg shadow-sm pl-3.5 pr-9 py-2 font-medium text-gray-700 cursor-pointer hover:border-gray-400 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition">
-                <option value="">All statuses</option>
+                <option value="">All members</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="suspended">Suspended</option>
+                <option value="pending">Registration drafts</option>
             </select>
         </div>
 

@@ -2,12 +2,16 @@
 
     @php
         $counts = [
-            'total' => \App\Models\Customer::query()->count(),
+            'total' => \App\Models\Customer::query()->where('status', '!=', 'pending')->count(),
             'active' => \App\Models\Customer::query()->where('status', 'active')->count(),
             'with_loans' => \App\Models\Customer::query()
+                ->where('status', '!=', 'pending')
                 ->whereHas('loans', fn ($q) => $q->whereIn('status', ['active', 'disbursed', 'arrears']))
                 ->count(),
-            'new_month' => \App\Models\Customer::query()->where('created_at', '>=', now()->startOfMonth())->count(),
+            'new_month' => \App\Models\Customer::query()
+                ->where('status', '!=', 'pending')
+                ->where('created_at', '>=', now()->startOfMonth())
+                ->count(),
         ];
     @endphp
 
@@ -22,7 +26,7 @@
             </div>
             <div class="bg-white px-6 py-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-4 py-4">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Total</p>
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Members</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['total']) }}</p>
                 </div>
                 <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4">

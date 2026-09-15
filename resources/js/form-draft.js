@@ -18,8 +18,13 @@ function formKey(form) {
     // Family / Kin / Signature drafts cannot overwrite each other.
     const cardId = form.closest('[id^="profile-"]')?.id || '';
     const id = form.id || cardId || '';
+    // Scope drafts to the authenticated member so Member B never restores Member A's
+    // in-progress Profile values from the same browser sessionStorage.
+    const owner = document.documentElement.getAttribute('data-kf-draft-owner')
+        || document.querySelector('meta[name="kf-draft-owner"]')?.content
+        || 'guest';
 
-    return STORAGE_PREFIX + location.pathname + location.search + '#' + (id || action || 'form');
+    return STORAGE_PREFIX + owner + ':' + location.pathname + location.search + '#' + (id || action || 'form');
 }
 
 function shouldSkipForm(form) {

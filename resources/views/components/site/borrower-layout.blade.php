@@ -83,11 +83,13 @@
     $plusMoreItems = $plusWorkspace ? $mobileNavService->plusMoreItems() : [];
 @endphp
 <!doctype html>
-<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">
+<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full"
+      data-kf-draft-owner="{{ $borrowerCustomer?->id ? 'customer:'.$borrowerCustomer->id : (auth()->id() ? 'user:'.auth()->id() : 'guest') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="kf-draft-owner" content="{{ $borrowerCustomer?->id ? 'customer:'.$borrowerCustomer->id : (auth()->id() ? 'user:'.auth()->id() : 'guest') }}">
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
     <x-site.seo :document="$seoDocument" />
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">

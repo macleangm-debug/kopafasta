@@ -20,8 +20,15 @@ class CustomersTable extends Component
 
     public int $perPage = 15;
 
-    public function updatingSearch(): void { $this->resetPage(); }
-    public function updatingStatus(): void { $this->resetPage(); }
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingStatus(): void
+    {
+        $this->resetPage();
+    }
 
     public function render()
     {
@@ -42,6 +49,9 @@ class CustomersTable extends Component
                         ->orWhere('ward', 'like', $term);
                 });
             })
+            // Operational Members only. Incomplete registrations stay status=pending
+            // (resume via phone) and must not appear in the default Members list.
+            ->when($this->status === '', fn ($q) => $q->where('status', '!=', 'pending'))
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
             ->latest()
             ->paginate($this->perPage);

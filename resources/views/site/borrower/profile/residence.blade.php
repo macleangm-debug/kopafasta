@@ -12,6 +12,7 @@
 
         @php
             $residenceAddressComplete = filled($customer->region) && filled($customer->district) && filled($customer->street ?: $customer->address);
+            $hasResidenceAddress = filled($customer->region) || filled($customer->district) || filled($customer->ward) || filled($customer->street ?: $customer->address);
             $residenceComplete = app(\App\Services\ProfileCompletionService::class)->isResidenceComplete($customer);
             $residenceStale = in_array('residence', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $requiresLetter = app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter();
@@ -21,6 +22,10 @@
                 && filled($customer->lga_officer_position)
                 && filled($customer->lga_officer_phone);
             $verificationComplete = (! $requiresLetter || $hasLetter) && $hasOfficer;
+            $hasVerificationData = $hasLetter
+                || filled($customer->lga_officer_name)
+                || filled($customer->lga_officer_position)
+                || filled($customer->lga_officer_phone);
             $focus = (string) request()->query('focus', '');
             $solo = request()->boolean('solo') && ! ($wizardMode ?? false);
             $openAddress = ($wizardMode ?? false)
@@ -52,7 +57,7 @@
             :title="__('borrower.profile.residence_address_card')"
             :complete="$residenceAddressComplete"
             :stale="$residenceStale"
-            :empty="! $residenceAddressComplete"
+            :empty="! $hasResidenceAddress"
             :allow-overflow="true"
             :default-open="$focus === 'address'"
             :default-edit="$openAddress && $errors->hasAny(['region', 'district', 'ward', 'street'])">
@@ -69,11 +74,6 @@
                             <dd class="font-medium text-gray-900 mt-0.5" data-kf-view-field="{{ $field['field'] }}">{{ filled($field['value']) ? $field['value'] : '—' }}</dd>
                         </div>
                     @endforeach
-                    @if (! $residenceAddressComplete)
-                        <div class="sm:col-span-2" data-kf-empty-hint>
-                            <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                        </div>
-                    @endif
                 </dl>
             </x-slot:view>
             <x-slot:form>
@@ -120,7 +120,7 @@
                 :title="__('borrower.profile.residence_verification_section')"
                 :complete="$verificationComplete"
                 :stale="$residenceStale"
-                :empty="! $verificationComplete"
+                :empty="! $hasVerificationData"
                 :allow-overflow="true"
             :default-open="$openVerification"
             :default-edit="$errors->hasAny(['lga_officer_name', 'lga_officer_position', 'lga_officer_phone', 'residence_letter', 'residence_letter_pages'])">
@@ -153,36 +153,23 @@
                             </form>
                         @else
                             <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.missing') }}</p>
-                            <button type="button" @click="open = true" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                         @endif
                     @endif
 
                     <div class="mt-4 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-4 py-4">
                         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.residence_signed_by') }}</p>
-                        <dl class="mt-3 grid sm:grid-cols-3 gap-3 text-sm">
-                            <div>
+                        <dl class="mt-3 grid sm:grid-cols-3 gap-3 text-sm" data-kf-view-host>
+                            <div @class(['hidden' => ! filled($customer->lga_officer_name)])>
                                 <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_name') }}</dt>
-                                @if (filled($customer->lga_officer_name))
-                                    <dd class="font-medium mt-0.5">{{ $customer->lga_officer_name }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                @endif
+                                <dd class="font-medium mt-0.5" data-kf-view-field="lga_officer_name">{{ $customer->lga_officer_name }}</dd>
                             </div>
-                            <div>
+                            <div @class(['hidden' => ! filled($customer->lga_officer_position)])>
                                 <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_position') }}</dt>
-                                @if (filled($customer->lga_officer_position))
-                                    <dd class="font-medium mt-0.5">{{ $customer->lga_officer_position }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                @endif
+                                <dd class="font-medium mt-0.5" data-kf-view-field="lga_officer_position">{{ $customer->lga_officer_position }}</dd>
                             </div>
-                            <div>
+                            <div @class(['hidden' => ! $officerPhone])>
                                 <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_phone') }}</dt>
-                                @if ($officerPhone)
-                                    <dd class="font-medium mt-0.5 tabular-nums">{{ $officerPhone }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                @endif
+                                <dd class="font-medium mt-0.5 tabular-nums" data-kf-view-field="lga_officer_phone">{{ $officerPhone }}</dd>
                             </div>
                         </dl>
                     </div>

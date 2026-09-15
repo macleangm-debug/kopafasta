@@ -100,8 +100,6 @@
                     ];
                     $hasAnyActivityValue = collect($activityViewRows)->contains(fn ($row) => filled($row['value'] ?? null));
                 @endphp
-                <p class="text-sm text-gray-600" data-kf-empty-hint @class(['hidden' => $hasAnyActivityValue])>{{ __('borrower.profile.section_empty') }}</p>
-                <button type="button" @click="openEdit()" class="mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800" data-kf-empty-hint @class(['hidden' => $hasAnyActivityValue])>{{ __('borrower.profile.add_details') }}</button>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-view-host data-kf-activity-view @class(['hidden' => ! $hasAnyActivityValue])>
                     @foreach ($activityViewRows as $row)
                         <div @class(['hidden' => ! filled($row['value'] ?? null) && ($row['field'] ?? '') !== 'activity_type' && ($row['field'] ?? '') !== 'income_range'])>

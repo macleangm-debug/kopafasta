@@ -96,12 +96,15 @@ use App\Support\Celebration;
 use App\Support\HttpCache;
 use App\Support\KinName;
 use App\Support\MoneyFormat;
+use App\Support\NationalIdDob;
 use App\Support\NationalIdValidator;
+use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -1853,256 +1856,278 @@ class BorrowerController extends Controller
                     $sigData['signature_data'],
                     $sigData['signer_name'] ?? $customer->full_name,
                 );
+
+                $fresh = $customer->fresh();
+                if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+                    return response()->json([
+                        'ok' => true,
+                        'saved' => true,
+                        'section' => $section,
+                        'focus' => 'signature',
+                        'message' => __('borrower.profile.saved_inline'),
+                        'view_fields' => $this->profileAutosaveViewFields($fresh, $section, 'signature'),
+                    ]);
+                }
             } else {
                 // Drop leaked signature fields from unrelated Profile autosaves/submits.
                 foreach (['signature_data', 'signer_name', 'signature_touched'] as $sigKey) {
                     $request->request->remove($sigKey);
                 }
 
-            $isAutosave = (bool) $request->header('X-KF-Autosave');
-            $identityRequired = app(ProfileCompletionService::class)->identityRequiredDuringProfile();
-            $idImagesFocus = in_array($focus, ['identity', 'id_images', 'all'], true);
-            $kinRequired = ! $isAutosave && in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
-            $familyRequired = ! $isAutosave && in_array($focus, ['family', 'all'], true);
-            $married = strtolower((string) $request->input('marital_status', $customer->marital_status)) === 'married';
+                $isAutosave = (bool) $request->header('X-KF-Autosave');
+                $identityRequired = app(ProfileCompletionService::class)->identityRequiredDuringProfile();
+                $idImagesFocus = in_array($focus, ['identity', 'id_images', 'all'], true);
+                $kinRequired = ! $isAutosave && in_array($focus, ['kin', 'all'], true) && (! $request->boolean('wizard') || $request->input('focus') === 'kin');
+                $familyRequired = ! $isAutosave && in_array($focus, ['family', 'all'], true);
+                $married = strtolower((string) $request->input('marital_status', $customer->marital_status)) === 'married';
 
-            $rules = [
-                'phone' => ['nullable', 'string', 'max:20'],
-                'email' => ['nullable', 'email', 'max:120'],
-                'date_of_birth' => [
-                    (! $isAutosave && in_array($focus, ['about', 'all'], true)) ? 'required' : 'nullable',
-                    'date',
-                    'before_or_equal:'.now()->subYears(18)->format('Y-m-d'),
-                    'after_or_equal:1940-01-01',
-                ],
-                'national_id' => [
-                    in_array($focus, ['identity', 'all'], true) && ! filled($customer->national_id) ? 'required' : 'nullable',
-                    'string',
-                    'max:30',
-                    new ValidNidaNumber,
-                ],
-                'marital_status' => [$familyRequired ? 'required' : 'nullable', 'string', 'in:single,married,divorced,widowed'],
-                'spouse_first_name' => [$familyRequired && $married ? 'required' : 'nullable', 'string', 'max:80'],
-                'spouse_middle_name' => ['nullable', 'string', 'max:80'],
-                'spouse_last_name' => [$familyRequired && $married ? 'required' : 'nullable', 'string', 'max:80'],
-                'number_of_children' => [$familyRequired ? 'required' : 'nullable', 'integer', 'min:0', 'max:30'],
-                'marriage_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'nok_first_name' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
-                'nok_middle_name' => ['nullable', 'string', 'max:80'],
-                'nok_last_name' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
-                'nok_relationship' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:60', 'in:'.implode(',', config('kin.relationships', []))],
-                'nok_phone' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:30'],
-                'nok_region' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
-                'nok_district' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
-                'nok_ward' => ['nullable', 'string', 'max:100'],
-                'nok_street' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:255'],
-                'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'no_physical_nida_card' => ['nullable', 'boolean'],
-                'alternate_id_types' => ['nullable', 'array'],
-                'alternate_id_types.*' => ['in:passport,voter_id,driving_license,other_id'],
-                'alternate_id_notes' => ['nullable', 'string', 'max:255'],
-                'passport' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'voter_id' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'driving_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'other_id' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-                'lock_national_id' => ['nullable', 'boolean'],
-            ];
+                $rules = [
+                    'phone' => ['nullable', 'string', 'max:20'],
+                    'email' => ['nullable', 'email', 'max:120'],
+                    'date_of_birth' => [
+                        (! $isAutosave && in_array($focus, ['about', 'all'], true)) ? 'required' : 'nullable',
+                        'date',
+                        'before_or_equal:'.now()->subYears(18)->format('Y-m-d'),
+                        'after_or_equal:1940-01-01',
+                    ],
+                    'national_id' => [
+                        in_array($focus, ['identity', 'all'], true) && ! filled($customer->national_id) ? 'required' : 'nullable',
+                        'string',
+                        'max:30',
+                        new ValidNidaNumber,
+                    ],
+                    'marital_status' => [$familyRequired ? 'required' : 'nullable', 'string', 'in:single,married,divorced,widowed'],
+                    'spouse_first_name' => [$familyRequired && $married ? 'required' : 'nullable', 'string', 'max:80'],
+                    'spouse_middle_name' => ['nullable', 'string', 'max:80'],
+                    'spouse_last_name' => [$familyRequired && $married ? 'required' : 'nullable', 'string', 'max:80'],
+                    'number_of_children' => [$familyRequired ? 'required' : 'nullable', 'integer', 'min:0', 'max:30'],
+                    'marriage_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                    'nok_first_name' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
+                    'nok_middle_name' => ['nullable', 'string', 'max:80'],
+                    'nok_last_name' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:80'],
+                    'nok_relationship' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:60', 'in:'.implode(',', config('kin.relationships', []))],
+                    'nok_phone' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:30'],
+                    'nok_region' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
+                    'nok_district' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:100'],
+                    'nok_ward' => ['nullable', 'string', 'max:100'],
+                    'nok_street' => [$kinRequired ? 'required' : 'nullable', 'string', 'max:255'],
+                    'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                    'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                    'no_physical_nida_card' => ['nullable', 'boolean'],
+                    'alternate_id_types' => ['nullable', 'array'],
+                    'alternate_id_types.*' => ['in:passport,voter_id,driving_license,other_id'],
+                    'alternate_id_notes' => ['nullable', 'string', 'max:255'],
+                    'passport' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                    'voter_id' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                    'driving_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                    'other_id' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                    'lock_national_id' => ['nullable', 'boolean'],
+                ];
 
-            $data = $request->validate($rules);
+                $data = $request->validate($rules);
 
-            if ($idImagesFocus
-                && $request->boolean('no_physical_nida_card')
-                && empty($data['alternate_id_types'] ?? [])) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['alternate_id_types' => __('borrower.nida.alt_id_required')])
-                    ->withFragment($focus === 'id_images' ? 'profile-id-images' : 'profile-identity');
-            }
-
-            if (in_array($focus, ['contact', 'all'], true)) {
-                $phone = \App\Support\PhoneNumber::fromRequest($request, 'phone', $customer->country_code ?? 'TZ')
-                    ?? ($data['phone'] ?? $customer->phone);
-                $customer->fill(array_filter([
-                    'phone' => $phone,
-                    'email' => $data['email'] ?? $customer->email,
-                ], fn ($value) => $value !== null));
-            }
-
-            if (in_array($focus, ['about', 'all'], true) && array_key_exists('date_of_birth', $data) && filled($data['date_of_birth'] ?? null)) {
-                $customer->date_of_birth = $data['date_of_birth'];
-            }
-
-            if (in_array($focus, ['identity', 'all'], true) && filled($data['national_id'] ?? null)) {
-                if ($customer->identity_locked) {
-                    if (filled($customer->national_id)
-                        && (string) $customer->national_id !== (string) $data['national_id']) {
-                        return back()
-                            ->withInput()
-                            ->withErrors(['national_id' => __('borrower.nida.cannot_change')]);
-                    }
-                } else {
-                    $customer->national_id = $data['national_id'];
-                    if ($request->boolean('lock_national_id')) {
-                        $customer->identity_locked = true;
-                    }
-                }
-            }
-
-            // Preserve NIDA YYYYMMDD ↔ DOB correspondence when both are present.
-            $nidaForDob = (string) ($customer->national_id ?: ($data['national_id'] ?? ''));
-            $dobForNida = $customer->date_of_birth ?: ($data['date_of_birth'] ?? null);
-            if (filled($nidaForDob) && filled($dobForNida)
-                && in_array($focus, ['about', 'identity', 'all'], true)) {
-                $check = \App\Support\NationalIdDob::matchesBorrower($nidaForDob, $dobForNida);
-                if (($check['derived']['ok'] ?? false) && ! ($check['match'] ?? false)) {
-                    $field = in_array($focus, ['about'], true) ? 'date_of_birth' : 'national_id';
-
+                if ($idImagesFocus
+                    && $request->boolean('no_physical_nida_card')
+                    && empty($data['alternate_id_types'] ?? [])) {
                     return back()
                         ->withInput()
-                        ->withErrors([$field => __('borrower.nida.dob_mismatch_hint')])
-                        ->withFragment($field === 'date_of_birth' ? 'profile-about' : 'profile-identity');
-                }
-            }
-
-            if ($idImagesFocus && ! $customer->identity_locked) {
-                $customer->no_physical_nida_card = $request->boolean('no_physical_nida_card');
-                if ($customer->no_physical_nida_card) {
-                    $customer->alternate_id_types = array_values(array_unique($data['alternate_id_types'] ?? []));
-                    $customer->alternate_id_notes = $data['alternate_id_notes'] ?? null;
-                } else {
-                    $customer->alternate_id_types = null;
-                    $customer->alternate_id_notes = null;
-                }
-            }
-
-            if (in_array($focus, ['kin', 'all'], true)) {
-                // Canonical phone-input stores full digits on nok_phone (prefix+local). Prefer that
-                // over nok_phone_local so Kenya/Uganda prefixes are not forced onto TZ.
-                $nokPhoneDigits = \App\Support\PhoneNumber::digits($request->input('nok_phone'));
-                $nokPhone = $nokPhoneDigits !== '' ? $nokPhoneDigits : null;
-                $customer->fill(array_filter([
-                    'nok_first_name' => $data['nok_first_name'] ?? null,
-                    'nok_middle_name' => $data['nok_middle_name'] ?? null,
-                    'nok_last_name' => $data['nok_last_name'] ?? null,
-                    'nok_name' => KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null) ?: null,
-                    'nok_relationship' => $data['nok_relationship'] ?? null,
-                    'nok_phone' => $nokPhone,
-                    'nok_region' => $data['nok_region'] ?? null,
-                    'nok_district' => $data['nok_district'] ?? null,
-                    'nok_ward' => $data['nok_ward'] ?? null,
-                    'nok_street' => $data['nok_street'] ?? null,
-                ], fn ($value) => $value !== null));
-            }
-
-            if (in_array($focus, ['family', 'all'], true)) {
-                // Reveal/hide spouse fields in the UI only — never wipe persisted spouse data
-                // when marital status moves away from married (autosave must not delete).
-                $updates = [];
-                if (array_key_exists('marital_status', $data)) {
-                    $updates['marital_status'] = $data['marital_status'];
-                }
-                if (array_key_exists('number_of_children', $data) && $data['number_of_children'] !== null && $data['number_of_children'] !== '') {
-                    $updates['number_of_children'] = (int) $data['number_of_children'];
-                }
-                $effectiveStatus = strtolower((string) ($updates['marital_status'] ?? $customer->marital_status));
-                if ($effectiveStatus === 'married') {
-                    foreach (['spouse_first_name', 'spouse_middle_name', 'spouse_last_name'] as $spouseKey) {
-                        if (array_key_exists($spouseKey, $data)) {
-                            $updates[$spouseKey] = $data[$spouseKey];
-                        }
-                    }
-                }
-                if ($updates !== []) {
-                    $customer->fill($updates);
-                }
-            }
-
-            $customer->save();
-
-            if (in_array($focus, ['family', 'all'], true)) {
-                $this->persistProfileDocumentUpload(
-                    $customer,
-                    'marriage_certificate',
-                    $request->file('marriage_certificate'),
-                    []
-                );
-
-                if ($validation->requiresMarriageCertificate()
-                    && $validation->isMarried($customer->fresh())
-                    && ! $validation->hasMarriageCertificate($customer->fresh())) {
-                    // Partial autosave must still return JSON Saved — missing cert is completeness, not a failed persist.
-                    if (! $isAutosave) {
-                        return redirect()
-                            ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'family'])
-                            ->withErrors(['marriage_certificate' => __('borrower.profile.marriage_certificate_required')])
-                            ->withInput()
-                            ->withFragment('profile-family');
-                    }
-                }
-            }
-
-            if ($idImagesFocus) {
-                $uploadedFront = $request->hasFile('national_id_front');
-                $uploadedBack = $request->hasFile('national_id_back');
-
-                if (! $customer->no_physical_nida_card) {
-                    $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
-                    $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), []);
-                } else {
-                    foreach (['passport', 'voter_id', 'driving_license', 'other_id'] as $altCode) {
-                        if (in_array($altCode, $customer->alternate_id_types ?? [], true)) {
-                            $this->persistProfileDocumentUpload($customer, $altCode, $request->file($altCode), []);
-                        }
-                    }
-                }
-
-                // Progressive Front→Back: one side per request is allowed. Only error when
-                // saving the section with no new ID image and uploads still incomplete.
-                if ($identityRequired
-                    && ! $customer->no_physical_nida_card
-                    && ! $uploadedFront
-                    && ! $uploadedBack
-                    && ! $validation->nationalIdUploadsComplete($customer->fresh())) {
-                    $idErrorParams = array_filter([
-                        'section' => 'personal',
-                        'focus' => $focus === 'id_images' ? 'id_images' : 'identity',
-                        'solo' => $request->boolean('solo') ? 1 : null,
-                        'application' => $request->integer('application') ?: null,
-                        'return' => $this->validatedReturnUrl($request),
-                    ]);
-
-                    return redirect()
-                        ->route('site.borrower.profile', $idErrorParams)
-                        ->withErrors(['national_id_front' => __('borrower.profile.nida_uploads_required')])
-                        ->withInput()
+                        ->withErrors(['alternate_id_types' => __('borrower.nida.alt_id_required')])
                         ->withFragment($focus === 'id_images' ? 'profile-id-images' : 'profile-identity');
                 }
 
-                try {
-                    app(ApplicationDocumentRequestService::class)
-                        ->markIdentityRequestsUploadedFromProfile($customer->fresh());
-                } catch (\Throwable $e) {
-                    report($e);
+                if (in_array($focus, ['contact', 'all'], true)) {
+                    $phone = PhoneNumber::fromRequest($request, 'phone', $customer->country_code ?? 'TZ')
+                        ?? ($data['phone'] ?? $customer->phone);
+                    $customer->fill(array_filter([
+                        'phone' => $phone,
+                        'email' => $data['email'] ?? $customer->email,
+                    ], fn ($value) => $value !== null));
                 }
 
-                if ($request->expectsJson() && ($uploadedFront || $uploadedBack)) {
-                    $customer->refresh();
-                    $side = $uploadedFront ? 'front' : 'back';
-                    $code = $uploadedFront ? 'national_id_front' : 'national_id_back';
-                    $doc = app(\App\Services\ProfileDocumentService::class)
-                        ->latestProfileDocument($customer, $code);
-                    $previewUrl = ($doc && filled($doc->file_path)) ? asset('storage/'.$doc->file_path) : null;
-
-                    return response()->json([
-                        'ok' => true,
-                        'side' => $side,
-                        'previewUrl' => $previewUrl,
-                        'complete' => $validation->nationalIdUploadsComplete($customer),
-                        'message' => __('borrower.document_upload.saved'),
-                    ]);
+                if (in_array($focus, ['about', 'all'], true) && array_key_exists('date_of_birth', $data) && filled($data['date_of_birth'] ?? null)) {
+                    $customer->date_of_birth = $data['date_of_birth'];
                 }
-            }
+
+                if (in_array($focus, ['identity', 'all'], true) && filled($data['national_id'] ?? null)) {
+                    if ($customer->identity_locked) {
+                        if (filled($customer->national_id)
+                            && (string) $customer->national_id !== (string) $data['national_id']) {
+                            return back()
+                                ->withInput()
+                                ->withErrors(['national_id' => __('borrower.nida.cannot_change')]);
+                        }
+                    } else {
+                        $customer->national_id = $data['national_id'];
+                        if ($request->boolean('lock_national_id')) {
+                            $customer->identity_locked = true;
+                        }
+                    }
+                }
+
+                // Preserve NIDA YYYYMMDD ↔ DOB correspondence when both are present.
+                $nidaForDob = (string) ($customer->national_id ?: ($data['national_id'] ?? ''));
+                $dobForNida = $customer->date_of_birth ?: ($data['date_of_birth'] ?? null);
+                if (filled($nidaForDob) && filled($dobForNida)
+                    && in_array($focus, ['about', 'identity', 'all'], true)) {
+                    $check = NationalIdDob::matchesBorrower($nidaForDob, $dobForNida);
+                    if (($check['derived']['ok'] ?? false) && ! ($check['match'] ?? false)) {
+                        $field = in_array($focus, ['about'], true) ? 'date_of_birth' : 'national_id';
+                        $message = __('borrower.nida.dob_mismatch_hint');
+
+                        if ($isAutosave || $request->expectsJson() || $request->ajax()) {
+                            return response()->json([
+                                'ok' => false,
+                                'saved' => false,
+                                'message' => $message,
+                                'errors' => [$field => [$message]],
+                            ], 422);
+                        }
+
+                        return back()
+                            ->withInput()
+                            ->withErrors([$field => $message])
+                            ->withFragment($field === 'date_of_birth' ? 'profile-about' : 'profile-identity');
+                    }
+                }
+
+                if ($idImagesFocus && ! $customer->identity_locked) {
+                    $customer->no_physical_nida_card = $request->boolean('no_physical_nida_card');
+                    if ($customer->no_physical_nida_card) {
+                        $customer->alternate_id_types = array_values(array_unique($data['alternate_id_types'] ?? []));
+                        $customer->alternate_id_notes = $data['alternate_id_notes'] ?? null;
+                    } else {
+                        $customer->alternate_id_types = null;
+                        $customer->alternate_id_notes = null;
+                    }
+                }
+
+                if (in_array($focus, ['kin', 'all'], true)) {
+                    // Canonical phone-input stores full digits on nok_phone (prefix+local). Prefer that
+                    // over nok_phone_local so Kenya/Uganda prefixes are not forced onto TZ.
+                    $nokPhoneDigits = PhoneNumber::digits($request->input('nok_phone'));
+                    $nokPhone = $nokPhoneDigits !== '' ? $nokPhoneDigits : null;
+                    $customer->fill(array_filter([
+                        'nok_first_name' => $data['nok_first_name'] ?? null,
+                        'nok_middle_name' => $data['nok_middle_name'] ?? null,
+                        'nok_last_name' => $data['nok_last_name'] ?? null,
+                        'nok_name' => KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null) ?: null,
+                        'nok_relationship' => $data['nok_relationship'] ?? null,
+                        'nok_phone' => $nokPhone,
+                        'nok_region' => $data['nok_region'] ?? null,
+                        'nok_district' => $data['nok_district'] ?? null,
+                        'nok_ward' => $data['nok_ward'] ?? null,
+                        'nok_street' => $data['nok_street'] ?? null,
+                    ], fn ($value) => $value !== null));
+                }
+
+                if (in_array($focus, ['family', 'all'], true)) {
+                    // Reveal/hide spouse fields in the UI only — never wipe persisted spouse data
+                    // when marital status moves away from married (autosave must not delete).
+                    $updates = [];
+                    if (array_key_exists('marital_status', $data)) {
+                        $updates['marital_status'] = $data['marital_status'];
+                    }
+                    if (array_key_exists('number_of_children', $data) && $data['number_of_children'] !== null && $data['number_of_children'] !== '') {
+                        $updates['number_of_children'] = (int) $data['number_of_children'];
+                    }
+                    $effectiveStatus = strtolower((string) ($updates['marital_status'] ?? $customer->marital_status));
+                    if ($effectiveStatus === 'married') {
+                        foreach (['spouse_first_name', 'spouse_middle_name', 'spouse_last_name'] as $spouseKey) {
+                            if (array_key_exists($spouseKey, $data)) {
+                                $updates[$spouseKey] = $data[$spouseKey];
+                            }
+                        }
+                    }
+                    if ($updates !== []) {
+                        $customer->fill($updates);
+                    }
+                }
+
+                $customer->save();
+
+                if (in_array($focus, ['family', 'all'], true)) {
+                    $this->persistProfileDocumentUpload(
+                        $customer,
+                        'marriage_certificate',
+                        $request->file('marriage_certificate'),
+                        []
+                    );
+
+                    if ($validation->requiresMarriageCertificate()
+                        && $validation->isMarried($customer->fresh())
+                        && ! $validation->hasMarriageCertificate($customer->fresh())) {
+                        // Partial autosave must still return JSON Saved — missing cert is completeness, not a failed persist.
+                        if (! $isAutosave) {
+                            return redirect()
+                                ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'family'])
+                                ->withErrors(['marriage_certificate' => __('borrower.profile.marriage_certificate_required')])
+                                ->withInput()
+                                ->withFragment('profile-family');
+                        }
+                    }
+                }
+
+                if ($idImagesFocus) {
+                    $uploadedFront = $request->hasFile('national_id_front');
+                    $uploadedBack = $request->hasFile('national_id_back');
+
+                    if (! $customer->no_physical_nida_card) {
+                        $this->persistProfileDocumentUpload($customer, 'national_id_front', $request->file('national_id_front'), []);
+                        $this->persistProfileDocumentUpload($customer, 'national_id_back', $request->file('national_id_back'), []);
+                    } else {
+                        foreach (['passport', 'voter_id', 'driving_license', 'other_id'] as $altCode) {
+                            if (in_array($altCode, $customer->alternate_id_types ?? [], true)) {
+                                $this->persistProfileDocumentUpload($customer, $altCode, $request->file($altCode), []);
+                            }
+                        }
+                    }
+
+                    // Progressive Front→Back: one side per request is allowed. Only error when
+                    // saving the section with no new ID image and uploads still incomplete.
+                    if ($identityRequired
+                        && ! $customer->no_physical_nida_card
+                        && ! $uploadedFront
+                        && ! $uploadedBack
+                        && ! $validation->nationalIdUploadsComplete($customer->fresh())) {
+                        $idErrorParams = array_filter([
+                            'section' => 'personal',
+                            'focus' => $focus === 'id_images' ? 'id_images' : 'identity',
+                            'solo' => $request->boolean('solo') ? 1 : null,
+                            'application' => $request->integer('application') ?: null,
+                            'return' => $this->validatedReturnUrl($request),
+                        ]);
+
+                        return redirect()
+                            ->route('site.borrower.profile', $idErrorParams)
+                            ->withErrors(['national_id_front' => __('borrower.profile.nida_uploads_required')])
+                            ->withInput()
+                            ->withFragment($focus === 'id_images' ? 'profile-id-images' : 'profile-identity');
+                    }
+
+                    try {
+                        app(ApplicationDocumentRequestService::class)
+                            ->markIdentityRequestsUploadedFromProfile($customer->fresh());
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
+
+                    if ($request->expectsJson() && ($uploadedFront || $uploadedBack)) {
+                        $customer->refresh();
+                        $side = $uploadedFront ? 'front' : 'back';
+                        $code = $uploadedFront ? 'national_id_front' : 'national_id_back';
+                        $doc = app(ProfileDocumentService::class)
+                            ->latestProfileDocument($customer, $code);
+                        $previewUrl = ($doc && filled($doc->file_path)) ? asset('storage/'.$doc->file_path) : null;
+
+                        return response()->json([
+                            'ok' => true,
+                            'side' => $side,
+                            'previewUrl' => $previewUrl,
+                            'complete' => $validation->nationalIdUploadsComplete($customer),
+                            'message' => __('borrower.document_upload.saved'),
+                        ]);
+                    }
+                }
             } // end non-signature personal focuses
         }
 
@@ -2514,6 +2539,10 @@ class BorrowerController extends Controller
 
         return match ($focus) {
             'about' => [
+                'full_name' => $customer->full_name,
+                'gender' => filled($customer->gender)
+                    ? __('borrower.profile.gender_options.'.$customer->gender)
+                    : null,
                 'date_of_birth' => $customer->date_of_birth
                     ? $customer->date_of_birth->format('d M Y')
                     : null,
@@ -2546,6 +2575,13 @@ class BorrowerController extends Controller
                 'nok_district' => $customer->nok_district,
                 'nok_ward' => $customer->nok_ward,
                 'nok_street' => $customer->nok_street,
+            ],
+            'signature' => [
+                'legal_signature_data' => $customer->legal_signature_data,
+                'legal_signer_name' => $customer->legal_signer_name ?: $customer->full_name,
+                'legal_signed_at' => $customer->legal_signed_at
+                    ? $customer->legal_signed_at->format('d M Y')
+                    : null,
             ],
             default => [],
         };
@@ -3708,7 +3744,7 @@ class BorrowerController extends Controller
                 ]);
             }
             try {
-                $parsedExpiry = \Illuminate\Support\Carbon::parse($expiresAt)->startOfDay();
+                $parsedExpiry = Carbon::parse($expiresAt)->startOfDay();
             } catch (\Throwable) {
                 throw ValidationException::withMessages([
                     $documentCode.'_expires_at' => [__('borrower.profile.expiry_date_required')],

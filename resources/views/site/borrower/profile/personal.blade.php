@@ -46,6 +46,15 @@
             $hasDob = filled($customer->date_of_birth);
             $kinComplete = app(\App\Services\ProfileValidationService::class)->isKinComplete($customer);
             $familyComplete = app(\App\Services\ProfileValidationService::class)->isFamilyComplete($customer);
+            // Empty = no persisted data (Add). Incomplete-but-started must still show View.
+            $hasFamilyData = filled($customer->marital_status)
+                || $customer->number_of_children !== null
+                || filled($customer->spouse_first_name)
+                || filled($customer->spouse_last_name);
+            $hasKinData = filled($customer->nok_first_name)
+                || filled($customer->nok_last_name)
+                || filled($customer->nok_name)
+                || filled($customer->nok_phone);
             $requireMarriageCert = app(\App\Services\ProfileValidationService::class)->requiresMarriageCertificate();
             $isMarried = app(\App\Services\ProfileValidationService::class)->isMarried($customer);
             $marriageCertificate = $marriageCertificate ?? null;
@@ -108,18 +117,28 @@
             </form>
         @else
             <div class="space-y-4">
-                {{-- Personal information / DOB --}}
+                {{-- Personal information / About Me --}}
                 <x-site.profile-section-card
                     @class(['hidden' => ! $showSoloCard(['about'])])
                     section-id="profile-about"
                     icon="🎂"
                     :title="__('borrower.profile.personal_information')"
                     :complete="$hasDob"
-                    :empty="! $hasDob"
+                    :empty="false"
                     :default-open="$focusHash === 'about'"
                     :default-edit="$editFocus === 'about'">
                     <x-slot:view>
                         <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-view-host>
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.full_name') }}</dt>
+                                <dd class="font-medium text-gray-900 mt-0.5" data-kf-view-field="full_name">{{ $customer->full_name ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.gender') }}</dt>
+                                <dd class="font-medium text-gray-900 mt-0.5" data-kf-view-field="gender">
+                                    {{ filled($customer->gender) ? __('borrower.profile.gender_options.'.$customer->gender) : '—' }}
+                                </dd>
+                            </div>
                             <div>
                                 <dt class="text-gray-500">{{ __('borrower.profile.fields.date_of_birth') }}</dt>
                                 <dd class="font-medium text-gray-900 mt-0.5" data-kf-view-field="date_of_birth">
@@ -127,10 +146,6 @@
                                 </dd>
                             </div>
                         </dl>
-                        @unless ($hasDob)
-                            <p class="text-sm text-gray-500 mt-2">{{ __('borrower.profile.section_empty') }}</p>
-                            <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                        @endunless
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
@@ -144,19 +159,31 @@
                             @if (! empty($returnUrl))
                                 <input type="hidden" name="return" value="{{ $returnUrl }}">
                             @endif
-                            <div class="max-w-sm">
-                                <x-site.date-input
-                                    name="date_of_birth"
-                                    :label="__('borrower.profile.fields.date_of_birth')"
-                                    :value="old('date_of_birth', optional($customer->date_of_birth)->format('Y-m-d'))"
-                                    :required="true"
-                                    :max="now()->subYears(18)->format('Y-m-d')"
-                                    :min="'1940-01-01'"
-                                    :default="now()->subYears(25)->format('Y-m-d')"
-                                    :help="__('borrower.register.age_notice', ['age' => 18])"
-                                    :input-class="$editable"
-                                />
-                                @error('date_of_birth')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                            <div class="space-y-4">
+                                <div class="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.full_name') }}</label>
+                                        <input type="text" value="{{ $customer->full_name }}" class="{{ $readonly }}" readonly tabindex="-1">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.gender') }}</label>
+                                        <input type="text" value="{{ filled($customer->gender) ? __('borrower.profile.gender_options.'.$customer->gender) : '' }}" class="{{ $readonly }}" readonly tabindex="-1" placeholder="{{ __('borrower.profile.select') }}">
+                                    </div>
+                                </div>
+                                <div class="max-w-sm">
+                                    <x-site.date-input
+                                        name="date_of_birth"
+                                        :label="__('borrower.profile.fields.date_of_birth')"
+                                        :value="old('date_of_birth', optional($customer->date_of_birth)->format('Y-m-d'))"
+                                        :required="true"
+                                        :max="now()->subYears(18)->format('Y-m-d')"
+                                        :min="'1940-01-01'"
+                                        :default="now()->subYears(25)->format('Y-m-d')"
+                                        :help="__('borrower.register.age_notice', ['age' => 18])"
+                                        :input-class="$editable"
+                                    />
+                                    @error('date_of_birth')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                </div>
                             </div>
                         </form>
                     </x-slot:form>
@@ -187,8 +214,7 @@
                                 @endif
                             </div>
                         @else
-                            <p class="text-sm text-gray-500">{{ __('borrower.profile.section_empty') }}</p>
-                            <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                            {{-- Empty state handled by shared profile-section-card Add CTA --}}
                         @endif
                         @unless ($requireIdentityDuringProfile)
                             <p class="text-xs text-gray-400 mt-2">{{ __('borrower.profile.identity_deferred_body') }}</p>
@@ -281,7 +307,6 @@
                                         @endif
                                     @empty
                                         <p class="text-sm text-gray-500">{{ __('borrower.profile.id_images_empty') }}</p>
-                                        <button type="button" @click="$dispatch('profile-card-open-edit', 'profile-id-images')" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                                     @endforelse
                                     <div x-show="expandedUrl" x-cloak x-transition
                                          class="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4"
@@ -457,7 +482,7 @@
                     icon="💍"
                     :title="__('borrower.profile.family_info')"
                     :complete="$familyComplete"
-                    :empty="! $familyComplete"
+                    :empty="! $hasFamilyData"
                     :default-open="$focusHash === 'family'"
                     :default-edit="$editFocus === 'family'">
                     <x-slot:view>
@@ -510,8 +535,6 @@
                                 || filled($customer->spouse_last_name);
                         @endphp
                         {{-- Always keep mirror targets in DOM so Edit→View updates without reload (same as Residence). --}}
-                        <p class="text-sm text-gray-600" data-kf-empty-hint @class(['hidden' => $hasAnyFamilyValue])>{{ __('borrower.profile.section_empty') }}</p>
-                        <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800" data-kf-empty-hint @class(['hidden' => $hasAnyFamilyValue])>{{ __('borrower.profile.add_details') }}</button>
                         <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-family-view @class(['hidden' => ! $hasAnyFamilyValue])>
                             @foreach ($familyViewRows as $row)
                                 @if (! empty($row['href']))
@@ -627,7 +650,7 @@
                     :title="__('borrower.profile.kin_info')"
                     :complete="$kinComplete"
                     :stale="$kinStale"
-                    :empty="! $kinComplete"
+                    :empty="! $hasKinData"
                     :default-open="$focusHash === 'kin'"
                     :default-edit="$editFocus === 'kin'">
                     <x-slot:view>
@@ -656,8 +679,6 @@
                             $hasAnyKinValue = collect($kinViewRows)->contains(fn ($row) => filled($row['value'] ?? null));
                         @endphp
                         {{-- Always keep mirror targets in DOM so Edit→View updates without reload. --}}
-                        <p class="text-sm text-gray-600" data-kf-empty-hint @class(['hidden' => $hasAnyKinValue])>{{ __('borrower.profile.section_empty') }}</p>
-                        <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800" data-kf-empty-hint @class(['hidden' => $hasAnyKinValue])>{{ __('borrower.profile.add_details') }}</button>
                         <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-kin-view @class(['hidden' => ! $hasAnyKinValue])>
                             @foreach ($kinViewRows as $field)
                                 <div @class(['sm:col-span-2' => ! empty($field['span'])])>
@@ -668,11 +689,6 @@
                                     >{{ filled($field['value']) ? $field['value'] : '—' }}</dd>
                                 </div>
                             @endforeach
-                            @if (! $kinComplete)
-                                <div class="sm:col-span-2" data-kf-incomplete-cta>
-                                    <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                                </div>
-                            @endif
                         </dl>
                     </x-slot:view>
                     <x-slot:form>
@@ -719,10 +735,7 @@
                                 {{ __('borrower.profile.edit_face_photos') }}
                             </button>
                         @else
-                            <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
-                            <button type="button" @click="openEdit()" class="inline-flex mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">
-                                {{ __('borrower.profile.add_details') }}
-                            </button>
+                            {{-- Empty state handled by shared profile-section-card Add CTA --}}
                         @endif
                     </x-slot:view>
                     <x-slot:form>
@@ -763,15 +776,15 @@
                     :default-edit="$editFocus === 'signature'">
                     <x-slot:view>
                         @if ($hasLegalSignature)
-                            <div class="rounded-2xl bg-gradient-to-br from-brand/5 via-white to-brand-muted/20 ring-1 ring-brand/15 px-4 py-4 sm:px-5 sm:py-5">
+                            <div class="rounded-2xl bg-gradient-to-br from-brand/5 via-white to-brand-muted/20 ring-1 ring-brand/15 px-4 py-4 sm:px-5 sm:py-5" data-kf-signature-holder>
                                 <div class="flex flex-col sm:flex-row sm:items-stretch gap-4">
                                     <div class="rounded-xl bg-white ring-1 ring-gray-200/90 shadow-sm px-4 py-3 flex items-center justify-center min-h-[6.5rem] sm:min-w-[9.5rem] sm:max-w-[11rem]">
-                                        <img src="{{ $customer->legal_signature_data }}" alt="" class="max-h-24 w-full object-contain">
+                                        <img data-kf-signature-img src="{{ $customer->legal_signature_data }}" alt="" class="max-h-24 w-full object-contain">
                                     </div>
                                     <div class="min-w-0 flex-1 flex flex-col justify-center">
                                         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.legal_signature') }}</p>
-                                        <p class="text-base font-semibold text-gray-900 mt-1">{{ $customer->legal_signer_name ?: $customer->full_name }}</p>
-                                        <p class="text-xs text-gray-500 mt-1">{{ __('borrower.profile.legal_signature_saved_at', ['date' => optional($customer->legal_signed_at)->format('d M Y') ?? '—']) }}</p>
+                                        <p class="text-base font-semibold text-gray-900 mt-1" data-kf-view-field="legal_signer_name">{{ $customer->legal_signer_name ?: $customer->full_name }}</p>
+                                        <p class="text-xs text-gray-500 mt-1" data-kf-signature-date>{{ __('borrower.profile.legal_signature_saved_at', ['date' => optional($customer->legal_signed_at)->format('d M Y') ?? '—']) }}</p>
                                         <button type="button" @click="openEdit()" class="inline-flex self-start mt-3 items-center gap-1.5 rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
                                             {{ __('borrower.profile.replace_document') }}
                                         </button>
@@ -779,8 +792,7 @@
                                 </div>
                             </div>
                         @else
-                            <p class="text-sm text-gray-600">{{ __('borrower.profile.legal_signature_empty') }}</p>
-                            <p class="text-xs text-gray-500 mt-2">{{ __('borrower.profile.legal_signature_notice') }}</p>
+                            <div data-kf-signature-holder class="hidden"></div>
                         @endif
                     </x-slot:view>
                     <x-slot:form>
@@ -791,6 +803,26 @@
                               data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
                               data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
                               x-data
+                              @kf-autosave-saved="
+                                  const fields = $event.detail?.data?.view_fields || {};
+                                  const url = fields.legal_signature_data || '';
+                                  const card = $el.closest('.glass-card');
+                                  let holder = card?.querySelector('[data-kf-signature-holder]');
+                                  if (! holder || ! url) return;
+                                  holder.classList.remove('hidden');
+                                  if (! holder.querySelector('[data-kf-signature-img]')) {
+                                      holder.innerHTML = `<div class=\"rounded-2xl bg-gradient-to-br from-brand/5 via-white to-brand-muted/20 ring-1 ring-brand/15 px-4 py-4\"><div class=\"rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 flex items-center justify-center min-h-[6.5rem]\"><img data-kf-signature-img src=\"\" alt=\"\" class=\"max-h-24 w-full object-contain\"></div><p class=\"text-base font-semibold text-gray-900 mt-3\" data-kf-view-field=\"legal_signer_name\"></p><p class=\"text-xs text-gray-500 mt-1\" data-kf-signature-date></p></div>`;
+                                  }
+                                  const img = holder.querySelector('[data-kf-signature-img]');
+                                  if (img) img.src = url;
+                                  const nameEl = holder.querySelector('[data-kf-view-field=\"legal_signer_name\"]');
+                                  if (nameEl && fields.legal_signer_name) nameEl.textContent = fields.legal_signer_name;
+                                  const dateEl = holder.querySelector('[data-kf-signature-date]');
+                                  if (dateEl && fields.legal_signed_at) dateEl.textContent = @js(__('borrower.profile.legal_signature_saved_at', ['date' => '__DATE__'])).replace('__DATE__', fields.legal_signed_at);
+                                  if (card && typeof Alpine !== 'undefined') {
+                                      try { const d = Alpine.$data(card); if (d) { d.complete = true; d.open = false; d.expanded = true; } } catch (e) {}
+                                  }
+                              "
                               @submit="
                                   const pad = $el.querySelector('[data-signature-pad]');
                                   const alpine = pad && window.Alpine ? Alpine.$data(pad) : null;

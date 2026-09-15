@@ -161,8 +161,13 @@
             this.desktopOpen = false;
             this.pickerMode = 'calendar';
             this.$nextTick(() => {
-                this.$el.querySelector('input[type=hidden]')?.dispatchEvent(new Event('change', { bubbles: true }));
-                this.$el.querySelector('input[type=hidden]')?.dispatchEvent(new Event('input', { bubbles: true }));
+                const hidden = this.$el.querySelector('input[type=hidden]');
+                if (hidden) {
+                    hidden.value = this.value || '';
+                    hidden.setAttribute('value', this.value || '');
+                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                }
             });
         },
         clear() {
@@ -171,8 +176,13 @@
             this.desktopOpen = false;
             this.pickerMode = 'calendar';
             this.$nextTick(() => {
-                this.$el.querySelector('input[type=hidden]')?.dispatchEvent(new Event('change', { bubbles: true }));
-                this.$el.querySelector('input[type=hidden]')?.dispatchEvent(new Event('input', { bubbles: true }));
+                const hidden = this.$el.querySelector('input[type=hidden]');
+                if (hidden) {
+                    hidden.value = '';
+                    hidden.setAttribute('value', '');
+                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                }
             });
         },
         shiftMonth(delta) {

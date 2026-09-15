@@ -2069,7 +2069,7 @@ return [
         'save' => 'Save',
         'saved_inline' => 'Saved',
         'edit_section' => 'Edit',
-        'add_details' => 'Add details',
+        'add_details' => 'Add',
         'section_empty' => 'No details added yet.',
         'hub' => [
             'sections_title' => 'Your profile',
@@ -2105,6 +2105,7 @@ return [
             'all_set_hint' => 'You can still update any section below when something changes.',
             'of_complete' => ':done of :total complete',
             'switch_section' => 'Switch section',
+            'remaining_short' => 'remaining',
             'layperson' => [
                 'about_you' => 'About you',
                 'about_you_hint' => 'Name, ID, face photos, family and people close to you.',
