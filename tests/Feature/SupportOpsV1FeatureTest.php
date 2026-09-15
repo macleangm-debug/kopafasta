@@ -126,4 +126,45 @@ class SupportOpsV1FeatureTest extends TestCase
         $this->assertSame($a->id, $t1->assigned_to);
         $this->assertSame($b->id, $t2->assigned_to);
     }
+
+    public function test_create_form_exposes_searchable_customer_and_agent_empty_state(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.support-tickets.create'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Who is contacting us?', $html);
+        $this->assertStringContainsString('Search name, phone, customer number, or email', $html);
+        $this->assertStringContainsString('No Support Agents yet', $html);
+        $this->assertStringContainsString('supportTicketForm', $html);
+        $this->assertStringContainsString('support-tickets-customers', $html);
+    }
+
+    public function test_customer_search_matches_number_phone_and_email(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $customer = \App\Models\Customer::create([
+            'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+            'customer_number' => 'CU-SEARCH-99',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Neema',
+            'last_name' => 'Mushi',
+            'phone' => '255799111222',
+            'email' => 'neema.search@example.com',
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->getJson(route('admin.support-tickets.customers', ['q' => 'CU-SEARCH']))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $customer->id]);
+
+        $this->actingAs($admin, 'admin')
+            ->getJson(route('admin.support-tickets.customers', ['q' => '799111222']))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $customer->id]);
+    }
 }

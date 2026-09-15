@@ -49,16 +49,41 @@ class SupportTicketController extends ResourceController
         $taxonomy = SupportTaxonomy::all();
 
         return [
-            'customers' => Customer::orderBy('first_name')->limit(500)->get()
-                ->mapWithKeys(fn ($c) => [$c->id => trim($c->first_name.' '.$c->last_name)]),
+            'customers' => Customer::query()
+                ->orderBy('first_name')
+                ->limit(50)
+                ->get()
+                ->mapWithKeys(function (Customer $c) {
+                    $label = trim($c->first_name.' '.$c->last_name);
+                    if ($c->customer_number) {
+                        $label .= ' · '.$c->customer_number;
+                    }
+                    if ($c->phone) {
+                        $label .= ' · '.$c->phone;
+                    }
+
+                    return [$c->id => $label !== '' ? $label : 'Customer #'.$c->id];
+                }),
             'agents' => User::query()
                 ->where(function ($q) {
                     $q->where('role', 'agent')
                         ->orWhereIn('role', ['admin', 'manager']);
                 })
+                ->where(function ($q) {
+                    $q->where('is_active', true)->orWhereNull('is_active');
+                })
                 ->orderByRaw("CASE WHEN role = 'agent' THEN 0 ELSE 1 END")
                 ->orderBy('name')
-                ->pluck('name', 'id'),
+                ->get()
+                ->mapWithKeys(fn (User $u) => [
+                    $u->id => $u->name.($u->role === 'agent' ? '' : ' ('.$u->role.')'),
+                ]),
+            'agentCount' => User::query()
+                ->where('role', 'agent')
+                ->where(function ($q) {
+                    $q->where('is_active', true)->orWhereNull('is_active');
+                })
+                ->count(),
             'priorities' => ['low' => 'Low', 'normal' => 'Normal', 'high' => 'High', 'urgent' => 'Urgent'],
             'statuses' => [
                 'open' => 'Open',
@@ -84,6 +109,21 @@ class SupportTicketController extends ResourceController
         $data['source'] = $data['source'] ?? 'admin';
         if (empty($data['contact_kind'])) {
             $data['contact_kind'] = ! empty($data['customer_id']) ? 'customer' : 'guest';
+        }
+        if (($data['contact_kind'] ?? '') === 'guest') {
+            $request->validate([
+                'guest_name' => ['required', 'string', 'max:120'],
+                'guest_phone' => ['required', 'string', 'max:30'],
+            ]);
+            $data['guest_name'] = $request->input('guest_name');
+            $data['guest_phone'] = \App\Support\PhoneNumber::digits($request->input('guest_phone'))
+                ?: $request->input('guest_phone');
+            $data['customer_id'] = null;
+        }
+        if (($data['contact_kind'] ?? '') === 'customer' && empty($data['customer_id'])) {
+            return back()
+                ->withInput()
+                ->withErrors(['customer_id' => 'Select a customer, or switch contact kind to Guest.']);
         }
 
         $record = $this->tickets->create($data);
@@ -183,25 +223,44 @@ class SupportTicketController extends ResourceController
         $rows = Customer::query()
             ->when($q !== '', function ($query) use ($q) {
                 $term = '%'.$q.'%';
-                $query->where(function ($inner) use ($term) {
+                $digits = preg_replace('/\D+/', '', $q) ?: '';
+                $query->where(function ($inner) use ($term, $digits) {
                     $inner->where('first_name', 'like', $term)
                         ->orWhere('last_name', 'like', $term)
                         ->orWhere('phone', 'like', $term)
                         ->orWhere('email', 'like', $term)
-                        ->orWhere('member_number', 'like', $term);
+                        ->orWhere('customer_number', 'like', $term);
+                    if ($digits !== '') {
+                        $inner->orWhere('phone', 'like', '%'.$digits.'%');
+                    }
                 });
             })
             ->orderBy('first_name')
             ->limit(25)
-            ->get(['id', 'first_name', 'last_name', 'phone', 'member_number']);
+            ->get(['id', 'first_name', 'last_name', 'phone', 'email', 'customer_number']);
 
         return response()->json([
             'data' => $rows->map(fn (Customer $c) => [
                 'id' => $c->id,
                 'label' => trim($c->first_name.' '.$c->last_name)
-                    .($c->member_number ? ' · '.$c->member_number : '')
-                    .($c->phone ? ' · '.$c->phone : ''),
+                    .($c->customer_number ? ' · '.$c->customer_number : '')
+                    .($c->phone ? ' · '.$c->phone : '')
+                    .($c->email ? ' · '.$c->email : ''),
             ]),
         ]);
+    }
+
+    public function linkCustomer(Request $request, $id)
+    {
+        $ticket = SupportTicket::query()->findOrFail($id);
+        $data = $request->validate([
+            'customer_id' => ['required', 'exists:customers,id'],
+        ]);
+
+        $this->tickets->linkCustomer($ticket, (int) $data['customer_id'], $request->user('admin'));
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $ticket)
+            ->with('status', 'Guest ticket linked to customer.');
     }
 }
