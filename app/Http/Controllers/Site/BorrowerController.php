@@ -1951,13 +1951,17 @@ class BorrowerController extends Controller
             }
 
             if (in_array($focus, ['kin', 'all'], true)) {
+                // Canonical phone-input stores full digits on nok_phone (prefix+local). Prefer that
+                // over nok_phone_local so Kenya/Uganda prefixes are not forced onto TZ.
+                $nokPhoneDigits = \App\Support\PhoneNumber::digits($request->input('nok_phone'));
+                $nokPhone = $nokPhoneDigits !== '' ? $nokPhoneDigits : null;
                 $customer->fill(array_filter([
                     'nok_first_name' => $data['nok_first_name'] ?? null,
                     'nok_middle_name' => $data['nok_middle_name'] ?? null,
                     'nok_last_name' => $data['nok_last_name'] ?? null,
                     'nok_name' => KinName::full($data['nok_first_name'] ?? null, $data['nok_middle_name'] ?? null, $data['nok_last_name'] ?? null) ?: null,
                     'nok_relationship' => $data['nok_relationship'] ?? null,
-                    'nok_phone' => $data['nok_phone'] ?? null,
+                    'nok_phone' => $nokPhone,
                     'nok_region' => $data['nok_region'] ?? null,
                     'nok_district' => $data['nok_district'] ?? null,
                     'nok_ward' => $data['nok_ward'] ?? null,
@@ -1966,17 +1970,26 @@ class BorrowerController extends Controller
             }
 
             if (in_array($focus, ['family', 'all'], true)) {
-                $status = $data['marital_status'] ?? null;
-                $isMarried = strtolower((string) $status) === 'married';
-                $customer->fill([
-                    'marital_status' => $status,
-                    'spouse_first_name' => $isMarried ? ($data['spouse_first_name'] ?? null) : null,
-                    'spouse_middle_name' => $isMarried ? ($data['spouse_middle_name'] ?? null) : null,
-                    'spouse_last_name' => $isMarried ? ($data['spouse_last_name'] ?? null) : null,
-                    'number_of_children' => array_key_exists('number_of_children', $data)
-                        ? (int) $data['number_of_children']
-                        : $customer->number_of_children,
-                ]);
+                // Reveal/hide spouse fields in the UI only — never wipe persisted spouse data
+                // when marital status moves away from married (autosave must not delete).
+                $updates = [];
+                if (array_key_exists('marital_status', $data)) {
+                    $updates['marital_status'] = $data['marital_status'];
+                }
+                if (array_key_exists('number_of_children', $data) && $data['number_of_children'] !== null && $data['number_of_children'] !== '') {
+                    $updates['number_of_children'] = (int) $data['number_of_children'];
+                }
+                $effectiveStatus = strtolower((string) ($updates['marital_status'] ?? $customer->marital_status));
+                if ($effectiveStatus === 'married') {
+                    foreach (['spouse_first_name', 'spouse_middle_name', 'spouse_last_name'] as $spouseKey) {
+                        if (array_key_exists($spouseKey, $data)) {
+                            $updates[$spouseKey] = $data[$spouseKey];
+                        }
+                    }
+                }
+                if ($updates !== []) {
+                    $customer->fill($updates);
+                }
             }
 
             $customer->save();

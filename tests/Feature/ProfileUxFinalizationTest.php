@@ -78,6 +78,17 @@ class ProfileUxFinalizationTest extends TestCase
         $this->assertStringContainsString('name="marital_status"', $personal);
         $this->assertStringContainsString('contactEmail', $personal);
         $this->assertStringContainsString("fields.email') }}", $personal);
+        $this->assertStringContainsString('x-site.profile-select', $personal);
+        $this->assertStringContainsString('@profile-select', $personal);
+
+        $select = file_get_contents(resource_path('views/components/site/profile-select.blade.php'));
+        $this->assertStringContainsString('x-teleport="body"', $select);
+        $this->assertStringContainsString('kfFlushAutosaveForm', $select);
+        $this->assertStringContainsString('z-[10200]', $select);
+
+        $kinFields = file_get_contents(resource_path('views/components/site/kin-fields.blade.php'));
+        $this->assertStringContainsString('phone-input', $kinFields);
+        $this->assertStringNotContainsString('kinPhone', $kinFields);
 
         $shell = file_get_contents(resource_path('views/site/borrower/profile/_profile_shell.blade.php'));
         $this->assertStringContainsString('data-kf-page-status', $shell);

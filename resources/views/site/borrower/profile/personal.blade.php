@@ -475,6 +475,7 @@
                         @endif
                     </x-slot:view>
                     <x-slot:form>
+                        {{-- Same path as Activity: profile-select + named fields → kfAutosave (no one-off marital widget). --}}
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
                               data-kf-autosave
                               data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
@@ -482,69 +483,29 @@
                               data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
                               data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
                               x-data="{
-                                  marital: @js(old('marital_status', $customer->marital_status)),
-                                  maritalOpen: false,
-                                  maritalLabels: {
-                                      single: @js(__('borrower.profile.marital_options.single')),
-                                      married: @js(__('borrower.profile.marital_options.married')),
-                                      divorced: @js(__('borrower.profile.marital_options.divorced')),
-                                      widowed: @js(__('borrower.profile.marital_options.widowed')),
-                                  },
-                                  pickMarital(value) {
-                                      this.marital = value;
-                                      this.maritalOpen = false;
-                                      this.$nextTick(() => {
-                                          const sel = this.$el.querySelector('select[name="marital_status"]');
-                                          if (sel) {
-                                              sel.value = value;
-                                              sel.dispatchEvent(new Event('change', { bubbles: true }));
-                                          }
-                                          if (typeof window.kfFlushAutosaveForm === 'function') {
-                                              window.kfFlushAutosaveForm(this.$el);
-                                          } else {
-                                              this.$el.dispatchEvent(new Event('change', { bubbles: true }));
-                                          }
-                                          this.$dispatch('profile-select', { name: 'marital_status', value });
-                                      });
-                                  },
-                              }">
+                                  marital: @js(old('marital_status', $customer->marital_status) ?: ''),
+                              }"
+                              @profile-select="if ($event.detail && $event.detail.name === 'marital_status') marital = $event.detail.value">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="family">
                             @if (! empty($returnUrl))
                                 <input type="hidden" name="return" value="{{ $returnUrl }}">
                             @endif
                             <div class="space-y-4">
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.marital_status') }} <span class="text-red-500">*</span></label>
-                                    {{-- Named select so FormData includes the value even before Alpine syncs a hidden mirror. --}}
-                                    <select name="marital_status" x-model="marital" class="{{ $editable }} hidden lg:block" required>
-                                        <option value="">{{ __('borrower.profile.select') }}</option>
-                                        @foreach (['single', 'married', 'divorced', 'widowed'] as $opt)
-                                            <option value="{{ $opt }}">{{ __('borrower.profile.marital_options.'.$opt) }}</option>
-                                        @endforeach
-                                    </select>
-                                    {{-- Mobile bottom-sheet trigger (avoids native select viewport jump) --}}
-                                    <button type="button"
-                                            @click="maritalOpen = true"
-                                            class="lg:hidden w-full inline-flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-left text-sm font-semibold text-gray-900 shadow-sm">
-                                        <span x-text="marital ? (maritalLabels[marital] || marital) : @js(__('borrower.profile.select'))"></span>
-                                        <svg class="size-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                                    </button>
-                                    <x-site.bottom-sheet :title="__('borrower.profile.fields.marital_status')" open="maritalOpen">
-                                        <div class="space-y-1">
-                                            @foreach (['single', 'married', 'divorced', 'widowed'] as $opt)
-                                                <button type="button"
-                                                        @click="pickMarital(@js($opt))"
-                                                        class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm transition"
-                                                        :class="marital === @js($opt) ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'hover:bg-gray-50 text-gray-700'">
-                                                    <span class="flex-1">{{ __('borrower.profile.marital_options.'.$opt) }}</span>
-                                                    <svg x-show="marital === @js($opt)" class="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                                                </button>
-                                            @endforeach
-                                        </div>
-                                    </x-site.bottom-sheet>
-                                    @error('marital_status')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                                </div>
+                                <x-site.profile-select
+                                    name="marital_status"
+                                    :label="__('borrower.profile.fields.marital_status')"
+                                    :options="[
+                                        'single' => __('borrower.profile.marital_options.single'),
+                                        'married' => __('borrower.profile.marital_options.married'),
+                                        'divorced' => __('borrower.profile.marital_options.divorced'),
+                                        'widowed' => __('borrower.profile.marital_options.widowed'),
+                                    ]"
+                                    :value="old('marital_status', $customer->marital_status)"
+                                    :required="true"
+                                    :placeholder="__('borrower.profile.select')"
+                                    :select-class="$editable"
+                                />
                                 <div x-show="marital === 'married'" x-cloak class="grid sm:grid-cols-3 gap-4">
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_first_name') }} <span class="text-red-500">*</span></label>
@@ -561,6 +522,18 @@
                                         @error('spouse_last_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                 </div>
+                                @if ($requireMarriageCert)
+                                    <div x-show="marital === 'married'" x-cloak>
+                                        <x-site.profile-document-field
+                                            :document="$marriageCertificate"
+                                            field-name="marriage_certificate"
+                                            mode="multi"
+                                            :label="__('borrower.profile.marriage_certificate')"
+                                            input-host-id="marriage-certificate-upload"
+                                        />
+                                        @error('marriage_certificate')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                    </div>
+                                @endif
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.number_of_children') }} <span class="text-red-500">*</span></label>
                                     <input type="number" min="0" max="30" name="number_of_children" value="{{ old('number_of_children', $customer->number_of_children) }}" class="{{ $editable }}" required inputmode="numeric">
@@ -605,22 +578,26 @@
                                 ['label' => __('borrower.profile.ward'), 'value' => $customer->nok_ward],
                                 ['label' => __('borrower.profile.street'), 'value' => $customer->nok_street, 'span' => true],
                             ];
+                            $hasAnyKinValue = collect($kinViewRows)->contains(fn ($row) => filled($row['value'] ?? null));
                         @endphp
-                        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                            @foreach ($kinViewRows as $field)
-                                @if (filled($field['value']))
+                        @if (! $hasAnyKinValue)
+                            <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
+                            <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                        @else
+                            <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                                @foreach ($kinViewRows as $field)
                                     <div @class(['sm:col-span-2' => ! empty($field['span'])])>
                                         <dt class="text-gray-500">{{ $field['label'] }}</dt>
-                                        <dd class="font-medium text-gray-900 mt-0.5">{{ $field['value'] }}</dd>
+                                        <dd class="font-medium text-gray-900 mt-0.5">{{ filled($field['value']) ? $field['value'] : '—' }}</dd>
+                                    </div>
+                                @endforeach
+                                @if (! $kinComplete)
+                                    <div class="sm:col-span-2">
+                                        <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                                     </div>
                                 @endif
-                            @endforeach
-                            @if (! $kinComplete)
-                                <div class="sm:col-span-2">
-                                    <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                                </div>
-                            @endif
-                        </dl>
+                            </dl>
+                        @endif
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"

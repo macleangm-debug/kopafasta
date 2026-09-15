@@ -14,29 +14,64 @@
     $hasError = $errors->has($name);
 @endphp
 
+{{-- Shared Profile selector: mobile bottom-sheet + desktop teleported panel (escapes card overflow). --}}
 <div class="w-full min-w-0" x-data="{
     pickerOpen: false,
     selected: @js($selected),
     options: @js($optionsList),
     placeholder: @js($placeholder),
+    desktopStyle: '',
     labelFor(val) {
         if (!val) return this.placeholder;
         return this.options[val] || val;
+    },
+    isNarrow() {
+        return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
+    },
+    openPicker() {
+        if (this.isNarrow()) {
+            this.pickerOpen = true;
+            return;
+        }
+        this.pickerOpen = ! this.pickerOpen;
+        if (this.pickerOpen) {
+            this.positionDesktop();
+        }
+    },
+    positionDesktop() {
+        this.$nextTick(() => {
+            const btn = this.$refs.triggerBtn;
+            if (! btn) return;
+            const r = btn.getBoundingClientRect();
+            const panelW = Math.max(r.width, 220);
+            const maxH = 224;
+            let left = Math.max(12, Math.min(r.left, window.innerWidth - panelW - 12));
+            let top = r.bottom + 6;
+            if (top + maxH > window.innerHeight - 12) {
+                top = Math.max(12, r.top - maxH - 6);
+            }
+            this.desktopStyle = `left:${left}px;top:${top}px;width:${panelW}px;`;
+        });
     },
     pick(val) {
         this.selected = String(val ?? '');
         this.pickerOpen = false;
         this.$nextTick(() => {
-            const input = this.$el.querySelector('input[type=hidden]');
+            const input = this.$refs.hiddenInput || this.$el.querySelector('input[type=hidden]');
             if (input) {
                 input.value = this.selected;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
             }
             this.$dispatch('profile-select', { name: @js($name), value: this.selected });
+            if (typeof window.kfFlushAutosaveForm === 'function') {
+                const form = this.$el.closest('form[data-kf-autosave]');
+                if (form) window.kfFlushAutosaveForm(form);
+            }
         });
     }
-}">
+}"
+@resize.window="if (pickerOpen && ! isNarrow()) positionDesktop()">
     @if ($label)
         <label class="block text-sm font-medium text-gray-700 mb-1.5" for="profile-select-{{ $name }}">
             {{ $label }}
@@ -45,7 +80,7 @@
     @endif
 
     {{-- Submitted value (works on both mobile bottom-sheet and desktop dropdown). --}}
-    <input type="hidden" id="profile-select-{{ $name }}" name="{{ $name }}" :value="selected" @if ($required) required @endif>
+    <input type="hidden" id="profile-select-{{ $name }}" name="{{ $name }}" x-ref="hiddenInput" :value="selected" @if ($required) required @endif>
 
     <div class="lg:hidden">
         <button type="button" @click="pickerOpen = true"
@@ -74,15 +109,21 @@
         </x-site.bottom-sheet>
     </div>
 
-    {{-- Desktop: premium dropdown panel (not native select). --}}
-    <div class="hidden lg:block relative" @click.outside="pickerOpen = false">
-        <button type="button" @click="pickerOpen = !pickerOpen"
+    {{-- Desktop: teleported panel so glass-card overflow-hidden cannot clip options (income, marital, kin, etc.). --}}
+    <div class="hidden lg:block relative">
+        <button type="button" x-ref="triggerBtn" @click="openPicker()"
                 class="w-full inline-flex items-center gap-3 {{ $selectClass }} {{ $hasError ? 'border-rose-400' : '' }}">
             <span class="flex-1 text-left truncate" :class="!selected ? 'text-gray-400' : ''" x-text="labelFor(selected)"></span>
             <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="pickerOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
         </button>
-        <div x-cloak x-show="pickerOpen" x-transition
-             class="absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-56 overflow-y-auto">
+    </div>
+
+    <template x-teleport="body">
+        <div x-cloak x-show="pickerOpen && ! isNarrow()" x-transition
+             @click.outside="pickerOpen = false"
+             @keydown.escape.window="pickerOpen = false"
+             class="fixed z-[10200] rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-56 overflow-y-auto"
+             :style="desktopStyle">
             @if (! $required)
                 <button type="button" @click="pick('')"
                         class="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-brand-muted transition text-gray-500"
@@ -98,7 +139,7 @@
                 </button>
             @endforeach
         </div>
-    </div>
+    </template>
 
     @error($name)
         <p class="mt-1.5 text-xs text-rose-600">{{ $message }}</p>
