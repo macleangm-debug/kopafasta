@@ -206,12 +206,29 @@ class AboutBorrowerRegistrationClosureTest extends TestCase
         $this->assertStringContainsString("STORAGE_PREFIX + owner + ':'", $js);
     }
 
-    public function test_date_input_reuses_profile_select_autosave_path(): void
+    public function test_about_me_uses_thin_dob_persist_not_shared_autosave(): void
     {
-        $blade = file_get_contents(resource_path('views/components/site/date-input.blade.php'));
-        $this->assertStringContainsString("\$dispatch('profile-select'", $blade);
-        $this->assertFileExists(resource_path('js/profile-autosave-view.js'));
-        $this->assertStringContainsString('profile-autosave-view', file_get_contents(resource_path('js/alpine-init.js')));
+        $blade = file_get_contents(resource_path('views/site/borrower/profile/personal.blade.php'));
+        $this->assertStringContainsString('data-kf-dob-persist', $blade);
+        $this->assertStringContainsString('data-no-autosave', $blade);
+        $aboutStart = strpos($blade, 'section-id="profile-about"');
+        $familyStart = strpos($blade, 'section-id="profile-identity"');
+        $this->assertNotFalse($aboutStart);
+        $this->assertNotFalse($familyStart);
+        $aboutChunk = substr($blade, $aboutStart, $familyStart - $aboutStart);
+        $this->assertStringContainsString('data-kf-dob-persist', $aboutChunk);
+        $this->assertStringContainsString('data-no-autosave', $aboutChunk);
+        $this->assertStringNotContainsString('data-kf-autosave', $aboutChunk);
+
+        $date = file_get_contents(resource_path('views/components/site/date-input.blade.php'));
+        $this->assertStringContainsString('kf-date-changed', $date);
+        $this->assertStringNotContainsString("\$dispatch('profile-select'", $date);
+        $this->assertFileExists(resource_path('js/profile-dob-persist.js'));
+        $js = file_get_contents(resource_path('js/profile-dob-persist.js'));
+        $this->assertStringContainsString("focus', 'about'", $js);
+        $this->assertStringContainsString('date_of_birth', $js);
+        $this->assertStringContainsString('kfShowInlineSaving', $js);
+        $this->assertStringContainsString('profile-dob-persist', file_get_contents(resource_path('js/alpine-init.js')));
     }
 
     public function test_autosave_core_file_untouched_in_this_pass(): void

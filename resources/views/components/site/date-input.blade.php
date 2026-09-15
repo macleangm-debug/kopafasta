@@ -167,11 +167,12 @@
                 if (hidden) {
                     hidden.value = next;
                     hidden.setAttribute('value', next);
+                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-                // Reuse the shared Profile autosave path used by profile-select.
-                // Confirm lives in a teleported sheet (outside the form), so a plain
-                // change event alone is not enough — profile-select bind+flush is.
-                this.$dispatch('profile-select', { name, value: next });
+                // Neutral date signal only — DOB Profile adapter (or other field hooks) may listen.
+                // Does not invoke kfAutosave / profile-select.
+                this.$dispatch('kf-date-changed', { name, value: next });
             });
         },
         clear() {
@@ -185,8 +186,10 @@
                 if (hidden) {
                     hidden.value = '';
                     hidden.setAttribute('value', '');
+                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-                this.$dispatch('profile-select', { name, value: '' });
+                this.$dispatch('kf-date-changed', { name, value: '' });
             });
         },
         shiftMonth(delta) {

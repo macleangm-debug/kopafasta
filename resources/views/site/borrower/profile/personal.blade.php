@@ -154,11 +154,11 @@
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
-                              data-kf-autosave
-                              data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
-                              data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
-                              data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
-                              data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}">
+                              data-kf-dob-persist
+                              data-no-autosave
+                              data-kf-dob-saving="{{ __('borrower.document_upload.saving') }}"
+                              data-kf-dob-saved="{{ __('borrower.document_upload.saved') }}"
+                              data-kf-dob-fail="{{ __('borrower.document_upload.could_not_save') }}">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="about">
                             @if (! empty($returnUrl))
@@ -187,7 +187,7 @@
                                         :help="__('borrower.register.age_notice', ['age' => 18])"
                                         :input-class="$editable"
                                     />
-                                    @error('date_of_birth')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                                    @error('date_of_birth')<p class="text-xs text-red-600 mt-1" data-kf-dob-error>{{ $message }}</p>@enderror
                                 </div>
                             </div>
                         </form>

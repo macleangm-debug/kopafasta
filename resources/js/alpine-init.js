@@ -11,6 +11,7 @@ import { registerNidaDirectiveJourney } from './nida-directive-journey';
 import { registerKfAutosave } from './kf-autosave';
 import { registerProfileSignatureBinding } from './profile-signature';
 import { registerProfileAutosaveViewCollapse } from './profile-autosave-view';
+import { registerProfileDobPersist } from './profile-dob-persist';
 
 import { registerValuationCamera } from './valuation-camera';
 import { registerPspPaymentFlow } from './psp-payment-flow';
@@ -26,6 +27,7 @@ registerSavingOverlay(Alpine);
 registerKfAutosave(Alpine);
 registerProfileSignatureBinding();
 registerProfileAutosaveViewCollapse();
+registerProfileDobPersist();
 registerNidaDirectiveJourney(Alpine);
 registerPartnerCreateConfirm(Alpine);
 registerValuationCamera(Alpine);
