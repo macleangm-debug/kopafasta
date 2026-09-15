@@ -27,13 +27,18 @@
                 || filled($customer->lga_officer_position)
                 || filled($customer->lga_officer_phone);
             $focus = (string) request()->query('focus', '');
+            $deepField = (string) request()->query('field', '');
             $solo = request()->boolean('solo') && ! ($wizardMode ?? false);
+            $addressFields = ['region', 'district', 'ward', 'street'];
+            $verificationFields = ['lga_officer_name', 'lga_officer_position', 'lga_officer_phone', 'residence_letter'];
             $openAddress = ($wizardMode ?? false)
                 || $errors->hasAny(['region', 'district', 'ward', 'street'])
-                || $focus === 'address';
+                || $focus === 'address'
+                || in_array($deepField, $addressFields, true);
             $openVerification = ($wizardMode ?? false)
                 || $focus === 'verification'
-                || $errors->hasAny(['lga_officer_name', 'lga_officer_position', 'lga_officer_phone', 'residence_letter', 'residence_letter_pages']);
+                || $errors->hasAny(['lga_officer_name', 'lga_officer_position', 'lga_officer_phone', 'residence_letter', 'residence_letter_pages'])
+                || in_array($deepField, $verificationFields, true);
         @endphp
 
         @if ($residenceStale && $residenceComplete)
@@ -59,8 +64,8 @@
             :stale="$residenceStale"
             :empty="! $hasResidenceAddress"
             :allow-overflow="true"
-            :default-open="$focus === 'address'"
-            :default-edit="$openAddress && $errors->hasAny(['region', 'district', 'ward', 'street'])">
+            :default-open="$focus === 'address' || $openAddress"
+            :default-edit="$openAddress">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-view-host>
                     @foreach ([
@@ -123,7 +128,7 @@
                 :empty="! $hasVerificationData"
                 :allow-overflow="true"
             :default-open="$openVerification"
-            :default-edit="$errors->hasAny(['lga_officer_name', 'lga_officer_position', 'lga_officer_phone', 'residence_letter', 'residence_letter_pages'])">
+            :default-edit="$openVerification">
                 <x-slot:view>
                     <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.residence_verification_hint') }}</p>
 

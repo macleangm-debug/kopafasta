@@ -158,21 +158,33 @@ class ProfileValidationService
     public function personalGaps(Customer $customer): array
     {
         $gaps = [];
-        $personalUrl = route('site.borrower.profile', ['section' => 'personal']);
-        $faceUrl = route('site.borrower.profile', ['section' => 'personal', 'focus' => 'face']).'#profile-face';
+        $faceUrl = route('site.borrower.profile', [
+            'section' => 'personal',
+            'focus' => 'face',
+            'edit' => 1,
+        ]).'#profile-face';
 
         if (! filled($customer->first_name) || ! filled($customer->last_name)) {
             $gaps[] = [
                 'key' => 'name',
                 'label' => __('borrower.profile.gaps.full_name'),
-                'url' => $personalUrl.'#profile-identity',
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'identity',
+                    'edit' => 1,
+                ]).'#profile-identity',
             ];
         }
         if (! $customer->date_of_birth || ! $this->dateOfBirthValid($customer->date_of_birth)) {
             $gaps[] = [
                 'key' => 'dob',
                 'label' => __('borrower.profile.gaps.date_of_birth'),
-                'url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'about']).'#profile-about',
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'about',
+                    'edit' => 1,
+                    'field' => 'date_of_birth',
+                ]).'#profile-about',
             ];
         }
         if ((bool) ($this->kycSettings()['require_nida'] ?? true)
@@ -182,12 +194,20 @@ class ProfileValidationService
             $gaps[] = [
                 'key' => 'nida',
                 'label' => __('borrower.profile.gaps.nida_verify'),
-                'url' => $personalUrl.'#profile-identity',
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'identity',
+                    'edit' => 1,
+                ]).'#profile-identity',
             ];
         }
         if ((bool) ($this->kycSettings()['require_nida'] ?? true)
             && app(IdentityVerificationPolicyService::class)->nidaRequired()) {
-            $idImagesUrl = route('site.borrower.profile', ['section' => 'personal', 'focus' => 'id_images']).'#profile-id-images';
+            $idImagesUrl = route('site.borrower.profile', [
+                'section' => 'personal',
+                'focus' => 'id_images',
+                'edit' => 1,
+            ]).'#profile-id-images';
             if (! $customer->no_physical_nida_card) {
                 if (! $this->hasDocument($customer, 'national_id_front')) {
                     $gaps[] = [
@@ -209,14 +229,22 @@ class ProfileValidationService
             $gaps[] = [
                 'key' => 'family',
                 'label' => __('borrower.profile.gaps.family'),
-                'url' => $personalUrl.'#profile-family',
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'family',
+                    'edit' => 1,
+                ]).'#profile-family',
             ];
         }
         if (! $this->isKinComplete($customer)) {
             $gaps[] = [
                 'key' => 'kin',
                 'label' => __('borrower.profile.gaps.next_of_kin'),
-                'url' => $personalUrl.'#next-of-kin',
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'kin',
+                    'edit' => 1,
+                ]).'#next-of-kin',
             ];
         }
         $faceStatus = (string) ($customer->face_verification_status ?? 'incomplete');

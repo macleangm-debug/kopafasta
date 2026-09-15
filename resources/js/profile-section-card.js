@@ -150,16 +150,51 @@ export function registerProfileSectionCard(Alpine) {
         },
 
         init() {
-            // Deep-link hash expands to VIEW (not edit) so users can preview first.
+            const params = new URLSearchParams(window.location.search);
+            const wantEdit = params.get('edit') === '1' || !!params.get('field');
+            const field = params.get('field');
+
+            // Deep-link: hash + edit/field opens Add/Edit and focuses the field.
             if (this.sectionHash && window.location.hash === `#${this.sectionHash}`) {
-                this.expanded = true;
-                if (! this.open) {
-                    this.open = false;
+                if (wantEdit && this.editAllowed) {
+                    this.open = true;
+                    this.expanded = true;
+                    this.showEditAction = true;
+                } else {
+                    this.expanded = true;
+                    if (! this.open) {
+                        this.open = false;
+                    }
+                    if (this.complete) {
+                        this.showEditAction = false;
+                    }
                 }
-                // Keep the complete tick — do not force Edit to appear (that caused overlap).
-                if (this.complete) {
-                    this.showEditAction = false;
-                }
+            }
+
+            if (field && (this.open || wantEdit)) {
+                this.$nextTick(() => {
+                    const selectors = [
+                        `[name="${CSS.escape(field)}"]`,
+                        `[name="activity_details[${CSS.escape(field)}]"]`,
+                        `[name="${CSS.escape(field)}[]"]`,
+                        `#${CSS.escape(field)}`,
+                    ];
+                    let el = null;
+                    for (const sel of selectors) {
+                        try {
+                            el = this.$el.querySelector(sel);
+                        } catch (e) {
+                            el = null;
+                        }
+                        if (el) {
+                            break;
+                        }
+                    }
+                    if (el && typeof el.focus === 'function') {
+                        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                        el.focus({ preventScroll: true });
+                    }
+                });
             }
 
             this._onAccordion = (e) => {

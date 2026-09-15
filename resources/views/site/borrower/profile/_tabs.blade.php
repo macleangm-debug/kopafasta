@@ -28,9 +28,13 @@
     $activeLabel = $tabs[$active][0] ?? ($tabs['personal'][0] ?? __('borrower.profile.hub.sections_title'));
     $activeRemaining = (int) ($tabRemaining[$active] ?? 0);
     $activeComplete = (bool) ($tabStatuses[$active]['complete'] ?? false);
+    $activeGapKey = $active === 'activity' ? 'activity' : $active;
+    $activeGaps = ($customer && $completion && in_array($activeGapKey, ['personal', 'activity', 'residence', 'payment'], true))
+        ? $completion->sectionGaps($customer, $activeGapKey)
+        : [];
 @endphp
 
-<div class="mb-6" x-data="{ sectionsOpen: false }">
+<div class="mb-6" x-data="{ sectionsOpen: false, remainingOpen: {{ $activeGaps !== [] ? 'true' : 'false' }} }">
     <div class="lg:hidden">
         <button type="button" @click="sectionsOpen = true"
                 class="w-full inline-flex items-center justify-between gap-3 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 text-sm font-semibold text-gray-800 hover:ring-brand/30 transition">
@@ -40,7 +44,10 @@
                 @if ($activeComplete)
                     <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
                 @elseif ($activeRemaining > 0)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700"
+                          data-kf-section-remaining
+                          data-count="{{ $activeRemaining }}"
+                          data-label-template="{{ trans_choice('borrower.profile.hub.remaining_count', 999, ['count' => ':count']) }}">{{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}</span>
                 @endif
             </span>
             <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
@@ -88,7 +95,10 @@
                 @if ($activeComplete)
                     <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
                 @elseif ($activeRemaining > 0)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700"
+                          data-kf-section-remaining
+                          data-count="{{ $activeRemaining }}"
+                          data-label-template="{{ trans_choice('borrower.profile.hub.remaining_count', 999, ['count' => ':count']) }}">{{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}</span>
                 @endif
                 <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="sectionsOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
@@ -118,4 +128,32 @@
             @endforeach
         </div>
     </div>
+
+    @if ($activeGaps !== [])
+        <div class="mt-3 rounded-xl bg-white ring-1 ring-amber-200/80 overflow-hidden" data-kf-remaining-list>
+            <button type="button" @click="remainingOpen = !remainingOpen"
+                    class="w-full flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-amber-900 hover:bg-amber-50/60 transition">
+                <span data-kf-section-remaining
+                      data-count="{{ $activeRemaining }}"
+                      data-label-template="{{ trans_choice('borrower.profile.hub.remaining_count', 999, ['count' => ':count']) }}">
+                    {{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}
+                </span>
+                <svg class="w-4 h-4 text-amber-700 shrink-0 transition" :class="remainingOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+            </button>
+            <ul x-show="remainingOpen" x-cloak class="border-t border-amber-100 divide-y divide-amber-50" data-kf-remaining-items>
+                @foreach ($activeGaps as $gap)
+                    @if (! empty($gap['url']))
+                        <li>
+                            <a href="{{ $gap['url'] }}"
+                               class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-gray-900 hover:bg-amber-50/50 transition"
+                               data-kf-remaining-key="{{ $gap['key'] ?? '' }}">
+                                <span class="min-w-0 truncate">{{ $gap['label'] ?? '' }}</span>
+                                <span class="shrink-0 text-brand" aria-hidden="true">→</span>
+                            </a>
+                        </li>
+                    @endif
+                @endforeach
+            </ul>
+        </div>
+    @endif
 </div>

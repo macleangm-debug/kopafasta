@@ -70,19 +70,7 @@ function applyDobView(form, viewFields) {
         const value = fields[key] == null ? '' : String(fields[key]).trim();
         el.textContent = value !== '' ? value : '—';
     });
-    if (typeof window.Alpine !== 'undefined') {
-        try {
-            const data = window.Alpine.$data(card);
-            if (data) {
-                data.complete = true;
-                data.open = false;
-                data.expanded = true;
-                data.showEditAction = false;
-            }
-        } catch (e) {
-            // ignore
-        }
-    }
+    // Keep Edit open — DOB persist must not collapse the card.
 }
 
 function showDobError(form, message) {

@@ -11,19 +11,6 @@
         ])
 
         @php
-            $personalGaps = app(\App\Services\ProfileValidationService::class)->personalGaps($customer);
-        @endphp
-        @if ($personalGaps !== [] && ! ($solo ?? false))
-            <div class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <span class="font-semibold text-amber-800">{{ __('borrower.profile.gaps.banner_compact') }}</span>
-                @foreach ($personalGaps as $gap)
-                    <a href="{{ $gap['url'] }}" class="font-semibold text-brand hover:underline">{{ $gap['label'] }}</a>
-                    @if (! $loop->last)<span class="text-gray-300">·</span>@endif
-                @endforeach
-            </div>
-        @endif
-
-        @php
             $locked = (bool) $customer->identity_locked;
             $nidaSaved = filled($customer->national_id);
             $nidaReadonly = $locked;
@@ -74,8 +61,10 @@
                 default => null,
             };
             $focusHash = $focusHash ?: $errorFocus;
-            $editFocus = $errorFocus; // validation errors open the form; deep links expand view only
-            $solo = request()->boolean('solo') && ! ($wizardMode ?? false);
+            // Deep-link focus opens Edit/Add; validation errors also open Edit.
+            $editFocus = $errorFocus ?: (request()->filled('focus') || request()->boolean('edit') || request()->filled('field')
+                ? $focusHash
+                : null);            $solo = request()->boolean('solo') && ! ($wizardMode ?? false);
             $soloFocus = (string) ($focusHash ?: '');
             $showSoloCard = function (array $keys) use ($solo, $soloFocus): bool {
                 return ! $solo || in_array($soloFocus, $keys, true);

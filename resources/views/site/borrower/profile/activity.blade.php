@@ -17,8 +17,10 @@
             $incomeLabel = income_range_label($customer->income_range);
             $focus = request()->query('focus');
             $openActivity = ($wizardMode ?? false) || ($editing ?? false)
-                || $errors->hasAny(['activity_type', 'income_range', 'employment_contract', 'activity_details']);
-        @endphp
+                || $errors->hasAny(['activity_type', 'income_range', 'employment_contract', 'activity_details'])
+                || request()->boolean('edit')
+                || filled(request()->query('field'))
+                || $focus === 'activity';        @endphp
 
         @if ($activityStale && $activityComplete)
             <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

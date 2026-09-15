@@ -1866,6 +1866,7 @@ class BorrowerController extends Controller
                         'focus' => 'signature',
                         'message' => __('borrower.profile.saved_inline'),
                         'view_fields' => $this->profileAutosaveViewFields($fresh, $section, 'signature'),
+                        'completion' => $this->profileAutosaveCompletion($fresh, $section),
                     ]);
                 }
             } else {
@@ -2487,6 +2488,7 @@ class BorrowerController extends Controller
                 'focus' => $request->input('focus'),
                 'message' => __('borrower.profile.saved_inline'),
                 'view_fields' => $this->profileAutosaveViewFields($fresh, $section, (string) $request->input('focus')),
+                'completion' => $this->profileAutosaveCompletion($fresh, $section),
             ]);
         }
 
@@ -2585,6 +2587,39 @@ class BorrowerController extends Controller
             ],
             default => [],
         };
+    }
+
+    /**
+     * Completion snapshot for Profile autosave JSON — never collapses the open card.
+     *
+     * @return array{percent: int, section_remaining: int, section_done: int, section_total: int, gaps: list<array{key: string, label: string, url: string}>}
+     */
+    private function profileAutosaveCompletion(Customer $customer, string $section): array
+    {
+        $completion = app(ProfileCompletionService::class);
+        $summary = $completion->completionSummary($customer);
+        $gapKey = match ($section) {
+            'kyc' => 'activity',
+            default => $section,
+        };
+        $progress = in_array($gapKey, ['personal', 'activity', 'residence', 'payment'], true)
+            ? $completion->sectionProgress($customer, $gapKey)
+            : ['done' => 0, 'total' => 0, 'remaining' => 0];
+        $gaps = in_array($gapKey, ['personal', 'activity', 'residence', 'payment'], true)
+            ? $completion->sectionGaps($customer, $gapKey)
+            : [];
+
+        return [
+            'percent' => (int) ($summary['percent'] ?? 0),
+            'section_remaining' => (int) ($progress['remaining'] ?? 0),
+            'section_done' => (int) ($progress['done'] ?? 0),
+            'section_total' => (int) ($progress['total'] ?? 0),
+            'gaps' => array_map(static fn (array $gap) => [
+                'key' => (string) ($gap['key'] ?? ''),
+                'label' => (string) ($gap['label'] ?? ''),
+                'url' => (string) ($gap['url'] ?? ''),
+            ], $gaps),
+        ];
     }
 
     private function redirectWizardStep(Request $request, Customer $customer, string $section): RedirectResponse

@@ -102,13 +102,9 @@ class ProfileSectionBuilderService
                     ? $completion->sectionGaps($customer, $key)
                     : [];
 
-                $doneParts = null;
-                if ($missing !== [] && in_array($key, ['personal', 'activity', 'residence'], true)) {
-                    $total = max(count($missing) + 1, 3);
-                    $doneParts = [
-                        'done' => max(0, $total - count($missing)),
-                        'total' => $total,
-                    ];
+                $progress = null;
+                if (in_array($key, ['personal', 'activity', 'residence', 'payment'], true)) {
+                    $progress = $completion->sectionProgress($customer, $key);
                 }
 
                 return [
@@ -129,7 +125,7 @@ class ProfileSectionBuilderService
                     'url'          => $tab['url'],
                     'required'     => (bool) ($tab['required'] ?? false),
                     'count'        => $tab['count'] ?? null,
-                    'progress'     => $doneParts,
+                    'progress'     => $progress,
                 ];
             })->values()->all();
     }

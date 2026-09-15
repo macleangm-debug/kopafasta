@@ -227,80 +227,115 @@ class ProfileCompletionService
     }
 
     /**
+     * Field progress for one hub section — derived only from sectionGaps() + the same
+     * applicable requirement set (never invent totals like max(missing+1, 3)).
+     *
+     * @return array{done: int, total: int, remaining: int}
+     */
+    public function sectionProgress(Customer $customer, string $key): array
+    {
+        $requirements = $this->sectionRequirements($customer, $key);
+        $gaps = $this->sectionGaps($customer, $key);
+        $total = count($requirements);
+        $remaining = count($gaps);
+        if ($total < $remaining) {
+            // Requirements can shrink when activity type is unset; never invent "done".
+            $total = $remaining;
+        }
+
+        return [
+            'done' => max(0, $total - $remaining),
+            'total' => $total,
+            'remaining' => $remaining,
+        ];
+    }
+
+    /**
+     * Applicable requirement keys for a section (same policy as sectionGaps).
+     *
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    public function sectionRequirements(Customer $customer, string $key): array
+    {
+        return match ($key) {
+            'personal' => $this->personalRequirements($customer),
+            'activity' => $this->activityRequirements($customer),
+            'residence' => $this->residenceRequirements($customer),
+            'payment' => $this->paymentRequirements($customer),
+            'kyc' => $this->documentRequirements($customer),
+            default => [],
+        };
+    }
+
+    /**
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    private function documentRequirements(Customer $customer): array
+    {
+        $items = [];
+        foreach (app(IncomeProofService::class)->requirementItems($customer) as $item) {
+            $items[] = [
+                'key' => (string) ($item['key'] ?? 'income'),
+                'label' => (string) ($item['label'] ?? __('borrower.loan_profile.sections.proof_of_income')),
+                'url' => $item['action_url'] ?? route('site.borrower.profile', [
+                    'section' => 'activity',
+                    'focus' => 'income',
+                    'edit' => 1,
+                ]),
+            ];
+        }
+        $validation = app(ProfileValidationService::class);
+        if ($validation->requiresResidenceLetter()) {
+            $items[] = [
+                'key' => 'residence_letter',
+                'label' => __('borrower.profile.residence_letter'),
+                'url' => route('site.borrower.profile', [
+                    'section' => 'residence',
+                    'focus' => 'verification',
+                    'edit' => 1,
+                ]).'#profile-residence-verification',
+            ];
+        }
+
+        return $this->uniqueGaps($items);
+    }
+
+    /**
      * Applicable Activity gaps only (type-specific fields + employment evidence + income when required).
      *
      * @return list<array{key: string, label: string, url: string}>
      */
     public function activityGaps(Customer $customer): array
     {
-        $gaps = [];
-        $activityUrl = route('site.borrower.profile', ['section' => 'activity']);
-        $incomeUrl = route('site.borrower.profile', ['section' => 'activity', 'focus' => 'income']);
         $type = $customer->activity_type ?: $customer->employment_type;
         $validation = app(ProfileValidationService::class);
-
-        if (! filled($type)) {
-            $gaps[] = [
-                'key' => 'activity_type',
-                'label' => __('borrower.profile.activity_type'),
-                'url' => $activityUrl,
-            ];
-
-            return $gaps;
-        }
-
-        if (! filled($customer->income_range)) {
-            $gaps[] = [
-                'key' => 'income_range',
-                'label' => __('borrower.profile.income_range'),
-                'url' => $activityUrl,
-            ];
-        }
-
-        $fields = activity_fields_localized()[$type] ?? config('activity_profiles.fields.'.$type, []);
         $details = is_array($customer->activity_details) ? $customer->activity_details : [];
+        $gaps = [];
 
-        foreach ($fields as $field) {
-            $fieldKey = (string) ($field['key'] ?? '');
-            if ($fieldKey === '') {
+        foreach ($this->activityRequirements($customer) as $req) {
+            $key = (string) ($req['key'] ?? '');
+            if ($key === '') {
                 continue;
             }
-            if (($field['type'] ?? 'text') === 'document') {
-                if (($field['required'] ?? false) && ! $validation->hasDocument($customer, $field['document_code'] ?? $fieldKey)) {
-                    $gaps[] = [
-                        'key' => $fieldKey,
-                        'label' => (string) ($field['label'] ?? $fieldKey),
-                        'url' => $activityUrl,
-                    ];
-                }
 
+            $kind = (string) ($req['kind'] ?? 'field');
+            $missing = match ($kind) {
+                'activity_type' => ! filled($type),
+                'income_range' => ! filled($customer->income_range),
+                'employment_contract' => true,
+                'document' => ! $validation->hasDocument($customer, $req['document_code'] ?? $key),
+                'income_proof' => empty($req['complete']),
+                default => blank($details[$key] ?? null),
+            };
+
+            if (! $missing) {
                 continue;
             }
-            if (($field['required'] ?? false) && blank($details[$fieldKey] ?? null)) {
-                $gaps[] = [
-                    'key' => $fieldKey,
-                    'label' => (string) ($field['label'] ?? $fieldKey),
-                    'url' => $activityUrl,
-                ];
-            }
-        }
 
-        if ($validation->requiresEmploymentContract($customer) && ! $validation->employmentContractComplete($customer)) {
             $gaps[] = [
-                'key' => 'employment_contract',
-                'label' => __('borrower.profile.employment_contract'),
-                'url' => $activityUrl,
-            ];
-        }
-
-        foreach (app(IncomeProofService::class)->requirementItems($customer) as $item) {
-            if (! empty($item['complete'])) {
-                continue;
-            }
-            $gaps[] = [
-                'key' => (string) ($item['key'] ?? 'income'),
-                'label' => (string) ($item['label'] ?? __('borrower.loan_profile.sections.proof_of_income')),
-                'url' => $item['action_url'] ?? $incomeUrl,
+                'key' => $key,
+                'label' => (string) ($req['label'] ?? $key),
+                'url' => (string) ($req['url'] ?? ''),
             ];
         }
 
@@ -313,28 +348,39 @@ class ProfileCompletionService
     public function residenceGaps(Customer $customer): array
     {
         $gaps = [];
-        $url = route('site.borrower.profile', ['section' => 'residence']);
         $validation = app(ProfileValidationService::class);
 
-        foreach ([
-            'region' => __('borrower.profile.region'),
-            'district' => __('borrower.profile.district'),
-            'street' => __('borrower.profile.street'),
-            'lga_officer_name' => __('borrower.profile.lga_officer_name'),
-            'lga_officer_position' => __('borrower.profile.lga_officer_position'),
-            'lga_officer_phone' => __('borrower.profile.lga_officer_phone'),
-        ] as $field => $label) {
-            if (! filled($customer->{$field})) {
-                $gaps[] = ['key' => $field, 'label' => $label, 'url' => $url];
-            }
-        }
+        foreach ($this->residenceRequirements($customer) as $req) {
+            $key = (string) ($req['key'] ?? '');
+            if ($key === 'residence_letter') {
+                if (! $validation->hasResidenceLetter($customer)) {
+                    $gaps[] = [
+                        'key' => $key,
+                        'label' => (string) $req['label'],
+                        'url' => (string) $req['url'],
+                    ];
+                }
 
-        if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer)) {
-            $gaps[] = [
-                'key' => 'residence_letter',
-                'label' => __('borrower.profile.residence_letter'),
-                'url' => $url.'#profile-residence-verification',
-            ];
+                continue;
+            }
+            if ($key === 'street') {
+                if (! filled($customer->street ?: $customer->address)) {
+                    $gaps[] = [
+                        'key' => $key,
+                        'label' => (string) $req['label'],
+                        'url' => (string) $req['url'],
+                    ];
+                }
+
+                continue;
+            }
+            if (! filled($customer->{$key} ?? null)) {
+                $gaps[] = [
+                    'key' => $key,
+                    'label' => (string) $req['label'],
+                    'url' => (string) $req['url'],
+                ];
+            }
         }
 
         return $gaps;
@@ -345,18 +391,15 @@ class ProfileCompletionService
      */
     public function paymentGaps(Customer $customer): array
     {
-        if (! app(ProfileSectionBuilderService::class)->paymentRequiredBeforeLoan()) {
+        $requirements = $this->paymentRequirements($customer);
+        if ($requirements === []) {
             return [];
         }
         if (app(CustomerDisbursementDetailsService::class)->isComplete($customer)) {
             return [];
         }
 
-        return [[
-            'key' => 'payment',
-            'label' => __('borrower.payment_details.section_title'),
-            'url' => route('site.borrower.profile', ['section' => 'payment', 'add' => 1]),
-        ]];
+        return $requirements;
     }
 
     /**
@@ -688,5 +731,269 @@ class ProfileCompletionService
             || filled($customer->nok_district)
             || filled($customer->nok_street)
             || in_array((string) ($customer->face_verification_status ?? 'incomplete'), ['pending', 'verified', 'rejected'], true);
+    }
+
+    /**
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    private function personalRequirements(Customer $customer): array
+    {
+        $items = [
+            [
+                'key' => 'name',
+                'label' => __('borrower.profile.gaps.full_name'),
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'identity',
+                    'edit' => 1,
+                ]).'#profile-identity',
+            ],
+            [
+                'key' => 'dob',
+                'label' => __('borrower.profile.gaps.date_of_birth'),
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'about',
+                    'edit' => 1,
+                    'field' => 'date_of_birth',
+                ]).'#profile-about',
+            ],
+        ];
+
+        $identityPolicy = app(IdentityVerificationPolicyService::class);
+        $kycRequireNida = (bool) (Setting::group('kyc')['require_nida'] ?? true);
+        if ($kycRequireNida && $identityPolicy->requiredDuringProfileCreation() && $identityPolicy->nidaRequired()) {
+            $items[] = [
+                'key' => 'nida',
+                'label' => __('borrower.profile.gaps.nida_verify'),
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'identity',
+                    'edit' => 1,
+                ]).'#profile-identity',
+            ];
+        }
+        if ($kycRequireNida && $identityPolicy->nidaRequired() && ! $customer->no_physical_nida_card) {
+            $idImagesUrl = route('site.borrower.profile', [
+                'section' => 'personal',
+                'focus' => 'id_images',
+                'edit' => 1,
+            ]).'#profile-id-images';
+            $items[] = [
+                'key' => 'nida_front',
+                'label' => __('borrower.profile.gaps.nida_front'),
+                'url' => $idImagesUrl,
+            ];
+            $items[] = [
+                'key' => 'nida_back',
+                'label' => __('borrower.profile.gaps.nida_back'),
+                'url' => $idImagesUrl,
+            ];
+        }
+
+        $items[] = [
+            'key' => 'family',
+            'label' => __('borrower.profile.gaps.family'),
+            'url' => route('site.borrower.profile', [
+                'section' => 'personal',
+                'focus' => 'family',
+                'edit' => 1,
+            ]).'#profile-family',
+        ];
+        $items[] = [
+            'key' => 'kin',
+            'label' => __('borrower.profile.gaps.next_of_kin'),
+            'url' => route('site.borrower.profile', [
+                'section' => 'personal',
+                'focus' => 'kin',
+                'edit' => 1,
+            ]).'#next-of-kin',
+        ];
+
+        if ($identityPolicy->facialRequired()) {
+            $items[] = [
+                'key' => 'face',
+                'label' => __('borrower.profile.gaps.face'),
+                'url' => route('site.borrower.profile', [
+                    'section' => 'personal',
+                    'focus' => 'face',
+                    'edit' => 1,
+                ]).'#profile-face',
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return list<array{key: string, label: string, url: string, kind?: string, complete?: bool, document_code?: string}>
+     */
+    private function activityRequirements(Customer $customer): array
+    {
+        $type = $customer->activity_type ?: $customer->employment_type;
+        $validation = app(ProfileValidationService::class);
+
+        $items = [[
+            'key' => 'activity_type',
+            'label' => __('borrower.profile.activity_type'),
+            'url' => route('site.borrower.profile', [
+                'section' => 'activity',
+                'focus' => 'activity',
+                'edit' => 1,
+                'field' => 'activity_type',
+            ]).'#profile-activity',
+            'kind' => 'activity_type',
+        ]];
+
+        if (! filled($type)) {
+            return $items;
+        }
+
+        $items[] = [
+            'key' => 'income_range',
+            'label' => __('borrower.profile.income_range'),
+            'url' => route('site.borrower.profile', [
+                'section' => 'activity',
+                'focus' => 'activity',
+                'edit' => 1,
+                'field' => 'income_range',
+            ]).'#profile-activity',
+            'kind' => 'income_range',
+        ];
+
+        $fields = activity_fields_localized()[$type] ?? config('activity_profiles.fields.'.$type, []);
+        foreach ($fields as $field) {
+            $fieldKey = (string) ($field['key'] ?? '');
+            if ($fieldKey === '' || ! ($field['required'] ?? false)) {
+                continue;
+            }
+            if (($field['type'] ?? 'text') === 'document') {
+                $items[] = [
+                    'key' => $fieldKey,
+                    'label' => (string) ($field['label'] ?? $fieldKey),
+                    'url' => route('site.borrower.profile', [
+                        'section' => 'activity',
+                        'focus' => 'activity',
+                        'edit' => 1,
+                        'field' => $fieldKey,
+                    ]).'#profile-activity',
+                    'kind' => 'document',
+                    'document_code' => $field['document_code'] ?? $fieldKey,
+                ];
+
+                continue;
+            }
+            $items[] = [
+                'key' => $fieldKey,
+                'label' => (string) ($field['label'] ?? $fieldKey),
+                'url' => route('site.borrower.profile', [
+                    'section' => 'activity',
+                    'focus' => 'activity',
+                    'edit' => 1,
+                    'field' => $fieldKey,
+                ]).'#profile-activity',
+                'kind' => 'field',
+            ];
+        }
+
+        if ($validation->requiresEmploymentContract($customer)) {
+            $items[] = [
+                'key' => 'employment_contract',
+                'label' => __('borrower.profile.employment_contract'),
+                'url' => route('site.borrower.profile', [
+                    'section' => 'activity',
+                    'focus' => 'activity',
+                    'edit' => 1,
+                    'field' => 'employment_contract',
+                ]).'#profile-activity',
+                'kind' => 'employment_contract',
+            ];
+        }
+
+        foreach (app(IncomeProofService::class)->requirementItems($customer) as $item) {
+            $items[] = [
+                'key' => (string) ($item['key'] ?? 'income'),
+                'label' => (string) ($item['label'] ?? __('borrower.loan_profile.sections.proof_of_income')),
+                'url' => $item['action_url'] ?? route('site.borrower.profile', [
+                    'section' => 'activity',
+                    'focus' => 'income',
+                    'edit' => 1,
+                ]),
+                'kind' => 'income_proof',
+                'complete' => ! empty($item['complete']),
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    private function residenceRequirements(Customer $customer): array
+    {
+        $items = [];
+        foreach ([
+            'region' => __('borrower.profile.region'),
+            'district' => __('borrower.profile.district'),
+            'street' => __('borrower.profile.street'),
+        ] as $field => $label) {
+            $items[] = [
+                'key' => $field,
+                'label' => $label,
+                'url' => route('site.borrower.profile', [
+                    'section' => 'residence',
+                    'focus' => 'address',
+                    'edit' => 1,
+                    'field' => $field,
+                ]).'#profile-residence-address',
+            ];
+        }
+        foreach ([
+            'lga_officer_name' => __('borrower.profile.lga_officer_name'),
+            'lga_officer_position' => __('borrower.profile.lga_officer_position'),
+            'lga_officer_phone' => __('borrower.profile.lga_officer_phone'),
+        ] as $field => $label) {
+            $items[] = [
+                'key' => $field,
+                'label' => $label,
+                'url' => route('site.borrower.profile', [
+                    'section' => 'residence',
+                    'focus' => 'verification',
+                    'edit' => 1,
+                    'field' => $field,
+                ]).'#profile-residence-verification',
+            ];
+        }
+
+        if (app(ProfileValidationService::class)->requiresResidenceLetter()) {
+            $items[] = [
+                'key' => 'residence_letter',
+                'label' => __('borrower.profile.residence_letter'),
+                'url' => route('site.borrower.profile', [
+                    'section' => 'residence',
+                    'focus' => 'verification',
+                    'edit' => 1,
+                ]).'#profile-residence-verification',
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    private function paymentRequirements(Customer $customer): array
+    {
+        if (! app(ProfileSectionBuilderService::class)->paymentRequiredBeforeLoan()) {
+            return [];
+        }
+
+        return [[
+            'key' => 'payment',
+            'label' => __('borrower.payment_details.section_title'),
+            'url' => route('site.borrower.profile', ['section' => 'payment', 'add' => 1]),
+        ]];
     }
 }
