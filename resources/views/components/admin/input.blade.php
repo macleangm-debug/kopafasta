@@ -22,7 +22,8 @@
         {{ $attributes->except(['money', 'decimals', 'type', 'step']) }}
     />
 @else
-<div @error($name) data-has-error="true" @enderror>
+@php $hasError = $errors->has($name); @endphp
+<div @if ($hasError) data-has-error="true" @endif>
     @if ($label)
         <label for="{{ $name }}" class="block text-xs font-semibold text-gray-700 mb-1">
             {{ $label }} @if ($required)<span class="text-red-500">*</span>@endif
@@ -35,7 +36,10 @@
         value="{{ old($name, $value) }}"
         @if ($placeholder) placeholder="{{ $placeholder }}" @endif
         @if ($required) required @endif
-        {{ $attributes->merge(['class' => 'w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm px-3.5 py-2.5 placeholder:text-gray-400 hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 transition']) }}
+        @if ($hasError) aria-invalid="true" @endif
+        {{ $attributes->merge(['class' => ($hasError
+            ? 'w-full text-sm bg-white border border-red-400 rounded-xl shadow-sm px-3.5 py-2.5 placeholder:text-gray-400 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition'
+            : 'w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm px-3.5 py-2.5 placeholder:text-gray-400 hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 transition')]) }}
     >
     @if ($help)
         <p class="mt-1 text-xs text-gray-500">{{ $help }}</p>

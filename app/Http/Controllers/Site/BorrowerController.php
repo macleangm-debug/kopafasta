@@ -2427,16 +2427,97 @@ class BorrowerController extends Controller
 
         // Shared platform autosave (data-kf-autosave): JSON only — never fake Saved without persist.
         if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+            $fresh = $customer->fresh();
+
             return response()->json([
                 'ok' => true,
                 'saved' => true,
                 'section' => $section,
                 'focus' => $request->input('focus'),
                 'message' => __('borrower.profile.saved_inline'),
+                'view_fields' => $this->profileAutosaveViewFields($fresh, $section, (string) $request->input('focus')),
             ]);
         }
 
         return $redirect;
+    }
+
+    /**
+     * Canonical View payload for kfAutosave mirror (shared across Profile sections).
+     *
+     * @return array<string, string|null>
+     */
+    private function profileAutosaveViewFields(Customer $customer, string $section, string $focus): array
+    {
+        if ($section === 'activity') {
+            $details = is_array($customer->activity_details) ? $customer->activity_details : [];
+            $fields = [
+                'activity_type' => activity_type_label($customer->activity_type ?? $customer->employment_type),
+                'income_range' => income_range_label($customer->income_range),
+            ];
+            foreach ($details as $key => $raw) {
+                if (is_array($raw) || ! filled($raw) || str_starts_with((string) $key, '_')) {
+                    continue;
+                }
+                $defs = activity_fields_localized()[$customer->activity_type ?? $customer->employment_type] ?? [];
+                $display = $raw;
+                foreach ($defs as $def) {
+                    if (($def['key'] ?? null) === $key && ! empty($def['options'][$raw])) {
+                        $display = $def['options'][$raw];
+                        break;
+                    }
+                }
+                $fields['activity_details['.$key.']'] = (string) $display;
+            }
+
+            return $fields;
+        }
+
+        if ($section === 'residence') {
+            return [
+                'region' => $customer->region,
+                'district' => $customer->district,
+                'ward' => $customer->ward,
+                'street' => $customer->street ?: $customer->address,
+            ];
+        }
+
+        if ($section !== 'personal') {
+            return [];
+        }
+
+        return match ($focus) {
+            'contact' => [
+                'phone' => $customer->phone,
+                'email' => (filled($customer->email) && ! str_ends_with(strtolower((string) $customer->email), '@phone.kopafasta.local'))
+                    ? $customer->email
+                    : null,
+            ],
+            'family' => [
+                'marital_status' => filled($customer->marital_status)
+                    ? __('borrower.profile.marital_options.'.$customer->marital_status)
+                    : null,
+                'marital_status_key' => $customer->marital_status,
+                'number_of_children' => $customer->number_of_children !== null ? (string) $customer->number_of_children : null,
+                'spouse_first_name' => $customer->spouse_first_name,
+                'spouse_middle_name' => $customer->spouse_middle_name,
+                'spouse_last_name' => $customer->spouse_last_name,
+            ],
+            'kin' => [
+                'nok_first_name' => $customer->nok_first_name,
+                'nok_middle_name' => $customer->nok_middle_name,
+                'nok_last_name' => $customer->nok_last_name,
+                'nok_relationship' => $customer->nok_relationship
+                    ? kin_relationship_label($customer->nok_relationship)
+                    : null,
+                'nok_phone' => $customer->nok_phone,
+                'nok_region' => $customer->nok_region,
+                'nok_district' => $customer->nok_district,
+                'nok_ward' => $customer->nok_ward,
+                'nok_street' => $customer->nok_street,
+            ],
+            default => [],
+        };
     }
 
     private function redirectWizardStep(Request $request, Customer $customer, string $section): RedirectResponse

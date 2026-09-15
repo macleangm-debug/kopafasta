@@ -7,10 +7,14 @@ use App\Models\User;
 
 class DepartmentAccessService
 {
+    public function __construct(
+        private readonly RoleService $roles,
+    ) {}
+
     /** @return list<string> */
     public function allowedRoutePrefixes(User $user): array
     {
-        if (in_array($user->role, ['admin', 'super_admin'], true)) {
+        if ($this->roles->userHasAnyRole($user, ['admin', 'super_admin'])) {
             return ['*'];
         }
 
@@ -26,6 +30,20 @@ class DepartmentAccessService
                 $codes = [$primary->code];
             }
         }
+
+        // Capability desks unlock modules even when the department pivot is stale
+        // (e.g. agent on roles JSON while primary desk is Underwriting).
+        foreach ($user->roleCodes() as $roleCode) {
+            $desk = $this->roles->deskCode($roleCode);
+            if ($desk) {
+                $codes[] = $desk;
+            }
+        }
+
+        $codes = array_values(array_unique(array_filter(array_map(
+            fn ($code) => strtoupper((string) $code),
+            $codes,
+        ))));
 
         if ($codes === []) {
             return ['*'];

@@ -45,6 +45,15 @@ class CreditDeskAssignmentService
         return in_array($role, ['admin', 'super_admin'], true);
     }
 
+    public function isExemptUser(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return app(RoleService::class)->userHasAnyRole($user, ['admin', 'super_admin']);
+    }
+
     /** @return list<string> */
     public function departmentCodes(?User $user): array
     {
@@ -73,7 +82,8 @@ class CreditDeskAssignmentService
             return false;
         }
 
-        return in_array($user->role, self::SCREENING_ROLES, true)
+        return $user->hasRole('credit_analyst')
+            || $user->hasRole('officer')
             || in_array(self::SCREENING_DEPT, $this->departmentCodes($user), true);
     }
 
@@ -83,7 +93,7 @@ class CreditDeskAssignmentService
             return false;
         }
 
-        return in_array($user->role, self::COMMITTEE_ROLES, true)
+        return $user->hasRole('credit_committee')
             || in_array(self::COMMITTEE_DEPT, $this->departmentCodes($user), true);
     }
 
@@ -93,13 +103,13 @@ class CreditDeskAssignmentService
             return false;
         }
 
-        return $user->role === 'manager'
+        return $user->hasRole('manager')
             || in_array(self::MANAGEMENT_DEPT, $this->departmentCodes($user), true);
     }
 
     public function isManagementOnly(?User $user): bool
     {
-        if (! $user || $this->isExempt($user->role)) {
+        if (! $user || $this->isExemptUser($user)) {
             return false;
         }
 
@@ -115,7 +125,7 @@ class CreditDeskAssignmentService
             return false;
         }
 
-        return $this->isExempt($user->role)
+        return $this->isExemptUser($user)
             || $this->onScreeningDesk($user)
             || $this->onCommitteeDesk($user);
     }
@@ -143,7 +153,7 @@ class CreditDeskAssignmentService
             return false;
         }
 
-        if ($this->isExempt($user->role)) {
+        if ($this->isExemptUser($user)) {
             return true;
         }
 
@@ -253,6 +263,26 @@ class CreditDeskAssignmentService
         $id = Department::query()->where('code', $code)->value('id');
 
         return $id ? (int) $id : null;
+    }
+
+    /**
+     * Ensure home desks for every capability code (primary + extras like agent → CS).
+     *
+     * @param  list<string>  $roleCodes
+     * @param  list<int>  $departmentIds
+     * @return list<int>
+     */
+    public function ensureDesks(array $roleCodes, array $departmentIds): array
+    {
+        $ids = $departmentIds;
+        foreach ($roleCodes as $code) {
+            if (! is_string($code) || $code === '') {
+                continue;
+            }
+            $ids = $this->ensureDesk($code, $ids);
+        }
+
+        return $ids;
     }
 
     /**

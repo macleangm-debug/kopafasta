@@ -57,22 +57,20 @@
             :default-open="$focus === 'address'"
             :default-edit="$openAddress && $errors->hasAny(['region', 'district', 'ward', 'street'])">
             <x-slot:view>
-                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-view-host>
                     @foreach ([
-                        ['label' => __('borrower.profile.region'), 'value' => $customer->region],
-                        ['label' => __('borrower.profile.district'), 'value' => $customer->district],
-                        ['label' => __('borrower.profile.ward'), 'value' => $customer->ward],
-                        ['label' => __('borrower.profile.street'), 'value' => $customer->street ?: $customer->address, 'span' => true],
+                        ['field' => 'region', 'label' => __('borrower.profile.region'), 'value' => $customer->region],
+                        ['field' => 'district', 'label' => __('borrower.profile.district'), 'value' => $customer->district],
+                        ['field' => 'ward', 'label' => __('borrower.profile.ward'), 'value' => $customer->ward],
+                        ['field' => 'street', 'label' => __('borrower.profile.street'), 'value' => $customer->street ?: $customer->address, 'span' => true],
                     ] as $field)
-                        @if (filled($field['value']))
-                            <div @class(['sm:col-span-2' => ! empty($field['span'])])>
-                                <dt class="text-gray-500">{{ $field['label'] }}</dt>
-                                <dd class="font-medium text-gray-900 mt-0.5">{{ $field['value'] }}</dd>
-                            </div>
-                        @endif
+                        <div @class(['sm:col-span-2' => ! empty($field['span']), 'hidden' => ! filled($field['value'])])>
+                            <dt class="text-gray-500">{{ $field['label'] }}</dt>
+                            <dd class="font-medium text-gray-900 mt-0.5" data-kf-view-field="{{ $field['field'] }}">{{ filled($field['value']) ? $field['value'] : '—' }}</dd>
+                        </div>
                     @endforeach
                     @if (! $residenceAddressComplete)
-                        <div class="sm:col-span-2">
+                        <div class="sm:col-span-2" data-kf-empty-hint>
                             <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                         </div>
                     @endif

@@ -21,14 +21,27 @@ class StaffDashboardService
 
     public function desk(?User $user): string
     {
-        return match ($user?->role) {
-            'partner_support' => 'partner_support',
-            'officer', 'credit_analyst' => 'screening',
-            'credit_committee' => 'committee',
-            'manager' => 'management',
-            'asset_manager' => 'assets',
-            default => 'operations',
-        };
+        if (! $user) {
+            return 'operations';
+        }
+
+        if ($user->hasRole('partner_support')) {
+            return 'partner_support';
+        }
+        if ($user->hasRole('officer') || $user->hasRole('credit_analyst')) {
+            return 'screening';
+        }
+        if ($user->hasRole('credit_committee')) {
+            return 'committee';
+        }
+        if ($user->hasRole('manager')) {
+            return 'management';
+        }
+        if ($user->hasRole('asset_manager')) {
+            return 'assets';
+        }
+
+        return 'operations';
     }
 
     /** @return array<string, mixed> */

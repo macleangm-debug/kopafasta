@@ -1,6 +1,6 @@
 {{-- Set up two-factor with scannable QR. Expects: $secret, $provisioning_uri, $recovery_codes, $context --}}
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

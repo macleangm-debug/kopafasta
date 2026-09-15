@@ -21,9 +21,13 @@
         $optionEntries[] = ['value' => (string) $optValue, 'label' => (string) $optionLabel];
     }
     $selectId = $attributes->get('id') ?: $name;
+    $hasError = $errors->has($name);
+    $selectClass = $hasError
+        ? 'appearance-none w-full text-sm bg-white border border-red-400 rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700 cursor-pointer focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition'
+        : 'appearance-none w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700 cursor-pointer hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 transition';
 @endphp
 
-<div @error($name) data-has-error="true" @enderror>
+<div @if ($hasError) data-has-error="true" @endif>
     @if ($label)
         <label for="{{ $selectId }}" class="block text-xs font-semibold text-gray-700 mb-1">
             {{ $label }} @if ($required)<span class="text-red-500">*</span>@endif
@@ -34,7 +38,8 @@
             id="{{ $selectId }}"
             name="{{ $name }}"
             @if ($required) required @endif
-            {{ $attributes->merge(['class' => 'appearance-none w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700 cursor-pointer hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 transition']) }}
+            @if ($hasError) aria-invalid="true" @endif
+            {{ $attributes->merge(['class' => $selectClass]) }}
         >
             @if ($placeholder !== null)
                 <option value="">{{ $placeholder }}</option>
@@ -68,7 +73,11 @@
                 sel.dispatchEvent(new Event('change', { bubbles: true }));
             },
          }">
-        <button type="button" class="w-full inline-flex items-center justify-between rounded-xl border border-brand/15 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-700"
+        <button type="button" @class([
+                    'w-full inline-flex items-center justify-between rounded-xl border bg-white px-3.5 py-2.5 text-sm font-medium text-gray-700',
+                    'border-red-400' => $hasError,
+                    'border-brand/15' => ! $hasError,
+                ])
                 @click="pickerOpen = true">
             <span class="truncate" x-text="labelFor(current)"></span>
             <svg class="size-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>

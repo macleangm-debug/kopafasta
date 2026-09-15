@@ -74,16 +74,20 @@
             <p class="mt-2 text-xs text-gray-500">Guest does not create a Member record. You can link to a member later.</p>
         </div>
 
-        <div class="md:col-span-2" x-show="kind === 'customer'" x-cloak>
-            <label class="block text-xs font-semibold text-gray-700 mb-1">Member</label>
-            <input type="hidden" name="customer_id" :value="customerId">
+        <div class="md:col-span-2" x-show="kind === 'customer'" x-cloak @error('customer_id') data-has-error="true" @enderror>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Member <span class="text-red-500">*</span></label>
+            <input type="hidden" name="customer_id" :value="customerId" @error('customer_id') aria-invalid="true" @enderror>
             <div class="relative">
                 <input type="search"
                        x-model="customerQuery"
                        @input.debounce.300ms="searchCustomers()"
                        @focus="if (customerQuery.length >= 1) searchCustomers()"
                        placeholder="Search name, phone, member number, or email"
-                       class="w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm px-3.5 py-2.5 font-medium text-gray-700 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
+                       @class([
+                           'w-full text-sm bg-white border rounded-xl shadow-sm px-3.5 py-2.5 font-medium text-gray-700 focus:outline-none focus:ring-2',
+                           'border-red-400 focus:border-red-500 focus:ring-red-200' => $errors->has('customer_id'),
+                           'border-brand/15 focus:border-brand focus:ring-brand/15' => ! $errors->has('customer_id'),
+                       ])
                        autocomplete="off">
                 <p class="mt-1 text-xs text-gray-500" x-show="customerLabel" x-text="'Selected: ' + customerLabel"></p>
                 <div x-show="customerResults.length" x-cloak
@@ -96,6 +100,9 @@
                     </template>
                 </div>
             </div>
+            @error('customer_id')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
             <p class="mt-1 text-xs text-amber-700" x-show="customerSearched && customerResults.length === 0 && customerQuery.length >= 2">
                 No matching members. Switch to Guest if they are not registered yet.
             </p>
@@ -123,26 +130,42 @@
     </x-admin.step>
 
     <x-admin.step title="Issue">
-        <div>
+        <div @error('category') data-has-error="true" @enderror>
             <label class="block text-xs font-semibold text-gray-700 mb-1">Category <span class="text-red-500">*</span></label>
             <select name="category" x-model="category" @change="onCategoryChange()" required
-                    class="appearance-none w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700">
+                    @error('category') aria-invalid="true" @enderror
+                    @class([
+                        'appearance-none w-full text-sm bg-white border rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700',
+                        'border-red-400' => $errors->has('category'),
+                        'border-brand/15' => ! $errors->has('category'),
+                    ])>
                 <option value="">— Select category —</option>
                 @foreach ($categories as $key => $label)
                     <option value="{{ $key }}">{{ $label }}</option>
                 @endforeach
             </select>
+            @error('category')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
         </div>
-        <div>
+        <div @error('subject') data-has-error="true" @enderror>
             <label class="block text-xs font-semibold text-gray-700 mb-1">Subject <span class="text-red-500">*</span></label>
             <select name="subject" x-model="subject" required
-                    class="appearance-none w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700"
+                    @error('subject') aria-invalid="true" @enderror
+                    @class([
+                        'appearance-none w-full text-sm bg-white border rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700',
+                        'border-red-400' => $errors->has('subject'),
+                        'border-brand/15' => ! $errors->has('subject'),
+                    ])
                     :disabled="!category">
                 <option value="">— Select subject —</option>
                 <template x-for="item in subjectOptions" :key="item">
                     <option :value="item" x-text="item" :selected="subject === item"></option>
                 </template>
             </select>
+            @error('subject')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
         </div>
         <div class="md:col-span-2" x-show="category === 'other'" x-cloak>
             <x-admin.input name="category_other" label="Custom category" :value="$categoryOther" placeholder="Describe the category" />

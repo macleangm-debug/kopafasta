@@ -13,10 +13,35 @@
 
 const DEFAULT_DEBOUNCE_MS = 900;
 
+/** One in-flight autosave at a time across the page — concurrent session writes caused intermittent Unauthenticated. */
+let kfAutosaveChain = Promise.resolve();
+
 function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content
         || document.querySelector('input[name="_token"]')?.value
         || '';
+}
+
+function readXsrfCookie() {
+    const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
+    if (! match) return '';
+    try {
+        return decodeURIComponent(match[1]);
+    } catch (e) {
+        return match[1] || '';
+    }
+}
+
+function syncCsrfIntoForm(form) {
+    const token = csrfToken() || '';
+    if (! token) return token;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    // Prefer cookie-aligned header path; keep form/_token in sync with meta when present.
+    form.querySelectorAll('input[name="_token"]').forEach((el) => {
+        el.value = token;
+    });
+    if (meta && token) meta.setAttribute('content', token);
+    return token;
 }
 
 function labelsFrom(form) {
@@ -143,6 +168,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             }
         });
 
+        syncCsrfIntoForm(form);
         const fd = new FormData(form);
         if (! fd.get('_token')) {
             fd.append('_token', csrfToken());
@@ -171,76 +197,120 @@ window.kfBindAutosaveForm = function (form, options = {}) {
         // Let the browser paint Inahifadhi… before the network round-trip resolves.
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         if (mySeq !== seq) {
+            inflight = Math.max(0, inflight - 1);
             return;
         }
 
-        try {
-            const data = await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open(method === 'GET' ? 'POST' : 'POST', action);
-                xhr.withCredentials = true;
-                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                xhr.setRequestHeader('Accept', 'application/json');
-                xhr.setRequestHeader('X-KF-Autosave', '1');
-                if (hasFiles && xhr.upload && typeof window.kfShowInlineSaving === 'function') {
-                    xhr.upload.onprogress = (evt) => {
-                        if (! evt.lengthComputable || mySeq !== seq) return;
-                        const percent = Math.max(0, Math.min(99, Math.round((evt.loaded / evt.total) * 100)));
-                        window.kfShowInlineSaving(uploadLabel, { percent });
-                    };
-                }
-                xhr.onload = () => {
-                    let parsed = {};
-                    try {
-                        parsed = JSON.parse(xhr.responseText || '{}');
-                    } catch (e) {
-                        parsed = {};
-                    }
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        resolve(parsed);
-                        return;
-                    }
-                    const msg = parsed.message
-                        || (parsed.errors && Object.values(parsed.errors).flat()[0])
-                        || labels.fail;
-                    reject(new Error(String(msg)));
+        const sendOnce = () => new Promise((resolve, reject) => {
+            syncCsrfIntoForm(form);
+            if (fd.has('_token')) {
+                fd.set('_token', csrfToken());
+            } else {
+                fd.append('_token', csrfToken());
+            }
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', action);
+            xhr.withCredentials = true;
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('X-KF-Autosave', '1');
+            const xsrf = readXsrfCookie();
+            if (xsrf) {
+                xhr.setRequestHeader('X-XSRF-TOKEN', xsrf);
+            }
+            const csrf = csrfToken();
+            if (csrf) {
+                xhr.setRequestHeader('X-CSRF-TOKEN', csrf);
+            }
+            if (hasFiles && xhr.upload && typeof window.kfShowInlineSaving === 'function') {
+                xhr.upload.onprogress = (evt) => {
+                    if (! evt.lengthComputable || mySeq !== seq) return;
+                    const percent = Math.max(0, Math.min(99, Math.round((evt.loaded / evt.total) * 100)));
+                    window.kfShowInlineSaving(uploadLabel, { percent });
                 };
-                xhr.onerror = () => reject(new Error(labels.fail));
-                xhr.send(fd);
-            });
+            }
+            xhr.onload = () => {
+                let parsed = {};
+                try {
+                    parsed = JSON.parse(xhr.responseText || '{}');
+                } catch (e) {
+                    parsed = {};
+                }
+                parsed.__httpStatus = xhr.status;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(parsed);
+                    return;
+                }
+                const msg = parsed.message
+                    || (parsed.errors && Object.values(parsed.errors).flat()[0])
+                    || labels.fail;
+                const err = new Error(String(msg));
+                err.status = xhr.status;
+                err.payload = parsed;
+                reject(err);
+            };
+            xhr.onerror = () => reject(new Error(labels.fail));
+            xhr.send(fd);
+        });
 
-            if (mySeq !== seq) {
-                return;
-            }
+        const run = async () => {
+            try {
+                let data = await sendOnce();
+                if (mySeq !== seq) return;
 
-            if (data && data.ok === false) {
-                throw new Error(String(data.message || labels.fail));
-            }
+                if (data && data.ok === false) {
+                    throw new Error(String(data.message || labels.fail));
+                }
 
-            setState('saved');
-            if (typeof window.kfFlashInlineSaved === 'function') {
-                window.kfFlashInlineSaved(labels.saved);
+                setState('saved');
+                if (typeof window.kfFlashInlineSaved === 'function') {
+                    window.kfFlashInlineSaved(labels.saved);
+                }
+                if (typeof window.kfMirrorAutosaveFormToView === 'function') {
+                    window.kfMirrorAutosaveFormToView(form, data);
+                }
+                form.dispatchEvent(new CustomEvent('kf-autosave-saved', {
+                    bubbles: true,
+                    detail: { data },
+                }));
+            } catch (e) {
+                if (mySeq !== seq) return;
+                // One retry on auth/CSRF race (stale meta token vs rotated XSRF cookie).
+                if (e && (e.status === 419 || e.status === 401)) {
+                    try {
+                        syncCsrfIntoForm(form);
+                        const retry = await sendOnce();
+                        if (mySeq !== seq) return;
+                        if (retry && retry.ok === false) {
+                            throw new Error(String(retry.message || labels.fail));
+                        }
+                        setState('saved');
+                        if (typeof window.kfFlashInlineSaved === 'function') {
+                            window.kfFlashInlineSaved(labels.saved);
+                        }
+                        if (typeof window.kfMirrorAutosaveFormToView === 'function') {
+                            window.kfMirrorAutosaveFormToView(form, retry);
+                        }
+                        return;
+                    } catch (retryErr) {
+                        e = retryErr;
+                    }
+                }
+                // Keep the real server message (including Unauthenticated.) — do not rename/suppress.
+                setState('error', e.message || labels.fail);
+                if (typeof window.kfShowSaveError === 'function') {
+                    window.kfShowSaveError(e.message || labels.fail, labels.retry, () => flush(true));
+                } else if (typeof window.kfHideSaving === 'function') {
+                    window.kfHideSaving();
+                }
+            } finally {
+                inflight = Math.max(0, inflight - 1);
             }
-            if (typeof window.kfMirrorAutosaveFormToView === 'function') {
-                window.kfMirrorAutosaveFormToView(form);
-            }
-            form.dispatchEvent(new CustomEvent('kf-autosave-saved', {
-                bubbles: true,
-                detail: { data },
-            }));
-        } catch (e) {
-            if (mySeq !== seq) {
-                return;
-            }
-            setState('error', e.message || labels.fail);
-            if (typeof window.kfShowSaveError === 'function') {
-                window.kfShowSaveError(e.message || labels.fail, labels.retry, () => flush(true));
-            } else if (typeof window.kfHideSaving === 'function') {
-                window.kfHideSaving();
-            }
-        } finally {
-            inflight = Math.max(0, inflight - 1);
-        }
+        };
+
+        // Serialize across forms so session cookie writes do not race.
+        kfAutosaveChain = kfAutosaveChain.then(run, run);
+        await kfAutosaveChain;
     }
 
     function onInput(event) {
@@ -318,49 +388,96 @@ window.kfFlushAutosaveForm = function (form) {
 
 /**
  * After a successful autosave, mirror named field values into the card View panel
- * so Angalia updates without a reload (Family/Kin previously stayed stale until refresh).
+ * so Angalia updates without a reload. Prefer server view_fields when present
+ * (canonical shared sync for Contact / Family / Kin / Activity / Residence).
  */
-window.kfMirrorAutosaveFormToView = function (form) {
+window.kfMirrorAutosaveFormToView = function (form, data = null) {
     if (!(form instanceof HTMLFormElement)) return;
     const card = form.closest('.glass-card, [id^="profile-"]');
     if (! card) return;
-    const fd = new FormData(form);
+
+    const serverFields = data && data.view_fields && typeof data.view_fields === 'object'
+        ? data.view_fields
+        : null;
+
     const labels = {
         single: form.getAttribute('data-kf-marital-single') || 'Single',
         married: form.getAttribute('data-kf-marital-married') || 'Married',
         divorced: form.getAttribute('data-kf-marital-divorced') || 'Divorced',
         widowed: form.getAttribute('data-kf-marital-widowed') || 'Widowed',
     };
+
     let anyFilled = false;
-    card.querySelectorAll('[data-kf-view-field]').forEach((el) => {
-        const name = el.getAttribute('data-kf-view-field');
-        if (! name) return;
-        let value = fd.get(name);
-        if (value == null) return;
-        value = String(value).trim();
+    const fd = new FormData(form);
+
+    const displayFor = (name, raw) => {
+        let value = raw == null ? '' : String(raw).trim();
         if (name === 'marital_status' && value) {
             value = labels[value] || value;
         }
-        if (name === 'nok_relationship' && value && el.getAttribute('data-kf-view-label-map')) {
+        if (name === 'activity_type' && value) {
             try {
-                const map = JSON.parse(el.getAttribute('data-kf-view-label-map') || '{}');
+                const map = JSON.parse(form.getAttribute('data-kf-activity-type-map') || '{}');
                 value = map[value] || value;
             } catch (e) { /* keep raw */ }
         }
+        if (name === 'income_range' && value) {
+            try {
+                const map = JSON.parse(form.getAttribute('data-kf-income-map') || '{}');
+                value = map[value] || value;
+            } catch (e) { /* keep raw */ }
+        }
+        return value;
+    };
+
+    card.querySelectorAll('[data-kf-view-field]').forEach((el) => {
+        const name = el.getAttribute('data-kf-view-field');
+        if (! name) return;
+        let value;
+        if (serverFields && Object.prototype.hasOwnProperty.call(serverFields, name)) {
+            value = serverFields[name] == null ? '' : String(serverFields[name]).trim();
+        } else {
+            let raw = fd.get(name);
+            if (raw == null && name.startsWith('activity_details[')) {
+                raw = fd.get(name);
+            }
+            value = displayFor(name, raw);
+            if (name === 'nok_relationship' && value && el.getAttribute('data-kf-view-label-map')) {
+                try {
+                    const map = JSON.parse(el.getAttribute('data-kf-view-label-map') || '{}');
+                    value = map[value] || value;
+                } catch (e) { /* keep raw */ }
+            }
+            if (el.getAttribute('data-kf-view-label-map') && value && name !== 'nok_relationship') {
+                try {
+                    const map = JSON.parse(el.getAttribute('data-kf-view-label-map') || '{}');
+                    value = map[value] || value;
+                } catch (e) { /* keep raw */ }
+            }
+        }
         if (value !== '') anyFilled = true;
         el.textContent = value !== '' ? value : '—';
+        const row = el.closest('div');
+        if (row && value !== '') row.classList.remove('hidden');
     });
-    const marital = String(fd.get('marital_status') || '').toLowerCase();
+
+    const marital = String(
+        (serverFields && serverFields.marital_status_key)
+            || fd.get('marital_status')
+            || ''
+    ).toLowerCase();
     if (marital) {
         const showSpouse = marital === 'married';
         card.querySelectorAll('[data-kf-spouse-row]').forEach((row) => {
             row.classList.toggle('hidden', ! showSpouse);
         });
     }
-    // Reveal View grid after first successful save (empty hint was only for cold start).
-    if (anyFilled) {
+
+    if (anyFilled || (serverFields && Object.keys(serverFields).length)) {
         card.querySelectorAll('[data-kf-empty-hint]').forEach((el) => el.classList.add('hidden'));
-        card.querySelectorAll('[data-kf-family-view], [data-kf-kin-view]').forEach((el) => el.classList.remove('hidden'));
+        card.querySelectorAll('[data-kf-family-view], [data-kf-kin-view], [data-kf-activity-view], [data-kf-view-host]').forEach((el) => {
+            el.classList.remove('hidden');
+        });
     }
 };
 

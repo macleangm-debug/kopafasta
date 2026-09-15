@@ -24,7 +24,7 @@ class EnsureTwoFactorVerified
 
         $roles = app(\App\Services\RoleService::class);
         $effectiveContext = $context;
-        if ($context === 'admin' && $roles->isStaff($user->role) && ! $roles->hasConsoleAccess($user)) {
+        if ($context === 'admin' && $roles->isStaffUser($user) && ! $roles->hasConsoleAccess($user)) {
             $effectiveContext = 'staff';
         }
 

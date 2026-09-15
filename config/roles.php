@@ -97,7 +97,7 @@ return [
             'policy_bypass'      => false,
             'user_form'          => true,
             'users_filter'       => true,
-            'desk'               => 'Support',
+            'desk'               => 'CS',
             'duty'               => 'Owns the support desk: tickets, responses, and escalations.',
             'api_capabilities'   => ['support'],
         ],

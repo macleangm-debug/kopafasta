@@ -31,7 +31,7 @@
     $registrationIncomplete = \App\Support\BorrowerRegistrationGate::isIncomplete(auth()->user());
 @endphp
 <!DOCTYPE html>
-<html lang="{{ $siteLocale }}" class="h-full scroll-smooth {{ $auth ? 'overflow-hidden' : '' }}">
+<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full scroll-smooth {{ $auth ? 'overflow-hidden' : '' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">

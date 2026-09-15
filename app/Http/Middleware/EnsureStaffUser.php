@@ -13,7 +13,7 @@ class EnsureStaffUser
     {
         $user = $request->user('admin') ?? $request->user();
 
-        if (! $user || ! app(RoleService::class)->isStaff($user->role)) {
+        if (! $user || ! app(RoleService::class)->isStaffUser($user)) {
             abort(403, 'Staff portal access only.');
         }
 

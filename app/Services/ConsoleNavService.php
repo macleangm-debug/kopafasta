@@ -91,35 +91,36 @@ class ConsoleNavService
                 'active_prefixes' => ['admin.loan-applications.', 'admin.loans.', 'admin.recovery.', 'admin.teams.', 'admin.credit-team.', 'admin.repayments.'],
                 'items' => [
                     ['— Credit screening —', '__group__'],
-                    ['Screening home',        'admin.teams.screening'],
-                    ['Credit screening',      'admin.loan-applications.pipeline.under-review'],
+                    ['Screening home',        'admin.teams.screening', null, null, ['roles' => ['officer', 'credit_analyst', 'admin', 'super_admin']]],
+                    ['Credit screening',      'admin.loan-applications.pipeline.under-review', null, null, ['roles' => ['officer', 'credit_analyst', 'admin', 'super_admin']]],
+                    ['My appraisal queue',    'admin.loan-applications.index', null, ['mine' => 1], ['roles' => ['officer', 'credit_analyst']]],
                     ['— Credit committee —', '__group__'],
-                    ['Committee home',        'admin.teams.committee'],
-                    ['Credit committee',      'admin.loan-applications.pre-approvals'],
-                    ['System sorted',         'admin.loan-applications.pipeline.system-sorted'],
+                    ['Committee home',        'admin.teams.committee', null, null, ['roles' => ['credit_committee', 'admin', 'super_admin']]],
+                    ['Credit committee',      'admin.loan-applications.pre-approvals', null, null, ['roles' => ['credit_committee', 'admin', 'super_admin', 'manager']]],
+                    ['System sorted',         'admin.loan-applications.pipeline.system-sorted', null, null, ['roles' => ['credit_committee', 'admin', 'super_admin']]],
                     ['— Credit management —', '__group__'],
-                    ['Management home',       'admin.teams.management'],
-                    ['Management approval',   'admin.loan-applications.pipeline.management-approval'],
-                    ['Management queue',      'admin.loan-applications.pipeline.approved'],
-                    ['Release queue',         'admin.loan-applications.pipeline.disbursement'],
-                    ['Payout queue',          'admin.loans.disbursement'],
+                    ['Management home',       'admin.teams.management', null, null, ['roles' => ['manager', 'admin', 'super_admin']]],
+                    ['Management approval',   'admin.loan-applications.pipeline.management-approval', null, null, ['roles' => ['manager', 'admin', 'super_admin']]],
+                    ['Management queue',      'admin.loan-applications.pipeline.approved', null, null, ['roles' => ['manager', 'admin', 'super_admin']]],
+                    ['Release queue',         'admin.loan-applications.pipeline.disbursement', null, null, ['roles' => ['manager', 'admin', 'super_admin']]],
+                    ['Payout queue',          'admin.loans.disbursement', null, null, ['roles' => ['manager', 'admin', 'super_admin']]],
                     ['— Applications —', '__group__'],
-                    ['All applications',      'admin.loan-applications.index'],
-                    ['Incomplete drafts',     'admin.loan-applications.incomplete'],
+                    ['All applications',      'admin.loan-applications.index', null, null, ['roles' => ['admin', 'super_admin', 'manager']]],
+                    ['Incomplete drafts',     'admin.loan-applications.incomplete', null, null, ['roles' => ['officer', 'credit_analyst', 'admin', 'super_admin', 'manager']]],
                     ['— Loans —', '__group__'],
-                    ['All loans',           'admin.loans.index'],
-                    ['Active loans',        'admin.loans.active'],
-                    ['Loan repayments',     'admin.repayments.index'],
-                    ['Collection cases',    'admin.arrear-cases.index'],
-                    ['Write-off requests',  'admin.write-off-requests.index'],
-                    ['Loans in arrears',  'admin.loans.arrears'],
-                    ['Restructure requests', 'admin.restructure-requests.index'],
-                    ['Top-up requests',     'admin.top-up-requests.index'],
-                    ['Restructuring',       'admin.loans.restructuring'],
-                    ['Closed loans',        'admin.loans.closed'],
+                    ['All loans',           'admin.loans.index', null, null, ['roles' => ['admin', 'super_admin', 'manager', 'collector']]],
+                    ['Active loans',        'admin.loans.active', null, null, ['roles' => ['admin', 'super_admin', 'manager', 'collector']]],
+                    ['Loan repayments',     'admin.repayments.index', null, null, ['roles' => ['admin', 'super_admin', 'manager', 'collector']]],
+                    ['Collection cases',    'admin.arrear-cases.index', null, null, ['roles' => ['admin', 'super_admin', 'manager', 'collector']]],
+                    ['Write-off requests',  'admin.write-off-requests.index', null, null, ['roles' => ['admin', 'super_admin', 'manager', 'collector']]],
+                    ['Loans in arrears',  'admin.loans.arrears', null, null, ['roles' => ['admin', 'super_admin', 'manager', 'collector']]],
+                    ['Restructure requests', 'admin.restructure-requests.index', null, null, ['roles' => ['admin', 'super_admin', 'manager']]],
+                    ['Top-up requests',     'admin.top-up-requests.index', null, null, ['roles' => ['admin', 'super_admin', 'manager']]],
+                    ['Restructuring',       'admin.loans.restructuring', null, null, ['roles' => ['admin', 'super_admin', 'manager']]],
+                    ['Closed loans',        'admin.loans.closed', null, null, ['roles' => ['admin', 'super_admin', 'manager', 'collector']]],
                     ['— Recovery —', '__group__'],
-                    ['Recovery assignments', 'admin.recovery.assignments.index'],
-                    ['Credit teams',        'admin.credit-team.index', 'applications.view'],
+                    ['Recovery assignments', 'admin.recovery.assignments.index', null, null, ['roles' => ['admin', 'super_admin', 'manager', 'partner_support']]],
+                    ['Credit teams',        'admin.credit-team.index', 'applications.view', null, ['roles' => ['admin', 'super_admin', 'manager']]],
                 ],
                 'perms' => ['applications.view', 'loans.view'],
                 'hide_from' => ['partner_support', 'asset_manager'],
@@ -195,10 +196,10 @@ class ConsoleNavService
                 'items' => [
                     ['Overview', 'admin.communications.index', 'communications.view'],
                     ['Tickets', 'admin.support-tickets.index', 'support.tickets'],
-                    ['Broken pages', 'admin.broken-pages.index', 'support.tickets'],
+                    ['Broken pages', 'admin.broken-pages.index', 'support.tickets', null, ['roles' => ['admin', 'super_admin', 'manager']]],
                     ['Templates', 'admin.notification-templates.index', 'communications.templates.manage'],
                     ['Chatbot', 'admin.communications.chatbot', 'communications.chatbot.manage'],
-                    ['Complaints', 'admin.complaints.index', 'support.tickets', null, ['nav' => 'more']],
+                    ['Complaints', 'admin.complaints.index', 'support.tickets', null, ['nav' => 'more', 'roles' => ['admin', 'super_admin', 'manager']]],
                 ],
                 'perms' => ['communications.view', 'support.tickets', 'communications.templates.manage', 'communications.chatbot.manage'],
                 'hide_from' => [],
@@ -283,9 +284,14 @@ class ConsoleNavService
             return false;
         }
 
-        $role = (string) $user->role;
-        if (in_array($role, $section['hide_from'] ?? [], true) && ! $this->roles->hasPermissionBypass($user)) {
-            return false;
+        $hideFrom = $section['hide_from'] ?? [];
+        if ($hideFrom !== [] && ! $this->roles->hasPermissionBypass($user)) {
+            // Hide only when every capability is listed — multi-capability users keep
+            // sections their other roles are allowed to open (perms still apply).
+            $codes = $user->roleCodes();
+            if ($codes !== [] && count(array_diff($codes, $hideFrom)) === 0) {
+                return false;
+            }
         }
 
         $perms = $section['perms'] ?? null;
@@ -306,25 +312,34 @@ class ConsoleNavService
             return [];
         }
 
-        $role = (string) $user->role;
-
-        return array_values(array_filter($items, function (array $item) use ($user, $role) {
+        return array_values(array_filter($items, function (array $item) use ($user) {
             if (($item[1] ?? '') === '__group__') {
                 return true;
             }
 
             $permission = $item[2] ?? null;
             $route = $item[1] ?? '';
+            $meta = is_array($item[4] ?? null) ? $item[4] : [];
 
             if ($permission !== null && ! $this->permissions->has($user, $permission)) {
                 return false;
+            }
+
+            $allowedRoles = $meta['roles'] ?? null;
+            if (is_array($allowedRoles) && $allowedRoles !== []) {
+                if (! $this->roles->hasPermissionBypass($user)
+                    && ! $this->roles->userHasAnyRole($user, $allowedRoles)) {
+                    return false;
+                }
             }
 
             if (! $this->departments->canAccessRoute($user, $route)) {
                 return false;
             }
 
-            if ($role === 'manager' && $route === 'admin.loan-applications.pipeline.system-sorted') {
+            if ($user->hasRole('manager')
+                && ! $this->roles->userHasAnyRole($user, ['admin', 'super_admin', 'credit_committee'])
+                && $route === 'admin.loan-applications.pipeline.system-sorted') {
                 return false;
             }
 

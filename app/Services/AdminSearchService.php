@@ -94,6 +94,7 @@ class AdminSearchService
     private function groupPriority(User $user): array
     {
         $role = (string) $user->role;
+        $codes = $user->roleCodes();
 
         $base = [
             'Actions' => 0,
@@ -106,15 +107,15 @@ class AdminSearchService
             'Settings' => 8,
         ];
 
-        if (in_array($role, ['officer', 'credit_analyst', 'credit_committee', 'manager'], true)) {
+        if (count(array_intersect($codes, ['officer', 'credit_analyst', 'credit_committee', 'manager'])) > 0) {
             return array_merge($base, ['Customers' => 1, 'Loans' => 2, 'Pages' => 3, 'Actions' => 0]);
         }
 
-        if (in_array($role, ['marketer'], true)) {
+        if (in_array('marketer', $codes, true)) {
             return array_merge($base, ['Campaigns' => 1, 'Demo Accounts' => 2, 'Offers' => 3, 'Customers' => 4, 'Pages' => 5]);
         }
 
-        if ($role === 'agent') {
+        if (in_array('agent', $codes, true) || $role === 'agent') {
             return array_merge($base, ['Customers' => 1, 'Pages' => 2, 'Actions' => 0]);
         }
 

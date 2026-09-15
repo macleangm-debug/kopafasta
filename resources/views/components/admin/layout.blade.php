@@ -7,7 +7,7 @@
 ])
 
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -368,7 +368,7 @@
             @endif
         </div>
 
-        {{-- Flash + validation feedback is shown via premium modal (below). --}}
+        {{-- Flash feedback uses premium modal; ordinary field validation stays inline. --}}
 
         {{ $slot }}
     </main>
@@ -409,6 +409,26 @@
         }));
     };
     window.confirmAction = (detail = {}) => window.confirmForm(null, detail);
+    // Ordinary missing/invalid fields stay inline — never confirmForm / Got it for validation.
+    window.focusAdminValidationErrors = () => {
+        const host = document.querySelector('[data-has-error="true"], [aria-invalid="true"], [data-server-errors]');
+        if (! host) {
+            return;
+        }
+        const field = host.matches('input, select, textarea')
+            ? host
+            : (host.querySelector('input:not([type="hidden"]), select, textarea, input[type="search"]') || host);
+        try {
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) { /* ignore */ }
+        if (typeof field.focus === 'function') {
+            try {
+                field.focus({ preventScroll: true });
+            } catch (e) {
+                field.focus();
+            }
+        }
+    };
     document.addEventListener('DOMContentLoaded', () => {
         @if (session('feedback'))
             @php $feedback = session('feedback'); @endphp
@@ -445,12 +465,7 @@
             });
         @endif
         @if ($errors instanceof \Illuminate\Support\ViewErrorBag && $errors->any())
-            window.showAdminFeedback({
-                tone: 'error',
-                title: @js(__('borrower.layout.form_errors')),
-                message: '',
-                lines: @js($errors->all()),
-            });
+            window.focusAdminValidationErrors();
         @endif
     });
 </script>

@@ -16,7 +16,7 @@ class RoleSeeder extends Seeder
         'credit_analyst' => 'Underwriting and credit appraisal in the admin console (recommendations before committee).',
         'credit_committee' => 'Credit committee reviewers who pre-approve and issue offers after analyst recommendation.',
         'collector'      => 'API-only repayments and arrears management.',
-        'agent'          => 'Support tickets only; no console login.',
+        'agent'          => 'Customer Support desk: tickets and member lookup in the console.',
         'auditor'        => 'Read-only audit log access via API.',
         'borrower'       => 'Borrower portal self-service account.',
         'customer'       => 'Borrower portal account (legacy customer code).',

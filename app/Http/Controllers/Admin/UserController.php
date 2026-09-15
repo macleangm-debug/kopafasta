@@ -142,7 +142,7 @@ class UserController extends ResourceController
         $validated = $request->validate($this->rules());
         [$primary, $roleCodes] = $this->resolveRoleSelection($validated);
         $desks = app(CreditDeskAssignmentService::class);
-        $departmentIds = $desks->ensureDesk($primary, $this->resolvedDepartmentIds($request));
+        $departmentIds = $desks->ensureDesks($roleCodes, $this->resolvedDepartmentIds($request));
         $validated['department_id'] = $desks->primaryDepartmentId($primary, $departmentIds);
         $validated['branch_id'] = $desks->headOfficeBranchId();
         $desks->assertCompatible($primary, $departmentIds);
@@ -190,7 +190,7 @@ class UserController extends ResourceController
         $validated = $request->validate($this->rules($record));
         [$primary, $roleCodes] = $this->resolveRoleSelection($validated);
         $desks = app(CreditDeskAssignmentService::class);
-        $departmentIds = $desks->ensureDesk($primary, $this->resolvedDepartmentIds($request));
+        $departmentIds = $desks->ensureDesks($roleCodes, $this->resolvedDepartmentIds($request));
         $validated['department_id'] = $desks->primaryDepartmentId($primary, $departmentIds);
         $validated['branch_id'] = $desks->headOfficeBranchId();
         $desks->assertCompatible($primary, $departmentIds, $record);

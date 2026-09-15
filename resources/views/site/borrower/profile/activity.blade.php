@@ -56,32 +56,29 @@
                     $activityFieldDefs = activity_fields_localized()[$activityTypeKey] ?? [];
                     $activityViewRows = [];
                     $seenDetailKeys = [];
-                    if (filled($activityLabel)) {
-                        $activityViewRows[] = [
-                            'label' => __('borrower.profile.activity_type'),
-                            'value' => $activityLabel,
-                        ];
-                    }
+                    $activityViewRows[] = [
+                        'field' => 'activity_type',
+                        'label' => __('borrower.profile.activity_type'),
+                        'value' => $activityLabel,
+                    ];
                     foreach ($activityFieldDefs as $field) {
                         $key = $field['key'] ?? null;
                         if (! $key || ($field['type'] ?? '') === 'document') {
                             continue;
                         }
                         $raw = $activityDetails[$key] ?? null;
-                        if (! filled($raw) || is_array($raw)) {
-                            continue;
-                        }
                         $seenDetailKeys[$key] = true;
-                        $display = $raw;
-                        if (! empty($field['options'][$raw])) {
+                        $display = filled($raw) && ! is_array($raw) ? $raw : null;
+                        if ($display !== null && ! empty($field['options'][$raw])) {
                             $display = $field['options'][$raw];
                         }
                         $activityViewRows[] = [
+                            'field' => 'activity_details['.$key.']',
                             'label' => $field['label'] ?? $key,
                             'value' => $display,
+                            'label_map' => ! empty($field['options']) ? $field['options'] : null,
                         ];
                     }
-                    // Any persisted detail not covered by the type schema still belongs in View.
                     foreach ($activityDetails as $key => $raw) {
                         if (isset($seenDetailKeys[$key]) || is_array($raw) || ! filled($raw)) {
                             continue;
@@ -90,36 +87,32 @@
                             continue;
                         }
                         $activityViewRows[] = [
+                            'field' => 'activity_details['.$key.']',
                             'label' => display_label((string) $key, 'activity'),
                             'value' => $raw,
                         ];
                     }
-                    if ($incomeLabel) {
-                        $activityViewRows[] = [
-                            'label' => __('borrower.profile.income_range'),
-                            'value' => $incomeLabel,
-                        ];
-                    }
-                    if ($customer->monthly_income) {
-                        $activityViewRows[] = [
-                            'label' => __('borrower.profile.monthly_income'),
-                            'value' => format_money($customer->monthly_income),
-                        ];
-                    }
+                    $activityViewRows[] = [
+                        'field' => 'income_range',
+                        'label' => __('borrower.profile.income_range'),
+                        'value' => $incomeLabel,
+                        'label_map' => income_range_select_options(),
+                    ];
+                    $hasAnyActivityValue = collect($activityViewRows)->contains(fn ($row) => filled($row['value'] ?? null));
                 @endphp
-                @if ($activityViewRows === [])
-                    <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
-                    <button type="button" @click="openEdit()" class="mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                @else
-                    <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                        @foreach ($activityViewRows as $row)
-                            <div>
-                                <dt class="text-gray-500">{{ $row['label'] }}</dt>
-                                <dd class="font-medium text-gray-900 mt-0.5">{{ $row['value'] }}</dd>
-                            </div>
-                        @endforeach
-                    </dl>
-                @endif
+                <p class="text-sm text-gray-600" data-kf-empty-hint @class(['hidden' => $hasAnyActivityValue])>{{ __('borrower.profile.section_empty') }}</p>
+                <button type="button" @click="openEdit()" class="mt-3 text-sm font-semibold text-amber-700 hover:text-amber-800" data-kf-empty-hint @class(['hidden' => $hasAnyActivityValue])>{{ __('borrower.profile.add_details') }}</button>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-view-host data-kf-activity-view @class(['hidden' => ! $hasAnyActivityValue])>
+                    @foreach ($activityViewRows as $row)
+                        <div @class(['hidden' => ! filled($row['value'] ?? null) && ($row['field'] ?? '') !== 'activity_type' && ($row['field'] ?? '') !== 'income_range'])>
+                            <dt class="text-gray-500">{{ $row['label'] }}</dt>
+                            <dd class="font-medium text-gray-900 mt-0.5"
+                                @if (! empty($row['field'])) data-kf-view-field="{{ $row['field'] }}" @endif
+                                @if (! empty($row['label_map'])) data-kf-view-label-map='@json($row['label_map'])' @endif
+                            >{{ filled($row['value'] ?? null) ? $row['value'] : '—' }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
@@ -130,6 +123,8 @@
                           data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
                           data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
                           data-kf-autosave-uploading="{{ __('borrower.document_upload.uploading') }}"
+                          data-kf-activity-type-map='@json(activity_type_options())'
+                          data-kf-income-map='@json(income_range_select_options())'
                       @endunless
                       data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading') }}">
                     @csrf @method('PUT')

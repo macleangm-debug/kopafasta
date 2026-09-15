@@ -343,23 +343,19 @@
                     :default-open="$focusHash === 'contact'"
                     :default-edit="$editFocus === 'contact'">
                     <x-slot:view>
-                        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                        @php
+                            $contactEmail = filled($customer->email) && ! str_ends_with(strtolower((string) $customer->email), '@phone.kopafasta.local')
+                                ? $customer->email
+                                : null;
+                        @endphp
+                        <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-view-host>
                             <div>
                                 <dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt>
-                                @if ($customer->phone)
-                                    <dd class="font-medium text-gray-900 mt-0.5">{{ $customer->phone }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                @endif
+                                <dd class="font-medium text-gray-900 mt-0.5" data-kf-view-field="phone">{{ $customer->phone ?: '—' }}</dd>
                             </div>
-                            @php
-                                $contactEmail = filled($customer->email) && ! str_ends_with(strtolower((string) $customer->email), '@phone.kopafasta.local')
-                                    ? $customer->email
-                                    : null;
-                            @endphp
                             <div>
                                 <dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt>
-                                <dd class="font-medium text-gray-900 mt-0.5">{{ $contactEmail ?: '—' }}</dd>
+                                <dd class="font-medium text-gray-900 mt-0.5" data-kf-view-field="email">{{ $contactEmail ?: '—' }}</dd>
                             </div>
                         </dl>
                     </x-slot:view>
