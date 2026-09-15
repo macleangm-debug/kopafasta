@@ -210,6 +210,208 @@ class ProfileCompletionService
     }
 
     /**
+     * Field-level gaps for one hub section — same source as card status / %.
+     *
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    public function sectionGaps(Customer $customer, string $key): array
+    {
+        return match ($key) {
+            'personal' => app(ProfileValidationService::class)->personalGaps($customer),
+            'activity' => $this->activityGaps($customer),
+            'residence' => $this->residenceGaps($customer),
+            'payment' => $this->paymentGaps($customer),
+            'kyc' => $this->documentGaps($customer),
+            default => [],
+        };
+    }
+
+    /**
+     * Applicable Activity gaps only (type-specific fields + employment evidence + income when required).
+     *
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    public function activityGaps(Customer $customer): array
+    {
+        $gaps = [];
+        $activityUrl = route('site.borrower.profile', ['section' => 'activity']);
+        $incomeUrl = route('site.borrower.profile', ['section' => 'activity', 'focus' => 'income']);
+        $type = $customer->activity_type ?: $customer->employment_type;
+        $validation = app(ProfileValidationService::class);
+
+        if (! filled($type)) {
+            $gaps[] = [
+                'key' => 'activity_type',
+                'label' => __('borrower.profile.activity_type'),
+                'url' => $activityUrl,
+            ];
+
+            return $gaps;
+        }
+
+        if (! filled($customer->income_range)) {
+            $gaps[] = [
+                'key' => 'income_range',
+                'label' => __('borrower.profile.income_range'),
+                'url' => $activityUrl,
+            ];
+        }
+
+        $fields = activity_fields_localized()[$type] ?? config('activity_profiles.fields.'.$type, []);
+        $details = is_array($customer->activity_details) ? $customer->activity_details : [];
+
+        foreach ($fields as $field) {
+            $fieldKey = (string) ($field['key'] ?? '');
+            if ($fieldKey === '') {
+                continue;
+            }
+            if (($field['type'] ?? 'text') === 'document') {
+                if (($field['required'] ?? false) && ! $validation->hasDocument($customer, $field['document_code'] ?? $fieldKey)) {
+                    $gaps[] = [
+                        'key' => $fieldKey,
+                        'label' => (string) ($field['label'] ?? $fieldKey),
+                        'url' => $activityUrl,
+                    ];
+                }
+
+                continue;
+            }
+            if (($field['required'] ?? false) && blank($details[$fieldKey] ?? null)) {
+                $gaps[] = [
+                    'key' => $fieldKey,
+                    'label' => (string) ($field['label'] ?? $fieldKey),
+                    'url' => $activityUrl,
+                ];
+            }
+        }
+
+        if ($validation->requiresEmploymentContract($customer) && ! $validation->employmentContractComplete($customer)) {
+            $gaps[] = [
+                'key' => 'employment_contract',
+                'label' => __('borrower.profile.employment_contract'),
+                'url' => $activityUrl,
+            ];
+        }
+
+        foreach (app(IncomeProofService::class)->requirementItems($customer) as $item) {
+            if (! empty($item['complete'])) {
+                continue;
+            }
+            $gaps[] = [
+                'key' => (string) ($item['key'] ?? 'income'),
+                'label' => (string) ($item['label'] ?? __('borrower.loan_profile.sections.proof_of_income')),
+                'url' => $item['action_url'] ?? $incomeUrl,
+            ];
+        }
+
+        return $this->uniqueGaps($gaps);
+    }
+
+    /**
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    public function residenceGaps(Customer $customer): array
+    {
+        $gaps = [];
+        $url = route('site.borrower.profile', ['section' => 'residence']);
+        $validation = app(ProfileValidationService::class);
+
+        foreach ([
+            'region' => __('borrower.profile.region'),
+            'district' => __('borrower.profile.district'),
+            'street' => __('borrower.profile.street'),
+            'lga_officer_name' => __('borrower.profile.lga_officer_name'),
+            'lga_officer_position' => __('borrower.profile.lga_officer_position'),
+            'lga_officer_phone' => __('borrower.profile.lga_officer_phone'),
+        ] as $field => $label) {
+            if (! filled($customer->{$field})) {
+                $gaps[] = ['key' => $field, 'label' => $label, 'url' => $url];
+            }
+        }
+
+        if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer)) {
+            $gaps[] = [
+                'key' => 'residence_letter',
+                'label' => __('borrower.profile.residence_letter'),
+                'url' => $url.'#profile-residence-verification',
+            ];
+        }
+
+        return $gaps;
+    }
+
+    /**
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    public function paymentGaps(Customer $customer): array
+    {
+        if (! app(ProfileSectionBuilderService::class)->paymentRequiredBeforeLoan()) {
+            return [];
+        }
+        if (app(CustomerDisbursementDetailsService::class)->isComplete($customer)) {
+            return [];
+        }
+
+        return [[
+            'key' => 'payment',
+            'label' => __('borrower.payment_details.section_title'),
+            'url' => route('site.borrower.profile', ['section' => 'payment', 'add' => 1]),
+        ]];
+    }
+
+    /**
+     * Legacy document-bucket gaps (income + residence letter). Prefer activity/residence gaps in hub UI.
+     *
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    public function documentGaps(Customer $customer): array
+    {
+        $gaps = [];
+        foreach (app(IncomeProofService::class)->requirementItems($customer) as $item) {
+            if (! empty($item['complete'])) {
+                continue;
+            }
+            $gaps[] = [
+                'key' => (string) ($item['key'] ?? 'income'),
+                'label' => (string) ($item['label'] ?? __('borrower.loan_profile.sections.proof_of_income')),
+                'url' => $item['action_url'] ?? route('site.borrower.profile', ['section' => 'activity', 'focus' => 'income']),
+            ];
+        }
+        $validation = app(ProfileValidationService::class);
+        if ($validation->requiresResidenceLetter() && ! $validation->hasResidenceLetter($customer)) {
+            $gaps[] = [
+                'key' => 'residence_letter',
+                'label' => __('borrower.profile.residence_letter'),
+                'url' => route('site.borrower.profile', ['section' => 'residence']).'#profile-residence-verification',
+            ];
+        }
+
+        return $this->uniqueGaps($gaps);
+    }
+
+    /**
+     * @param  list<array{key: string, label: string, url: string}>  $gaps
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    protected function uniqueGaps(array $gaps): array
+    {
+        $seen = [];
+        $unique = [];
+        foreach ($gaps as $gap) {
+            $key = (string) ($gap['key'] ?? '');
+            if ($key !== '' && isset($seen[$key])) {
+                continue;
+            }
+            if ($key !== '') {
+                $seen[$key] = true;
+            }
+            $unique[] = $gap;
+        }
+
+        return $unique;
+    }
+
+    /**
      * @return array{
      *     percent: int,
      *     remaining: list<string>,
@@ -220,44 +422,60 @@ class ProfileCompletionService
      */
     public function completionSummary(Customer $customer): array
     {
-        $requirements = collect(app(ApplicationProgressService::class)->requirements($customer, null, null))
-            ->reject(fn (array $item) => str_starts_with((string) ($item['key'] ?? ''), 'wizard_'))
-            ->values();
-
-        $completed = $requirements->where('complete', true)->pluck('label')->values()->all();
-        $incomplete = $requirements->where('complete', false)->values();
-        $remaining = $incomplete->pluck('label')->values()->all();
+        // One canonical source: calculate() + sectionGaps(). Never mix apply-checklist rows into %.
         $calculated = $this->calculate($customer);
+        $tabs = $this->tabStatuses($customer);
 
-        $actionable = $incomplete
-            ->map(fn (array $item) => [
-                'key' => (string) ($item['key'] ?? ''),
-                'label' => (string) ($item['label'] ?? ''),
-                'url' => $item['action_url'] ?? null,
-            ])
-            ->filter(fn (array $item) => $item['label'] !== '')
-            ->values()
-            ->all();
+        $completed = [];
+        $actionable = [];
 
-        // Prefer incomplete hub sections when requirement rows are empty.
-        if ($actionable === []) {
-            foreach ($calculated['sections'] as $section) {
-                if (! empty($section['complete'])) {
-                    continue;
-                }
-                $tab = $this->tabStatuses($customer)[$section['key']] ?? null;
+        foreach ($calculated['sections'] as $section) {
+            $key = (string) ($section['key'] ?? '');
+            $label = (string) ($section['label'] ?? $key);
+            if (! empty($section['complete'])) {
+                $completed[] = $label;
+                continue;
+            }
+
+            $gaps = $this->sectionGaps($customer, $key);
+            if ($gaps === []) {
                 $actionable[] = [
-                    'key' => (string) $section['key'],
-                    'label' => (string) $section['label'],
-                    'url' => $tab['url'] ?? route('site.borrower.profile', ['section' => $section['key']]),
+                    'key' => $key,
+                    'label' => $label,
+                    'url' => $tabs[$key]['url'] ?? route('site.borrower.profile', ['section' => $key]),
+                ];
+                continue;
+            }
+
+            foreach ($gaps as $gap) {
+                $actionable[] = [
+                    'key' => (string) ($gap['key'] ?? $key),
+                    'label' => (string) ($gap['label'] ?? $label),
+                    'url' => $gap['url'] ?? ($tabs[$key]['url'] ?? null),
                 ];
             }
-            $remaining = collect($actionable)->pluck('label')->all();
         }
+
+        $actionable = $this->uniqueGaps(array_map(static fn (array $item) => [
+            'key' => (string) ($item['key'] ?? ''),
+            'label' => (string) ($item['label'] ?? ''),
+            'url' => (string) ($item['url'] ?? ''),
+        ], $actionable));
+
+        // Restore nullable url for callers that expect null.
+        $actionable = array_map(static function (array $item) {
+            $url = trim((string) ($item['url'] ?? ''));
+
+            return [
+                'key' => $item['key'],
+                'label' => $item['label'],
+                'url' => $url !== '' ? $url : null,
+            ];
+        }, $actionable);
 
         return [
             'percent' => $calculated['percent'],
-            'remaining' => $remaining,
+            'remaining' => collect($actionable)->pluck('label')->values()->all(),
             'completed' => $completed,
             'remaining_count' => count($actionable),
             'actionable' => $actionable,
@@ -267,10 +485,11 @@ class ProfileCompletionService
     /** @return array{percent: int, sections: list<array{key: string, label: string, complete: bool, weight: int}>, threshold: int} */
     public function calculate(Customer $customer): array
     {
-        // Layman % = required profile hub sections only (not collateral / security / deferred ID).
+        // Layman % = required hub sections only. Collateral/assets never enter the denominator.
+        // Income proof folds into activity; residence letter folds into residence — no phantom KYC %.
         $tabs = $this->tabStatuses($customer);
         $sections = [];
-        foreach (['personal', 'activity', 'residence', 'kyc', 'payment'] as $key) {
+        foreach (['personal', 'activity', 'residence', 'payment'] as $key) {
             $tab = $tabs[$key] ?? null;
             if (! $tab || empty($tab['required'])) {
                 continue;
@@ -348,7 +567,9 @@ class ProfileCompletionService
                 'url'      => route('site.borrower.profile', ['section' => 'personal']),
             ],
             'activity' => [
-                'complete' => $this->isActivityFieldsComplete($customer),
+                // Hub "Work & money": type-applicable fields + employment evidence + income when required.
+                // Activity *details* card tick still uses isActivityFieldsComplete() in the Blade view.
+                'complete' => $this->isActivityComplete($customer),
                 'required' => true,
                 'label'    => __('borrower.profile.activity'),
                 'url'      => route('site.borrower.profile', ['section' => 'activity']),
@@ -359,9 +580,10 @@ class ProfileCompletionService
                 'label'    => __('borrower.profile.residence'),
                 'url'      => route('site.borrower.profile', ['section' => 'residence']),
             ],
+            // Folded into activity (income) + residence (letter). Kept for legacy redirects; never in %.
             'kyc' => [
                 'complete' => $this->isDocumentsComplete($customer),
-                'required' => true,
+                'required' => false,
                 'label'    => __('borrower.profile.kyc'),
                 'url'      => route('site.borrower.profile', ['section' => 'activity', 'focus' => 'income']),
             ],

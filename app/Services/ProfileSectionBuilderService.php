@@ -95,18 +95,19 @@ class ProfileSectionBuilderService
 
         return collect($tabStatuses)
             ->only(array_keys($meta))
-            ->map(function (array $tab, string $key) use ($meta, $customer) {
+            ->map(function (array $tab, string $key) use ($meta, $customer, $completion) {
                 $status = (string) ($tab['status'] ?? 'not_started');
                 $sectionMeta = $meta[$key] ?? ['icon' => '📋', 'action' => 'view_edit'];
-                $missing = $key === 'personal'
-                    ? app(ProfileValidationService::class)->personalGaps($customer)
+                $missing = in_array($key, ['personal', 'activity', 'residence', 'payment'], true)
+                    ? $completion->sectionGaps($customer, $key)
                     : [];
 
                 $doneParts = null;
-                if ($key === 'personal' && $missing !== []) {
+                if ($missing !== [] && in_array($key, ['personal', 'activity', 'residence'], true)) {
+                    $total = max(count($missing) + 1, 3);
                     $doneParts = [
-                        'done' => max(0, 3 - min(3, count($missing))),
-                        'total' => 3,
+                        'done' => max(0, $total - count($missing)),
+                        'total' => $total,
                     ];
                 }
 
@@ -116,7 +117,11 @@ class ProfileSectionBuilderService
                     'label'        => $sectionMeta['label'] ?? $tab['label'],
                     'description'  => $sectionMeta['hint'] ?? ($key === 'personal'
                         ? $this->personalGapSummary($customer)
-                        : null),
+                        : ($missing !== []
+                            ? __('borrower.profile.gaps.summary', [
+                                'items' => collect($missing)->pluck('label')->take(3)->implode(', '),
+                            ])
+                            : null)),
                     'missing'      => $missing,
                     'status'       => $status,
                     'status_label' => $this->statusLabel($status),

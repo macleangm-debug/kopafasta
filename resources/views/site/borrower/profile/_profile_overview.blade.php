@@ -86,7 +86,19 @@
                 @if (! empty($section['missing']))
                     <ul class="mt-2 space-y-1">
                         @foreach (array_slice($section['missing'], 0, 3) as $gap)
-                            <li class="text-[11px] text-amber-800 font-medium">• {{ is_array($gap) ? ($gap['label'] ?? '') : $gap }}</li>
+                            @php
+                                $gapLabel = is_array($gap) ? ($gap['label'] ?? '') : $gap;
+                                $gapUrl = is_array($gap) ? ($gap['url'] ?? null) : null;
+                            @endphp
+                            @if ($gapLabel !== '')
+                                <li class="text-[11px] text-amber-800 font-medium">
+                                    @if ($gapUrl)
+                                        <a href="{{ $gapUrl }}" class="hover:underline" @click.stop>• {{ $gapLabel }}</a>
+                                    @else
+                                        • {{ $gapLabel }}
+                                    @endif
+                                </li>
+                            @endif
                         @endforeach
                     </ul>
                 @endif
