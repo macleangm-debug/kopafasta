@@ -1,6 +1,7 @@
 @props([
     'customer',
     'cta' => 'card', // card | profile | none
+    'showCompletion' => true, // hub landing: false — progress lives in overview / inner pages
 ])
 
 @php
@@ -16,8 +17,13 @@
     $grade = $customer->grade ?? 'bronze';
     $completionPercent = (int) (app(\App\Services\ProfileCompletionService::class)->calculate($customer)['percent'] ?? 0);
     $nextIncomplete = collect(app(\App\Services\ProfileCompletionService::class)->displaySections($customer, true))->first();
-    $completionCtaUrl = (string) ($nextIncomplete['action_url'] ?? route('site.borrower.profile', ['section' => 'personal']));
-    $completionCtaLabel = __('borrower.profile.hero_completion_cta');
+    $showCompletion = (bool) $showCompletion;
+    $completionCtaUrl = $showCompletion && $completionPercent < 100
+        ? (string) ($nextIncomplete['action_url'] ?? route('site.borrower.profile', ['section' => 'personal']))
+        : null;
+    $completionCtaLabel = $showCompletion && $completionPercent < 100
+        ? __('borrower.profile.hero_completion_cta')
+        : null;
     $myCardUrl = route('site.borrower.profile', ['section' => 'membership']);
     $profileUrl = route('site.borrower.profile');
 @endphp
@@ -38,7 +44,7 @@
         :initial="$initial"
         :grade="$grade"
         :plus="$plusActive"
-        :completion-percent="$completionPercent"
+        :completion-percent="$showCompletion ? $completionPercent : null"
         :completion-cta-url="$completionCtaUrl"
         :completion-cta-label="$completionCtaLabel"
         :cta-url="$cta === 'card' ? $myCardUrl : null"

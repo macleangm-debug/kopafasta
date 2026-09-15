@@ -197,11 +197,6 @@
                 <p class="relative mt-5 text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
                 <h1 class="relative mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">{{ __('plus.home.explore') }}</h1>
                 <p class="relative mt-3 text-sm sm:text-base text-white/85 max-w-2xl leading-relaxed">{{ __('plus.home.explore_body') }}</p>
-
-                <div class="relative mt-5 rounded-2xl bg-white/12 ring-1 ring-white/20 p-4 sm:p-5">
-                    <p class="text-sm font-bold text-brand-gold">{{ __('plus.home.not_required_title') }}</p>
-                    <p class="mt-1.5 text-sm text-white/85 leading-relaxed">{{ __('plus.home.not_required_body') }}</p>
-                </div>
             </section>
 
             <section class="grid sm:grid-cols-2 gap-3">

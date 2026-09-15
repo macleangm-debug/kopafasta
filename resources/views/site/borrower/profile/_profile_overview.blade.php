@@ -13,29 +13,40 @@
     $order = ['personal', 'activity', 'residence', 'payment', 'assets'];
 @endphp
 
-<section class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white p-5 sm:p-6">
+<section class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white p-5 sm:p-6"
+         data-kf-completion-hero
+         data-kf-completion-done="{{ $percent >= 100 ? '1' : '0' }}">
     <p class="text-[10px] uppercase tracking-widest font-bold text-brand">{{ __('borrower.profile.hub.sections_title') }}</p>
-    <p class="mt-2 text-2xl font-extrabold text-gray-900 tracking-tight"
-       data-kf-completion-percent
-       data-percent-template="{{ __('borrower.profile.completion_summary_percent', ['percent' => ':percent']) }}">
-        {{ __('borrower.profile.completion_summary_percent', ['percent' => $percent]) }}
-    </p>
-    <div class="mt-3 h-2.5 bg-white/80 ring-1 ring-brand/10 rounded-full overflow-hidden" role="progressbar" aria-valuenow="{{ $percent }}" aria-valuemin="0" aria-valuemax="100">
-        <div class="h-full bg-brand transition-all" data-kf-completion-bar style="width: {{ min(100, max(0, $percent)) }}%"></div>
-    </div>
-
-    @if ($remainingCount > 0)
+    @if ($percent >= 100)
+        <p class="mt-3 inline-flex items-center gap-2 rounded-full bg-brand text-brand-gold px-4 py-2 text-sm sm:text-base font-extrabold shadow-sm ring-1 ring-brand-gold/40"
+           data-kf-completion-percent
+           data-percent-template="{{ __('borrower.profile.completion_summary_percent', ['percent' => ':percent']) }}"
+           data-kf-completion-done-label="{{ __('borrower.profile.hero_completion_done') }}">
+            {{ __('borrower.profile.hero_completion_done') }}
+        </p>
+        <div class="mt-3 h-3.5 bg-white/80 ring-1 ring-brand/10 rounded-full overflow-hidden" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+            <div class="h-full bg-brand transition-all" data-kf-completion-bar style="width: 100%"></div>
+        </div>
+        <p class="mt-4 text-sm text-gray-600">{{ __('borrower.profile.hub.all_set_hint') }}</p>
+    @else
+        <p class="mt-2 text-2xl font-extrabold text-gray-900 tracking-tight"
+           data-kf-completion-percent
+           data-percent-template="{{ __('borrower.profile.completion_summary_percent', ['percent' => ':percent']) }}"
+           data-kf-completion-done-label="{{ __('borrower.profile.hero_completion_done') }}">
+            {{ __('borrower.profile.completion_summary_percent', ['percent' => $percent]) }}
+        </p>
+        <div class="mt-3 h-2.5 bg-white/80 ring-1 ring-brand/10 rounded-full overflow-hidden" role="progressbar" aria-valuenow="{{ $percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="h-full bg-brand transition-all" data-kf-completion-bar style="width: {{ min(100, max(0, $percent)) }}%"></div>
+        </div>
         <p class="mt-4 text-sm font-semibold text-gray-800">
             {{ trans_choice('borrower.profile.hub.things_remaining', $remainingCount, ['count' => $remainingCount]) }}
         </p>
         <a href="{{ $continueUrl }}"
+           data-kf-completion-cta
            class="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-brand hover:underline">
             {{ __('borrower.profile.hub.continue_completing') }}
             <span aria-hidden="true">→</span>
         </a>
-    @else
-        <p class="mt-4 text-sm font-semibold text-emerald-800">{{ __('borrower.profile.hero_completion_done') }}</p>
-        <p class="mt-1 text-sm text-gray-600">{{ __('borrower.profile.hub.all_set_hint') }}</p>
     @endif
 </section>
 
@@ -85,7 +96,7 @@
                data-kf-share="kf-prof-{{ $key }}"
                class="group rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white p-5 transition hover:shadow-md">
                 <div class="flex items-start justify-between gap-3">
-                    <span class="text-2xl leading-none" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
+                    <span class="text-4xl leading-none" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
                     @if ($showTick)
                         <span class="size-7 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm ring-2 ring-brand-gold/40"
                               title="{{ __('borrower.profile.section_complete') }}"

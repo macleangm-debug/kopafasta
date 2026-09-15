@@ -99,15 +99,12 @@
             @endphp
             @if ($showCompletionCta || $showPrimaryCta)
                 <div class="flex flex-wrap gap-2" data-kf-hero-cta-row>
-                    @if (filled($completionCtaUrl) && filled($completionCtaLabel))
+                    @if ($showCompletionCta)
                         <a href="{{ $completionCtaUrl }}"
                            data-loading="click"
                            data-kf-motion="pop"
                            data-kf-completion-cta
-                           @class([
-                               'inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm',
-                               'hidden' => ! $showCompletionCta,
-                           ])>
+                           class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
                             {{ $completionCtaLabel }} →
                         </a>
                     @endif
