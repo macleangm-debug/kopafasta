@@ -2592,13 +2592,26 @@ class BorrowerController extends Controller
 
     /**
      * Completion snapshot for Profile autosave JSON — never collapses the open card.
+     * Browser only renders this payload; it must not invent a second completion engine.
      *
-     * @return array{percent: int, section_remaining: int, section_done: int, section_total: int, gaps: list<array{key: string, label: string, url: string}>}
+     * @return array{
+     *     percent: int,
+     *     section: string,
+     *     section_remaining: int,
+     *     section_done: int,
+     *     section_total: int,
+     *     section_complete: bool,
+     *     gaps: list<array{key: string, label: string, url: string}>,
+     *     categories: array<string, array{remaining: int, complete: bool}>,
+     *     cards: array<string, bool>
+     * }
      */
     private function profileAutosaveCompletion(Customer $customer, string $section): array
     {
         $completion = app(ProfileCompletionService::class);
+        $validation = app(ProfileValidationService::class);
         $summary = $completion->completionSummary($customer);
+        $tabs = $completion->tabStatuses($customer);
         $gapKey = match ($section) {
             'kyc' => 'activity',
             default => $section,
@@ -2610,16 +2623,60 @@ class BorrowerController extends Controller
             ? $completion->sectionGaps($customer, $gapKey)
             : [];
 
+        $categories = [];
+        foreach (['personal', 'activity', 'residence', 'payment', 'assets'] as $key) {
+            if ($key === 'assets') {
+                $categories[$key] = [
+                    'remaining' => 0,
+                    'complete' => (bool) ($tabs[$key]['complete'] ?? false),
+                ];
+
+                continue;
+            }
+            $categories[$key] = [
+                'remaining' => count($completion->sectionGaps($customer, $key)),
+                'complete' => (bool) ($tabs[$key]['complete'] ?? false),
+            ];
+        }
+
+        $incomeSatisfied = app(IncomeProofService::class)->satisfiesRequirement($customer);
+        $addressComplete = filled($customer->region)
+            && filled($customer->district)
+            && filled($customer->street ?: $customer->address);
+        $verificationComplete = filled($customer->lga_officer_name)
+            && filled($customer->lga_officer_position)
+            && filled($customer->lga_officer_phone)
+            && (! $validation->requiresResidenceLetter() || $validation->hasResidenceLetter($customer));
+
+        $cards = [
+            'profile-about' => filled($customer->date_of_birth) && $validation->dateOfBirthValid($customer->date_of_birth),
+            'profile-identity' => filled($customer->national_id),
+            'profile-id-images' => $validation->nationalIdUploadsComplete($customer),
+            'profile-contact' => filled($customer->phone) || filled($customer->email),
+            'profile-family' => $validation->isFamilyComplete($customer),
+            'profile-kin' => $validation->isKinComplete($customer),
+            'profile-face' => app(ProfileRevisionService::class)->faceStepComplete($customer),
+            'profile-signature' => filled($customer->legal_signature_data),
+            'profile-activity' => $completion->isActivityFieldsComplete($customer),
+            'profile-income-statement' => $incomeSatisfied,
+            'profile-residence-address' => $addressComplete,
+            'profile-residence-verification' => $verificationComplete,
+        ];
+
         return [
             'percent' => (int) ($summary['percent'] ?? 0),
+            'section' => $gapKey,
             'section_remaining' => (int) ($progress['remaining'] ?? 0),
             'section_done' => (int) ($progress['done'] ?? 0),
             'section_total' => (int) ($progress['total'] ?? 0),
+            'section_complete' => (bool) ($tabs[$gapKey]['complete'] ?? false),
             'gaps' => array_map(static fn (array $gap) => [
                 'key' => (string) ($gap['key'] ?? ''),
                 'label' => (string) ($gap['label'] ?? ''),
                 'url' => (string) ($gap['url'] ?? ''),
             ], $gaps),
+            'categories' => $categories,
+            'cards' => $cards,
         ];
     }
 

@@ -18,18 +18,18 @@ export function registerProfileSectionCard(Alpine) {
 
         get showCompleteTick() {
             if (! this.editAllowed && this.complete) {
-                return ! this.open && ! this.expanded;
+                return ! this.open;
             }
-            // Collapsed + complete only — Complete is lasting status; never "Saved".
-            return this.complete && ! this.open && ! this.expanded && ! this.showEditAction;
+            // Complete tick while collapsed or in View — never while Edit form is open.
+            return this.complete && ! this.open && ! this.showEditAction;
         },
 
-        /** Edit / Hariri only while viewing or editing — never on a collapsed card. */
+        /** Edit / Hariri only while viewing or editing — never on a collapsed complete card. */
         get showHeaderEdit() {
             if (! this.editAllowed) {
                 return false;
             }
-            if (this.showCompleteTick) {
+            if (this.complete && ! this.expanded && ! this.open) {
                 return false;
             }
             return this.expanded || this.open;

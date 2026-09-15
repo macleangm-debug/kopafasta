@@ -21,8 +21,7 @@
                 $tabRemaining[$key] = 0;
                 continue;
             }
-            $gapKey = $key === 'activity' ? 'activity' : $key;
-            $tabRemaining[$key] = count($completion->sectionGaps($customer, $gapKey));
+            $tabRemaining[$key] = count($completion->sectionGaps($customer, $key));
         }
     }
     $activeLabel = $tabs[$active][0] ?? ($tabs['personal'][0] ?? __('borrower.profile.hub.sections_title'));
@@ -32,6 +31,8 @@
     $activeGaps = ($customer && $completion && in_array($activeGapKey, ['personal', 'activity', 'residence', 'payment'], true))
         ? $completion->sectionGaps($customer, $activeGapKey)
         : [];
+    $completeLabel = __('borrower.profile.section_complete');
+    $remainingTemplate = trans_choice('borrower.profile.hub.remaining_count', 999, ['count' => ':count']);
 @endphp
 
 <div class="mb-6" x-data="{ sectionsOpen: false, remainingOpen: false }">
@@ -41,14 +42,18 @@
             <span class="inline-flex items-center gap-2 min-w-0">
                 <svg class="w-4 h-4 text-brand shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
                 <span class="truncate">{{ $activeLabel }}</span>
-                @if ($activeComplete)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
-                @elseif ($activeRemaining > 0)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700"
-                          data-kf-section-remaining
-                          data-count="{{ $activeRemaining }}"
-                          data-label-template="{{ trans_choice('borrower.profile.hub.remaining_count', 999, ['count' => ':count']) }}">{{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}</span>
-                @endif
+                <span class="text-[10px] font-bold uppercase tracking-wide {{ $activeComplete || $activeRemaining <= 0 ? 'text-emerald-700' : 'text-amber-700' }} {{ ($activeComplete || $activeRemaining > 0 || $active === 'assets') ? '' : 'hidden' }}"
+                      data-kf-active-category-status
+                      data-kf-category-status
+                      data-complete-label="{{ $completeLabel }}"
+                      data-remaining-template="{{ $remainingTemplate }}"
+                      data-count="{{ $activeRemaining }}">
+                    @if ($activeComplete || ($active !== 'assets' && $activeRemaining <= 0 && ($tabStatuses[$active]['required'] ?? false)))
+                        {{ $completeLabel }}
+                    @elseif ($activeRemaining > 0)
+                        {{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}
+                    @endif
+                </span>
             </span>
             <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
         </button>
@@ -66,19 +71,27 @@
                     @endphp
                     <a href="{{ route($route, $params) }}"
                        data-kf-motion="tab"
+                       data-kf-category="{{ $key }}"
                        class="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold {{ $isActive ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">
                         <span class="inline-flex items-center gap-2 min-w-0">
-                            <span @class([
-                                'size-2 rounded-full shrink-0',
-                                $isComplete ? 'bg-emerald-500' : 'bg-amber-400',
-                            ])></span>
+                            <span data-kf-category-dot
+                                  @class([
+                                      'size-2 rounded-full shrink-0',
+                                      $isComplete ? 'bg-emerald-500' : 'bg-amber-400',
+                                  ])></span>
                             <span class="truncate">{{ $label }}</span>
                         </span>
-                        @if ($isComplete)
-                            <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
-                        @elseif ($remaining > 0)
-                            <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}</span>
-                        @endif
+                        <span class="text-[10px] font-bold uppercase tracking-wide {{ $isComplete || ($key !== 'assets' && $remaining <= 0 && ($tabStatuses[$key]['required'] ?? false)) ? 'text-emerald-700' : 'text-amber-700' }} {{ ($key === 'assets' && ! $isComplete) ? 'hidden' : '' }}"
+                              data-kf-category-status
+                              data-complete-label="{{ $completeLabel }}"
+                              data-remaining-template="{{ $remainingTemplate }}"
+                              data-count="{{ $remaining }}">
+                            @if ($isComplete || ($key !== 'assets' && $remaining <= 0 && ($tabStatuses[$key]['required'] ?? false)))
+                                {{ $completeLabel }}
+                            @elseif ($remaining > 0)
+                                {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
+                            @endif
+                        </span>
                     </a>
                 @endforeach
             </div>
@@ -92,14 +105,18 @@
             <button type="button" @click="sectionsOpen = !sectionsOpen"
                     class="inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:ring-brand/30 transition">
                 <span class="truncate max-w-[14rem]">{{ $activeLabel }}</span>
-                @if ($activeComplete)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
-                @elseif ($activeRemaining > 0)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700"
-                          data-kf-section-remaining
-                          data-count="{{ $activeRemaining }}"
-                          data-label-template="{{ trans_choice('borrower.profile.hub.remaining_count', 999, ['count' => ':count']) }}">{{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}</span>
-                @endif
+                <span class="text-[10px] font-bold uppercase tracking-wide {{ $activeComplete || $activeRemaining <= 0 ? 'text-emerald-700' : 'text-amber-700' }}"
+                      data-kf-active-category-status
+                      data-kf-category-status
+                      data-complete-label="{{ $completeLabel }}"
+                      data-remaining-template="{{ $remainingTemplate }}"
+                      data-count="{{ $activeRemaining }}">
+                    @if ($activeComplete || ($active !== 'assets' && $activeRemaining <= 0 && ($tabStatuses[$active]['required'] ?? false)))
+                        {{ $completeLabel }}
+                    @elseif ($activeRemaining > 0)
+                        {{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}
+                    @endif
+                </span>
                 <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="sectionsOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
         </div>
@@ -114,16 +131,23 @@
                 @endphp
                 <a href="{{ route($route, $params) }}"
                    data-kf-motion="tab"
+                   data-kf-category="{{ $key }}"
                    class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold {{ $isActive ? 'bg-brand-muted text-brand' : 'text-gray-800 hover:bg-gray-50' }}">
                     <span class="inline-flex items-center gap-2 min-w-0">
-                        <span @class(['size-2 rounded-full shrink-0', $isComplete ? 'bg-emerald-500' : 'bg-amber-400'])></span>
+                        <span data-kf-category-dot @class(['size-2 rounded-full shrink-0', $isComplete ? 'bg-emerald-500' : 'bg-amber-400'])></span>
                         <span class="truncate">{{ $label }}</span>
                     </span>
-                    @if ($isComplete)
-                        <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ __('borrower.profile.section_complete') }}</span>
-                    @elseif ($remaining > 0)
-                        <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">{{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}</span>
-                    @endif
+                    <span class="text-[10px] font-bold uppercase tracking-wide {{ $isComplete || ($key !== 'assets' && $remaining <= 0 && ($tabStatuses[$key]['required'] ?? false)) ? 'text-emerald-700' : 'text-amber-700' }} {{ ($key === 'assets' && ! $isComplete) ? 'hidden' : '' }}"
+                          data-kf-category-status
+                          data-complete-label="{{ $completeLabel }}"
+                          data-remaining-template="{{ $remainingTemplate }}"
+                          data-count="{{ $remaining }}">
+                        @if ($isComplete || ($key !== 'assets' && $remaining <= 0 && ($tabStatuses[$key]['required'] ?? false)))
+                            {{ $completeLabel }}
+                        @elseif ($remaining > 0)
+                            {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
+                        @endif
+                    </span>
                 </a>
             @endforeach
         </div>
@@ -135,7 +159,7 @@
                     class="w-full flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-amber-900 hover:bg-amber-50/60 transition">
                 <span data-kf-section-remaining
                       data-count="{{ $activeRemaining }}"
-                      data-label-template="{{ trans_choice('borrower.profile.hub.remaining_count', 999, ['count' => ':count']) }}">
+                      data-label-template="{{ $remainingTemplate }}">
                     {{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}
                 </span>
                 <svg class="w-4 h-4 text-amber-700 shrink-0 transition" :class="remainingOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
