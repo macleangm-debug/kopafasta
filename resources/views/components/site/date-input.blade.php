@@ -57,10 +57,15 @@
         resolveHidden() {
             const btn = typeof document !== 'undefined' ? document.getElementById(this.triggerId) : null;
             const root = btn?.closest('.relative') || btn?.parentElement;
-            return root?.querySelector('input[type=hidden][name="' + this.fieldName + '"]')
-                || (typeof document !== 'undefined'
-                    ? document.querySelector('input[type=hidden][name="' + this.fieldName + '"]')
-                    : null);
+            const match = (node) => {
+                if (! node) return null;
+                for (const input of node.querySelectorAll('input[type=hidden]')) {
+                    if (input.name === this.fieldName) return input;
+                }
+                return null;
+            };
+            return match(root)
+                || (typeof document !== 'undefined' ? match(document) : null);
         },
         emitDateChanged(next) {
             const name = this.fieldName || '';
