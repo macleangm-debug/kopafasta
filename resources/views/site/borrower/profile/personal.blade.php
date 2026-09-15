@@ -158,7 +158,8 @@
                               data-no-autosave
                               data-kf-dob-saving="{{ __('borrower.document_upload.saving') }}"
                               data-kf-dob-saved="{{ __('borrower.document_upload.saved') }}"
-                              data-kf-dob-fail="{{ __('borrower.document_upload.could_not_save') }}">
+                              data-kf-dob-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                              data-kf-dob-retry="{{ __('borrower.document_upload.retry') }}">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="about">
                             @if (! empty($returnUrl))

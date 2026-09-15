@@ -35,6 +35,8 @@
         desktopStyle: '',
         pickerMode: 'calendar',
         narrow: typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches,
+        fieldName: @js($name),
+        triggerId: @js($id),
         value: @js($selected),
         draft: @js($selected ?: $fallbackDate),
         fallback: @js($fallbackDate),
@@ -49,6 +51,33 @@
             this.viewYear = view.getFullYear();
             this.viewMonth = view.getMonth();
             if (! this.value) this.draft = this.clamp(this.min || this.fallback);
+        },
+        // Teleported Apply/Confirm binds Alpine $el/$dispatch to the button, not the
+        // date-input root — never resolve the hidden input or field name via $el.
+        resolveHidden() {
+            const btn = typeof document !== 'undefined' ? document.getElementById(this.triggerId) : null;
+            const root = btn?.closest('.relative') || btn?.parentElement;
+            return root?.querySelector('input[type=hidden][name="' + this.fieldName + '"]')
+                || (typeof document !== 'undefined'
+                    ? document.querySelector('input[type=hidden][name="' + this.fieldName + '"]')
+                    : null);
+        },
+        emitDateChanged(next) {
+            const name = this.fieldName || '';
+            const value = next == null ? '' : String(next);
+            const hidden = this.resolveHidden();
+            if (hidden) {
+                hidden.value = value;
+                hidden.setAttribute('value', value);
+                hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                hidden.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            const from = hidden || (typeof document !== 'undefined' ? document.getElementById(this.triggerId) : null) || document;
+            from.dispatchEvent(new CustomEvent('kf-date-changed', {
+                bubbles: true,
+                composed: true,
+                detail: { name, value },
+            }));
         },
         isNarrow() {
             return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
@@ -161,18 +190,9 @@
             this.desktopOpen = false;
             this.pickerMode = 'calendar';
             this.$nextTick(() => {
-                const hidden = this.$el.querySelector('input[type=hidden]');
-                const name = hidden?.name || '';
-                const next = this.value || '';
-                if (hidden) {
-                    hidden.value = next;
-                    hidden.setAttribute('value', next);
-                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
-                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
-                }
                 // Neutral date signal only — DOB Profile adapter (or other field hooks) may listen.
                 // Does not invoke kfAutosave / profile-select.
-                this.$dispatch('kf-date-changed', { name, value: next });
+                this.emitDateChanged(this.value || '');
             });
         },
         clear() {
@@ -181,15 +201,7 @@
             this.desktopOpen = false;
             this.pickerMode = 'calendar';
             this.$nextTick(() => {
-                const hidden = this.$el.querySelector('input[type=hidden]');
-                const name = hidden?.name || '';
-                if (hidden) {
-                    hidden.value = '';
-                    hidden.setAttribute('value', '');
-                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
-                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-                this.$dispatch('kf-date-changed', { name, value: '' });
+                this.emitDateChanged('');
             });
         },
         shiftMonth(delta) {

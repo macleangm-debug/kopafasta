@@ -17,11 +17,22 @@ function labelsFrom(form) {
     return {
         saving: form.getAttribute('data-kf-dob-saving') || 'Saving…',
         saved: form.getAttribute('data-kf-dob-saved') || 'Saved',
-        fail: form.getAttribute('data-kf-dob-fail') || 'Could not save',
+        fail: form.getAttribute('data-kf-dob-fail') || 'Not saved',
+        retry: form.getAttribute('data-kf-dob-retry') || 'Retry',
     };
 }
 
 function findDobForm(event) {
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+    for (const node of path) {
+        if (node instanceof Element) {
+            const form = node.closest('form[data-kf-dob-persist]');
+            if (form) {
+                return form;
+            }
+        }
+    }
+
     const fromTarget = event.target instanceof Element
         ? event.target.closest('form[data-kf-dob-persist]')
         : null;
@@ -29,7 +40,20 @@ function findDobForm(event) {
         return fromTarget;
     }
 
+    // Teleported calendar fires outside the form — About Me hosts one DOB form.
     return document.querySelector('form[data-kf-dob-persist]');
+}
+
+function isDobDateEvent(event, form) {
+    const name = event.detail?.name;
+    if (name === 'date_of_birth') {
+        return true;
+    }
+    // Pre-fix teleported Apply sent name:'' — still accept if this is the About DOB form.
+    if ((! name || name === '') && form?.querySelector('input[name="date_of_birth"]')) {
+        return true;
+    }
+    return false;
 }
 
 function applyDobView(form, viewFields) {
@@ -103,6 +127,9 @@ async function persistDob(form, value) {
         window.kfShowInlineSaving(labels.saving);
     }
 
+    // Same paint gate as kfAutosave — Saving… must be visible before the round-trip.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
     const body = new FormData();
     body.append('_token', csrfToken());
     body.append('_method', 'PUT');
@@ -123,14 +150,14 @@ async function persistDob(form, value) {
         });
         const data = await res.json().catch(() => ({}));
 
-        if (! res.ok || data.ok === false || data.saved === false) {
+        if (! res.ok || data.ok !== true || data.saved === false) {
             const message = data.message
                 || data.errors?.date_of_birth?.[0]
                 || data.errors?.national_id?.[0]
                 || labels.fail;
             showDobError(form, message);
             if (typeof window.kfShowSaveError === 'function') {
-                window.kfShowSaveError(message, null, null);
+                window.kfShowSaveError(message, labels.retry, () => persistDob(form, iso));
             } else if (typeof window.kfHideSaving === 'function') {
                 window.kfHideSaving();
             }
@@ -146,7 +173,7 @@ async function persistDob(form, value) {
     } catch (e) {
         showDobError(form, labels.fail);
         if (typeof window.kfShowSaveError === 'function') {
-            window.kfShowSaveError(labels.fail, null, null);
+            window.kfShowSaveError(labels.fail, labels.retry, () => persistDob(form, iso));
         } else if (typeof window.kfHideSaving === 'function') {
             window.kfHideSaving();
         }
@@ -157,11 +184,8 @@ async function persistDob(form, value) {
 
 export function registerProfileDobPersist() {
     document.addEventListener('kf-date-changed', (event) => {
-        if (event.detail?.name !== 'date_of_birth') {
-            return;
-        }
         const form = findDobForm(event);
-        if (! form) {
+        if (! form || ! isDobDateEvent(event, form)) {
             return;
         }
         persistDob(form, event.detail?.value);
