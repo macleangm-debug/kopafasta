@@ -108,6 +108,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
     const labels = { ...labelsFrom(form), ...(options.labels || {}) };
 
     let timer = null;
+    let coalesceTimer = null;
     let seq = 0;
     let inflight = 0;
     let state = 'idle'; // idle | saving | saved | error
@@ -126,8 +127,24 @@ window.kfBindAutosaveForm = function (form, options = {}) {
 
     function schedule() {
         clearTimeout(timer);
+        clearTimeout(coalesceTimer);
         timer = setTimeout(() => flush(false), debounceMs);
         pendingFlush = true;
+    }
+
+    /**
+     * Selectors fire change + profile-select (and sometimes input) in one gesture.
+     * One coalesced flush avoids seq cancellation + duplicate POSTs that produced
+     * intermittent empty 200 / Unauthenticated races while a prior save succeeded.
+     */
+    function scheduleImmediate() {
+        clearTimeout(timer);
+        clearTimeout(coalesceTimer);
+        pendingFlush = true;
+        coalesceTimer = setTimeout(() => {
+            coalesceTimer = null;
+            flush(true);
+        }, 50);
     }
 
     function hasPersistablePayload(fd) {
@@ -148,6 +165,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
 
     async function flush(force = false) {
         clearTimeout(timer);
+        clearTimeout(coalesceTimer);
         pendingFlush = false;
         if (! form.isConnected) return;
 
@@ -339,12 +357,15 @@ window.kfBindAutosaveForm = function (form, options = {}) {
         if (t.matches('input[type=hidden]') && isSystemFieldName(t.getAttribute('name'))) {
             return;
         }
-        // Selectors / radios / dates: save immediately after a valid change.
-        // Defer one microtask so Alpine x-model / :value mirrors commit before FormData.
+        // Selectors / radios / dates / profile-select hiddens: one coalesced immediate flush.
         if (event.type === 'change' && isInstantControl(t)) {
-            clearTimeout(timer);
-            pendingFlush = true;
-            queueMicrotask(() => flush(true));
+            scheduleImmediate();
+            return;
+        }
+        // profile-select also dispatches input on the hidden — do not start a 900ms
+        // text debounce that can race the coalesced selector flush.
+        if (event.type === 'input' && t.matches('input[type=hidden]') && isInstantControl(t)) {
+            scheduleImmediate();
             return;
         }
         // Text: debounce after typing stops.
@@ -378,6 +399,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
         flush: () => flush(true),
         destroy() {
             clearTimeout(timer);
+            clearTimeout(coalesceTimer);
             form.removeEventListener('input', onInput);
             form.removeEventListener('change', onInput);
             form.removeEventListener('submit', onSubmit);
@@ -569,9 +591,8 @@ export function registerKfAutosave(Alpine) {
         document.addEventListener('change', ensureBound, true);
     }
 
-    // profile-select / address pickers notify here — one coalesced flush (duplicate
-    // pick()+listener flushes were racing seq and cancelling ✓ Imehifadhiwa).
-    let profileSelectFlushTimer = null;
+    // profile-select / address pickers: sync value, then use the form's coalesced flush
+    // (same 50ms window as change/input on the hidden — never a second competing POST).
     document.addEventListener('profile-select', (e) => {
         const name = e.detail?.name || '';
         const value = e.detail?.value;
@@ -595,10 +616,19 @@ export function registerKfAutosave(Alpine) {
             } catch (err) { /* ignore */ }
         }
         window.kfBindAutosaveForm(form);
-        clearTimeout(profileSelectFlushTimer);
-        profileSelectFlushTimer = setTimeout(() => {
-            profileSelectFlushTimer = null;
-            form._kfAutosave?.flush?.(true);
-        }, 50);
+        // Prefer the bound coalescer; fall back to a direct flush if bind returned early.
+        if (form._kfAutosave?.flush) {
+            // Trigger the same coalesced path via a synthetic change when possible.
+            try {
+                const input = name
+                    ? form.querySelector(`[name="${CSS.escape(name)}"]`)
+                    : null;
+                if (input) {
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    return;
+                }
+            } catch (err) { /* fall through */ }
+            form._kfAutosave.flush(true);
+        }
     });
 }
