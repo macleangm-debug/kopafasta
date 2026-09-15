@@ -4,14 +4,20 @@
  */
 const STORAGE_PREFIX = 'kf-form-draft:';
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const SKIP_NAME = /^(?:_token|_method|password|password_confirmation|current_password|pin|pin_confirmation|activation_pin|otp|cvv|card_number|secret|api_key|api_secret|webhook_secret|sms_api_key|sms_api_secret|email_smtp_pass|email_smtp_user|promo_code|affiliate_code)$/i;
+// focus / return / wizard are routing controls — never draft them. A shared draft
+// key previously restored focus=signature into Contact/Family/Kin and made
+// kfAutosave treat every Profile section as an incomplete signature (silent idle).
+const SKIP_NAME = /^(?:_token|_method|focus|return|wizard|password|password_confirmation|current_password|pin|pin_confirmation|activation_pin|otp|cvv|card_number|secret|api_key|api_secret|webhook_secret|sms_api_key|sms_api_secret|email_smtp_pass|email_smtp_user|promo_code|affiliate_code)$/i;
 
 
 let restoring = false;
 
 function formKey(form) {
     const action = form.getAttribute('action') || '';
-    const id = form.id || '';
+    // Profile accordion cards share one action URL — key by card id so Contact /
+    // Family / Kin / Signature drafts cannot overwrite each other.
+    const cardId = form.closest('[id^="profile-"]')?.id || '';
+    const id = form.id || cardId || '';
 
     return STORAGE_PREFIX + location.pathname + location.search + '#' + (id || action || 'form');
 }
