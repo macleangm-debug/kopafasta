@@ -4,14 +4,161 @@
  */
 export function refreshProfileCompletionUi(detail) {
     const completion = detail?.data?.completion ?? detail?.completion;
-    if (! completion || typeof completion !== 'object') {
+    if (completion && typeof completion === 'object') {
+        applyOverallPercent(completion);
+        applyRemainingList(completion);
+        applyCategorySwitcher(completion);
+        applyCardCompleteStates(completion);
+    }
+
+    applyLiveDocuments(detail);
+}
+
+/**
+ * After a Profile document JSON save: show the uploaded file in View immediately,
+ * keep Add-another when allowed, and flip the parent card off empty.
+ */
+export function applyLiveDocuments(detail) {
+    const docs = detail?.documents
+        ?? detail?.data?.documents
+        ?? [];
+    if (! Array.isArray(docs) || docs.length === 0) {
         return;
     }
 
-    applyOverallPercent(completion);
-    applyRemainingList(completion);
-    applyCategorySwitcher(completion);
-    applyCardCompleteStates(completion);
+    docs.forEach((doc) => {
+        if (! doc || typeof doc !== 'object') {
+            return;
+        }
+        paintLiveDocument(doc);
+    });
+
+    // Any successful document upload means the card is no longer empty.
+    // Keep SSR docs visible; only hide the empty/Add placeholder.
+    document.querySelectorAll('[data-kf-doc-view]').forEach((root) => {
+        const live = root.querySelector('[data-kf-live-docs]');
+        if (! live || live.children.length === 0) {
+            return;
+        }
+        root.querySelectorAll('[data-kf-doc-empty]').forEach((el) => el.classList.add('hidden'));
+        live.classList.remove('hidden');
+        root.querySelectorAll('[data-kf-doc-add-another]').forEach((el) => el.classList.remove('hidden'));
+
+        const card = root.closest('[id^="profile-"], .glass-card');
+        markCardHasDocuments(card);
+    });
+}
+
+function markCardHasDocuments(card) {
+    if (! card || typeof window.Alpine === 'undefined') {
+        return;
+    }
+    try {
+        const data = window.Alpine.$data(card);
+        if (data && typeof data.empty === 'boolean') {
+            data.empty = false;
+        }
+    } catch (e) {
+        // ignore
+    }
+}
+
+function paintLiveDocument(doc) {
+    const code = String(doc.code || doc.field || '');
+    if (! code) {
+        return;
+    }
+
+    document.querySelectorAll('[data-kf-doc-view]').forEach((root) => {
+        const codesAttr = (root.getAttribute('data-kf-doc-codes') || '').trim();
+        if (! codesAttr) {
+            return;
+        }
+        const allowed = codesAttr.split(/\s+/);
+        if (! allowed.includes(code)) {
+            return;
+        }
+        const host = root.querySelector('[data-kf-live-docs]');
+        if (! host) {
+            return;
+        }
+        let row = host.querySelector(`[data-kf-live-doc="${cssEscape(code)}"]`);
+        if (! row) {
+            row = document.createElement('div');
+            row.setAttribute('data-kf-live-doc', code);
+            row.className = 'rounded-xl ring-1 ring-gray-200 bg-white p-4 space-y-3';
+            host.appendChild(row);
+        }
+        const viewLabel = root.getAttribute('data-kf-doc-view-label') || 'View';
+        row.innerHTML = liveDocumentMarkup(doc, viewLabel);
+        host.classList.remove('hidden');
+    });
+}
+
+function liveDocumentMarkup(doc, viewLabel) {
+    const labelRaw = String(doc.label || doc.code || '');
+    const fileNameRaw = String(doc.file_name || doc.fileName || '');
+    const label = escapeHtml(labelRaw);
+    const fileName = escapeHtml(fileNameRaw);
+    const previewUrl = String(doc.preview_url || doc.previewUrl || '');
+    const isPdf = !!(doc.is_pdf ?? doc.isPdf);
+    const viewText = escapeHtml(viewLabel || 'View');
+
+    let thumb = '';
+    if (previewUrl) {
+        if (isPdf) {
+            thumb = `<div class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
+                <button type="button" class="size-full flex flex-col items-center justify-center text-brand cursor-zoom-in"
+                        onclick="window.kfSiteOpenDocumentPreview(${jsonAttr(previewUrl)}, ${jsonAttr(labelRaw)}, 'pdf')">
+                    <span class="text-[10px] font-bold tracking-wide">PDF</span>
+                </button>
+            </div>`;
+        } else {
+            thumb = `<div class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center">
+                <button type="button" class="size-full block cursor-zoom-in"
+                        onclick="window.kfSiteOpenDocumentPreview(${jsonAttr(previewUrl)}, ${jsonAttr(labelRaw)}, 'image')">
+                    <img src="${escapeHtml(previewUrl)}" alt="" class="size-full object-cover">
+                </button>
+            </div>`;
+        }
+    }
+
+    const viewBtn = previewUrl
+        ? `<button type="button"
+                onclick="window.kfSiteOpenDocumentPreview(${jsonAttr(previewUrl)}, ${jsonAttr(labelRaw)}, ${jsonAttr(isPdf ? 'pdf' : 'image')})"
+                class="inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
+                ${viewText}
+           </button>`
+        : '';
+
+    return `<div class="flex items-start gap-3">
+        ${thumb}
+        <div class="min-w-0 flex-1">
+            <p class="text-sm font-bold text-gray-900 truncate">${label}</p>
+            ${fileName ? `<p class="mt-1 text-xs text-gray-600 truncate" title="${fileName}">${fileName}</p>` : ''}
+        </div>
+    </div>
+    ${viewBtn ? `<div class="mt-3 flex flex-wrap gap-2">${viewBtn}</div>` : ''}`;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function jsonAttr(value) {
+    return JSON.stringify(String(value ?? ''));
+}
+
+function cssEscape(value) {
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+        return CSS.escape(value);
+    }
+    return String(value).replace(/"/g, '\\"');
 }
 
 function applyOverallPercent(completion) {

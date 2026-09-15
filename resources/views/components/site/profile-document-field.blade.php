@@ -138,6 +138,7 @@
                 this.inlineUploading = false;
                 this.inlineProgress = 100;
                 if (typeof window.kfRefreshProfileCompletion === 'function') {
+                    // Full JSON payload: completion + documents for live View paint.
                     window.kfRefreshProfileCompletion(data);
                 }
                 // Keep the Profile card open — never treat upload as Continue.

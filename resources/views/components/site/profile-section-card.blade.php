@@ -48,6 +48,7 @@
         'open' => $forceTickOnly ? false : $startOpen,
         'expanded' => $forceTickOnly ? $startExpanded : $startExpanded,
         'complete' => $isComplete,
+        'empty' => (bool) $empty,
         'showEditAction' => $forceTickOnly ? false : ($startOpen || $isStale),
         'emptyOpensView' => $emptyOpensView,
         'editAllowed' => $editAllowed,
@@ -212,24 +213,27 @@
     @if ($useInline)
         {{-- SSR/hydration agree: cloak only the panel that should be hidden on first paint --}}
         <div x-show="!open && expanded" @unless ($startExpanded && ! $startOpen) x-cloak @endunless class="p-5 sm:p-6" @click.stop>
-            @if ($empty && ! $emptyOpensView)
-                <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-5 py-8 text-center">
-                    <button type="button" @click="openEdit()"
-                            class="inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800">
-                        {{ $addLabel ?? __('borrower.profile.add_details') }} →
-                    </button>
-                </div>
-            @else
+            {{-- empty is Alpine-live so document uploads can leave Add → View without reload --}}
+            <div x-show="empty && !emptyOpensView" x-cloak class="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-5 py-8 text-center">
+                <button type="button" @click="openEdit()"
+                        class="inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                    {{ $addLabel ?? __('borrower.profile.add_details') }} →
+                </button>
+            </div>
+            <div x-show="!empty || emptyOpensView" @if ($empty && ! $emptyOpensView) x-cloak @endif>
                 {{ $view ?? $slot }}
-            @endif
+            </div>
         </div>
         <div x-show="!open && !expanded" @if ($startExpanded || $startOpen) x-cloak @endif class="px-5 sm:px-6 py-3">
-            <button type="button" @click.stop="{{ $empty && ! $emptyOpensView ? 'openEdit()' : 'toggleExpand()' }}" class="text-xs font-semibold text-amber-700 hover:text-amber-800">
-                @if ($empty && ! $emptyOpensView)
+            <button type="button"
+                    @click.stop="empty && !emptyOpensView ? openEdit() : toggleExpand()"
+                    class="text-xs font-semibold text-amber-700 hover:text-amber-800">
+                <span x-show="empty && !emptyOpensView" @unless ($empty && ! $emptyOpensView) x-cloak @endunless>
                     {{ $addLabel ?? __('borrower.profile.add_details') }} →
-                @else
+                </span>
+                <span x-show="!(empty && !emptyOpensView)" @if ($empty && ! $emptyOpensView) x-cloak @endif>
                     {{ $isStale ? __('borrower.profile.hub.view_update') : __('borrower.profile.hub.view') }} →
-                @endif
+                </span>
             </button>
         </div>
         <div x-show="open" x-cloak class="p-5 sm:p-6 border-t border-gray-100/80 bg-gray-50/30" @click.stop>

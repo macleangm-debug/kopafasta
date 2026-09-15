@@ -21,8 +21,11 @@
         :default-open="$focusOpen"
         :default-edit="$errors->hasAny($optionalItems->pluck('key')->all()) || ($errors->any() && request()->query('focus') === 'additional')">
         <x-slot:view>
-            @if ($uploadedOptional->isNotEmpty())
-                <div class="space-y-4">
+            <div data-kf-doc-view="profile-additional-documents"
+                 data-kf-doc-codes="{{ $optionalItems->pluck('key')->implode(' ') }}"
+                 data-kf-doc-view-label="{{ __('borrower.profile.view_document') }}"
+                 class="space-y-4">
+                <div data-kf-doc-ssr @class(['space-y-4' => $uploadedOptional->isNotEmpty(), 'hidden' => $uploadedOptional->isEmpty()])>
                     @foreach ($uploadedOptional as $item)
                         <form method="POST"
                               action="{{ route('site.borrower.profile.update', ['section' => 'kyc']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
@@ -49,18 +52,25 @@
                             />
                         </form>
                     @endforeach
+                </div>
+
+                <div data-kf-live-docs class="space-y-4 hidden"></div>
+
+                <div data-kf-doc-empty @class(['hidden' => $uploadedOptional->isNotEmpty()])>
+                    <p class="text-sm text-gray-600">{{ __('borrower.profile.additional_documents_hint') }}</p>
+                    <button type="button" @click="open = true"
+                            class="mt-3 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
+                        {{ __('borrower.documents_page.add_document') }}
+                    </button>
+                </div>
+
+                <div data-kf-doc-add-another @class(['hidden' => $uploadedOptional->isEmpty()])>
                     <button type="button" @click="open = true"
                             class="inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
                         {{ __('borrower.documents_page.add_document') }}
                     </button>
                 </div>
-            @else
-                <p class="text-sm text-gray-600">{{ __('borrower.profile.additional_documents_hint') }}</p>
-                <button type="button" @click="open = true"
-                        class="mt-3 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 text-sm shadow-sm">
-                    {{ __('borrower.documents_page.add_document') }}
-                </button>
-            @endif
+            </div>
         </x-slot:view>
         <x-slot:form>
             <form method="POST"

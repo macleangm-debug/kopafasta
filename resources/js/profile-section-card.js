@@ -6,6 +6,7 @@ export function registerProfileSectionCard(Alpine) {
         open: !!config.open,
         expanded: !!config.expanded,
         complete: !!config.complete,
+        empty: !!config.empty,
         showEditAction: !!config.showEditAction,
         emptyOpensView: !!config.emptyOpensView,
         editAllowed: config.editAllowed !== false,

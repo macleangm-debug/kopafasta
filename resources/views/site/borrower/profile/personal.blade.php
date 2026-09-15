@@ -548,11 +548,17 @@
                                     </div>
                                 @endif
                             @endforeach
-                            @if ($isMarried && $requireMarriageCert && ! ($marriageCertificate?->file_path ?? false))
-                                <div class="sm:col-span-2">
-                                    <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.marriage_certificate') }} — {{ __('borrower.profile.missing') }}</p>
-                                </div>
-                            @endif
+                            <div class="sm:col-span-2 space-y-3"
+                                 data-kf-doc-view="profile-family"
+                                 data-kf-doc-codes="marriage_certificate"
+                                 data-kf-doc-view-label="{{ __('borrower.profile.view_document') }}">
+                                <div data-kf-live-docs class="space-y-3 hidden"></div>
+                                @if ($isMarried && $requireMarriageCert && ! ($marriageCertificate?->file_path ?? false))
+                                    <div data-kf-doc-empty>
+                                        <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.marriage_certificate') }} — {{ __('borrower.profile.missing') }}</p>
+                                    </div>
+                                @endif
+                            </div>
                         </dl>
                     </x-slot:view>
                     <x-slot:form>

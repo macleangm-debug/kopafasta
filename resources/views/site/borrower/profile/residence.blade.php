@@ -130,53 +130,62 @@
             :default-open="$openVerification"
             :default-edit="$openVerification">
                 <x-slot:view>
-                    <p class="text-sm text-gray-600 mb-4">{{ __('borrower.profile.residence_verification_hint') }}</p>
+                    <div data-kf-doc-view="profile-residence-verification"
+                         data-kf-doc-codes="residence_letter"
+                         data-kf-doc-view-label="{{ __('borrower.profile.view_document') }}"
+                         class="space-y-4">
+                        <p class="text-sm text-gray-600">{{ __('borrower.profile.residence_verification_hint') }}</p>
 
-                    @if ($requiresLetter)
-                        @if ($residenceLetter ?? null)
-                            <form method="POST"
-                                  action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
-                                  enctype="multipart/form-data"
-                                  data-inline-document-progress
-                                  data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
-                                @csrf @method('PUT')
-                                @if ($wizardMode ?? false)
-                                    <input type="hidden" name="wizard" value="1">
+                        @if ($requiresLetter)
+                            <div data-kf-doc-ssr @class(['hidden' => ! ($residenceLetter ?? null)])>
+                                @if ($residenceLetter ?? null)
+                                    <form method="POST"
+                                          action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
+                                          enctype="multipart/form-data"
+                                          data-inline-document-progress
+                                          data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
+                                        @csrf @method('PUT')
+                                        @if ($wizardMode ?? false)
+                                            <input type="hidden" name="wizard" value="1">
+                                        @endif
+                                        @if (! empty($returnUrl))
+                                            <input type="hidden" name="return" value="{{ $returnUrl }}">
+                                        @endif
+                                        <x-site.profile-document-field
+                                            :document="$residenceLetter"
+                                            field-name="residence_letter"
+                                            pages-field-name="residence_letter_pages"
+                                            mode="multi"
+                                            :label="__('borrower.profile.residence_letter')"
+                                            input-host-id="residence-letter-view"
+                                            :read-only="false"
+                                        />
+                                    </form>
                                 @endif
-                                @if (! empty($returnUrl))
-                                    <input type="hidden" name="return" value="{{ $returnUrl }}">
-                                @endif
-                                <x-site.profile-document-field
-                                    :document="$residenceLetter"
-                                    field-name="residence_letter"
-                                    pages-field-name="residence_letter_pages"
-                                    mode="multi"
-                                    :label="__('borrower.profile.residence_letter')"
-                                    input-host-id="residence-letter-view"
-                                    :read-only="false"
-                                />
-                            </form>
-                        @else
-                            <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.missing') }}</p>
+                            </div>
+                            <div data-kf-live-docs class="space-y-4 hidden"></div>
+                            <div data-kf-doc-empty @class(['hidden' => (bool) ($residenceLetter ?? null)])>
+                                <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.missing') }}</p>
+                            </div>
                         @endif
-                    @endif
 
-                    <div class="mt-4 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-4 py-4">
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.residence_signed_by') }}</p>
-                        <dl class="mt-3 grid sm:grid-cols-3 gap-3 text-sm" data-kf-view-host>
-                            <div @class(['hidden' => ! filled($customer->lga_officer_name)])>
-                                <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_name') }}</dt>
-                                <dd class="font-medium mt-0.5" data-kf-view-field="lga_officer_name">{{ $customer->lga_officer_name }}</dd>
-                            </div>
-                            <div @class(['hidden' => ! filled($customer->lga_officer_position)])>
-                                <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_position') }}</dt>
-                                <dd class="font-medium mt-0.5" data-kf-view-field="lga_officer_position">{{ $customer->lga_officer_position }}</dd>
-                            </div>
-                            <div @class(['hidden' => ! $officerPhone])>
-                                <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_phone') }}</dt>
-                                <dd class="font-medium mt-0.5 tabular-nums" data-kf-view-field="lga_officer_phone">{{ $officerPhone }}</dd>
-                            </div>
-                        </dl>
+                        <div class="mt-4 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-4 py-4">
+                            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.profile.residence_signed_by') }}</p>
+                            <dl class="mt-3 grid sm:grid-cols-3 gap-3 text-sm" data-kf-view-host>
+                                <div @class(['hidden' => ! filled($customer->lga_officer_name)])>
+                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_name') }}</dt>
+                                    <dd class="font-medium mt-0.5" data-kf-view-field="lga_officer_name">{{ $customer->lga_officer_name }}</dd>
+                                </div>
+                                <div @class(['hidden' => ! filled($customer->lga_officer_position)])>
+                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_position') }}</dt>
+                                    <dd class="font-medium mt-0.5" data-kf-view-field="lga_officer_position">{{ $customer->lga_officer_position }}</dd>
+                                </div>
+                                <div @class(['hidden' => ! $officerPhone])>
+                                    <dt class="text-xs text-gray-500">{{ __('borrower.profile.lga_officer_phone') }}</dt>
+                                    <dd class="font-medium mt-0.5 tabular-nums" data-kf-view-field="lga_officer_phone">{{ $officerPhone }}</dd>
+                                </div>
+                            </dl>
+                        </div>
                     </div>
                 </x-slot:view>
                 <x-slot:form>

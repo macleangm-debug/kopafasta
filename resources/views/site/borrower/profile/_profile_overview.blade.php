@@ -157,11 +157,11 @@
                  style="-webkit-overflow-scrolling: touch;">
                 @foreach ($group['items'] as $item)
                     <a href="{{ $item['href'] }}"
-                       class="snap-start shrink-0 w-[42%] max-w-[10.25rem] min-h-[9.75rem] aspect-square rounded-2xl ring-1 ring-gray-200/80 bg-white p-3.5 hover:ring-brand/30 hover:shadow-sm transition flex flex-col items-start justify-between gap-2 sm:w-[10.25rem]">
-                        <span class="text-2xl leading-none" aria-hidden="true">{{ $item['icon'] }}</span>
+                       class="snap-start shrink-0 w-[42%] max-w-[10.25rem] min-h-[9.75rem] aspect-square rounded-2xl ring-1 ring-gray-200/80 bg-white p-4 hover:ring-brand/30 hover:shadow-sm transition flex flex-col items-stretch justify-between gap-3 sm:w-[10.25rem]">
+                        <span class="text-5xl leading-none select-none" aria-hidden="true">{{ $item['icon'] }}</span>
                         <span class="w-full flex items-end justify-between gap-2">
                             <span class="min-w-0 font-semibold text-sm text-gray-900 leading-snug">{{ $item['label'] }}</span>
-                            <span class="text-brand shrink-0" aria-hidden="true">→</span>
+                            <span class="text-brand shrink-0 text-base font-bold" aria-hidden="true">→</span>
                         </span>
                     </a>
                 @endforeach
