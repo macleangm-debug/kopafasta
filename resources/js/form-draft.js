@@ -12,6 +12,12 @@ const SKIP_NAME = /^(?:_token|_method|focus|return|wizard|password|password_conf
 
 let restoring = false;
 
+function draftOwner() {
+    return document.documentElement.getAttribute('data-kf-draft-owner')
+        || document.querySelector('meta[name="kf-draft-owner"]')?.content
+        || 'guest';
+}
+
 function formKey(form) {
     const action = form.getAttribute('action') || '';
     // Profile accordion cards share one action URL — key by card id so Contact /
@@ -20,11 +26,30 @@ function formKey(form) {
     const id = form.id || cardId || '';
     // Scope drafts to the authenticated member so Member B never restores Member A's
     // in-progress Profile values from the same browser sessionStorage.
-    const owner = document.documentElement.getAttribute('data-kf-draft-owner')
-        || document.querySelector('meta[name="kf-draft-owner"]')?.content
-        || 'guest';
+    const owner = draftOwner();
 
     return STORAGE_PREFIX + owner + ':' + location.pathname + location.search + '#' + (id || action || 'form');
+}
+
+/** Drop pre-scoping keys (kf-form-draft:/path#card) that leaked marital/family across members. */
+function purgeLegacyUnscopedDrafts() {
+    try {
+        const doomed = [];
+        for (let i = 0; i < sessionStorage.length; i += 1) {
+            const key = sessionStorage.key(i);
+            if (! key || ! key.startsWith(STORAGE_PREFIX)) {
+                continue;
+            }
+            const rest = key.slice(STORAGE_PREFIX.length);
+            // Scoped keys start with customer: / user: / guest:
+            if (! /^(customer|user|guest):/.test(rest)) {
+                doomed.push(key);
+            }
+        }
+        doomed.forEach((key) => sessionStorage.removeItem(key));
+    } catch (error) {
+        // Private mode / quota — ignore.
+    }
 }
 
 function shouldSkipForm(form) {
@@ -169,7 +194,12 @@ function collect(form) {
     const wizard = form.querySelector('.admin-wizard');
     const wizardState = wizard ? currentWizardState(wizard) : { wizardStep: 0, wizardStepLabel: '' };
 
-    return { values, ...wizardState, savedAt: Date.now() };
+    return {
+        values,
+        owner: draftOwner(),
+        ...wizardState,
+        savedAt: Date.now(),
+    };
 }
 
 function applyValues(form, values, { emitEvents = true } = {}) {
@@ -248,10 +278,32 @@ function syncAddressWidgets(form, values) {
     });
 }
 
+function syncProfileSelectWidgets(form, values) {
+    Object.keys(values || {}).forEach((name) => {
+        const hidden = form.querySelector(`input[type="hidden"][name="${CSS.escape(name)}"]`);
+        if (! hidden) {
+            return;
+        }
+        const wrap = hidden.closest('[x-data]');
+        const data = wrap?._x_dataStack?.[0];
+        // Shared profile-select: keep Alpine `selected` aligned with restored hidden value.
+        if (data && Object.prototype.hasOwnProperty.call(data, 'selected') && data.options) {
+            data.selected = String(values[name] ?? '');
+        }
+    });
+
+    const formData = form._x_dataStack?.[0];
+    if (formData && Object.prototype.hasOwnProperty.call(formData, 'marital')
+        && Object.prototype.hasOwnProperty.call(values || {}, 'marital_status')) {
+        formData.marital = String(values.marital_status ?? '');
+    }
+}
+
 function applyDraft(form, payload) {
     applyValues(form, payload.values, { emitEvents: false });
     syncPhoneWidgets(form);
     syncAddressWidgets(form, payload.values || {});
+    syncProfileSelectWidgets(form, payload.values || {});
 
     const wizard = form.querySelector('.admin-wizard');
     if (! wizard) {
@@ -310,6 +362,16 @@ function restore(form) {
         sessionStorage.removeItem(formKey(form));
         return;
     }
+    // Reject drafts owned by another member (or legacy payloads without owner on Profile).
+    const owner = draftOwner();
+    if (payload.owner && payload.owner !== owner) {
+        sessionStorage.removeItem(formKey(form));
+        return;
+    }
+    if (! payload.owner && form.closest('[id^="profile-"]') && owner.startsWith('customer:')) {
+        sessionStorage.removeItem(formKey(form));
+        return;
+    }
 
     form.dataset.draftRestored = '1';
     restoring = true;
@@ -320,6 +382,7 @@ function restore(form) {
         applyValues(form, payload.values, { emitEvents: false });
         syncPhoneWidgets(form);
         syncAddressWidgets(form, payload.values || {});
+        syncProfileSelectWidgets(form, payload.values || {});
         const wizard = form.querySelector('.admin-wizard');
         if (wizard && payload.wizardStepLabel) {
             wizard.dataset.restoreStepLabel = payload.wizardStepLabel;
@@ -386,6 +449,7 @@ export function bindFormDrafts() {
     });
 
     const boot = () => {
+        purgeLegacyUnscopedDrafts();
         document.querySelectorAll('form').forEach((form) => restore(form));
     };
 

@@ -798,39 +798,12 @@
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" class="space-y-4"
                               data-kf-autosave
+                              data-kf-signature-autosave
+                              data-kf-signature-date-template="{{ __('borrower.profile.legal_signature_saved_at', ['date' => ':date']) }}"
                               data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
                               data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
                               data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
-                              data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
-                              x-data
-                              @kf-autosave-saved="
-                                  const fields = $event.detail?.data?.view_fields || {};
-                                  const url = fields.legal_signature_data || '';
-                                  const card = $el.closest('.glass-card');
-                                  let holder = card?.querySelector('[data-kf-signature-holder]');
-                                  if (! holder || ! url) return;
-                                  holder.classList.remove('hidden');
-                                  if (! holder.querySelector('[data-kf-signature-img]')) {
-                                      holder.innerHTML = `<div class=\"rounded-2xl bg-gradient-to-br from-brand/5 via-white to-brand-muted/20 ring-1 ring-brand/15 px-4 py-4\"><div class=\"rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 flex items-center justify-center min-h-[6.5rem]\"><img data-kf-signature-img src=\"\" alt=\"\" class=\"max-h-24 w-full object-contain\"></div><p class=\"text-base font-semibold text-gray-900 mt-3\" data-kf-view-field=\"legal_signer_name\"></p><p class=\"text-xs text-gray-500 mt-1\" data-kf-signature-date></p></div>`;
-                                  }
-                                  const img = holder.querySelector('[data-kf-signature-img]');
-                                  if (img) img.src = url;
-                                  const nameEl = holder.querySelector('[data-kf-view-field=\"legal_signer_name\"]');
-                                  if (nameEl && fields.legal_signer_name) nameEl.textContent = fields.legal_signer_name;
-                                  const dateEl = holder.querySelector('[data-kf-signature-date]');
-                                  if (dateEl && fields.legal_signed_at) dateEl.textContent = @js(__('borrower.profile.legal_signature_saved_at', ['date' => '__DATE__'])).replace('__DATE__', fields.legal_signed_at);
-                                  if (card && typeof Alpine !== 'undefined') {
-                                      try { const d = Alpine.$data(card); if (d) { d.complete = true; d.open = false; d.expanded = true; } } catch (e) {}
-                                  }
-                              "
-                              @submit="
-                                  const pad = $el.querySelector('[data-signature-pad]');
-                                  const alpine = pad && window.Alpine ? Alpine.$data(pad) : null;
-                                  if (alpine) {
-                                      const hidden = $el.querySelector('[name=signature_data]');
-                                      if (hidden) hidden.value = alpine.dataUrl || '';
-                                  }
-                              ">
+                              data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="signature">
                             @if (! empty($returnUrl))

@@ -188,10 +188,27 @@ class AboutBorrowerRegistrationClosureTest extends TestCase
         $this->assertStringNotContainsString("STORAGE_PREFIX + location.pathname + location.search + '#'", $js);
     }
 
+    public function test_signature_form_has_no_inline_alpine_handler_spill(): void
+    {
+        $blade = file_get_contents(resource_path('views/site/borrower/profile/personal.blade.php'));
+        $this->assertStringContainsString('data-kf-signature-autosave', $blade);
+        $this->assertStringNotContainsString('@kf-autosave-saved', $blade);
+        $this->assertStringNotContainsString('holder.querySelector', $blade);
+        $this->assertStringContainsString('profile-signature', file_get_contents(resource_path('js/alpine-init.js')));
+        $this->assertFileExists(resource_path('js/profile-signature.js'));
+    }
+
+    public function test_form_draft_purges_legacy_unscoped_keys_and_scopes_owner(): void
+    {
+        $js = file_get_contents(resource_path('js/form-draft.js'));
+        $this->assertStringContainsString('purgeLegacyUnscopedDrafts', $js);
+        $this->assertStringContainsString('owner: draftOwner()', $js);
+        $this->assertStringContainsString("STORAGE_PREFIX + owner + ':'", $js);
+    }
+
     public function test_autosave_core_file_untouched_in_this_pass(): void
     {
         $this->assertFileExists(resource_path('js/kf-autosave.js'));
-        // Guardrail: this closure pass must not rewrite the frozen autosave engine.
         $diff = trim((string) shell_exec('git diff --name-only HEAD -- resources/js/kf-autosave.js 2>/dev/null'));
         $this->assertSame('', $diff);
     }

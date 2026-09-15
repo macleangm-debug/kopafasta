@@ -9,6 +9,7 @@ import { registerSavingOverlay } from './saving-overlay';
 import { registerPartnerCreateConfirm } from './partner-create-confirm';
 import { registerNidaDirectiveJourney } from './nida-directive-journey';
 import { registerKfAutosave } from './kf-autosave';
+import { registerProfileSignatureBinding } from './profile-signature';
 
 import { registerValuationCamera } from './valuation-camera';
 import { registerPspPaymentFlow } from './psp-payment-flow';
@@ -22,6 +23,7 @@ registerProfileSectionCard(Alpine);
 registerPaymentProfileCard(Alpine);
 registerSavingOverlay(Alpine);
 registerKfAutosave(Alpine);
+registerProfileSignatureBinding();
 registerNidaDirectiveJourney(Alpine);
 registerPartnerCreateConfirm(Alpine);
 registerValuationCamera(Alpine);
