@@ -128,6 +128,56 @@ class ProfileCompletionEligibilityTest extends TestCase
         }
     }
 
+    public function test_percent_moves_with_individual_requirements_not_only_full_categories(): void
+    {
+        Setting::setMany(['kyc.require_income_proof' => false]);
+
+        $customer = $this->baseCustomer([
+            'activity_type' => null,
+            'employment_type' => null,
+            'income_range' => null,
+            'activity_details' => null,
+            'region' => null,
+            'district' => null,
+            'street' => null,
+            'lga_officer_name' => null,
+            'lga_officer_position' => null,
+            'lga_officer_phone' => null,
+            'marital_status' => null,
+            'number_of_children' => null,
+            'nok_first_name' => null,
+            'nok_last_name' => null,
+            'nok_phone' => null,
+            'nok_relationship' => null,
+            'nok_region' => null,
+            'nok_district' => null,
+            'nok_street' => null,
+        ]);
+
+        $svc = app(ProfileCompletionService::class);
+        $before = $svc->calculate($customer);
+        $this->assertGreaterThan(0, $before['percent'], 'DOB/name already saved must move % above 0');
+        $this->assertLessThan(100, $before['percent']);
+
+        $gaps = collect($svc->sectionGaps($customer, 'personal'))->pluck('key')->all();
+        $this->assertNotContains('dob', $gaps);
+        $this->assertNotContains('name', $gaps);
+    }
+
+    public function test_activity_card_complete_independent_of_income_proof(): void
+    {
+        Setting::setMany(['kyc.require_income_proof' => true]);
+
+        $customer = $this->completeBusinessOwnerProfile();
+        $svc = app(ProfileCompletionService::class);
+
+        $this->assertTrue($svc->isActivityFieldsComplete($customer));
+        $this->assertFalse($svc->isActivityComplete($customer));
+        $gapKeys = collect($svc->sectionGaps($customer, 'activity'))->pluck('key')->all();
+        $this->assertNotEmpty($gapKeys);
+        $this->assertNotContains('region', collect($svc->activityGaps($customer))->pluck('key')->all());
+    }
+
     /** @param  array<string, mixed>  $overrides */
     private function baseCustomer(array $overrides = []): Customer
     {

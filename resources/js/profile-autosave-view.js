@@ -2,8 +2,8 @@
  * After a successful Profile autosave, mirror is handled by kfMirrorAutosaveFormToView.
  * Do NOT collapse Edit → View: persistence is not Continue. The open card stays open.
  */
-function refreshSectionRemaining(detail) {
-    const completion = detail?.data?.completion;
+export function refreshProfileCompletionUi(detail) {
+    const completion = detail?.data?.completion ?? detail?.completion;
     if (! completion || typeof completion !== 'object') {
         return;
     }
@@ -22,9 +22,8 @@ function refreshSectionRemaining(detail) {
         document.querySelectorAll('[data-kf-remaining-list]').forEach((list) => {
             if (remaining <= 0) {
                 list.classList.add('hidden');
-            } else {
-                list.classList.remove('hidden');
             }
+            // Never auto-open Remaining after saves.
         });
     }
     if (completion.percent != null) {
@@ -34,6 +33,14 @@ function refreshSectionRemaining(detail) {
                 el.textContent = template.replace(':percent', String(completion.percent));
             } else {
                 el.textContent = String(completion.percent);
+            }
+        });
+        document.querySelectorAll('[data-kf-completion-bar]').forEach((el) => {
+            const pct = Math.max(0, Math.min(100, Number(completion.percent) || 0));
+            el.style.width = `${pct}%`;
+            const bar = el.closest('[role="progressbar"]');
+            if (bar) {
+                bar.setAttribute('aria-valuenow', String(pct));
             }
         });
     }
@@ -70,6 +77,6 @@ export function registerProfileAutosaveViewCollapse() {
             return;
         }
         // Keep Alpine open/expanded/showEditAction untouched.
-        refreshSectionRemaining(event.detail);
+        refreshProfileCompletionUi(event.detail);
     });
 }

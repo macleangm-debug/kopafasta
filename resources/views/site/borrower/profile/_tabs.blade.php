@@ -34,7 +34,7 @@
         : [];
 @endphp
 
-<div class="mb-6" x-data="{ sectionsOpen: false, remainingOpen: {{ $activeGaps !== [] ? 'true' : 'false' }} }">
+<div class="mb-6" x-data="{ sectionsOpen: false, remainingOpen: false }">
     <div class="lg:hidden">
         <button type="button" @click="sectionsOpen = true"
                 class="w-full inline-flex items-center justify-between gap-3 rounded-xl bg-white ring-1 ring-gray-200 px-4 py-3 text-sm font-semibold text-gray-800 hover:ring-brand/30 transition">

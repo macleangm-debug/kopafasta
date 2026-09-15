@@ -29,6 +29,9 @@
     if ($initialStep > 1 && $initialMethod === '') {
         $initialMethod = old('income_proof_method', $incomeProofMethod ?? '');
     }
+    $hasIncomeData = $hasStatement
+        || $presentMethods !== []
+        || collect($incomeProofChecklist)->contains(fn ($item) => ! empty($item['document']));
 @endphp
 
 <x-site.profile-section-card
@@ -37,7 +40,7 @@
     :title="__('borrower.profile.income_statement_card_title')"
     :complete="$hasStatement"
     :stale="$documentsStale && $hasStatement"
-    :empty="! $hasStatement"
+    :empty="! $hasIncomeData"
     :default-open="$focusOpen && request()->query('focus') !== 'additional'"
     :default-edit="$errors->hasAny(['bank_statement', 'salary_slip', 'mobile_money_statement', 'income_proof_method', 'income_account_provider', 'income_account_number', 'income_account_name'])">
     <x-slot:view>

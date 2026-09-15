@@ -15,6 +15,10 @@
             $activityStale = in_array('activity', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
             $activityLabel = activity_type_label($customer->activity_type ?? $customer->employment_type);
             $incomeLabel = income_range_label($customer->income_range);
+            $activityDetails = is_array($customer->activity_details) ? $customer->activity_details : [];
+            $hasActivityData = filled($customer->activity_type ?? $customer->employment_type)
+                || filled($customer->income_range)
+                || collect($activityDetails)->contains(fn ($v, $k) => ! str_starts_with((string) $k, '_') && filled($v) && ! is_array($v));
             $focus = request()->query('focus');
             $openActivity = ($wizardMode ?? false) || ($editing ?? false)
                 || $errors->hasAny(['activity_type', 'income_range', 'employment_contract', 'activity_details'])
@@ -48,7 +52,7 @@
             :title="__('borrower.profile.activity')"
             :complete="$activityComplete"
             :stale="$activityStale"
-            :empty="! $activityComplete"
+            :empty="! $hasActivityData"
             :default-open="false"
             :default-edit="$openActivity">
             <x-slot:view>

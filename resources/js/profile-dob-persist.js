@@ -153,6 +153,21 @@ async function persistDob(form, value) {
         }
 
         applyDobView(form, data.view_fields || {});
+        // Quietly refresh Remaining / % from the same completion payload — never reopen Remaining.
+        if (typeof window.kfRefreshProfileCompletion === 'function') {
+            window.kfRefreshProfileCompletion(data);
+        }
+        const card = form.closest('.glass-card, #profile-about');
+        if (card && typeof window.Alpine !== 'undefined') {
+            try {
+                const alpine = window.Alpine.$data(card);
+                if (alpine && data.view_fields?.date_of_birth) {
+                    alpine.complete = true;
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
         if (typeof window.kfFlashInlineSaved === 'function') {
             window.kfFlashInlineSaved(labels.saved);
         } else if (typeof window.kfHideSaving === 'function') {

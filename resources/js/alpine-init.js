@@ -10,7 +10,7 @@ import { registerPartnerCreateConfirm } from './partner-create-confirm';
 import { registerNidaDirectiveJourney } from './nida-directive-journey';
 import { registerKfAutosave } from './kf-autosave';
 import { registerProfileSignatureBinding } from './profile-signature';
-import { registerProfileAutosaveViewCollapse } from './profile-autosave-view';
+import { registerProfileAutosaveViewCollapse, refreshProfileCompletionUi } from './profile-autosave-view';
 import { registerProfileDobPersist } from './profile-dob-persist';
 
 import { registerValuationCamera } from './valuation-camera';
@@ -28,6 +28,7 @@ registerKfAutosave(Alpine);
 registerProfileSignatureBinding();
 registerProfileAutosaveViewCollapse();
 registerProfileDobPersist();
+window.kfRefreshProfileCompletion = refreshProfileCompletionUi;
 registerNidaDirectiveJourney(Alpine);
 registerPartnerCreateConfirm(Alpine);
 registerValuationCamera(Alpine);

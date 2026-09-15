@@ -2489,6 +2489,7 @@ class BorrowerController extends Controller
                 'message' => __('borrower.profile.saved_inline'),
                 'view_fields' => $this->profileAutosaveViewFields($fresh, $section, (string) $request->input('focus')),
                 'completion' => $this->profileAutosaveCompletion($fresh, $section),
+                'documents' => $this->profileAutosaveUploadedDocuments($fresh, $request),
             ]);
         }
 
@@ -2620,6 +2621,54 @@ class BorrowerController extends Controller
                 'url' => (string) ($gap['url'] ?? ''),
             ], $gaps),
         ];
+    }
+
+    /**
+     * Documents uploaded in this request — for in-place holder updates (no page reload).
+     *
+     * @return list<array{code: string, field: string, preview_url: string|null, file_name: string, is_pdf: bool, label: string}>
+     */
+    private function profileAutosaveUploadedDocuments(Customer $customer, Request $request): array
+    {
+        $codes = [];
+        foreach ($request->allFiles() as $key => $file) {
+            if (is_array($file)) {
+                $base = preg_replace('/_pages$/', '', (string) $key);
+                if (is_string($base) && $base !== '') {
+                    $codes[] = $base;
+                }
+
+                continue;
+            }
+            if ($file instanceof \Illuminate\Http\UploadedFile) {
+                $codes[] = (string) $key;
+            }
+        }
+        $codes = array_values(array_unique(array_filter($codes)));
+        if ($codes === []) {
+            return [];
+        }
+
+        $docService = app(ProfileDocumentService::class);
+        $out = [];
+        foreach ($codes as $code) {
+            $doc = $docService->latestProfileDocument($customer, $code);
+            if (! $doc || ! filled($doc->file_path)) {
+                continue;
+            }
+            $path = (string) $doc->file_path;
+            $meta = $docService->metadata($doc);
+            $out[] = [
+                'code' => $code,
+                'field' => $code,
+                'preview_url' => asset('storage/'.$path),
+                'file_name' => (string) ($meta['original_name'] ?? basename($path)),
+                'is_pdf' => str_ends_with(strtolower($path), '.pdf'),
+                'label' => (string) ($doc->documentType?->name ?? $code),
+            ];
+        }
+
+        return $out;
     }
 
     private function redirectWizardStep(Request $request, Customer $customer, string $section): RedirectResponse

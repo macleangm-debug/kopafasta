@@ -1938,6 +1938,7 @@ return [
             'group_relationships' => 'Mahusiano yangu',
             'group_help' => 'Msaada',
             'group_security' => 'Usalama na mapendeleo',
+            'group_rewards' => 'Zawadi na rufaa',
             'group_kopafasta' => 'Kopafasta',
             'things_remaining' => '{0} Yote yamekamilika|{1} Kitu 1 kinachobaki|[2,*] Vitu :count vinavyobaki',
             'continue_completing' => 'Endelea kukamilisha',

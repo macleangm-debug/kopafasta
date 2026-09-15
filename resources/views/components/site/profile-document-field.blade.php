@@ -60,6 +60,13 @@
         inlineUploading: false,
         inlineProgress: null,
         inlineMessage: @js(__('borrower.apply.document_saving')),
+        hasLiveDoc: @js((bool) $document),
+        liveDoc: @js($document ? [
+            'previewUrl' => $previewUrl,
+            'fileName' => $fileName,
+            'isPdf' => (bool) $isPdf,
+            'label' => $label ?: __('borrower.profile.document_uploaded'),
+        ] : null),
         startReplace() {
             this.replaceMode = true;
             this.captureOpen = true;
@@ -89,11 +96,91 @@
                     }
                     if (node.dataset.kfSubmitting === '1') return;
                     node.dataset.kfSubmitting = '1';
-                    if (typeof node.requestSubmit === 'function') node.requestSubmit();
-                    else node.submit();
+                    this.submitProfileDocumentViaFetch(node);
                     return;
                 }
                 node = node.parentElement;
+            }
+        },
+        async submitProfileDocumentViaFetch(form) {
+            const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+            const fd = new FormData(form);
+            this.inlineUploading = true;
+            this.inlineProgress = null;
+            if (typeof window.kfShowInlineSaving === 'function') {
+                window.kfShowInlineSaving(this.inlineMessage || form.getAttribute('data-saving-message') || 'Saving…');
+            }
+            try {
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-KF-Autosave': '1',
+                        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
+                    },
+                    credentials: 'same-origin',
+                    body: fd,
+                });
+                const data = await res.json().catch(() => ({}));
+                if (! res.ok || data.ok === false || data.saved === false) {
+                    throw new Error(data.message || 'Upload failed');
+                }
+                // Apply uploaded document into this holder without page navigation.
+                const docs = Array.isArray(data.documents) ? data.documents : [];
+                const fieldName = @js($fieldName);
+                const match = docs.find((d) => d.code === fieldName || d.field === fieldName) || docs[0];
+                if (match) {
+                    this.applyLiveDocument(match);
+                }
+                this.replaceMode = false;
+                this.captureOpen = false;
+                this.inlineUploading = false;
+                this.inlineProgress = 100;
+                if (typeof window.kfRefreshProfileCompletion === 'function') {
+                    window.kfRefreshProfileCompletion(data);
+                }
+                // Keep the Profile card open — never treat upload as Continue.
+                if (typeof window.kfFlashInlineSaved === 'function') {
+                    window.kfFlashInlineSaved(data.message || @js(__('borrower.document_upload.saved')));
+                } else if (typeof window.kfHideSaving === 'function') {
+                    window.kfHideSaving();
+                }
+                // Clear file inputs so a retry does not re-upload stale blobs.
+                form.querySelectorAll('input[type=file]').forEach((input) => { input.value = ''; });
+                this.$dispatch('clear-capture', { hostId: @js($hostId) });
+            } catch (e) {
+                this.inlineUploading = false;
+                this.inlineProgress = null;
+                if (typeof window.kfShowSaveError === 'function') {
+                    window.kfShowSaveError(
+                        e?.message || @js(__('borrower.document_upload.could_not_save')),
+                        @js(__('borrower.document_upload.retry')),
+                        () => this.submitProfileDocumentViaFetch(form),
+                    );
+                } else if (typeof window.kfHideSaving === 'function') {
+                    window.kfHideSaving();
+                }
+            } finally {
+                delete form.dataset.kfSubmitting;
+            }
+        },
+        applyLiveDocument(doc) {
+            const previewUrl = doc.preview_url || doc.previewUrl || null;
+            const isPdf = !!(doc.is_pdf ?? doc.isPdf);
+            this.liveDoc = {
+                previewUrl,
+                fileName: doc.file_name || doc.fileName || '',
+                isPdf,
+                label: doc.label || @js($label ?: __('borrower.profile.document_uploaded')),
+            };
+            this.hasLiveDoc = true;
+            // Keep SSR preview in sync when replacing an already-rendered document.
+            if (previewUrl && ! isPdf) {
+                const img = this.$el.querySelector('img');
+                if (img) {
+                    img.src = previewUrl;
+                }
             }
         },
         confirmRemoveDocument() {
@@ -252,7 +339,7 @@
             </div>
         </div>
     @else
-        <div class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 shadow-sm">
+        <div x-show="!hasLiveDoc" class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 shadow-sm">
             <div class="flex items-start gap-3">
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
@@ -264,11 +351,62 @@
                 </div>
             </div>
         </div>
+        <div x-show="hasLiveDoc && liveDoc && !replaceMode" x-cloak class="rounded-2xl px-4 py-3.5 ring-1 ring-gray-200 shadow-sm bg-white">
+            <div class="flex items-start gap-3">
+                <div class="size-14 rounded-xl overflow-hidden bg-brand-muted/40 ring-1 ring-brand/10 shrink-0 grid place-items-center"
+                     x-show="liveDoc?.previewUrl">
+                    <template x-if="liveDoc && !liveDoc.isPdf && liveDoc.previewUrl">
+                        <button type="button"
+                                @click="window.kfSiteOpenDocumentPreview(liveDoc.previewUrl, liveDoc.label || '', 'image')"
+                                class="size-full block cursor-zoom-in">
+                            <img :src="liveDoc.previewUrl" alt="" class="size-full object-cover">
+                        </button>
+                    </template>
+                    <template x-if="liveDoc?.isPdf && liveDoc?.previewUrl">
+                        <button type="button"
+                                @click="window.kfSiteOpenDocumentPreview(liveDoc.previewUrl, liveDoc.label || '', 'pdf')"
+                                class="size-full flex flex-col items-center justify-center text-brand cursor-zoom-in">
+                            <span class="text-[10px] font-bold tracking-wide">PDF</span>
+                        </button>
+                    </template>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-bold text-gray-900 truncate" x-text="liveDoc?.label || ''"></p>
+                    <p class="mt-1 text-xs text-gray-600 truncate" x-show="liveDoc?.fileName" x-text="liveDoc?.fileName || ''"></p>
+                </div>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+                <button type="button"
+                        x-show="liveDoc?.previewUrl"
+                        @click="window.kfSiteOpenDocumentPreview(liveDoc.previewUrl, liveDoc.label || '', liveDoc.isPdf ? 'pdf' : 'image')"
+                        class="inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
+                    {{ __('borrower.profile.view_document') }}
+                </button>
+                @if ($allowReplace && $showReplaceButton)
+                    <button type="button"
+                            @click="startReplace()"
+                            class="inline-flex items-center rounded-full bg-white ring-1 ring-brand/20 px-3 py-1.5 text-xs font-bold text-brand hover:bg-brand/5">
+                        {{ __('borrower.profile.replace_document') }}
+                    </button>
+                @endif
+            </div>
+        </div>
+        <div x-show="hasLiveDoc && replaceMode" x-cloak class="rounded-2xl px-4 py-3.5 ring-1 ring-brand/20 bg-brand/5 shadow-sm">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-gray-900">{{ $label ?: __('borrower.profile.document_uploaded') }}</p>
+                    <p class="mt-1 text-xs text-gray-600">{{ __('borrower.profile.replace_document') }}</p>
+                </div>
+                <div class="shrink-0">
+                    <x-site.document-source-picker :host-id="$hostId" />
+                </div>
+            </div>
+        </div>
     @endif
 
     {{-- Capture UI: available for add (non-readonly) and for Replace on an existing document. --}}
     @if ((! $readOnly) || ($allowReplace && $document))
-    <div x-show="(!@js((bool) $document) && captureOpen) || replaceMode" x-cloak class="space-y-3">
+    <div x-show="((!hasLiveDoc && !@js((bool) $document) && captureOpen) || replaceMode)" x-cloak class="space-y-3">
         @if ($mode === 'single')
             <x-site.single-image-document-upload
                 :name="$fieldName"

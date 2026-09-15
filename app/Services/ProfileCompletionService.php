@@ -218,7 +218,11 @@ class ProfileCompletionService
     {
         return match ($key) {
             'personal' => app(ProfileValidationService::class)->personalGaps($customer),
-            'activity' => $this->activityGaps($customer),
+            // Work & Money lists Activity gaps and Income Verification gaps separately.
+            'activity' => $this->uniqueGaps(array_merge(
+                $this->activityGaps($customer),
+                $this->incomeProofGaps($customer),
+            )),
             'residence' => $this->residenceGaps($customer),
             'payment' => $this->paymentGaps($customer),
             'kyc' => $this->documentGaps($customer),
@@ -259,7 +263,10 @@ class ProfileCompletionService
     {
         return match ($key) {
             'personal' => $this->personalRequirements($customer),
-            'activity' => $this->activityRequirements($customer),
+            'activity' => array_merge(
+                $this->activityRequirements($customer),
+                $this->incomeProofRequirements($customer),
+            ),
             'residence' => $this->residenceRequirements($customer),
             'payment' => $this->paymentRequirements($customer),
             'kyc' => $this->documentRequirements($customer),
@@ -324,7 +331,6 @@ class ProfileCompletionService
                 'income_range' => ! filled($customer->income_range),
                 'employment_contract' => true,
                 'document' => ! $validation->hasDocument($customer, $req['document_code'] ?? $key),
-                'income_proof' => empty($req['complete']),
                 default => blank($details[$key] ?? null),
             };
 
@@ -528,28 +534,35 @@ class ProfileCompletionService
     /** @return array{percent: int, sections: list<array{key: string, label: string, complete: bool, weight: int}>, threshold: int} */
     public function calculate(Customer $customer): array
     {
-        // Layman % = required hub sections only. Collateral/assets never enter the denominator.
-        // Income proof folds into activity; residence letter folds into residence — no phantom KYC %.
+        // Requirement-level % — each canonical gap/requirement counts equally.
+        // Collateral/assets never enter the denominator. Categories stay for UI only.
         $tabs = $this->tabStatuses($customer);
         $sections = [];
+        $total = 0;
+        $done = 0;
+
         foreach (['personal', 'activity', 'residence', 'payment'] as $key) {
             $tab = $tabs[$key] ?? null;
             if (! $tab || empty($tab['required'])) {
                 continue;
             }
+            $progress = $this->sectionProgress($customer, $key);
+            $total += (int) $progress['total'];
+            $done += (int) $progress['done'];
             $sections[] = [
                 'key'      => $key,
                 'label'    => (string) ($tab['label'] ?? $key),
                 'complete' => (bool) ($tab['complete'] ?? false),
-                'weight'   => 1,
+                'weight'   => max(1, (int) $progress['total']),
             ];
         }
 
-        $totalWeight = max(1, count($sections));
-        $earned = collect($sections)->where('complete', true)->count();
+        $percent = $total > 0
+            ? (int) round(($done / $total) * 100)
+            : 0;
 
         return [
-            'percent'   => (int) round(($earned / $totalWeight) * 100),
+            'percent'   => $percent,
             'sections'  => $sections,
             'threshold' => (int) (Setting::group('loan')['qualification_min_profile_percent'] ?? 60),
         ];
@@ -610,8 +623,8 @@ class ProfileCompletionService
                 'url'      => route('site.borrower.profile', ['section' => 'personal']),
             ],
             'activity' => [
-                // Hub "Work & money": type-applicable fields + employment evidence + income when required.
-                // Activity *details* card tick still uses isActivityFieldsComplete() in the Blade view.
+                // Hub complete when Activity fields + Income Verification (when required) are done.
+                // Activity *card* tick uses isActivityFieldsComplete() — never waits on income proof alone.
                 'complete' => $this->isActivityComplete($customer),
                 'required' => true,
                 'label'    => __('borrower.profile.activity'),
@@ -910,6 +923,19 @@ class ProfileCompletionService
             ];
         }
 
+        // Income Verification is a separate card — never folded into Activity Information requirements.
+
+        return $items;
+    }
+
+    /**
+     * Income Verification card requirements (independent of Activity Information).
+     *
+     * @return list<array{key: string, label: string, url: string, kind?: string, complete?: bool}>
+     */
+    private function incomeProofRequirements(Customer $customer): array
+    {
+        $items = [];
         foreach (app(IncomeProofService::class)->requirementItems($customer) as $item) {
             $items[] = [
                 'key' => (string) ($item['key'] ?? 'income'),
@@ -918,13 +944,33 @@ class ProfileCompletionService
                     'section' => 'activity',
                     'focus' => 'income',
                     'edit' => 1,
-                ]),
+                ]).'#profile-income-statement',
                 'kind' => 'income_proof',
                 'complete' => ! empty($item['complete']),
             ];
         }
 
         return $items;
+    }
+
+    /**
+     * @return list<array{key: string, label: string, url: string}>
+     */
+    public function incomeProofGaps(Customer $customer): array
+    {
+        $gaps = [];
+        foreach ($this->incomeProofRequirements($customer) as $req) {
+            if (! empty($req['complete'])) {
+                continue;
+            }
+            $gaps[] = [
+                'key' => (string) ($req['key'] ?? 'income'),
+                'label' => (string) ($req['label'] ?? ''),
+                'url' => (string) ($req['url'] ?? ''),
+            ];
+        }
+
+        return $this->uniqueGaps($gaps);
     }
 
     /**

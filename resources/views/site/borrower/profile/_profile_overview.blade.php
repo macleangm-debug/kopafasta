@@ -21,7 +21,7 @@
         {{ __('borrower.profile.completion_summary_percent', ['percent' => $percent]) }}
     </p>
     <div class="mt-3 h-2.5 bg-white/80 ring-1 ring-brand/10 rounded-full overflow-hidden" role="progressbar" aria-valuenow="{{ $percent }}" aria-valuemin="0" aria-valuemax="100">
-        <div class="h-full bg-brand transition-all" style="width: {{ min(100, max(0, $percent)) }}%"></div>
+        <div class="h-full bg-brand transition-all" data-kf-completion-bar style="width: {{ min(100, max(0, $percent)) }}%"></div>
     </div>
 
     @if ($remainingCount > 0)
@@ -125,28 +125,51 @@
 </section>
 
 <section class="space-y-5">
-    <div>
-        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_security') }}</p>
-        <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
-            <a href="{{ route('site.borrower.profile', ['section' => 'security']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.profile.security') }}</a>
-            <a href="{{ route('site.borrower.settings') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.settings') }}</a>
+    @php
+        $menuGroups = [
+            [
+                'title' => __('borrower.profile.hub.group_security'),
+                'items' => [
+                    ['href' => route('site.borrower.profile', ['section' => 'security']), 'label' => __('borrower.profile.security'), 'icon' => '🔒'],
+                    ['href' => route('site.borrower.settings'), 'label' => __('borrower.nav.settings'), 'icon' => '⚙️'],
+                ],
+            ],
+            [
+                'title' => __('borrower.profile.hub.group_rewards'),
+                'items' => [
+                    ['href' => route('site.borrower.engagement', ['tab' => 'rewards']), 'label' => __('borrower.nav.rewards'), 'icon' => '🎁'],
+                    ['href' => route('site.borrower.engagement', ['tab' => 'referrals']), 'label' => __('borrower.nav.referrals'), 'icon' => '🤝'],
+                ],
+            ],
+            [
+                'title' => __('borrower.profile.hub.group_help'),
+                'items' => [
+                    ['href' => route('site.borrower.support'), 'label' => __('borrower.layout.help_center'), 'icon' => '💬'],
+                ],
+            ],
+        ];
+    @endphp
+    @foreach ($menuGroups as $group)
+        <div>
+            <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ $group['title'] }}</p>
+            {{-- Mobile: peek-carousel within the group. Desktop: compact responsive row. --}}
+            <div class="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:overflow-visible sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:pb-0"
+                 style="-webkit-overflow-scrolling: touch;">
+                @foreach ($group['items'] as $item)
+                    <a href="{{ $item['href'] }}"
+                       class="snap-start shrink-0 w-[78%] sm:w-auto rounded-2xl ring-1 ring-gray-200/80 bg-white px-4 py-3.5 hover:ring-brand/30 hover:shadow-sm transition flex items-center gap-3">
+                        <span class="text-xl leading-none" aria-hidden="true">{{ $item['icon'] }}</span>
+                        <span class="min-w-0 flex-1 font-semibold text-sm text-gray-900 truncate">{{ $item['label'] }}</span>
+                        <span class="text-brand shrink-0" aria-hidden="true">→</span>
+                    </a>
+                @endforeach
+                @if (count($group['items']) === 1)
+                    {{-- Peek spacer so a single mobile card still hints at group structure --}}
+                    <div class="snap-start shrink-0 w-[18%] sm:hidden" aria-hidden="true"></div>
+                @endif
+            </div>
         </div>
-    </div>
-    <div>
-        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_kopafasta') }}</p>
-        <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
-            <a href="{{ route('site.borrower.engagement', ['tab' => 'referrals']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.referrals') }}</a>
-            <a href="{{ route('site.borrower.engagement', ['tab' => 'rewards']) }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.nav.rewards') }}</a>
-            <a href="{{ route('site.borrower.guarantors') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.loans_page.tab_guarantor_requests') }}</a>
-        </div>
-    </div>
-    <div>
-        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.group_help') }}</p>
-        <div class="rounded-2xl ring-1 ring-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
-            <a href="{{ route('site.borrower.support') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.layout.help_center') }}</a>
-            <a href="{{ route('site.faq') }}" class="block px-4 py-3.5 text-sm font-semibold text-gray-900">{{ __('borrower.layout.help') }}</a>
-        </div>
-    </div>
+    @endforeach
     <form method="POST" action="{{ route('site.logout') }}" class="pt-4 mt-2 border-t border-gray-200">
         @csrf
         <button type="submit"

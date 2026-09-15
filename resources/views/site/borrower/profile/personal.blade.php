@@ -30,7 +30,8 @@
             $readonly = 'kf-field-readonly';
             $editable = 'kf-field';
             $hasContact = filled($customer->phone) || filled($customer->email);
-            $hasDob = filled($customer->date_of_birth);
+            $hasDob = filled($customer->date_of_birth)
+                && app(\App\Services\ProfileValidationService::class)->dateOfBirthValid($customer->date_of_birth);
             $kinComplete = app(\App\Services\ProfileValidationService::class)->isKinComplete($customer);
             $familyComplete = app(\App\Services\ProfileValidationService::class)->isFamilyComplete($customer);
             // Empty = no persisted data (Add). Incomplete-but-started must still show View.

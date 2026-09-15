@@ -363,6 +363,7 @@
                         xhr.withCredentials = true;
                         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
                         xhr.setRequestHeader('Accept', 'application/json, text/html;q=0.9');
+                        xhr.setRequestHeader('X-KF-Autosave', '1');
                         if (csrf) xhr.setRequestHeader('X-CSRF-TOKEN', csrf);
                         if (xhr.upload) {
                             xhr.upload.onprogress = (evt) => {
@@ -389,10 +390,22 @@
                                 this.inlineProgress = 100;
                                 this.revokeQueued();
                                 this.queued = [];
-                                try { if (typeof open !== 'undefined') open = false; } catch (e) {}
-                                this.$dispatch('profile-section-close-edit');
-                                // Inline ✓ Saved only — no success modal for ordinary document uploads.
-                                window.location.href = xhr.getResponseHeader('Location') || xhr.responseURL || window.location.href;
+                                // Stay on the page — never navigate/reload (Profile flicker FAIL).
+                                let payload = {};
+                                try {
+                                    payload = JSON.parse(xhr.responseText || '{}');
+                                } catch (e) {
+                                    payload = {};
+                                }
+                                if (typeof window.kfRefreshProfileCompletion === 'function') {
+                                    window.kfRefreshProfileCompletion(payload);
+                                }
+                                if (typeof window.kfFlashInlineSaved === 'function') {
+                                    window.kfFlashInlineSaved(this.labels.saved || payload.message || 'Saved');
+                                }
+                                this.inlineUploading = false;
+                                this.submitting = false;
+                                if (btn && typeof window.kfClearBusy === 'function') window.kfClearBusy(btn);
                                 return;
                             }
                             this.inlineUploading = false;
