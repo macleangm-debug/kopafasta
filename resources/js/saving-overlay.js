@@ -1,9 +1,9 @@
 /**
  * Shared “Saving…” feedback for document and multipart form submits.
  *
- * Borrower Profile: never open the blocking fullscreen overlay.
- * Use inline Saving… → ✓ Saved only.
- * Partner/valuation and other flows may still use the modal overlay.
+ * Account shells (borrower Profile + partner): never open the blocking fullscreen overlay.
+ * Canonical top-centre toast only (data-kf-canonical-*).
+ * Do not reuse page status banners as the save indicator.
  */
 export function registerSavingOverlay(Alpine) {
     Alpine.store('kfSaving', {
@@ -25,37 +25,45 @@ export function registerSavingOverlay(Alpine) {
         return !! document.querySelector('[data-kf-profile-page]');
     };
 
+    function ensureCanonicalToast(attr, role) {
+        let toast = document.querySelector(`[${attr}]`);
+        if (! toast) {
+            toast = document.createElement('div');
+            toast.setAttribute(attr, '');
+            toast.setAttribute('role', role);
+            toast.setAttribute('aria-live', role === 'alert' ? 'assertive' : 'polite');
+            document.body.appendChild(toast);
+        }
+        return toast;
+    }
+
+    function hideCanonicalToasts(exceptAttr = null) {
+        ['data-kf-canonical-saving', 'data-kf-canonical-saved', 'data-kf-canonical-save-error'].forEach((attr) => {
+            if (exceptAttr && attr === exceptAttr) return;
+            document.querySelectorAll(`[${attr}]`).forEach((el) => {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            });
+        });
+    }
+
     window.kfShowInlineSaving = function (message, progress) {
-        let label = message
-            || document.querySelector('[data-kf-saving-toast] span:last-child')?.textContent?.trim()
-            || 'Saving…';
+        let label = message || 'Saving…';
         const pct = progress?.percent;
         if (typeof pct === 'number' && Number.isFinite(pct) && pct >= 0) {
             const rounded = Math.max(0, Math.min(100, Math.round(pct)));
-            // Prefer real byte progress only — never invent a fake %.
             if (! /\d+\s*%/.test(label)) {
                 label = `${label.replace(/…\s*$/, '').replace(/\.\.\.\s*$/, '').trim()}… ${rounded}%`;
             } else {
                 label = label.replace(/\d+\s*%/, `${rounded}%`);
             }
         }
-        // Hide any leftover saved toast while saving.
-        document.querySelectorAll('[data-kf-saved-toast]').forEach((el) => {
-            el.classList.add('hidden');
-            el.style.display = 'none';
-        });
 
-        let toast = document.querySelector('[data-kf-saving-toast]');
-        if (! toast) {
-            toast = document.createElement('div');
-            toast.setAttribute('role', 'status');
-            toast.setAttribute('aria-live', 'polite');
-            toast.setAttribute('data-kf-saving-toast', '');
-            document.body.appendChild(toast);
-        }
-        // Inline styles beat Tailwind purge + sit above camera (z-95) and sheets (z-10060).
+        hideCanonicalToasts('data-kf-canonical-saving');
+
+        const toast = ensureCanonicalToast('data-kf-canonical-saving', 'status');
         toast.className = 'inline-flex items-center gap-2 rounded-full bg-brand text-white shadow-lg px-4 py-2.5 text-sm font-bold';
-        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex;pointer-events:none;';
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:none;visibility:visible;opacity:1;';
         toast.innerHTML = '<span style="width:14px;height:14px;border-radius:9999px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:kf-spin .7s linear infinite" aria-hidden="true"></span><span></span>';
         if (! document.getElementById('kf-inline-save-spin')) {
             const s = document.createElement('style');
@@ -65,11 +73,11 @@ export function registerSavingOverlay(Alpine) {
         }
         toast.querySelector('span:last-child').textContent = label;
         toast.classList.remove('hidden');
-        toast.style.display = 'inline-flex';
+        // Force a paint so Saving is visible before the request resolves on fast networks.
+        void toast.offsetWidth;
     };
 
     window.kfShowSaving = function (message, progress) {
-        // Profile / account shells must never use the blocking overlay.
         if (window.kfIsBorrowerProfileContext()
             || (typeof window.kfIsAccountShellContext === 'function' && window.kfIsAccountShellContext())) {
             window.kfShowInlineSaving(message, progress?.percent != null ? { percent: progress.percent } : undefined);
@@ -113,67 +121,37 @@ export function registerSavingOverlay(Alpine) {
         Alpine.store('kfSaving').uploading = false;
         Alpine.store('kfSaving').current = null;
         Alpine.store('kfSaving').total = null;
-        document.querySelectorAll('[data-kf-saving-toast],[data-kf-save-error-toast]').forEach((el) => {
-            el.classList.add('hidden');
-            el.style.display = 'none';
-        });
+        hideCanonicalToasts();
     };
 
     window.kfFlashInlineSaved = function (message) {
-        window.kfHideSaving();
-        // Hide any error toast.
-        document.querySelectorAll('[data-kf-save-error-toast]').forEach((el) => {
-            el.classList.add('hidden');
-            el.style.display = 'none';
-        });
-        const label = message || document.querySelector('[data-kf-saved-toast] span:last-child')?.textContent?.trim() || 'Saved';
-        let toast = document.querySelector('[data-kf-saved-toast]');
-        if (! toast) {
-            toast = document.createElement('div');
-            toast.setAttribute('role', 'status');
-            toast.setAttribute('aria-live', 'polite');
-            toast.setAttribute('data-kf-saved-toast', '');
-            document.body.appendChild(toast);
-        }
+        hideCanonicalToasts();
+        const label = message || 'Saved';
+        const toast = ensureCanonicalToast('data-kf-canonical-saved', 'status');
         toast.className = 'inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white shadow-lg px-4 py-2.5 text-sm font-bold';
-        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex;pointer-events:none;';
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:none;visibility:visible;opacity:1;';
         toast.innerHTML = '<span aria-hidden="true">✓</span><span></span>';
         toast.querySelector('span:last-child').textContent = label;
         toast.classList.remove('hidden');
-        toast.style.display = 'inline-flex';
         if (toast._kfSavedTimer) {
             clearTimeout(toast._kfSavedTimer);
         }
-        // Brief confirmation only — Complete is the lasting card status.
         toast._kfSavedTimer = setTimeout(() => {
             toast.classList.add('hidden');
             toast.style.display = 'none';
         }, 1800);
     };
 
-    /** Canonical failure toast with Retry — same top-centre position as Saving/Saved. */
     window.kfShowSaveError = function (message, retryLabel, onRetry) {
-        window.kfHideSaving();
-        document.querySelectorAll('[data-kf-saved-toast]').forEach((el) => {
-            el.classList.add('hidden');
-            el.style.display = 'none';
-        });
-        let toast = document.querySelector('[data-kf-save-error-toast]');
-        if (! toast) {
-            toast = document.createElement('div');
-            toast.setAttribute('role', 'alert');
-            toast.setAttribute('aria-live', 'assertive');
-            toast.setAttribute('data-kf-save-error-toast', '');
-            document.body.appendChild(toast);
-        }
+        hideCanonicalToasts();
+        const toast = ensureCanonicalToast('data-kf-canonical-save-error', 'alert');
         toast.className = 'inline-flex items-center gap-2 rounded-full bg-amber-700 text-white shadow-lg px-4 py-2.5 text-sm font-bold';
-        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex;pointer-events:auto;';
+        toast.style.cssText = 'position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10120;display:inline-flex !important;pointer-events:auto;visibility:visible;opacity:1;';
         const fail = message || 'Not saved';
         const retry = retryLabel || 'Retry';
         toast.innerHTML = `<span aria-hidden="true">!</span><span></span><button type="button" data-kf-save-retry class="ml-1 underline font-bold">${retry}</button>`;
         toast.querySelector('span:not([aria-hidden])').textContent = fail;
         toast.classList.remove('hidden');
-        toast.style.display = 'inline-flex';
         const btn = toast.querySelector('[data-kf-save-retry]');
         if (btn) {
             btn.onclick = (e) => {

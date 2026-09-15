@@ -120,23 +120,38 @@
                                         <div id="payment-account-{{ $account->id }}"
                                              data-payment-account-row="{{ $account->id }}"
                                              @class([
-                                            'rounded-2xl px-4 py-3 flex flex-wrap items-start justify-between gap-3',
+                                            'rounded-2xl px-4 py-3 space-y-3',
                                             'bg-emerald-50 ring-2 ring-emerald-500/40 shadow-sm shadow-emerald-900/5' => $account->is_default,
                                             'bg-white ring-1 ring-gray-200' => ! $account->is_default,
                                         ])>
-                                            <div class="min-w-0">
-                                                <div class="flex flex-wrap items-center gap-2">
-                                                    <p class="text-sm font-semibold text-gray-900">{{ $detailsService->accountLabel($account) }}</p>
+                                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                                <div class="min-w-0 flex-1">
+                                                    <dl class="grid sm:grid-cols-2 gap-3 text-sm">
+                                                        @foreach ([
+                                                            ['label' => __('borrower.payment_details.account_type'), 'value' => $account->type === 'bank' ? __('borrower.payment_details.method_bank') : __('borrower.payment_details.method_mobile')],
+                                                            ['label' => __('borrower.payment_details.account_name'), 'value' => $account->account_name],
+                                                            ['label' => __('borrower.payment_details.provider'), 'value' => $account->mobile_provider],
+                                                            ['label' => __('borrower.payment_details.phone_number'), 'value' => $account->mobile_number],
+                                                            ['label' => __('borrower.payment_details.bank_name'), 'value' => $account->bank_name],
+                                                            ['label' => __('borrower.payment_details.account_number'), 'value' => $account->account_number],
+                                                            ['label' => __('borrower.payment_details.branch'), 'value' => $account->bank_branch],
+                                                        ] as $row)
+                                                            @if (filled($row['value']))
+                                                                <div>
+                                                                    <dt class="text-xs text-gray-500">{{ $row['label'] }}</dt>
+                                                                    <dd class="font-medium text-gray-900 mt-0.5">{{ $row['value'] }}</dd>
+                                                                </div>
+                                                            @endif
+                                                        @endforeach
+                                                    </dl>
                                                     @if ($account->is_default)
-                                                        <span class="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-white bg-emerald-600 px-2.5 py-1 rounded-full shadow-sm">
+                                                        <span class="inline-flex mt-3 items-center gap-1 text-[10px] uppercase tracking-widest font-bold text-white bg-emerald-600 px-2.5 py-1 rounded-full shadow-sm">
                                                             <svg class="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg>
                                                             {{ __('borrower.payment_details.default_account') }}
                                                         </span>
                                                     @endif
                                                 </div>
-                                                <p class="text-xs text-gray-500 mt-0.5">{{ $account->account_name }}</p>
-                                            </div>
-                                            <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                                                <div class="flex items-center gap-2 shrink-0 flex-wrap">
                                                 <button type="button"
                                                         data-payment-account-edit="{{ $account->id }}"
                                                         @click.stop="openEdit(@js([
@@ -172,6 +187,7 @@
                                                         <button type="submit" class="text-xs font-semibold text-red-700 hover:text-red-800">{{ __('borrower.payment_details.remove') }}</button>
                                                     </form>
                                                 @endif
+                                                </div>
                                             </div>
                                         </div>
                                     @endforeach

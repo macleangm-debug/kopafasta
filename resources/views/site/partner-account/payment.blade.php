@@ -103,9 +103,24 @@
             @if (! $hasPayout)
                 <p class="text-sm text-gray-600">{{ __('site.partner_account.payment_empty') }}</p>
             @else
-                <p class="text-sm font-semibold text-gray-900 capitalize">{{ str_replace('_', ' ', $payout['type'] ?? '') }}</p>
-                <p class="text-sm text-gray-600 mt-1">{{ $payout['account_name'] ?? '' }}</p>
-                <p class="text-sm font-mono text-gray-800 mt-1">{{ $payout['mobile_number'] ?? $payout['account_number'] ?? '' }}</p>
+                <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                    @foreach ([
+                        ['label' => __('borrower.payment_details.account_type'), 'value' => filled($payout['type'] ?? null) ? str_replace('_', ' ', $payout['type']) : null],
+                        ['label' => __('borrower.payment_details.account_name'), 'value' => $payout['account_name'] ?? $lockedName],
+                        ['label' => __('borrower.payment_details.provider'), 'value' => $payout['mobile_provider'] ?? null],
+                        ['label' => __('borrower.payment_details.phone_number'), 'value' => $payout['mobile_number'] ?? null],
+                        ['label' => __('borrower.payment_details.bank_name'), 'value' => $payout['bank_name'] ?? null],
+                        ['label' => __('borrower.payment_details.account_number'), 'value' => $payout['account_number'] ?? null],
+                        ['label' => __('borrower.payment_details.branch'), 'value' => $payout['bank_branch'] ?? ($payout['branch'] ?? null)],
+                    ] as $row)
+                        @if (filled($row['value']))
+                            <div>
+                                <dt class="text-xs text-gray-500">{{ $row['label'] }}</dt>
+                                <dd class="font-semibold text-gray-900 mt-0.5 capitalize">{{ $row['value'] }}</dd>
+                            </div>
+                        @endif
+                    @endforeach
+                </dl>
                 <button type="button" @click.stop="openAdd()" class="mt-4 inline-flex items-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm">
                     {{ __('borrower.payment_details.edit_account') }}
                 </button>

@@ -14,18 +14,26 @@ class ProfileUxFinalizationTest extends TestCase
         $this->assertStringContainsString('kfShowSaveError', $autosave);
         $this->assertStringContainsString('isInstantControl', $autosave);
         $this->assertStringContainsString('hasPersistablePayload', $autosave);
+        $this->assertStringContainsString('queueMicrotask', $autosave);
+        $this->assertStringContainsString('requestAnimationFrame', $autosave);
+        $this->assertStringContainsString('profile-section-edit', $autosave);
         $this->assertStringNotContainsString('data-kf-autosave-status', $autosave);
         $this->assertStringNotContainsString('✓ ${labels.saved}', $autosave);
 
         $overlay = file_get_contents(resource_path('js/saving-overlay.js'));
         $this->assertStringContainsString('1800', $overlay);
         $this->assertStringContainsString('kfShowSaveError', $overlay);
+        $this->assertStringContainsString('data-kf-canonical-saving', $overlay);
+        $this->assertStringContainsString('data-kf-canonical-saved', $overlay);
+        $this->assertStringNotContainsString("querySelector('[data-kf-saved-toast]')", $overlay);
 
         foreach ([
             resource_path('views/site/borrower/profile/activity.blade.php'),
             resource_path('views/site/borrower/profile/personal.blade.php'),
             resource_path('views/site/borrower/profile/residence.blade.php'),
             resource_path('views/site/partner-account/personal.blade.php'),
+            resource_path('views/site/partner-account/activity.blade.php'),
+            resource_path('views/site/partner-account/residence.blade.php'),
         ] as $path) {
             $this->assertStringNotContainsString('data-kf-autosave-status', file_get_contents($path));
         }
@@ -50,5 +58,25 @@ class ProfileUxFinalizationTest extends TestCase
         $this->assertStringContainsString('activityViewRows', $activity);
         $this->assertStringContainsString('font-medium text-gray-900', $activity);
         $this->assertStringNotContainsString('data-kf-autosave-status', $activity);
+    }
+
+    public function test_family_and_kin_view_mirror_edit_user_facing_fields(): void
+    {
+        $personal = file_get_contents(resource_path('views/site/borrower/profile/personal.blade.php'));
+        $this->assertStringContainsString('familyViewRows', $personal);
+        $this->assertStringContainsString('spouse_first_name', $personal);
+        $this->assertStringContainsString('spouse_middle_name', $personal);
+        $this->assertStringContainsString('spouse_last_name', $personal);
+        $this->assertStringContainsString('fields.number_of_children', $personal);
+        $this->assertStringNotContainsString('spouse_full_name', $personal);
+        $this->assertStringContainsString('kinViewRows', $personal);
+        $this->assertStringContainsString('fields.first_name', $personal);
+        $this->assertStringContainsString('fields.middle_name', $personal);
+        $this->assertStringContainsString('fields.last_name', $personal);
+        $this->assertStringContainsString('name="marital_status"', $personal);
+
+        $shell = file_get_contents(resource_path('views/site/borrower/profile/_profile_shell.blade.php'));
+        $this->assertStringContainsString('data-kf-page-status', $shell);
+        $this->assertStringNotContainsString('data-kf-saved-toast', $shell);
     }
 }

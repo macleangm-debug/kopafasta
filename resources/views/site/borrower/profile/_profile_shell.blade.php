@@ -20,8 +20,9 @@
 @endif
 
 @if (! request()->boolean('solo') && session('status') && ! session('kf_suppress_saved'))
+    {{-- Page flash only — never collide with the live canonical autosave toast attributes. --}}
     <div class="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 px-3.5 py-1.5 text-xs font-bold"
-         role="status" data-kf-saved-toast>
+         role="status" data-kf-page-status>
         <span aria-hidden="true">✓</span>
         <span>{{ session('status') }}</span>
     </div>

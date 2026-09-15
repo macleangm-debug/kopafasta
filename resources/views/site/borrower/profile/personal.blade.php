@@ -47,10 +47,8 @@
             $familyComplete = app(\App\Services\ProfileValidationService::class)->isFamilyComplete($customer);
             $requireMarriageCert = app(\App\Services\ProfileValidationService::class)->requiresMarriageCertificate();
             $isMarried = app(\App\Services\ProfileValidationService::class)->isMarried($customer);
-            $spouseName = trim(collect([$customer->spouse_first_name, $customer->spouse_middle_name, $customer->spouse_last_name])->filter()->implode(' '));
             $marriageCertificate = $marriageCertificate ?? null;
             $kinStale = in_array('kin', app(\App\Services\KycFreshnessService::class)->sectionsDueForRefresh($customer), true);
-            $kinName = $customer->nok_name ?: trim(($customer->nok_first_name ?? '').' '.($customer->nok_last_name ?? ''));
             $faceKey = $customer->face_verification_status ?? 'incomplete';
             $faceComplete = in_array($faceKey, ['verified', 'pending'], true);
             $faceHasPhotos = ($facePhotos ?? collect())->isNotEmpty();
@@ -349,13 +347,13 @@
                             <div>
                                 <dt class="text-gray-500">{{ __('borrower.profile.fields.phone') }}</dt>
                                 @if ($customer->phone)
-                                    <dd class="font-medium mt-0.5">{{ $customer->phone }}</dd>
+                                    <dd class="font-medium text-gray-900 mt-0.5">{{ $customer->phone }}</dd>
                                 @else
                                     <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
                                 @endif
                             </div>
                             @if (filled($customer->email) && ! str_ends_with(strtolower($customer->email), '@phone.kopafasta.local'))
-                                <div><dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt><dd class="font-medium mt-0.5">{{ $customer->email }}</dd></div>
+                                <div><dt class="text-gray-500">{{ __('borrower.profile.fields.email') }}</dt><dd class="font-medium text-gray-900 mt-0.5">{{ $customer->email }}</dd></div>
                             @endif
                         </dl>
                     </x-slot:view>
@@ -399,40 +397,68 @@
                     :default-open="$focusHash === 'family'"
                     :default-edit="$editFocus === 'family'">
                     <x-slot:view>
-                        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <dt class="text-gray-500">{{ __('borrower.profile.fields.marital_status') }}</dt>
-                                @if ($customer->marital_status)
-                                    <dd class="font-medium mt-0.5">{{ __('borrower.profile.marital_options.'.$customer->marital_status) }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                @endif
-                            </div>
-                            <div>
-                                <dt class="text-gray-500">{{ __('borrower.profile.fields.number_of_children') }}</dt>
-                                @if ($customer->number_of_children !== null)
-                                    <dd class="font-medium mt-0.5">{{ $customer->number_of_children }}</dd>
-                                @else
-                                    <dd class="mt-0.5"><button type="button" @click="open = true" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button></dd>
-                                @endif
-                            </div>
-                            @if ($isMarried)
-                                <div class="sm:col-span-2">
-                                    <dt class="text-gray-500">{{ __('borrower.profile.fields.spouse_full_name') }}</dt>
-                                    <dd class="font-medium mt-0.5">{{ $spouseName !== '' ? $spouseName : '—' }}</dd>
-                                </div>
-                                @if ($marriageCertificate?->file_path ?? false)
-                                    <div class="sm:col-span-2">
-                                        <dt class="text-gray-500">{{ __('borrower.profile.marriage_certificate') }}</dt>
-                                        <dd class="mt-0.5"><a href="{{ asset('storage/'.$marriageCertificate->file_path) }}" target="_blank" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.profile.view_document') }}</a></dd>
+                        @php
+                            $familyViewRows = [];
+                            if (filled($customer->marital_status)) {
+                                $familyViewRows[] = [
+                                    'label' => __('borrower.profile.fields.marital_status'),
+                                    'value' => __('borrower.profile.marital_options.'.$customer->marital_status),
+                                ];
+                            }
+                            if ($customer->number_of_children !== null) {
+                                $familyViewRows[] = [
+                                    'label' => __('borrower.profile.fields.number_of_children'),
+                                    'value' => (string) $customer->number_of_children,
+                                ];
+                            }
+                            if (filled($customer->spouse_first_name)) {
+                                $familyViewRows[] = [
+                                    'label' => __('borrower.profile.fields.spouse_first_name'),
+                                    'value' => $customer->spouse_first_name,
+                                ];
+                            }
+                            if (filled($customer->spouse_middle_name)) {
+                                $familyViewRows[] = [
+                                    'label' => __('borrower.profile.fields.spouse_middle_name'),
+                                    'value' => $customer->spouse_middle_name,
+                                ];
+                            }
+                            if (filled($customer->spouse_last_name)) {
+                                $familyViewRows[] = [
+                                    'label' => __('borrower.profile.fields.spouse_last_name'),
+                                    'value' => $customer->spouse_last_name,
+                                ];
+                            }
+                            if ($marriageCertificate?->file_path ?? false) {
+                                $familyViewRows[] = [
+                                    'label' => __('borrower.profile.marriage_certificate'),
+                                    'value' => 'doc',
+                                    'href' => asset('storage/'.$marriageCertificate->file_path),
+                                ];
+                            }
+                        @endphp
+                        @if ($familyViewRows === [])
+                            <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
+                            <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                        @else
+                            <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                                @foreach ($familyViewRows as $row)
+                                    <div>
+                                        <dt class="text-gray-500">{{ $row['label'] }}</dt>
+                                        @if (! empty($row['href']))
+                                            <dd class="mt-0.5"><a href="{{ $row['href'] }}" target="_blank" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.profile.view_document') }}</a></dd>
+                                        @else
+                                            <dd class="font-medium text-gray-900 mt-0.5">{{ $row['value'] }}</dd>
+                                        @endif
                                     </div>
-                                @elseif ($requireMarriageCert)
+                                @endforeach
+                                @if ($isMarried && $requireMarriageCert && ! ($marriageCertificate?->file_path ?? false))
                                     <div class="sm:col-span-2">
                                         <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.marriage_certificate') }} — {{ __('borrower.profile.missing') }}</p>
                                     </div>
                                 @endif
-                            @endif
-                        </dl>
+                            </dl>
+                        @endif
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
@@ -464,9 +490,8 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.marital_status') }} <span class="text-red-500">*</span></label>
-                                    <input type="hidden" name="marital_status" :value="marital" required>
-                                    {{-- Desktop native select --}}
-                                    <select x-model="marital" class="{{ $editable }} hidden lg:block" required>
+                                    {{-- Named select so FormData includes the value even before Alpine syncs a hidden mirror. --}}
+                                    <select name="marital_status" x-model="marital" class="{{ $editable }} hidden lg:block" required>
                                         <option value="">{{ __('borrower.profile.select') }}</option>
                                         @foreach (['single', 'married', 'divorced', 'widowed'] as $opt)
                                             <option value="{{ $opt }}">{{ __('borrower.profile.marital_options.'.$opt) }}</option>
@@ -532,16 +557,31 @@
                     :default-open="$focusHash === 'kin'"
                     :default-edit="$editFocus === 'kin'">
                     <x-slot:view>
-                        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                            @foreach ([
-                                ['label' => __('borrower.profile.fields.full_name'), 'value' => $kinName],
+                        @php
+                            $kinFirst = $customer->nok_first_name;
+                            $kinMiddle = $customer->nok_middle_name;
+                            $kinLast = $customer->nok_last_name;
+                            if (! filled($kinFirst) && ! filled($kinLast) && filled($customer->nok_name)) {
+                                $kinParts = preg_split('/\s+/', trim((string) $customer->nok_name)) ?: [];
+                                $kinFirst = $kinParts[0] ?? '';
+                                $kinLast = count($kinParts) > 1 ? array_pop($kinParts) : '';
+                                array_shift($kinParts);
+                                $kinMiddle = implode(' ', $kinParts);
+                            }
+                            $kinViewRows = [
+                                ['label' => __('borrower.profile.fields.first_name'), 'value' => $kinFirst],
+                                ['label' => __('borrower.profile.fields.middle_name'), 'value' => $kinMiddle],
+                                ['label' => __('borrower.profile.fields.last_name'), 'value' => $kinLast],
                                 ['label' => __('borrower.profile.fields.relationship'), 'value' => $customer->nok_relationship ? kin_relationship_label($customer->nok_relationship) : null],
                                 ['label' => __('borrower.profile.fields.phone'), 'value' => $customer->nok_phone],
                                 ['label' => __('borrower.profile.region'), 'value' => $customer->nok_region],
                                 ['label' => __('borrower.profile.district'), 'value' => $customer->nok_district],
                                 ['label' => __('borrower.profile.ward'), 'value' => $customer->nok_ward],
                                 ['label' => __('borrower.profile.street'), 'value' => $customer->nok_street, 'span' => true],
-                            ] as $field)
+                            ];
+                        @endphp
+                        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                            @foreach ($kinViewRows as $field)
                                 @if (filled($field['value']))
                                     <div @class(['sm:col-span-2' => ! empty($field['span'])])>
                                         <dt class="text-gray-500">{{ $field['label'] }}</dt>

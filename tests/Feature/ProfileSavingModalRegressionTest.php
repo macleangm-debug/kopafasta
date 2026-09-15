@@ -32,7 +32,8 @@ class ProfileSavingModalRegressionTest extends TestCase
     {
         $shell = file_get_contents(resource_path('views/site/borrower/profile/_profile_shell.blade.php'));
         $this->assertStringContainsString('data-kf-profile-page', $shell);
-        $this->assertStringContainsString('data-kf-saved-toast', $shell);
+        $this->assertStringContainsString('data-kf-page-status', $shell);
+        $this->assertStringNotContainsString('data-kf-saved-toast', $shell);
     }
 
     public function test_face_wizard_does_not_force_blocking_upload_modal_copy(): void

@@ -65,7 +65,13 @@
             </dl>
         </x-slot:view>
         <x-slot:form>
-            <form method="POST" action="{{ route($updateRoute, ['section' => 'residence']) }}" class="space-y-4">
+            <form method="POST" action="{{ route($updateRoute, ['section' => 'residence']) }}" class="space-y-4"
+                  data-kf-autosave
+                  data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                  data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                  data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                  data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
+                  data-kf-account-shell>
                 @csrf @method('PUT')
                 <x-site.address-fields
                     prefix="residence"
@@ -75,7 +81,6 @@
                     :street="$residence['street'] ?? ''"
                     :required="true"
                 />
-                <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
             </form>
         </x-slot:form>
     </x-site.profile-section-card>

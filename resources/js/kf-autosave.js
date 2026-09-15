@@ -140,12 +140,20 @@ window.kfBindAutosaveForm = function (form, options = {}) {
         setState('saving');
         if (typeof window.kfShowInlineSaving === 'function') {
             window.kfShowInlineSaving(labels.saving);
+        } else if (typeof window.kfShowSaving === 'function') {
+            window.kfShowSaving(labels.saving);
         }
 
         const method = (form.querySelector('input[name=_method]')?.value || form.method || 'POST').toUpperCase();
         const action = form.getAttribute('action') || window.location.href;
         const hasFiles = [...fd.values()].some((v) => typeof File !== 'undefined' && v instanceof File && v.size > 0);
         const uploadLabel = form.getAttribute('data-kf-autosave-uploading') || labels.saving;
+
+        // Let the browser paint Inahifadhi… before the network round-trip resolves.
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        if (mySeq !== seq) {
+            return;
+        }
 
         try {
             const data = await new Promise((resolve, reject) => {
@@ -223,10 +231,11 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             return;
         }
         // Selectors / radios / dates: save immediately after a valid change.
+        // Defer one microtask so Alpine x-model / :value mirrors commit before FormData.
         if (event.type === 'change' && isInstantControl(t)) {
             clearTimeout(timer);
             pendingFlush = true;
-            flush(true);
+            queueMicrotask(() => flush(true));
             return;
         }
         // Text: debounce after typing stops.
@@ -318,4 +327,6 @@ export function registerKfAutosave(Alpine) {
 
     document.addEventListener('DOMContentLoaded', () => window.kfBindAllAutosaveForms());
     document.addEventListener('alpine:initialized', () => window.kfBindAllAutosaveForms());
+    // Forms live inside x-show edit panels — re-scan when Edit opens.
+    document.addEventListener('profile-section-edit', () => window.kfBindAllAutosaveForms());
 }
