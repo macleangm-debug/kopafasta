@@ -24,8 +24,6 @@
     }
     $id = 'date-'.str_replace(['[', ']'], ['-', ''], $name).'-'.substr(md5($name.$selected), 0, 6);
     $monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    $minYear = (int) substr($minDate, 0, 4);
-    $maxYear = (int) substr($maxDate, 0, 4);
 @endphp
 
 <div
@@ -145,6 +143,7 @@
             const view = this.parse(this.value || this.format(new Date()));
             this.viewYear = view.getFullYear();
             this.viewMonth = view.getMonth();
+            this.pickerMode = 'calendar';
             this.desktopOpen = true;
         },
         years() {
@@ -314,46 +313,80 @@
 
     {{-- Fine pointer (desktop): teleport so glass-card backdrop-filter cannot clip the calendar --}}
     <template x-teleport="body">
-        <div x-show="!narrow && desktopOpen" x-cloak @click.outside="desktopOpen = false"
+        <div x-show="!narrow && desktopOpen" x-cloak @click.outside="desktopOpen = false; pickerMode = 'calendar'"
              class="fixed z-[10200] w-[22rem] rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 p-4"
              x-ref="desktopCal"
              :style="desktopStyle"
-             x-init="$watch('desktopOpen', v => { if (v) positionDesktop(); })">
-            <div class="flex items-center justify-between mb-3">
-                <button type="button" @click="shiftMonth(-1)" class="p-2 rounded-lg hover:bg-gray-50 text-gray-600" aria-label="Previous month">‹</button>
-                <div class="flex items-center gap-2">
-                    <select x-model.number="viewMonth" class="rounded-lg border-gray-200 text-sm py-1.5">
-                        @foreach ($monthNames as $idx => $monthName)
-                            <option value="{{ $idx }}">{{ $monthName }}</option>
-                        @endforeach
-                    </select>
-                    <select x-model.number="viewYear" class="rounded-lg border-gray-200 text-sm py-1.5">
-                        @for ($y = $maxYear; $y >= $minYear; $y--)
-                            <option value="{{ $y }}">{{ $y }}</option>
-                        @endfor
-                    </select>
+             x-init="$watch('desktopOpen', v => { if (v) { pickerMode = 'calendar'; positionDesktop(); } })">
+            <template x-if="pickerMode === 'calendar'">
+                <div>
+                    <div class="flex items-center justify-between mb-3 gap-2">
+                        <button type="button" @click="shiftMonth(-1)" class="p-2 rounded-lg hover:bg-brand-muted text-gray-600" aria-label="Previous month">‹</button>
+                        <div class="flex items-center gap-2 min-w-0">
+                            <button type="button" @click="pickerMode = 'month'"
+                                    class="rounded-xl border border-gray-200 px-3 py-2 text-left hover:bg-brand-muted/60 transition min-w-0">
+                                <span class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold leading-none mb-0.5">Month</span>
+                                <span class="text-sm font-semibold text-gray-900 truncate" x-text="months[viewMonth]"></span>
+                            </button>
+                            <button type="button" @click="pickerMode = 'year'"
+                                    class="rounded-xl border border-gray-200 px-3 py-2 text-left hover:bg-brand-muted/60 transition">
+                                <span class="block text-[10px] uppercase tracking-widest text-gray-500 font-semibold leading-none mb-0.5">Year</span>
+                                <span class="text-sm font-semibold text-gray-900" x-text="viewYear"></span>
+                            </button>
+                        </div>
+                        <button type="button" @click="shiftMonth(1)" class="p-2 rounded-lg hover:bg-brand-muted text-gray-600" aria-label="Next month">›</button>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">
+                        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 mb-3">
+                        <template x-for="(day, idx) in calendarDays()" :key="'d'+idx">
+                            <button type="button"
+                                    @click="pickDay(day)"
+                                    :disabled="!day || day.disabled"
+                                    class="aspect-square rounded-xl text-sm font-semibold transition"
+                                    :class="!day ? 'invisible' : (day.selected ? 'bg-brand text-white' : (day.today ? 'ring-1 ring-brand text-brand' : (day.disabled ? 'text-gray-300' : 'hover:bg-brand-muted text-gray-800')))"
+                                    x-text="day ? day.day : ''"></button>
+                        </template>
+                    </div>
+                    <div class="flex gap-2">
+                        @unless ($required)
+                            <button type="button" @click="clear()" class="flex-1 rounded-xl ring-1 ring-gray-200 py-2.5 text-sm font-semibold text-gray-600">Clear</button>
+                        @endunless
+                        <button type="button" @click="confirm()" class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-2.5 text-sm font-semibold">Apply</button>
+                    </div>
                 </div>
-                <button type="button" @click="shiftMonth(1)" class="p-2 rounded-lg hover:bg-gray-50 text-gray-600" aria-label="Next month">›</button>
-            </div>
-            <div class="grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">
-                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-            </div>
-            <div class="grid grid-cols-7 gap-1 mb-3">
-                <template x-for="(day, idx) in calendarDays()" :key="'d'+idx">
-                    <button type="button"
-                            @click="pickDay(day)"
-                            :disabled="!day || day.disabled"
-                            class="aspect-square rounded-xl text-sm font-semibold transition"
-                            :class="!day ? 'invisible' : (day.selected ? 'bg-brand text-white' : (day.today ? 'ring-1 ring-brand text-brand' : (day.disabled ? 'text-gray-300' : 'hover:bg-brand-muted text-gray-800')))"
-                            x-text="day ? day.day : ''"></button>
-                </template>
-            </div>
-            <div class="flex gap-2">
-                @unless ($required)
-                    <button type="button" @click="clear()" class="flex-1 rounded-xl ring-1 ring-gray-200 py-2.5 text-sm font-semibold text-gray-600">Clear</button>
-                @endunless
-                <button type="button" @click="confirm()" class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-2.5 text-sm font-semibold">Apply</button>
-            </div>
+            </template>
+
+            <template x-if="pickerMode === 'month'">
+                <div>
+                    <button type="button" @click="pickerMode = 'calendar'" class="mb-3 text-sm font-semibold text-brand">← Back to calendar</button>
+                    <div class="grid grid-cols-3 gap-2 max-h-[16rem] overflow-y-auto">
+                        <template x-for="(month, idx) in months" :key="'dm'+idx">
+                            <button type="button"
+                                    @click="pickMonth(idx)"
+                                    class="rounded-xl px-2 py-3 text-sm font-medium transition"
+                                    :class="viewMonth === idx ? 'bg-brand text-white' : 'text-gray-800 ring-1 ring-gray-200 hover:bg-brand-muted'"
+                                    x-text="month.slice(0, 3)"></button>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="pickerMode === 'year'">
+                <div>
+                    <button type="button" @click="pickerMode = 'calendar'" class="mb-3 text-sm font-semibold text-brand">← Back to calendar</button>
+                    <div class="grid grid-cols-3 gap-2 max-h-[16rem] overflow-y-auto pr-0.5">
+                        <template x-for="y in years()" :key="'dy'+y">
+                            <button type="button"
+                                    @click="pickYear(y)"
+                                    class="rounded-xl px-2 py-3 text-sm font-medium transition"
+                                    :class="viewYear === y ? 'bg-brand text-white' : 'text-gray-800 ring-1 ring-gray-200 hover:bg-brand-muted'"
+                                    x-text="y"></button>
+                        </template>
+                    </div>
+                </div>
+            </template>
         </div>
     </template>
 

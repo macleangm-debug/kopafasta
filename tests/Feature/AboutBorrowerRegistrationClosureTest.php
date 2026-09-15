@@ -223,6 +223,10 @@ class AboutBorrowerRegistrationClosureTest extends TestCase
         $date = file_get_contents(resource_path('views/components/site/date-input.blade.php'));
         $this->assertStringContainsString('kf-date-changed', $date);
         $this->assertStringNotContainsString("\$dispatch('profile-select'", $date);
+        // Desktop calendar must use premium month/year panels — not native <select>.
+        $this->assertStringNotContainsString('<select x-model.number="viewMonth"', $date);
+        $this->assertStringNotContainsString('<select x-model.number="viewYear"', $date);
+        $this->assertStringContainsString("pickerMode = 'year'", $date);
         $this->assertFileExists(resource_path('js/profile-dob-persist.js'));
         $js = file_get_contents(resource_path('js/profile-dob-persist.js'));
         $this->assertStringContainsString("focus', 'about'", $js);
