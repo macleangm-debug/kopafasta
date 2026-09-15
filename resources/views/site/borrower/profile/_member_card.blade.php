@@ -16,12 +16,8 @@
     $grade = $customer->grade ?? 'bronze';
     $completionPercent = (int) (app(\App\Services\ProfileCompletionService::class)->calculate($customer)['percent'] ?? 0);
     $nextIncomplete = collect(app(\App\Services\ProfileCompletionService::class)->displaySections($customer, true))->first();
-    $completionCtaUrl = $completionPercent < 100
-        ? (string) ($nextIncomplete['action_url'] ?? route('site.borrower.profile', ['section' => 'personal']))
-        : null;
-    $completionCtaLabel = $completionPercent < 100
-        ? __('borrower.profile.hero_completion_cta')
-        : null;
+    $completionCtaUrl = (string) ($nextIncomplete['action_url'] ?? route('site.borrower.profile', ['section' => 'personal']));
+    $completionCtaLabel = __('borrower.profile.hero_completion_cta');
     $myCardUrl = route('site.borrower.profile', ['section' => 'membership']);
     $profileUrl = route('site.borrower.profile');
 @endphp

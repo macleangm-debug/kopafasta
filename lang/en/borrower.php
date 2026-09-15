@@ -2298,7 +2298,7 @@ return [
         'completion_summary_title' => 'Profile completion',
         'completion_summary_percent' => ':percent% complete',
         'hero_completion_percent' => ':percent% complete',
-        'hero_completion_done' => 'Profile complete ✓',
+        'hero_completion_done' => '✓ Profile complete · 100%',
         'hero_completion_cta' => 'Complete profile',
         'completion_remaining' => 'Remaining items',
         'completion_completed' => 'Completed items',

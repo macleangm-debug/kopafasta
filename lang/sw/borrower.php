@@ -2199,7 +2199,7 @@ return [
         'completion_summary_title' => 'Ukamilishaji wa wasifu',
         'completion_summary_percent' => ':percent% imekamilika',
         'hero_completion_percent' => 'Wasifu :percent% umekamilika',
-        'hero_completion_done' => 'Wasifu umekamilika ✓',
+        'hero_completion_done' => '✓ Wasifu umekamilika · 100%',
         'hero_completion_cta' => 'Kamilisha wasifu',
         'completion_remaining' => 'Vitu vinavyobaki',
         'completion_completed' => 'Vitu vilivyokamilika',

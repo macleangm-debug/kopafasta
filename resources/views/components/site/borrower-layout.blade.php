@@ -39,6 +39,9 @@
     $borrowerCustomer = auth()->user()?->customer;
     $portalContext = app(\App\Services\PortalContextService::class);
     $displayName = $portalContext->displayName($borrowerCustomer);
+    $plusActive = $portalMode !== 'guarantor' && $borrowerCustomer
+        ? app(\App\Services\Plus\PlusService::class)->isActive($borrowerCustomer)
+        : false;
     $notificationQuery = $portalMode === 'guarantor' && $borrowerCustomer
         ? $portalContext->guarantorNotificationsQuery($borrowerCustomer)
         : ($borrowerCustomer ? $portalContext->borrowerNotificationsQuery($borrowerCustomer) : null);
@@ -151,7 +154,10 @@
         </a>
         <nav class="relative flex-1 overflow-y-auto px-3 py-5 space-y-1">
             @foreach ($nav as $item)
-                @php $isActive = $active === $item['key']; @endphp
+                @php
+                    $isActive = $active === $item['key'];
+                    $showPlusOptional = ($item['key'] ?? '') === 'plus' && ! $plusActive;
+                @endphp
                 <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
                    data-kf-motion="tab"
                    class="group relative flex items-center gap-3 px-3.5 py-2.5 text-sm rounded-xl transition
@@ -163,7 +169,12 @@
                     <svg class="w-5 h-5 shrink-0 {{ $isActive ? '' : 'opacity-90 group-hover:opacity-100' }}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         {!! $icon($item['icon']) !!}
                     </svg>
-                    <span class="leading-snug">{{ $item['label'] }}</span>
+                    <span class="min-w-0 flex-1 leading-snug">
+                        <span class="block">{{ $item['label'] }}</span>
+                        @if ($showPlusOptional)
+                            <span class="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.14em] {{ $isActive ? 'text-brand/70' : 'text-white/55' }}">{{ __('plus.home.nav_optional') }}</span>
+                        @endif
+                    </span>
                 </a>
             @endforeach
         </nav>

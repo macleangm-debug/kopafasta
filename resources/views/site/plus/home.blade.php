@@ -188,22 +188,46 @@
             @endif
         @elseif ($neverJoined)
             <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
-                <p class="relative text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus ✦</p>
-                <h2 class="relative mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">{{ __('plus.home.explore') }}</h2>
-                <p class="relative mt-2 text-sm text-white/80 max-w-xl">{{ __('plus.home.explore_body') }}</p>
-                @if ($latestLesson)
-                    <div class="relative mt-5 rounded-2xl bg-white/10 ring-1 ring-white/20 p-4 sm:p-5">
-                        <p class="text-[10px] uppercase tracking-[0.16em] text-brand-gold font-bold">{{ __('plus.learn.this_month') }}</p>
-                        <p class="font-semibold text-white mt-1.5 text-lg">{{ $lessonTitle }}</p>
-                        <p class="text-sm text-white/75 mt-1">{{ __('plus.learn.preview') }}</p>
-                    </div>
-                @endif
-                <p class="relative mt-6 text-3xl sm:text-4xl font-black tabular-nums tracking-tight">{{ $priceText }}</p>
-                <p class="relative mt-1 text-xs text-white/65">{{ __('plus.home.optional') }}</p>
-                <form method="post" action="{{ route('site.borrower.plus.join') }}" class="relative mt-5">
+                <div class="relative flex flex-wrap items-start justify-between gap-3">
+                    <x-site.brand-mark size="sm" variant="light" />
+                    <span class="inline-flex items-center rounded-full bg-white/15 ring-1 ring-white/25 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-brand-gold">
+                        {{ __('plus.home.nav_optional') }}
+                    </span>
+                </div>
+                <p class="relative mt-5 text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
+                <h1 class="relative mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">{{ __('plus.home.explore') }}</h1>
+                <p class="relative mt-3 text-sm sm:text-base text-white/85 max-w-2xl leading-relaxed">{{ __('plus.home.explore_body') }}</p>
+
+                <div class="relative mt-5 rounded-2xl bg-white/12 ring-1 ring-white/20 p-4 sm:p-5">
+                    <p class="text-sm font-bold text-brand-gold">{{ __('plus.home.not_required_title') }}</p>
+                    <p class="mt-1.5 text-sm text-white/85 leading-relaxed">{{ __('plus.home.not_required_body') }}</p>
+                </div>
+            </section>
+
+            <section class="grid sm:grid-cols-2 gap-3">
+                @foreach ([
+                    ['title' => __('plus.home.benefit_money_title'), 'body' => __('plus.home.benefit_money_body'), 'icon' => '💸'],
+                    ['title' => __('plus.home.benefit_business_title'), 'body' => __('plus.home.benefit_business_body'), 'icon' => '🏪'],
+                    ['title' => __('plus.home.benefit_goals_title'), 'body' => __('plus.home.benefit_goals_body'), 'icon' => '🎯'],
+                    ['title' => __('plus.home.benefit_learn_title'), 'body' => __('plus.home.benefit_learn_body'), 'icon' => '✦'],
+                ] as $benefit)
+                    <article class="rounded-2xl glass-card ring-1 ring-brand/10 p-4 sm:p-5">
+                        <div class="size-11 rounded-2xl bg-brand/10 ring-1 ring-brand-gold/25 text-xl grid place-items-center" aria-hidden="true">{{ $benefit['icon'] }}</div>
+                        <h2 class="mt-3 text-base font-extrabold text-brand tracking-tight">{{ $benefit['title'] }}</h2>
+                        <p class="mt-1.5 text-sm text-gray-600 leading-relaxed">{{ $benefit['body'] }}</p>
+                    </article>
+                @endforeach
+            </section>
+
+            <section class="rounded-2xl glass-card ring-1 ring-brand/10 p-5 sm:p-6">
+                <p class="text-3xl sm:text-4xl font-black tabular-nums tracking-tight text-brand">{{ $priceText }}</p>
+                <form method="post" action="{{ route('site.borrower.plus.join') }}" class="mt-5">
                     @csrf
-                    <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-6 py-3 font-bold shadow-sm ring-1 ring-brand-gold/40">{{ __('plus.home.join') }}</button>
+                    <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-6 py-3 font-bold shadow-sm ring-1 ring-brand-gold/40">
+                        {{ __('plus.home.join') }}
+                    </button>
                 </form>
+                <p class="mt-3 text-xs text-gray-600 max-w-xl leading-relaxed">{{ __('plus.home.join_disclosure') }}</p>
             </section>
         @endif
     </div>

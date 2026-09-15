@@ -166,20 +166,43 @@ function applyOverallPercent(completion) {
         return;
     }
     const pct = Math.max(0, Math.min(100, Number(completion.percent) || 0));
+    const done = pct >= 100;
+
     document.querySelectorAll('[data-kf-completion-percent]').forEach((el) => {
+        const doneLabel = el.getAttribute('data-kf-completion-done-label');
         const template = el.getAttribute('data-percent-template');
-        if (template) {
+        const inHero = !! el.closest('[data-kf-completion-hero]');
+        if (done && doneLabel) {
+            el.textContent = doneLabel;
+            if (inHero) {
+                el.classList.remove('bg-white/15', 'text-brand-gold', 'ring-white/25');
+                el.classList.add('bg-brand-gold', 'text-brand', 'ring-brand-gold/50');
+            }
+        } else if (template) {
             el.textContent = template.replace(':percent', String(pct));
+            if (inHero) {
+                el.classList.add('bg-white/15', 'text-brand-gold', 'ring-white/25');
+                el.classList.remove('bg-brand-gold', 'text-brand', 'ring-brand-gold/50');
+            }
         } else {
             el.textContent = String(pct);
         }
     });
+
     document.querySelectorAll('[data-kf-completion-bar]').forEach((el) => {
         el.style.width = `${pct}%`;
         const bar = el.closest('[role="progressbar"]');
         if (bar) {
             bar.setAttribute('aria-valuenow', String(pct));
         }
+    });
+
+    document.querySelectorAll('[data-kf-completion-hero]').forEach((el) => {
+        el.setAttribute('data-kf-completion-done', done ? '1' : '0');
+    });
+
+    document.querySelectorAll('[data-kf-completion-cta]').forEach((el) => {
+        el.classList.toggle('hidden', done);
     });
 }
 

@@ -60,25 +60,33 @@
                 </div>
                 @if ($completionPercent !== null)
                     @php $pct = max(0, min(100, (int) $completionPercent)); @endphp
-                    @if ($pct >= 100)
-                        <p class="inline-flex items-center gap-1.5 rounded-full bg-brand-gold text-brand px-3.5 py-1.5 text-xs font-bold shadow-sm"
+                    <div class="w-full max-w-md space-y-3"
+                         data-kf-completion-hero
+                         data-kf-completion-done="{{ $pct >= 100 ? '1' : '0' }}">
+                        <p class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm sm:text-base font-extrabold shadow-sm ring-1 transition
+                                   {{ $pct >= 100
+                                        ? 'bg-brand-gold text-brand ring-brand-gold/50'
+                                        : 'bg-white/15 text-brand-gold ring-white/25' }}"
                            data-kf-completion-percent
-                           data-percent-template="{{ __('borrower.profile.hero_completion_done') }}"
+                           data-percent-template="{{ __('borrower.profile.hero_completion_percent', ['percent' => ':percent']) }}"
                            data-kf-completion-done-label="{{ __('borrower.profile.hero_completion_done') }}">
-                            {{ __('borrower.profile.hero_completion_done') }}
-                        </p>
-                    @else
-                        <div class="w-full max-w-sm space-y-2.5" data-kf-completion-hero>
-                            <p class="inline-flex items-center rounded-full bg-white/15 ring-1 ring-white/25 px-3.5 py-1.5 text-xs font-bold text-brand-gold"
-                               data-kf-completion-percent
-                               data-percent-template="{{ __('borrower.profile.hero_completion_percent', ['percent' => ':percent']) }}">
+                            @if ($pct >= 100)
+                                {{ __('borrower.profile.hero_completion_done') }}
+                            @else
                                 {{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}
-                            </p>
-                            <div class="h-2 rounded-full bg-white/20 overflow-hidden" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100">
-                                <div class="h-full rounded-full bg-brand-gold" data-kf-completion-bar style="width: {{ $pct }}%"></div>
-                            </div>
+                            @endif
+                        </p>
+                        <div class="h-3.5 rounded-full bg-white/20 overflow-hidden ring-1 ring-white/10"
+                             role="progressbar"
+                             aria-valuenow="{{ $pct }}"
+                             aria-valuemin="0"
+                             aria-valuemax="100"
+                             data-kf-completion-track>
+                            <div class="h-full rounded-full bg-brand-gold transition-[width] duration-300"
+                                 data-kf-completion-bar
+                                 style="width: {{ $pct }}%"></div>
                         </div>
-                    @endif
+                    </div>
                 @endif
             @endif
 
@@ -90,12 +98,16 @@
                 $showPrimaryCta = filled($ctaUrl) && filled($ctaLabel);
             @endphp
             @if ($showCompletionCta || $showPrimaryCta)
-                <div class="flex flex-wrap gap-2">
-                    @if ($showCompletionCta)
+                <div class="flex flex-wrap gap-2" data-kf-hero-cta-row>
+                    @if (filled($completionCtaUrl) && filled($completionCtaLabel))
                         <a href="{{ $completionCtaUrl }}"
                            data-loading="click"
                            data-kf-motion="pop"
-                           class="inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm">
+                           data-kf-completion-cta
+                           @class([
+                               'inline-flex justify-center font-semibold px-5 py-2.5 rounded-xl text-sm transition bg-white text-brand hover:bg-white/90 shadow-sm',
+                               'hidden' => ! $showCompletionCta,
+                           ])>
                             {{ $completionCtaLabel }} →
                         </a>
                     @endif
