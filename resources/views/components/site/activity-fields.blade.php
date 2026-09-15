@@ -305,6 +305,11 @@
                         } else {
                             this.onTypeChange();
                         }
+                        const form = this.$root.closest('form');
+                        if (form && typeof window.kfFlushAutosaveForm === 'function') {
+                            window.kfFlushAutosaveForm(form);
+                        }
+                        this.$dispatch('profile-select', { name: 'activity_type', value: key });
                     });
                 },
                 openDetailPicker(field) {
@@ -354,10 +359,12 @@
                         const sel = this.$root.querySelector('select[name="activity_details[' + key + ']"]');
                         if (sel) {
                             sel.dispatchEvent(new Event('change', { bubbles: true }));
-                            return;
                         }
                         const form = this.$root.closest('form');
-                        form?.dispatchEvent(new Event('change', { bubbles: true }));
+                        if (form && typeof window.kfFlushAutosaveForm === 'function') {
+                            window.kfFlushAutosaveForm(form);
+                        }
+                        this.$dispatch('profile-select', { name: 'activity_details[' + key + ']', value });
                     });
                 },
                 onTypeChange() {

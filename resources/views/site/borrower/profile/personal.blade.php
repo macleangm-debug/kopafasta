@@ -411,31 +411,32 @@
                     <x-slot:view>
                         @php
                             $familyViewRows = [];
-                            if (filled($customer->marital_status)) {
-                                $familyViewRows[] = [
-                                    'label' => __('borrower.profile.fields.marital_status'),
-                                    'value' => __('borrower.profile.marital_options.'.$customer->marital_status),
-                                ];
-                            }
-                            if ($customer->number_of_children !== null) {
-                                $familyViewRows[] = [
-                                    'label' => __('borrower.profile.fields.number_of_children'),
-                                    'value' => (string) $customer->number_of_children,
-                                ];
-                            }
-                            if (filled($customer->spouse_first_name)) {
+                            $familyViewRows[] = [
+                                'label' => __('borrower.profile.fields.marital_status'),
+                                'value' => filled($customer->marital_status)
+                                    ? __('borrower.profile.marital_options.'.$customer->marital_status)
+                                    : null,
+                            ];
+                            $familyViewRows[] = [
+                                'label' => __('borrower.profile.fields.number_of_children'),
+                                'value' => $customer->number_of_children !== null
+                                    ? (string) $customer->number_of_children
+                                    : null,
+                            ];
+                            // Mirror Edit: when married (or spouse data exists), always list spouse name fields.
+                            $showSpouse = $isMarried
+                                || filled($customer->spouse_first_name)
+                                || filled($customer->spouse_middle_name)
+                                || filled($customer->spouse_last_name);
+                            if ($showSpouse) {
                                 $familyViewRows[] = [
                                     'label' => __('borrower.profile.fields.spouse_first_name'),
                                     'value' => $customer->spouse_first_name,
                                 ];
-                            }
-                            if (filled($customer->spouse_middle_name)) {
                                 $familyViewRows[] = [
                                     'label' => __('borrower.profile.fields.spouse_middle_name'),
                                     'value' => $customer->spouse_middle_name,
                                 ];
-                            }
-                            if (filled($customer->spouse_last_name)) {
                                 $familyViewRows[] = [
                                     'label' => __('borrower.profile.fields.spouse_last_name'),
                                     'value' => $customer->spouse_last_name,
@@ -448,8 +449,9 @@
                                     'href' => asset('storage/'.$marriageCertificate->file_path),
                                 ];
                             }
+                            $hasAnyFamilyValue = collect($familyViewRows)->contains(fn ($row) => filled($row['value'] ?? null) || ! empty($row['href']));
                         @endphp
-                        @if ($familyViewRows === [])
+                        @if (! $hasAnyFamilyValue)
                             <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
                             <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                         @else
@@ -460,7 +462,7 @@
                                         @if (! empty($row['href']))
                                             <dd class="mt-0.5"><a href="{{ $row['href'] }}" target="_blank" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.profile.view_document') }}</a></dd>
                                         @else
-                                            <dd class="font-medium text-gray-900 mt-0.5">{{ $row['value'] }}</dd>
+                                            <dd class="font-medium text-gray-900 mt-0.5">{{ filled($row['value']) ? $row['value'] : '—' }}</dd>
                                         @endif
                                     </div>
                                 @endforeach
@@ -494,10 +496,15 @@
                                       this.$nextTick(() => {
                                           const sel = this.$el.querySelector('select[name="marital_status"]');
                                           if (sel) {
+                                              sel.value = value;
                                               sel.dispatchEvent(new Event('change', { bubbles: true }));
+                                          }
+                                          if (typeof window.kfFlushAutosaveForm === 'function') {
+                                              window.kfFlushAutosaveForm(this.$el);
                                           } else {
                                               this.$el.dispatchEvent(new Event('change', { bubbles: true }));
                                           }
+                                          this.$dispatch('profile-select', { name: 'marital_status', value });
                                       });
                                   },
                               }">

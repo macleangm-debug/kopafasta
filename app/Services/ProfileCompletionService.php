@@ -20,20 +20,17 @@ class ProfileCompletionService
      */
     public function isActivityFieldsComplete(Customer $customer): bool
     {
-        if (! filled($customer->activity_type) || ! filled($customer->income_range)) {
+        $type = $customer->activity_type ?: $customer->employment_type;
+        if (! filled($type) || ! filled($customer->income_range)) {
             return false;
         }
 
-        $validation = app(ProfileValidationService::class);
-        $fields = config('activity_profiles.fields.'.$customer->activity_type, []);
+        $fields = config('activity_profiles.fields.'.$type, []);
         $details = $customer->activity_details ?? [];
 
         foreach ($fields as $field) {
+            // Employment contract / docs live on their own upload UI — not this card's Complete tick.
             if (($field['type'] ?? 'text') === 'document') {
-                if (($field['required'] ?? false) && ! $validation->hasDocument($customer, $field['document_code'] ?? $field['key'])) {
-                    return false;
-                }
-
                 continue;
             }
 

@@ -86,11 +86,18 @@ class ProfileUxFinalizationTest extends TestCase
         $autosave = file_get_contents(resource_path('js/kf-autosave.js'));
         $this->assertStringContainsString('isSystemFieldName', $autosave);
         $this->assertStringContainsString('syncSitePhoneInput', $autosave);
+        $this->assertStringContainsString('kfFlushAutosaveForm', $autosave);
+        $this->assertStringContainsString('focusin', $autosave);
+        $this->assertStringContainsString("addEventListener('profile-select'", $autosave);
 
         $card = file_get_contents(resource_path('js/profile-section-card.js'));
         $this->assertStringContainsString('requestClose()', $card);
 
         $activity = file_get_contents(resource_path('views/site/borrower/profile/activity.blade.php'));
         $this->assertStringContainsString('seenDetailKeys', $activity);
+
+        $completion = file_get_contents(app_path('Services/ProfileCompletionService.php'));
+        $this->assertStringContainsString('employment_type', $completion);
+        $this->assertStringContainsString("=== 'document'", $completion);
     }
 }

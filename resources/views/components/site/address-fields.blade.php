@@ -123,7 +123,13 @@
         <input type="hidden" name="{{ $districtName }}" :value="district" x-ref="districtHidden" @if($required) required @endif>
         <select x-model="district"
                 class="{{ $selectClass }}"
-                @change="district = $event.target.value">
+                @change="
+                    district = $event.target.value;
+                    $nextTick(() => {
+                        const el = $refs.districtHidden;
+                        if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                ">
             <option value="">{{ __('borrower.profile.select_district') }}</option>
             <template x-for="d in districtOptions" :key="'opt-' + d">
                 <option :value="d" x-text="d"></option>

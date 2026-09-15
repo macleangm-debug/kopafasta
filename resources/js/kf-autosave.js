@@ -284,7 +284,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
 
     // Do not create per-form Saved chips — shell toast is the only indicator.
 
-    return {
+    const api = {
         flush: () => flush(true),
         destroy() {
             clearTimeout(timer);
@@ -293,15 +293,24 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             form.removeEventListener('submit', onSubmit);
             window.removeEventListener('pagehide', onPageHide);
             delete form.dataset.kfAutosaveBound;
+            delete form._kfAutosave;
         },
         state: () => state,
     };
+    form._kfAutosave = api;
+    return api;
 };
 
 window.kfBindAllAutosaveForms = function (root = document) {
     root.querySelectorAll('form[data-kf-autosave]').forEach((form) => {
         window.kfBindAutosaveForm(form);
     });
+};
+
+window.kfFlushAutosaveForm = function (form) {
+    if (!(form instanceof HTMLFormElement)) return;
+    window.kfBindAutosaveForm(form);
+    form._kfAutosave?.flush?.();
 };
 
 export function registerKfAutosave(Alpine) {
@@ -344,8 +353,36 @@ export function registerKfAutosave(Alpine) {
         },
     }));
 
-    document.addEventListener('DOMContentLoaded', () => window.kfBindAllAutosaveForms());
-    document.addEventListener('alpine:initialized', () => window.kfBindAllAutosaveForms());
-    // Forms live inside x-show edit panels — re-scan when Edit opens.
-    document.addEventListener('profile-section-edit', () => window.kfBindAllAutosaveForms());
+    const rebind = () => window.kfBindAllAutosaveForms();
+    document.addEventListener('DOMContentLoaded', rebind);
+    document.addEventListener('alpine:initialized', () => {
+        rebind();
+        // Alpine may hydrate card forms after initialized — catch late panels.
+        queueMicrotask(rebind);
+        setTimeout(rebind, 0);
+        setTimeout(rebind, 300);
+    });
+    document.addEventListener('profile-section-edit', rebind);
+
+    // Bind on first interaction if a form was missed at boot (x-show Edit panels).
+    document.addEventListener('focusin', (e) => {
+        const form = e.target instanceof Element ? e.target.closest('form[data-kf-autosave]') : null;
+        if (form) window.kfBindAutosaveForm(form);
+    }, true);
+
+    // profile-select / address pickers notify here — flush even when change targeting is awkward.
+    document.addEventListener('profile-select', (e) => {
+        const name = e.detail?.name || '';
+        let form = e.target instanceof Element ? e.target.closest('form[data-kf-autosave]') : null;
+        if (! form && name) {
+            try {
+                form = document.querySelector(`form[data-kf-autosave] [name="${CSS.escape(name)}"]`)?.closest('form') || null;
+            } catch (err) {
+                form = null;
+            }
+        }
+        if (form) {
+            window.kfFlushAutosaveForm(form);
+        }
+    });
 }
