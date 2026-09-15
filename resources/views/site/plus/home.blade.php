@@ -197,20 +197,6 @@
                 <p class="relative mt-5 text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
                 <h1 class="relative mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight max-w-2xl">{{ __('plus.home.explore') }}</h1>
                 <p class="relative mt-3 text-sm sm:text-base text-white/85 max-w-2xl leading-relaxed">{{ __('plus.home.explore_body') }}</p>
-
-                <div class="relative mt-5 inline-flex max-w-2xl items-start gap-2 rounded-2xl bg-white/12 ring-1 ring-brand-gold/35 px-4 py-3">
-                    <span class="mt-0.5 size-5 shrink-0 rounded-full bg-brand-gold text-brand grid place-items-center text-[11px] font-black" aria-hidden="true">✓</span>
-                    <p class="text-sm font-semibold text-brand-gold leading-snug">{{ __('plus.home.optional_chip') }}</p>
-                </div>
-
-                <p class="relative mt-6 text-3xl sm:text-4xl font-black tabular-nums tracking-tight text-white">{{ $priceText }}</p>
-                <form method="post" action="{{ route('site.borrower.plus.join') }}" class="relative mt-5">
-                    @csrf
-                    <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-6 py-3 font-bold shadow-sm ring-1 ring-brand-gold/40">
-                        {{ __('plus.home.join') }} →
-                    </button>
-                </form>
-                <p class="relative mt-3 text-xs text-white/70 max-w-xl leading-relaxed">{{ __('plus.home.join_disclosure') }}</p>
             </section>
 
             <section class="grid sm:grid-cols-2 gap-3">
@@ -221,11 +207,22 @@
                     ['title' => __('plus.home.benefit_learn_title'), 'body' => __('plus.home.benefit_learn_body'), 'icon' => '✦'],
                 ] as $benefit)
                     <article class="rounded-2xl glass-card ring-1 ring-brand/10 p-4 sm:p-5">
-                        <div class="size-11 rounded-2xl bg-brand/10 ring-1 ring-brand-gold/25 text-xl grid place-items-center" aria-hidden="true">{{ $benefit['icon'] }}</div>
+                        <div class="size-14 rounded-2xl bg-brand/10 ring-1 ring-brand-gold/25 text-3xl grid place-items-center" aria-hidden="true">{{ $benefit['icon'] }}</div>
                         <h2 class="mt-3 text-base font-extrabold text-brand tracking-tight">{{ $benefit['title'] }}</h2>
                         <p class="mt-1.5 text-sm text-gray-600 leading-relaxed">{{ $benefit['body'] }}</p>
                     </article>
                 @endforeach
+            </section>
+
+            <section class="kf-premium-panel rounded-2xl p-5 sm:p-6">
+                <p class="relative text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">Kopafasta Plus</p>
+                <form method="post" action="{{ route('site.borrower.plus.join') }}" class="relative mt-5">
+                    @csrf
+                    <button class="inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand px-6 py-3 font-bold shadow-sm ring-1 ring-brand-gold/40">
+                        {{ __('plus.home.join') }} →
+                    </button>
+                </form>
+                <p class="relative mt-4 text-2xl sm:text-3xl font-black tabular-nums tracking-tight text-white">{{ $priceText }}</p>
             </section>
         @endif
     </div>
