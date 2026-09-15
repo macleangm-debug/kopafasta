@@ -17,7 +17,7 @@
             @endphp
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-medium">{{ $r->name }}</td>
-                <td class="px-5 py-3 text-gray-600">{{ $r->email }}</td>
+                <td class="px-5 py-3 text-gray-600">{{ operator_email_display($r->email) }}</td>
                 <td class="px-5 py-3">{{ $r->phone ?? '—' }}</td>
                 <td class="px-5 py-3"><x-admin.badge :value="$r->role" group="role" :label="$roleLabels[$r->role] ?? null" :map="['admin' => 'bg-amber-100 text-amber-800', 'super_admin' => 'bg-red-100 text-red-800']" /></td>
                 <td class="px-5 py-3">

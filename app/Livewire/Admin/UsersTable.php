@@ -31,7 +31,10 @@ class UsersTable extends Component
 
     public function render(RoleService $roles)
     {
+        $operational = $roles->operationalRoles();
+
         $rows = User::query()
+            ->whereIn('role', $operational)
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {
@@ -46,7 +49,9 @@ class UsersTable extends Component
 
         $filterRoles = $roles->usersFilterRoles();
         $roleLabels = collect($filterRoles)
-            ->mapWithKeys(fn (string $code) => [$code => $roles->label($code)])
+            ->mapWithKeys(fn (string $code) => [
+                $code => $code === 'agent' ? 'Customer Support' : $roles->label($code),
+            ])
             ->all();
 
         return view('livewire.admin.users-table', compact('rows', 'filterRoles', 'roleLabels'));

@@ -16,11 +16,11 @@
     :fields="array_filter([
         'Ticket #'         => $record->ticket_number,
         'Contact'          => $record->contactLabel(),
-        'Contact kind'     => $record->contact_kind ? ucfirst($record->contact_kind) : null,
+        'Contact kind'     => $record->contact_kind === 'customer' ? 'Member' : ($record->contact_kind ? ucfirst($record->contact_kind) : null),
         'Guest email'      => $record->guest_email,
         'Guest phone'      => $record->guest_phone,
         'Source'           => $record->source ? ucwords(str_replace('_', ' ', $record->source)) : null,
-        'Priority customer'=> $prioritySupport ? 'PRIORITY CUSTOMER — Priority Support active until '.$prioritySupport->expires_at?->format('d M Y') : null,
+        'Priority customer'=> $prioritySupport ? 'PRIORITY MEMBER — Priority Support active until '.$prioritySupport->expires_at?->format('d M Y') : null,
         'Assigned to'      => $agent?->name ?? 'Unassigned',
         'Priority'         => ucfirst($record->priority ?? ''),
         'Status'           => display_label($record->status, 'ticket_status'),
@@ -32,21 +32,21 @@
     ])">
     @if ($isGuest && ! $record->customer_id)
         <div class="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10 p-6">
-            <h2 class="text-sm font-semibold text-brand">Link to customer</h2>
-            <p class="text-xs text-gray-500 mt-1">Preserve ticket history while attaching a registered customer.</p>
+            <h2 class="text-sm font-semibold text-brand">Link to member</h2>
+            <p class="text-xs text-gray-500 mt-1">Preserve ticket history while attaching a registered member.</p>
             <form method="POST" action="{{ route('admin.support-tickets.link-customer', $record) }}" class="mt-4 grid sm:grid-cols-[1fr_auto] gap-3">
                 @csrf
-                <input type="number" name="customer_id" required min="1" placeholder="Customer ID"
+                <input type="number" name="customer_id" required min="1" placeholder="Member / customer ID"
                        class="w-full text-sm bg-white border border-brand/15 rounded-xl px-3.5 py-2.5">
                 <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5">
-                    Link customer
+                    Link member
                 </button>
             </form>
         </div>
     @elseif ($customer)
         <div class="mt-6">
             <a href="{{ route('admin.customers.show', $customer) }}" class="text-sm font-semibold text-brand hover:underline">
-                Open Customer 360 →
+                Open Member 360 →
             </a>
         </div>
     @endif
@@ -54,7 +54,7 @@
     <div class="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
         <div class="border-b border-brand/10 px-6 py-4">
             <h2 class="text-sm font-semibold text-brand">Timeline</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Assignment and status audit trail</p>
+            <p class="text-xs text-gray-500 mt-0.5">Created → assigned → agent queue · responses, notes, reassign, status</p>
         </div>
         <ul class="divide-y divide-brand/5">
             @forelse ($events as $event)

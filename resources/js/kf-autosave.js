@@ -331,6 +331,7 @@ window.kfMirrorAutosaveFormToView = function (form) {
         divorced: form.getAttribute('data-kf-marital-divorced') || 'Divorced',
         widowed: form.getAttribute('data-kf-marital-widowed') || 'Widowed',
     };
+    let anyFilled = false;
     card.querySelectorAll('[data-kf-view-field]').forEach((el) => {
         const name = el.getAttribute('data-kf-view-field');
         if (! name) return;
@@ -346,6 +347,7 @@ window.kfMirrorAutosaveFormToView = function (form) {
                 value = map[value] || value;
             } catch (e) { /* keep raw */ }
         }
+        if (value !== '') anyFilled = true;
         el.textContent = value !== '' ? value : '—';
     });
     const marital = String(fd.get('marital_status') || '').toLowerCase();
@@ -354,6 +356,11 @@ window.kfMirrorAutosaveFormToView = function (form) {
         card.querySelectorAll('[data-kf-spouse-row]').forEach((row) => {
             row.classList.toggle('hidden', ! showSpouse);
         });
+    }
+    // Reveal View grid after first successful save (empty hint was only for cold start).
+    if (anyFilled) {
+        card.querySelectorAll('[data-kf-empty-hint]').forEach((el) => el.classList.add('hidden'));
+        card.querySelectorAll('[data-kf-family-view], [data-kf-kin-view]').forEach((el) => el.classList.remove('hidden'));
     }
 };
 

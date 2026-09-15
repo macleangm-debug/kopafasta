@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Services\AuditService;
 use App\Support\SupportTaxonomy;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class SupportTicketService
 {
@@ -39,9 +38,44 @@ class SupportTicketService
 
     private const ROUND_ROBIN_KEY = 'support.round_robin_last_agent_id';
 
+    public const TICKET_PREFIX_KEY = 'support.ticket_number_prefix';
+
+    public const TICKET_PREFIX_DEFAULT = 'SUP';
+
     public function __construct(
         private readonly AuditService $audit,
     ) {}
+
+    /**
+     * Settings-backed readable ticket number, e.g. SUP-2026-000001.
+     * Optional explicit override kept for internal callers (rewards, migrations).
+     */
+    public function nextTicketNumber(?string $explicit = null): string
+    {
+        $explicit = trim((string) $explicit);
+        if ($explicit !== '') {
+            return $explicit;
+        }
+
+        $prefix = strtoupper(trim((string) Setting::get(self::TICKET_PREFIX_KEY, self::TICKET_PREFIX_DEFAULT)));
+        if ($prefix === '') {
+            $prefix = self::TICKET_PREFIX_DEFAULT;
+        }
+
+        $year = now()->format('Y');
+        $stem = $prefix.'-'.$year.'-';
+        $seqKey = 'support.ticket_number_seq.'.$year;
+
+        $seq = (int) Setting::get($seqKey, 0);
+        do {
+            $seq++;
+            $candidate = $stem.str_pad((string) $seq, 6, '0', STR_PAD_LEFT);
+        } while (SupportTicket::query()->where('ticket_number', $candidate)->exists());
+
+        Setting::set($seqKey, $seq);
+
+        return $candidate;
+    }
 
     /**
      * @param  array<string, mixed>  $payload
@@ -55,10 +89,17 @@ class SupportTicketService
 
             $contactKind = $payload['contact_kind']
                 ?? ($customerId ? 'customer' : 'guest');
+            if ($contactKind === 'member') {
+                $contactKind = 'customer';
+            }
 
             $subject = SupportTaxonomy::resolveSubject(
                 $payload['subject'] ?? null,
                 $payload['subject_other'] ?? null,
+            );
+            $category = SupportTaxonomy::resolveCategory(
+                $payload['category'] ?? null,
+                $payload['category_other'] ?? null,
             );
 
             $priority = (string) ($payload['priority'] ?? 'normal');
@@ -70,8 +111,9 @@ class SupportTicketService
             }
 
             $ticket = SupportTicket::create([
-                'ticket_number' => $payload['ticket_number']
-                    ?? ('TKT-'.now()->format('ymd').'-'.Str::upper(Str::random(4))),
+                'ticket_number' => $this->nextTicketNumber(
+                    isset($payload['ticket_number']) ? (string) $payload['ticket_number'] : null
+                ),
                 'customer_id' => $customerId,
                 'guest_name' => $payload['guest_name'] ?? null,
                 'guest_email' => $payload['guest_email'] ?? null,
@@ -83,7 +125,7 @@ class SupportTicketService
                 'description' => (string) ($payload['description'] ?? ''),
                 'priority' => $priority,
                 'status' => $payload['status'] ?? 'open',
-                'category' => $payload['category'] ?? 'general',
+                'category' => $category !== '' ? $category : 'general',
                 'resolved_at' => $payload['resolved_at'] ?? null,
                 'resolution_notes' => $payload['resolution_notes'] ?? null,
             ]);
@@ -105,7 +147,15 @@ class SupportTicketService
                 ]);
             }
 
-            return $ticket->fresh(['assignee', 'customer', 'events']);
+            $ticket = $ticket->fresh(['assignee', 'customer', 'events']);
+            if ($ticket && $ticket->assigned_to) {
+                $this->addEvent($ticket, 'opened', $actor, 'In agent queue', [
+                    'assigned_to' => $ticket->assigned_to,
+                    'queue' => 'agent',
+                ]);
+            }
+
+            return $ticket;
         });
     }
 
@@ -236,7 +286,10 @@ class SupportTicketService
     public function activeAgents()
     {
         return User::query()
-            ->where('role', 'agent')
+            ->where(function ($q) {
+                $q->where('role', 'agent')
+                    ->orWhereJsonContains('roles', 'agent');
+            })
             ->where(function ($q) {
                 $q->where('is_active', true)->orWhereNull('is_active');
             })
@@ -244,6 +297,22 @@ class SupportTicketService
                 $q->whereNull('locked_until')->orWhere('locked_until', '<=', now());
             })
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(fn (User $u) => $u->hasRole('agent'))
+            ->values();
+    }
+
+    /**
+     * Supervisors may manually override round-robin on create/reassign.
+     */
+    public function canOverrideAssignment(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->hasRole('admin')
+            || $user->hasRole('super_admin')
+            || $user->hasRole('manager');
     }
 }

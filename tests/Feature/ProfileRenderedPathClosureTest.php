@@ -260,4 +260,66 @@ class ProfileRenderedPathClosureTest extends TestCase
         $this->assertSame('Parent', $customer->nok_relationship);
         $this->assertSame('Kinondoni', $customer->nok_district);
     }
+
+    public function test_family_and_kin_view_keep_mirror_targets_when_empty(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'C-MIRR'.random_int(100000, 999999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Neema',
+            'last_name' => 'Mushi',
+            'phone' => '255712345678',
+        ]);
+
+        $html = $this->actingAs($user)
+            ->get(route('site.borrower.profile', ['section' => 'personal']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('data-kf-view-field="marital_status"', $html);
+        $this->assertStringContainsString('data-kf-view-field="nok_first_name"', $html);
+        $this->assertStringContainsString('data-kf-family-view', $html);
+        $this->assertStringContainsString('data-kf-kin-view', $html);
+        $this->assertStringContainsString('data-kf-empty-hint', $html);
+        $this->assertStringContainsString('focus" value="family"', $html);
+        $this->assertStringContainsString('focus" value="kin"', $html);
+    }
+
+    public function test_activity_edit_binds_schema_fields_on_parent_scope(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'C-ACT'.random_int(100000, 999999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Neema',
+            'last_name' => 'Mushi',
+            'phone' => '255712345678',
+            'activity_type' => 'business_owner',
+            'activity_details' => [
+                'business_name' => 'Mama Nuru Shop',
+                'region' => 'Dar es Salaam',
+                'district' => 'Ilala',
+                'street' => 'Kariakoo',
+                'employee_count' => '1-5',
+            ],
+            'income_range' => '500000-1000000',
+        ]);
+
+        $html = $this->actingAs($user)
+            ->get(route('site.borrower.profile', ['section' => 'activity']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('x-for="field in activityFields"', $html);
+        $this->assertStringNotContainsString('fieldList: []', $html);
+        $this->assertStringContainsString('onTypeChange()', $html);
+        $this->assertStringContainsString('Mama Nuru Shop', $html);
+        $this->assertStringContainsString('employment_contract', $html);
+        $this->assertStringContainsString("activityType === 'employed'", $html);
+    }
 }

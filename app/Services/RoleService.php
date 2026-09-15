@@ -72,7 +72,79 @@ class RoleService
     /** @return list<string> */
     public function usersFilterRoles(): array
     {
-        return array_keys($this->definitions());
+        return $this->operationalRoles();
+    }
+
+    /**
+     * Console Users list: internal staff + partner portal accounts.
+     * Excludes borrower/customer member roles.
+     *
+     * @return list<string>
+     */
+    public function operationalRoles(): array
+    {
+        $memberRoles = ['borrower', 'customer'];
+        $roles = [];
+
+        foreach ($this->definitions() as $code => $definition) {
+            if (in_array($code, $memberRoles, true)) {
+                continue;
+            }
+            if (($definition['staff'] ?? false) === true) {
+                $roles[] = $code;
+                continue;
+            }
+            if (isset($definition['portal'])) {
+                $roles[] = $code;
+            }
+        }
+
+        return $roles;
+    }
+
+    /**
+     * Form labels for user create/edit capabilities.
+     * Agent is shown as Customer Support (role code remains agent).
+     *
+     * @return array<string, string>
+     */
+    public function userFormRoleLabels(): array
+    {
+        $labels = [];
+        foreach ($this->userFormRoles() as $code) {
+            $labels[$code] = $code === 'agent'
+                ? 'Customer Support'
+                : $this->label($code);
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Pick the home-desk primary from a multi-capability selection.
+     *
+     * @param  list<string>  $roleCodes
+     */
+    public function resolvePrimaryRole(array $roleCodes): string
+    {
+        $roleCodes = array_values(array_unique(array_filter($roleCodes, fn ($c) => is_string($c) && $c !== '')));
+        if ($roleCodes === []) {
+            return 'officer';
+        }
+
+        $priority = [
+            'admin', 'super_admin', 'manager', 'credit_committee',
+            'credit_analyst', 'officer', 'partner_support', 'asset_manager',
+            'marketer', 'agent', 'auditor', 'collector',
+        ];
+
+        foreach ($priority as $code) {
+            if (in_array($code, $roleCodes, true)) {
+                return $code;
+            }
+        }
+
+        return $roleCodes[0];
     }
 
     /** @return list<string> */
@@ -115,9 +187,15 @@ class RoleService
 
     public function hasConsoleAccess(User $user): bool
     {
-        $definition = $this->definition($user->role);
+        $hasAccess = false;
+        foreach ($user->roleCodes() as $code) {
+            if ((bool) ($this->definition($code)['console_access'] ?? false)) {
+                $hasAccess = true;
+                break;
+            }
+        }
 
-        return (bool) ($definition['console_access'] ?? false)
+        return $hasAccess
             && (bool) ($user->is_active ?? true)
             && ! ($user->locked_until && $user->locked_until->isFuture());
     }
@@ -132,17 +210,45 @@ class RoleService
 
     public function hasPermissionBypass(User $user): bool
     {
-        return (bool) ($this->definition($user->role)['permission_bypass'] ?? false);
+        foreach ($user->roleCodes() as $code) {
+            if ((bool) ($this->definition($code)['permission_bypass'] ?? false)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function hasPolicyBypass(User $user): bool
     {
-        return (bool) ($this->definition($user->role)['policy_bypass'] ?? false);
+        foreach ($user->roleCodes() as $code) {
+            if ((bool) ($this->definition($code)['policy_bypass'] ?? false)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function isStaff(?string $role): bool
     {
         return (bool) ($this->definition($role)['staff'] ?? false);
+    }
+
+    public function isStaffUser(User $user): bool
+    {
+        foreach ($user->roleCodes() as $code) {
+            if ($this->isStaff($code)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function userHasAnyRole(User $user, array $allowedRoles): bool
+    {
+        return count(array_intersect($user->roleCodes(), $allowedRoles)) > 0;
     }
 
     public function isPortalRole(?string $role): bool

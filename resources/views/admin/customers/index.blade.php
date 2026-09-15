@@ -1,4 +1,4 @@
-<x-admin.layout title="Customers" heading="" subheading="">
+<x-admin.layout title="Members" heading="" subheading="">
 
     @php
         $counts = [
@@ -15,7 +15,7 @@
         <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-6 text-white">
                 <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Borrower registry</p>
-                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Customers</h1>
+                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Members</h1>
                 <p class="text-sm text-white/75 mt-2 max-w-2xl">
                     Open a customer for the full loan-officer dossier — profile, documents, and applications.
                 </p>

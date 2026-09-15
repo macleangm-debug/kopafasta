@@ -28,7 +28,7 @@ class AdminArchitectureFeatureTest extends TestCase
             ->all();
 
         $this->assertSame(
-            ['Home', 'Customers', 'Lending', 'Money', 'Partners', 'Growth', 'Communications', 'Reports', 'More', 'Settings'],
+            ['Home', 'Members', 'Lending', 'Money', 'Partners', 'Growth', 'Communications', 'Reports', 'More', 'Settings'],
             $labels
         );
     }

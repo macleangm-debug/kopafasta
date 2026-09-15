@@ -31,6 +31,8 @@ class AdminUserCreateWizardFeatureTest extends TestCase
             ->assertSee('data-step-label="Person"', false)
             ->assertSee('data-step-label="Desk"', false)
             ->assertSee('data-step-label="Access"', false)
+            ->assertSee('Customer Support', false)
+            ->assertSee('Capabilities', false)
             ->assertSee('autocomplete="new-password"', false)
             ->assertSee('Head Office, Dar es Salaam', false)
             ->assertDontSee('Approval limit', false)
@@ -49,13 +51,14 @@ class AdminUserCreateWizardFeatureTest extends TestCase
                 'email' => 'rogathe.support@example.com',
                 'phone' => '255653924624',
                 'password' => 'secret12',
-                'role' => 'partner_support',
+                'roles' => ['partner_support'],
                 'is_active' => '1',
             ])
             ->assertRedirect();
 
         $user = User::query()->where('email', 'rogathe.support@example.com')->firstOrFail();
         $this->assertSame('partner_support', $user->role);
+        $this->assertSame(['partner_support'], $user->roles);
         $this->assertSame((int) $prt->id, (int) $user->department_id);
         $this->assertTrue($user->departments->contains('id', $prt->id));
         $this->assertSame('HQ001', $user->branch?->code);

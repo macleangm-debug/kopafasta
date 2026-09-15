@@ -26,6 +26,7 @@ class SupportTaxonomy
                 'profile' => 'Profile / KYC',
                 'reward_fulfilment' => 'Reward fulfilment',
                 'broken_page' => 'Broken page',
+                'other' => 'Other',
             ],
             'subjects' => [
                 'complaint' => ['Service issue', 'Staff conduct', 'Fee dispute', 'Other'],
@@ -39,6 +40,7 @@ class SupportTaxonomy
                 'profile' => ['Identity / NIDA', 'Documents', 'Contact details', 'Other'],
                 'reward_fulfilment' => ['Reward fulfilment', 'Other'],
                 'broken_page' => ['Page error', 'Missing content', 'Other'],
+                'other' => ['General inquiry', 'Other'],
             ],
         ];
     }
@@ -98,5 +100,41 @@ class SupportTaxonomy
         }
 
         return $subject !== '' ? $subject : 'General inquiry';
+    }
+
+    public static function resolveCategory(?string $category, ?string $categoryOther = null): string
+    {
+        $category = trim((string) $category);
+        if ($category === '' || strcasecmp($category, 'other') === 0) {
+            $other = trim((string) $categoryOther);
+
+            return $other !== '' ? $other : ($category !== '' ? 'other' : 'general');
+        }
+
+        return $category;
+    }
+
+    /**
+     * Map a stored category value back to a taxonomy key for the create/edit selectors.
+     */
+    public static function categoryKeyForStored(?string $stored): string
+    {
+        $stored = trim((string) $stored);
+        if ($stored === '') {
+            return '';
+        }
+
+        $categories = self::categories();
+        if (array_key_exists($stored, $categories)) {
+            return $stored;
+        }
+
+        foreach ($categories as $key => $label) {
+            if (strcasecmp((string) $label, $stored) === 0) {
+                return (string) $key;
+            }
+        }
+
+        return 'other';
     }
 }

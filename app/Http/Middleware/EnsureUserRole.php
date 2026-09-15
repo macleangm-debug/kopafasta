@@ -24,7 +24,8 @@ class EnsureUserRole
 
         $allowedRoles = $this->roles->resolveApiRoles($roles);
 
-        if (! in_array($user->role, $allowedRoles, true)) {
+        if (! in_array($user->role, $allowedRoles, true)
+            && ! $this->roles->userHasAnyRole($user, $allowedRoles)) {
             $this->logDenied($request, $user, $allowedRoles);
 
             return response()->json(['message' => 'Forbidden'], 403);

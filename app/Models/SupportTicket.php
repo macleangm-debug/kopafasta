@@ -31,7 +31,7 @@ class SupportTicket extends Model
     public function contactLabel(): string
     {
         if ($this->customer) {
-            return trim($this->customer->first_name.' '.$this->customer->last_name) ?: ('Customer #'.$this->customer_id);
+            return trim($this->customer->first_name.' '.$this->customer->last_name) ?: ('Member #'.$this->customer_id);
         }
 
         return trim((string) $this->guest_name) !== ''

@@ -27,7 +27,7 @@
             <section>
                 <h2 class="font-semibold mb-1">{{ __('borrower.profile.activity_info') }}</h2>
                 <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.activity_info_hint') }}</p>
-                <div class="grid sm:grid-cols-2 gap-4" x-data="{ fieldList: [] }" x-effect="fieldList = activityFields">
+                <div class="grid sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.what_do_you_do') }} <span class="text-red-500">*</span></label>
                         <div class="lg:hidden mb-0">
@@ -56,6 +56,7 @@
                             @endforeach
                         </select>
                     </div>
+                    {{-- Must bind on parent activityForm scope — nested x-data broke activityFields and left only Type + Income. --}}
                     <template x-for="field in activityFields" :key="activityType + '-' + field.key">
                         <div :class="(field.type === 'select' || field.type === 'region' || field.type === 'district') ? '' : 'sm:col-span-2'">
                             <label class="block text-xs font-medium text-gray-600 mb-1">
@@ -72,7 +73,7 @@
                                         </button>
                                     </div>
                                     <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                            @change="field.type === 'region' && onRegionChange()"
+                                            @change="field.type === 'region' && onRegionChange(); $dispatch('profile-select', { name: 'activity_details[' + field.key + ']', value: details[field.key] })"
                                             class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
                                         <option value="" x-text="field.type === 'region' ? labels.selectRegion : (field.type === 'district' ? labels.selectDistrict : labels.selectOption)"></option>
                                         <template x-if="field.type === 'select'">

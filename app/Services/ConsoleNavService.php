@@ -73,7 +73,7 @@ class ConsoleNavService
                 'hide_from' => [],
             ],
             [
-                'label' => 'Customers',
+                'label' => 'Members',
                 'workspace' => true,
                 'active_prefixes' => ['admin.customers.', 'admin.profile-sections.'],
                 'items' => [

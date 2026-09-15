@@ -11,6 +11,24 @@ if (! function_exists('display_label')) {
     }
 }
 
+if (! function_exists('operator_email_display')) {
+    /**
+     * Operator-facing email: hide phone-local synthetic addresses.
+     */
+    function operator_email_display(?string $email): string
+    {
+        if ($email === null || trim($email) === '') {
+            return '—';
+        }
+
+        if (str_ends_with(strtolower(trim($email)), '@phone.kopafasta.local')) {
+            return '—';
+        }
+
+        return trim($email);
+    }
+}
+
 if (! function_exists('app_display_timezone')) {
     function app_display_timezone(): string
     {

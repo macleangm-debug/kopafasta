@@ -13,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone', 'password', 'pin_hash', 'pin_set_at', 'role', 'branch_id', 'department_id', 'approval_limit', 'is_active', 'locked_until', 'password_changed_at', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at', 'preferences'])]
+#[Fillable(['name', 'email', 'phone', 'password', 'pin_hash', 'pin_set_at', 'role', 'roles', 'branch_id', 'department_id', 'approval_limit', 'is_active', 'locked_until', 'password_changed_at', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at', 'preferences'])]
 #[Hidden(['password', 'pin_hash', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable
 {
@@ -35,6 +35,7 @@ class User extends Authenticatable
             'password_changed_at' => 'datetime',
             'is_active' => 'boolean',
             'preferences' => 'array',
+            'roles' => 'array',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',
             'two_factor_confirmed_at' => 'datetime',
@@ -51,17 +52,48 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->hasRole('admin');
     }
 
     public function isStaff(): bool
     {
-        return app(\App\Services\RoleService::class)->isStaff($this->role);
+        return app(\App\Services\RoleService::class)->isStaffUser($this);
+    }
+
+    /**
+     * All capability codes for this user (primary role + roles JSON).
+     *
+     * @return list<string>
+     */
+    public function roleCodes(): array
+    {
+        $codes = [];
+        if (is_string($this->role) && $this->role !== '') {
+            $codes[] = $this->role;
+        }
+        foreach ((array) ($this->roles ?? []) as $code) {
+            if (is_string($code) && $code !== '') {
+                $codes[] = $code;
+            }
+        }
+
+        return array_values(array_unique($codes));
+    }
+
+    public function hasRole(string $code): bool
+    {
+        return in_array($code, $this->roleCodes(), true);
     }
 
     public function roleLabel(): string
     {
-        return display_label($this->role, 'role');
+        $roles = app(\App\Services\RoleService::class);
+        $labels = [];
+        foreach ($this->roleCodes() as $code) {
+            $labels[] = $code === 'agent' ? 'Customer Support' : $roles->label($code);
+        }
+
+        return implode(', ', array_filter($labels)) ?: display_label($this->role, 'role');
     }
 
     public function hasPermission(string $permission): bool

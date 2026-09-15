@@ -39,7 +39,13 @@ class AdminController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        $user->update($data);
+        $user->update([
+            'role' => $data['role'],
+            'roles' => [$data['role']],
+            'approval_limit' => $data['approval_limit'] ?? $user->approval_limit,
+            'branch_id' => $data['branch_id'] ?? $user->branch_id,
+            'is_active' => $data['is_active'] ?? $user->is_active,
+        ]);
 
         return response()->json($user->fresh());
     }

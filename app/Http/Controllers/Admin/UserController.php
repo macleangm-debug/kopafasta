@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Department;
 use App\Models\User;
+use App\Services\CreditAuthorityService;
+use App\Services\CreditDeskAssignmentService;
 use App\Services\RoleService;
 use App\Services\UserAccountService;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class UserController extends ResourceController
@@ -35,7 +38,8 @@ class UserController extends ResourceController
             'name'            => ['required', 'string', 'max:150'],
             'email'           => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($id)],
             'phone'           => ['nullable', 'string', 'max:30'],
-            'role'            => ['required', Rule::in($allowedRoles)],
+            'roles'           => ['required', 'array', 'min:1'],
+            'roles.*'         => ['string', Rule::in($allowedRoles)],
             'department_ids'  => ['nullable', 'array'],
             'department_ids.*'=> ['integer', 'exists:departments,id'],
             'is_active'       => ['nullable', 'boolean'],
@@ -45,11 +49,7 @@ class UserController extends ResourceController
 
     protected function formData(?Model $record = null): array
     {
-        $roleOptions = [];
-
-        foreach ($this->roles->userFormRoles() as $code) {
-            $roleOptions[$code] = $this->roles->label($code);
-        }
+        $roleOptions = $this->roles->userFormRoleLabels();
 
         return [
             'departments' => Department::orderBy('name')->pluck('name', 'id'),
@@ -60,13 +60,16 @@ class UserController extends ResourceController
                 ->all(),
             'roleDesks'   => collect($this->roles->userFormRoles())
                 ->mapWithKeys(function (string $code) {
-                    $desk = app(\App\Services\CreditDeskAssignmentService::class);
+                    $desk = app(CreditDeskAssignmentService::class);
                     $id = $desk->defaultDepartmentId($code);
                     $name = $id ? (string) (Department::query()->where('id', $id)->value('name') ?? '') : 'Full console';
 
                     return [$code => $name];
                 })
                 ->all(),
+            'approvalAuthority' => $record instanceof User
+                ? app(CreditAuthorityService::class)->effectiveLoanApproveDisplay($record)
+                : null,
         ];
     }
 
@@ -81,6 +84,30 @@ class UserController extends ResourceController
         unset($data['department_ids']);
 
         return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array{0: string, 1: list<string>}
+     */
+    private function resolveRoleSelection(array $validated): array
+    {
+        $roleCodes = array_values(array_unique(array_map(
+            'strval',
+            (array) ($validated['roles'] ?? []),
+        )));
+
+        $screening = array_intersect($roleCodes, CreditDeskAssignmentService::SCREENING_ROLES);
+        $committee = array_intersect($roleCodes, CreditDeskAssignmentService::COMMITTEE_ROLES);
+        if ($screening !== [] && $committee !== []) {
+            throw ValidationException::withMessages([
+                'roles' => 'A user cannot hold both a screening capability and a committee capability.',
+            ]);
+        }
+
+        $primary = $this->roles->resolvePrimaryRole($roleCodes);
+
+        return [$primary, $roleCodes];
     }
 
     /** @return list<int> */
@@ -113,11 +140,14 @@ class UserController extends ResourceController
         abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
 
         $validated = $request->validate($this->rules());
-        $desks = app(\App\Services\CreditDeskAssignmentService::class);
-        $departmentIds = $desks->ensureDesk((string) $validated['role'], $this->resolvedDepartmentIds($request));
-        $validated['department_id'] = $desks->primaryDepartmentId((string) $validated['role'], $departmentIds);
+        [$primary, $roleCodes] = $this->resolveRoleSelection($validated);
+        $desks = app(CreditDeskAssignmentService::class);
+        $departmentIds = $desks->ensureDesk($primary, $this->resolvedDepartmentIds($request));
+        $validated['department_id'] = $desks->primaryDepartmentId($primary, $departmentIds);
         $validated['branch_id'] = $desks->headOfficeBranchId();
-        $desks->assertCompatible((string) $validated['role'], $departmentIds);
+        $desks->assertCompatible($primary, $departmentIds);
+        $validated['role'] = $primary;
+        $validated['roles'] = $roleCodes;
         $data = $this->transform($validated);
         $record = User::create($data);
         $record->departments()->sync($departmentIds);
@@ -133,10 +163,12 @@ class UserController extends ResourceController
         abort_unless(auth()->user()?->hasPermission('users.view'), 403);
 
         $record = User::with(['department', 'departments'])->findOrFail($id);
+        $approvalAuthority = app(CreditAuthorityService::class)->effectiveLoanApproveDisplay($record);
 
         return view("admin.{$this->viewFolder}.show", [
             'record'   => $record,
             'isLocked' => $this->accounts->isLocked($record),
+            'approvalAuthority' => $approvalAuthority,
         ]);
     }
 
@@ -156,11 +188,14 @@ class UserController extends ResourceController
         $record = User::findOrFail($id);
         $before = app(\App\Services\AuditService::class)->snapshot($record);
         $validated = $request->validate($this->rules($record));
-        $desks = app(\App\Services\CreditDeskAssignmentService::class);
-        $departmentIds = $desks->ensureDesk((string) $validated['role'], $this->resolvedDepartmentIds($request));
-        $validated['department_id'] = $desks->primaryDepartmentId((string) $validated['role'], $departmentIds);
+        [$primary, $roleCodes] = $this->resolveRoleSelection($validated);
+        $desks = app(CreditDeskAssignmentService::class);
+        $departmentIds = $desks->ensureDesk($primary, $this->resolvedDepartmentIds($request));
+        $validated['department_id'] = $desks->primaryDepartmentId($primary, $departmentIds);
         $validated['branch_id'] = $desks->headOfficeBranchId();
-        $desks->assertCompatible((string) $validated['role'], $departmentIds, $record);
+        $desks->assertCompatible($primary, $departmentIds, $record);
+        $validated['role'] = $primary;
+        $validated['roles'] = $roleCodes;
         $data = $this->transform($validated, $record);
         $record->update($data);
         $record->departments()->sync($departmentIds);

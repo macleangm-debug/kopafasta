@@ -34,22 +34,28 @@ class PermissionService
     /** @return list<string> */
     public function forUser(User $user): array
     {
-        $key = (string) $user->id.'|'.$user->role;
+        $codes = $user->roleCodes();
+        $key = (string) $user->id.'|'.implode(',', $codes);
 
         if (isset($this->cache[$key])) {
             return $this->cache[$key];
         }
 
-        $role = Role::query()->where('code', $user->role)->first();
-        $permissions = $role?->permissions;
+        $permissions = [];
 
-        if (is_array($permissions) && count($permissions) > 0) {
-            return $this->cache[$key] = array_values(array_unique($permissions));
+        foreach ($codes as $code) {
+            $role = Role::query()->where('code', $code)->first();
+            $fromRole = $role?->permissions;
+
+            if (is_array($fromRole) && count($fromRole) > 0) {
+                $permissions = array_merge($permissions, $fromRole);
+                continue;
+            }
+
+            $permissions = array_merge($permissions, config('permissions.defaults.'.$code, []));
         }
 
-        $defaults = config('permissions.defaults.'.$user->role, []);
-
-        return $this->cache[$key] = array_values(array_unique($defaults));
+        return $this->cache[$key] = array_values(array_unique($permissions));
     }
 
     /** @return Collection<int, array{key: string, label: string, module: string}> */

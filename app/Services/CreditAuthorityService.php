@@ -112,4 +112,51 @@ class CreditAuthorityService
                 && (float) $limit->max_amount >= $amount)
             ->values();
     }
+
+    /**
+     * Effective loan_approve authority from Settings Hub matrix for the user's
+     * credit-capable roles. Support/agent never contributes. Null → show "—".
+     */
+    public function effectiveLoanApproveDisplay(User $user): ?string
+    {
+        $creditRoles = array_values(array_filter(
+            $user->roleCodes(),
+            fn (string $code) => $code !== 'agent' && $this->roleCanHoldLoanApprove($code),
+        ));
+
+        if ($creditRoles === []) {
+            return null;
+        }
+
+        $limits = $this->activeLimits(self::ACTION_LOAN_APPROVE)
+            ->filter(fn (ApprovalLimit $limit) => in_array($limit->role_code, $creditRoles, true))
+            ->values();
+
+        if ($limits->isEmpty()) {
+            return null;
+        }
+
+        $currency = (string) ($limits->first()->currency ?: 'TZS');
+        $min = (float) $limits->min(fn (ApprovalLimit $l) => (float) $l->min_amount);
+        $max = (float) $limits->max(fn (ApprovalLimit $l) => (float) $l->max_amount);
+
+        if ($min <= 0) {
+            return $currency.' '.format_number($max).' (up to)';
+        }
+
+        return $currency.' '.format_number($min).' – '.format_number($max);
+    }
+
+    private function roleCanHoldLoanApprove(string $roleCode): bool
+    {
+        // Roles that appear in the approval matrix / credit desks — not support.
+        return in_array($roleCode, [
+            'admin',
+            'super_admin',
+            'manager',
+            'credit_committee',
+            'credit_analyst',
+            'officer',
+        ], true);
+    }
 }

@@ -1,16 +1,16 @@
 <x-admin.show-page
     :title="$record->name"
     :heading="$record->name"
-    :subheading="$record->email"
+    :subheading="operator_email_display($record->email)"
     :backUrl="route('admin.users.index')"
     :editUrl="auth()->user()?->hasPermission('users.manage') ? route('admin.users.edit', $record) : null"
     :fields="[
         'Name'           => $record->name,
-        'Email'          => $record->email,
+        'Email'          => operator_email_display($record->email),
         'Phone'          => $record->phone,
-        'Role'           => $record->roleLabel(),
+        'Capabilities'   => $record->roleLabel(),
         'Branch'         => optional(\App\Models\Branch::find($record->branch_id))->name,
-        'Approval limit' => $record->approval_limit ? 'TZS '.format_number((float) $record->approval_limit) : null,
+        'Approval authority' => $approvalAuthority ?? '—',
         'Account status' => $record->is_active ? 'Active' : 'Inactive',
         'Locked until'   => $isLocked ? $record->locked_until?->format('d M Y, H:i') : null,
         'Created'        => $record->created_at?->format('Y-m-d H:i'),

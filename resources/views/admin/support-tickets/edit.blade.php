@@ -3,12 +3,14 @@
         'customers',
         'agents',
         'agentCount',
+        'canOverrideAssignment',
         'priorities',
         'statuses',
         'categories',
         'subjectsByCategory',
         'sources',
         'contactKinds',
+        'ticketNumberPreview',
     );
 @endphp
 <x-admin.edit-page

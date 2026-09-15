@@ -457,36 +457,34 @@
                                 || filled($customer->spouse_middle_name)
                                 || filled($customer->spouse_last_name);
                         @endphp
-                        @if (! $hasAnyFamilyValue)
-                            <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
-                            <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                        @else
-                            <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-family-view>
-                                @foreach ($familyViewRows as $row)
-                                    @if (! empty($row['href']))
-                                        <div>
-                                            <dt class="text-gray-500">{{ $row['label'] }}</dt>
-                                            <dd class="mt-0.5"><a href="{{ $row['href'] }}" target="_blank" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.profile.view_document') }}</a></dd>
-                                        </div>
-                                    @elseif (! empty($row['spouse']))
-                                        <div @class(['hidden' => ! $showSpouse]) data-kf-spouse-row>
-                                            <dt class="text-gray-500">{{ $row['label'] }}</dt>
-                                            <dd class="font-medium text-gray-900 mt-0.5" @if (! empty($row['field'])) data-kf-view-field="{{ $row['field'] }}" @endif>{{ filled($row['value']) ? $row['value'] : '—' }}</dd>
-                                        </div>
-                                    @else
-                                        <div>
-                                            <dt class="text-gray-500">{{ $row['label'] }}</dt>
-                                            <dd class="font-medium text-gray-900 mt-0.5" @if (! empty($row['field'])) data-kf-view-field="{{ $row['field'] }}" @endif>{{ filled($row['value']) ? $row['value'] : '—' }}</dd>
-                                        </div>
-                                    @endif
-                                @endforeach
-                                @if ($isMarried && $requireMarriageCert && ! ($marriageCertificate?->file_path ?? false))
-                                    <div class="sm:col-span-2">
-                                        <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.marriage_certificate') }} — {{ __('borrower.profile.missing') }}</p>
+                        {{-- Always keep mirror targets in DOM so Edit→View updates without reload (same as Residence). --}}
+                        <p class="text-sm text-gray-600" data-kf-empty-hint @class(['hidden' => $hasAnyFamilyValue])>{{ __('borrower.profile.section_empty') }}</p>
+                        <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800" data-kf-empty-hint @class(['hidden' => $hasAnyFamilyValue])>{{ __('borrower.profile.add_details') }}</button>
+                        <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-family-view @class(['hidden' => ! $hasAnyFamilyValue])>
+                            @foreach ($familyViewRows as $row)
+                                @if (! empty($row['href']))
+                                    <div>
+                                        <dt class="text-gray-500">{{ $row['label'] }}</dt>
+                                        <dd class="mt-0.5"><a href="{{ $row['href'] }}" target="_blank" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.profile.view_document') }}</a></dd>
+                                    </div>
+                                @elseif (! empty($row['spouse']))
+                                    <div @class(['hidden' => ! $showSpouse]) data-kf-spouse-row>
+                                        <dt class="text-gray-500">{{ $row['label'] }}</dt>
+                                        <dd class="font-medium text-gray-900 mt-0.5" @if (! empty($row['field'])) data-kf-view-field="{{ $row['field'] }}" @endif>{{ filled($row['value']) ? $row['value'] : '—' }}</dd>
+                                    </div>
+                                @else
+                                    <div>
+                                        <dt class="text-gray-500">{{ $row['label'] }}</dt>
+                                        <dd class="font-medium text-gray-900 mt-0.5" @if (! empty($row['field'])) data-kf-view-field="{{ $row['field'] }}" @endif>{{ filled($row['value']) ? $row['value'] : '—' }}</dd>
                                     </div>
                                 @endif
-                            </dl>
-                        @endif
+                            @endforeach
+                            @if ($isMarried && $requireMarriageCert && ! ($marriageCertificate?->file_path ?? false))
+                                <div class="sm:col-span-2">
+                                    <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.marriage_certificate') }} — {{ __('borrower.profile.missing') }}</p>
+                                </div>
+                            @endif
+                        </dl>
                     </x-slot:view>
                     <x-slot:form>
                         {{-- Same path as Activity: profile-select + named fields → kfAutosave (no one-off marital widget). --}}
@@ -598,27 +596,25 @@
                             ];
                             $hasAnyKinValue = collect($kinViewRows)->contains(fn ($row) => filled($row['value'] ?? null));
                         @endphp
-                        @if (! $hasAnyKinValue)
-                            <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
-                            <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                        @else
-                            <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                                @foreach ($kinViewRows as $field)
-                                    <div @class(['sm:col-span-2' => ! empty($field['span'])])>
-                                        <dt class="text-gray-500">{{ $field['label'] }}</dt>
-                                        <dd class="font-medium text-gray-900 mt-0.5"
-                                            data-kf-view-field="{{ $field['field'] }}"
-                                            @if (! empty($field['label_map'])) data-kf-view-label-map='@json($field['label_map'])' @endif
-                                        >{{ filled($field['value']) ? $field['value'] : '—' }}</dd>
-                                    </div>
-                                @endforeach
-                                @if (! $kinComplete)
-                                    <div class="sm:col-span-2">
-                                        <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
-                                    </div>
-                                @endif
-                            </dl>
-                        @endif
+                        {{-- Always keep mirror targets in DOM so Edit→View updates without reload. --}}
+                        <p class="text-sm text-gray-600" data-kf-empty-hint @class(['hidden' => $hasAnyKinValue])>{{ __('borrower.profile.section_empty') }}</p>
+                        <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800" data-kf-empty-hint @class(['hidden' => $hasAnyKinValue])>{{ __('borrower.profile.add_details') }}</button>
+                        <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-kin-view @class(['hidden' => ! $hasAnyKinValue])>
+                            @foreach ($kinViewRows as $field)
+                                <div @class(['sm:col-span-2' => ! empty($field['span'])])>
+                                    <dt class="text-gray-500">{{ $field['label'] }}</dt>
+                                    <dd class="font-medium text-gray-900 mt-0.5"
+                                        data-kf-view-field="{{ $field['field'] }}"
+                                        @if (! empty($field['label_map'])) data-kf-view-label-map='@json($field['label_map'])' @endif
+                                    >{{ filled($field['value']) ? $field['value'] : '—' }}</dd>
+                                </div>
+                            @endforeach
+                            @if (! $kinComplete)
+                                <div class="sm:col-span-2" data-kf-incomplete-cta>
+                                    <button type="button" @click="openEdit()" class="text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                                </div>
+                            @endif
+                        </dl>
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
