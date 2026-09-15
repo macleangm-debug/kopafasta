@@ -48,7 +48,7 @@
                                 </div>
                             </x-site.bottom-sheet>
                         </div>
-                        <select name="activity_type" x-model="activityType" @change="onTypeChange()" required
+                        <select name="activity_type" x-model="activityType" @change="onTypeChange(); $dispatch('profile-select', { name: 'activity_type', value: activityType })" required
                                 class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
                             <option value="">{{ __('borrower.profile.select_activity') }}</option>
                             @foreach ($types as $key => $label)
@@ -56,7 +56,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <template x-for="field in activityFields" :key="field.key">
+                    <template x-for="field in activityFields" :key="activityType + '-' + field.key">
                         <div :class="(field.type === 'select' || field.type === 'region' || field.type === 'district') ? '' : 'sm:col-span-2'">
                             <label class="block text-xs font-medium text-gray-600 mb-1">
                                 <span x-text="field.label"></span>
@@ -119,7 +119,7 @@
                 <h2 class="font-semibold mb-1">{{ __('borrower.profile.employment_info') }}</h2>
                 <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.employment_info_hint') }}</p>
                 <div class="grid sm:grid-cols-2 gap-4">
-                    <template x-for="field in employmentFields" :key="field.key">
+                    <template x-for="field in employmentFields" :key="activityType + '-' + field.key">
                         <div class="sm:col-span-2">
                             <label class="block text-xs font-medium text-gray-600 mb-1">
                                 <span x-text="field.label"></span>
@@ -172,7 +172,7 @@
                         </div>
                     </x-site.bottom-sheet>
                 </div>
-                <select name="activity_type" x-model="activityType" @change="onTypeChange()" required
+                <select name="activity_type" x-model="activityType" @change="onTypeChange(); $dispatch('profile-select', { name: 'activity_type', value: activityType })" required
                         class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm">
                     <option value="">{{ __('borrower.profile.select_activity') }}</option>
                     @foreach ($types as $key => $label)
@@ -181,7 +181,7 @@
                 </select>
             </div>
 
-            <template x-for="field in activeFields" :key="field.key">
+            <template x-for="field in activeFields" :key="activityType + '-' + field.key">
                 <div :class="(field.type === 'select' || field.type === 'region' || field.type === 'district') ? '' : 'sm:col-span-2'">
                     <label class="block text-xs font-medium text-gray-600 mb-1">
                         <span x-text="field.label"></span>
@@ -297,17 +297,13 @@
                 pickActivity(key) {
                     this.activityType = key;
                     this.activityPickerOpen = false;
+                    // Redraw fields immediately — do not wait for autosave/reload.
+                    this.onTypeChange();
                     this.$nextTick(() => {
                         const sel = this.$root.querySelector('select[name="activity_type"]');
                         if (sel) {
                             sel.value = key;
                             sel.dispatchEvent(new Event('change', { bubbles: true }));
-                        } else {
-                            this.onTypeChange();
-                        }
-                        const form = this.$root.closest('form');
-                        if (form && typeof window.kfFlushAutosaveForm === 'function') {
-                            window.kfFlushAutosaveForm(form);
                         }
                         this.$dispatch('profile-select', { name: 'activity_type', value: key });
                     });
@@ -360,16 +356,19 @@
                         if (sel) {
                             sel.dispatchEvent(new Event('change', { bubbles: true }));
                         }
-                        const form = this.$root.closest('form');
-                        if (form && typeof window.kfFlushAutosaveForm === 'function') {
-                            window.kfFlushAutosaveForm(form);
-                        }
                         this.$dispatch('profile-select', { name: 'activity_details[' + key + ']', value });
                     });
                 },
                 onTypeChange() {
-                    this.details = {};
+                    // Keep unrelated saved details; clear only keys that belong to no current field
+                    // after the new field set is applied — UI must redraw in this same tick.
                     this.refreshFields();
+                    const allowed = new Set((this.activeFields || []).map((f) => f.key));
+                    const next = {};
+                    Object.keys(this.details || {}).forEach((k) => {
+                        if (allowed.has(k)) next[k] = this.details[k];
+                    });
+                    this.details = next;
                 },
                 onRegionChange() {
                     this.details.district = '';

@@ -113,6 +113,27 @@ class AuditService
         return $this->log($user, "borrower.{$event}", $auditable, [], $context);
     }
 
+    /**
+     * Mirror a support ticket timeline event into the platform audit log.
+     *
+     * @param  array<string, mixed>  $meta
+     */
+    public function logTicketEvent(
+        ?User $user,
+        Model $ticket,
+        string $ticketEvent,
+        array $meta = [],
+        ?string $body = null,
+    ): ?AuditLog {
+        $context = $this->sanitize(array_filter([
+            'ticket_event' => $ticketEvent,
+            'body' => $body,
+            ...$meta,
+        ], fn ($v) => $v !== null && $v !== ''));
+
+        return $this->log($user, "support.ticket.{$ticketEvent}", $ticket, [], $context);
+    }
+
     private function shouldRedact(string $key): bool
     {
         if (in_array($key, self::REDACTED_KEYS, true)) {

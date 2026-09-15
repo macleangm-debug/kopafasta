@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production baseline** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | Operational production baseline until live production is re-verified. Do not casually overwrite. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | `8c262ccb2c6f5cd63a7df6398bccbd1648dcc0ea` | Profile Family/Kin shared autosave + desktop select teleport. **Staging UAT. Do not promote.** |
+| **Current staging / development baseline** | `f814c8c8e8c3c5941efe3ec975c668395490f6df` | Profile Family/Kin shared autosave + desktop select teleport. **Staging UAT. Do not promote.** |
 | **Current clean production candidate** | _(none yet)_ | After Identity UAT passes: cut from `8bb9bf5e…` with only owner-accepted changes → staging smoke → owner approve → promote that exact SHA. |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
@@ -39,7 +39,9 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 9. **Platform Profile UX (frozen pattern):** Collapsed → View all saved fields → Hariri/Edit → `kfAutosave`. One top-centre green tab only (`Inahifadhi…` / ✓ `Imehifadhiwa` / `Haijahifadhiwa · Jaribu tena`). No inline Saved labels. Autosave every valid change (partial OK); Complete ≠ Saved. Signature owns its own focus.
 10. **National ID:** one member-facing holder; Front → Back directed; landscape id-card guide; Replace picks side then source.
 
-## Deploy
+## Open / in progress
+
+- **Support Operations V1** (local): extend `SupportTicket` with guest fields + `support_ticket_events`, `SupportTicketService` auto-assign round-robin for role `agent`, Feedback non-complaint → tickets, agent `console_access` + `user_form` true. Do not promote until owner UAT.
 
 ```bash
 SSH_IDENTITY_FILE=~/.ssh/kopafasta_server \

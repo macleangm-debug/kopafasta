@@ -91,12 +91,14 @@ return [
         ],
         'agent' => [
             'label'              => 'Support agent',
-            'console_access'     => false,
+            'console_access'     => true,
             'staff'              => true,
             'permission_bypass'  => false,
             'policy_bypass'      => false,
-            'user_form'          => false,
-            'users_filter'       => false,
+            'user_form'          => true,
+            'users_filter'       => true,
+            'desk'               => 'Support',
+            'duty'               => 'Owns the support desk: tickets, responses, and escalations.',
             'api_capabilities'   => ['support'],
         ],
         'auditor' => [

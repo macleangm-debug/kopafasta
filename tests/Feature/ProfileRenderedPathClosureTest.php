@@ -93,7 +93,7 @@ class ProfileRenderedPathClosureTest extends TestCase
         $emails = support_emails();
         $phones = support_phones();
 
-        $this->assertSame(['info@example.test', 'hello@example.test'], $emails);
+        $this->assertSame(['info@example.test'], $emails);
         $this->assertNotEmpty($phones);
         foreach ($phones as $phone) {
             $this->assertStringNotContainsString('++', $phone);

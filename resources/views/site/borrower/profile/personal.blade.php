@@ -412,36 +412,38 @@
                         @php
                             $familyViewRows = [];
                             $familyViewRows[] = [
+                                'field' => 'marital_status',
                                 'label' => __('borrower.profile.fields.marital_status'),
                                 'value' => filled($customer->marital_status)
                                     ? __('borrower.profile.marital_options.'.$customer->marital_status)
                                     : null,
                             ];
                             $familyViewRows[] = [
+                                'field' => 'number_of_children',
                                 'label' => __('borrower.profile.fields.number_of_children'),
                                 'value' => $customer->number_of_children !== null
                                     ? (string) $customer->number_of_children
                                     : null,
                             ];
-                            // Mirror Edit: when married (or spouse data exists), always list spouse name fields.
-                            $showSpouse = $isMarried
-                                || filled($customer->spouse_first_name)
-                                || filled($customer->spouse_middle_name)
-                                || filled($customer->spouse_last_name);
-                            if ($showSpouse) {
-                                $familyViewRows[] = [
-                                    'label' => __('borrower.profile.fields.spouse_first_name'),
-                                    'value' => $customer->spouse_first_name,
-                                ];
-                                $familyViewRows[] = [
-                                    'label' => __('borrower.profile.fields.spouse_middle_name'),
-                                    'value' => $customer->spouse_middle_name,
-                                ];
-                                $familyViewRows[] = [
-                                    'label' => __('borrower.profile.fields.spouse_last_name'),
-                                    'value' => $customer->spouse_last_name,
-                                ];
-                            }
+                            // Always expose spouse mirrors so Edit→View sync works without reload.
+                            $familyViewRows[] = [
+                                'field' => 'spouse_first_name',
+                                'label' => __('borrower.profile.fields.spouse_first_name'),
+                                'value' => $customer->spouse_first_name,
+                                'spouse' => true,
+                            ];
+                            $familyViewRows[] = [
+                                'field' => 'spouse_middle_name',
+                                'label' => __('borrower.profile.fields.spouse_middle_name'),
+                                'value' => $customer->spouse_middle_name,
+                                'spouse' => true,
+                            ];
+                            $familyViewRows[] = [
+                                'field' => 'spouse_last_name',
+                                'label' => __('borrower.profile.fields.spouse_last_name'),
+                                'value' => $customer->spouse_last_name,
+                                'spouse' => true,
+                            ];
                             if ($marriageCertificate?->file_path ?? false) {
                                 $familyViewRows[] = [
                                     'label' => __('borrower.profile.marriage_certificate'),
@@ -450,21 +452,33 @@
                                 ];
                             }
                             $hasAnyFamilyValue = collect($familyViewRows)->contains(fn ($row) => filled($row['value'] ?? null) || ! empty($row['href']));
+                            $showSpouse = $isMarried
+                                || filled($customer->spouse_first_name)
+                                || filled($customer->spouse_middle_name)
+                                || filled($customer->spouse_last_name);
                         @endphp
                         @if (! $hasAnyFamilyValue)
                             <p class="text-sm text-gray-600">{{ __('borrower.profile.section_empty') }}</p>
                             <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
                         @else
-                            <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                            <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-family-view>
                                 @foreach ($familyViewRows as $row)
-                                    <div>
-                                        <dt class="text-gray-500">{{ $row['label'] }}</dt>
-                                        @if (! empty($row['href']))
+                                    @if (! empty($row['href']))
+                                        <div>
+                                            <dt class="text-gray-500">{{ $row['label'] }}</dt>
                                             <dd class="mt-0.5"><a href="{{ $row['href'] }}" target="_blank" class="text-sm font-semibold text-brand hover:underline">{{ __('borrower.profile.view_document') }}</a></dd>
-                                        @else
-                                            <dd class="font-medium text-gray-900 mt-0.5">{{ filled($row['value']) ? $row['value'] : '—' }}</dd>
-                                        @endif
-                                    </div>
+                                        </div>
+                                    @elseif (! empty($row['spouse']))
+                                        <div @class(['hidden' => ! $showSpouse]) data-kf-spouse-row>
+                                            <dt class="text-gray-500">{{ $row['label'] }}</dt>
+                                            <dd class="font-medium text-gray-900 mt-0.5" @if (! empty($row['field'])) data-kf-view-field="{{ $row['field'] }}" @endif>{{ filled($row['value']) ? $row['value'] : '—' }}</dd>
+                                        </div>
+                                    @else
+                                        <div>
+                                            <dt class="text-gray-500">{{ $row['label'] }}</dt>
+                                            <dd class="font-medium text-gray-900 mt-0.5" @if (! empty($row['field'])) data-kf-view-field="{{ $row['field'] }}" @endif>{{ filled($row['value']) ? $row['value'] : '—' }}</dd>
+                                        </div>
+                                    @endif
                                 @endforeach
                                 @if ($isMarried && $requireMarriageCert && ! ($marriageCertificate?->file_path ?? false))
                                     <div class="sm:col-span-2">
@@ -482,6 +496,10 @@
                               data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
                               data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
                               data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
+                              data-kf-marital-single="{{ __('borrower.profile.marital_options.single') }}"
+                              data-kf-marital-married="{{ __('borrower.profile.marital_options.married') }}"
+                              data-kf-marital-divorced="{{ __('borrower.profile.marital_options.divorced') }}"
+                              data-kf-marital-widowed="{{ __('borrower.profile.marital_options.widowed') }}"
                               x-data="{
                                   marital: @js(old('marital_status', $customer->marital_status) ?: ''),
                               }"
@@ -568,15 +586,15 @@
                                 $kinMiddle = implode(' ', $kinParts);
                             }
                             $kinViewRows = [
-                                ['label' => __('borrower.profile.fields.first_name'), 'value' => $kinFirst],
-                                ['label' => __('borrower.profile.fields.middle_name'), 'value' => $kinMiddle],
-                                ['label' => __('borrower.profile.fields.last_name'), 'value' => $kinLast],
-                                ['label' => __('borrower.profile.fields.relationship'), 'value' => $customer->nok_relationship ? kin_relationship_label($customer->nok_relationship) : null],
-                                ['label' => __('borrower.profile.fields.phone'), 'value' => $customer->nok_phone],
-                                ['label' => __('borrower.profile.region'), 'value' => $customer->nok_region],
-                                ['label' => __('borrower.profile.district'), 'value' => $customer->nok_district],
-                                ['label' => __('borrower.profile.ward'), 'value' => $customer->nok_ward],
-                                ['label' => __('borrower.profile.street'), 'value' => $customer->nok_street, 'span' => true],
+                                ['field' => 'nok_first_name', 'label' => __('borrower.profile.fields.first_name'), 'value' => $kinFirst],
+                                ['field' => 'nok_middle_name', 'label' => __('borrower.profile.fields.middle_name'), 'value' => $kinMiddle],
+                                ['field' => 'nok_last_name', 'label' => __('borrower.profile.fields.last_name'), 'value' => $kinLast],
+                                ['field' => 'nok_relationship', 'label' => __('borrower.profile.fields.relationship'), 'value' => $customer->nok_relationship ? kin_relationship_label($customer->nok_relationship) : null, 'label_map' => kin_relationship_options()],
+                                ['field' => 'nok_phone', 'label' => __('borrower.profile.fields.phone'), 'value' => $customer->nok_phone],
+                                ['field' => 'nok_region', 'label' => __('borrower.profile.region'), 'value' => $customer->nok_region],
+                                ['field' => 'nok_district', 'label' => __('borrower.profile.district'), 'value' => $customer->nok_district],
+                                ['field' => 'nok_ward', 'label' => __('borrower.profile.ward'), 'value' => $customer->nok_ward],
+                                ['field' => 'nok_street', 'label' => __('borrower.profile.street'), 'value' => $customer->nok_street, 'span' => true],
                             ];
                             $hasAnyKinValue = collect($kinViewRows)->contains(fn ($row) => filled($row['value'] ?? null));
                         @endphp
@@ -588,7 +606,10 @@
                                 @foreach ($kinViewRows as $field)
                                     <div @class(['sm:col-span-2' => ! empty($field['span'])])>
                                         <dt class="text-gray-500">{{ $field['label'] }}</dt>
-                                        <dd class="font-medium text-gray-900 mt-0.5">{{ filled($field['value']) ? $field['value'] : '—' }}</dd>
+                                        <dd class="font-medium text-gray-900 mt-0.5"
+                                            data-kf-view-field="{{ $field['field'] }}"
+                                            @if (! empty($field['label_map'])) data-kf-view-label-map='@json($field['label_map'])' @endif
+                                        >{{ filled($field['value']) ? $field['value'] : '—' }}</dd>
                                     </div>
                                 @endforeach
                                 @if (! $kinComplete)

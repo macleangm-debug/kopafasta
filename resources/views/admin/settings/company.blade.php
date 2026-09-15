@@ -27,48 +27,15 @@
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <x-admin.input name="email"           label="Primary contact email" type="email" :value="$values['email'] ?? ''" />
-                    <x-admin.input name="support_email"   label="Support email (optional 2nd)" type="email" :value="$values['support_email'] ?? ''" />
                     <div>
                         <x-site.phone-input
                             name="phone"
-                            :label="'Hotline / phone 1'"
+                            :label="'Primary phone / hotline'"
                             :value="$values['phone'] ?? ''"
-                            locked-country="TZ"
+                            :locked-country="app(\App\Services\CountrySettingsService::class)->defaultCountryCode()"
+                            :allow-country-change="true"
                             variant="rounded"
                             :help="null"
-                        />
-                    </div>
-                    <div>
-                        <x-site.phone-input
-                            name="phone_2"
-                            :label="'Phone 2 (optional)'"
-                            :value="$values['phone_2'] ?? ''"
-                            locked-country="TZ"
-                            variant="rounded"
-                            :required="false"
-                            :help="null"
-                        />
-                    </div>
-                    <div>
-                        <x-site.phone-input
-                            name="phone_3"
-                            :label="'Phone 3 (optional)'"
-                            :value="$values['phone_3'] ?? ''"
-                            locked-country="TZ"
-                            variant="rounded"
-                            :required="false"
-                            :help="null"
-                        />
-                    </div>
-                    <div>
-                        <x-site.phone-input
-                            name="whatsapp"
-                            :label="'WhatsApp'"
-                            :value="$values['whatsapp'] ?? ''"
-                            locked-country="TZ"
-                            variant="rounded"
-                            :required="false"
-                            :help="'Stored as national MSISDN digits for wa.me links.'"
                         />
                     </div>
                     <x-admin.input name="hotline_label"   label="Hotline label (e.g. Customer care)" :value="$values['hotline_label'] ?? ''" />
@@ -76,6 +43,7 @@
                     <x-admin.input name="app_base_url"    label="App base URL"      :value="$values['app_base_url'] ?? ''" placeholder="https://www.kopafasta.com" />
                     <x-admin.input name="address"         label="Address"           :value="$values['address'] ?? ''" />
                 </div>
+                <p class="text-xs text-gray-500">Public footer and legal surfaces use this primary email and phone. Extra internal phones remain available via Settings keys if an operational system already stores them — they are not part of the public-contact UI.</p>
 
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-5 py-4 space-y-3">
                     <div>

@@ -60,14 +60,12 @@
             const input = this.$refs.hiddenInput || this.$el.querySelector('input[type=hidden]');
             if (input) {
                 input.value = this.selected;
+                input.setAttribute('value', this.selected);
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
             }
+            // Single path: document profile-select listener coalesces kfAutosave flush.
             this.$dispatch('profile-select', { name: @js($name), value: this.selected });
-            if (typeof window.kfFlushAutosaveForm === 'function') {
-                const form = this.$el.closest('form[data-kf-autosave]');
-                if (form) window.kfFlushAutosaveForm(form);
-            }
         });
     }
 }"

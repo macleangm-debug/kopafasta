@@ -58,16 +58,27 @@ if (! function_exists('support_phones')) {
     function support_phones(): array
     {
         $phones = [];
-        foreach (['company.phone', 'company.phone_2', 'company.phone_3'] as $key) {
-            $value = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get($key) : null;
-            if (! filled($value)) {
-                continue;
-            }
-            $display = \App\Support\PhoneNumber::format((string) $value) ?? (string) $value;
-            // Collapse accidental ++ prefixes from legacy free-text admin saves.
+        $primary = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get('company.phone') : null;
+        if (filled($primary)) {
+            $display = \App\Support\PhoneNumber::format((string) $primary) ?? (string) $primary;
             $display = preg_replace('/^\++/', '+', $display) ?: $display;
             if (filled($display)) {
                 $phones[] = $display;
+            }
+        }
+
+        // Legacy secondary numbers only if primary is empty (public contact = one phone).
+        if ($phones === []) {
+            foreach (['company.phone_2', 'company.phone_3'] as $key) {
+                $value = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get($key) : null;
+                if (! filled($value)) {
+                    continue;
+                }
+                $display = \App\Support\PhoneNumber::format((string) $value) ?? (string) $value;
+                $display = preg_replace('/^\++/', '+', $display) ?: $display;
+                if (filled($display)) {
+                    $phones[] = $display;
+                }
             }
         }
 
@@ -84,17 +95,20 @@ if (! function_exists('support_phones')) {
 
 if (! function_exists('support_emails')) {
     /**
-     * Up to 2 public support emails from company settings.
+     * Public support email — primary company.email (legacy support_email only if primary empty).
      *
      * @return list<string>
      */
     function support_emails(): array
     {
         $emails = [];
-        foreach (['company.email', 'company.support_email'] as $key) {
-            $value = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get($key) : null;
-            if (filled($value)) {
-                $emails[] = (string) $value;
+        $primary = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get('company.email') : null;
+        if (filled($primary)) {
+            $emails[] = (string) $primary;
+        } else {
+            $legacy = class_exists(\App\Models\Setting::class) ? \App\Models\Setting::get('company.support_email') : null;
+            if (filled($legacy)) {
+                $emails[] = (string) $legacy;
             }
         }
 

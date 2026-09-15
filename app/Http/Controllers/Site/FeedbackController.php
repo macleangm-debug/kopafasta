@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\Complaint;
-use App\Models\SupportTicket;
+use App\Services\Support\SupportTicketService;
 use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +13,10 @@ use Illuminate\View\View;
 
 class FeedbackController extends Controller
 {
+    public function __construct(
+        private readonly SupportTicketService $tickets,
+    ) {}
+
     public function index(): View
     {
         return view('site.feedback.index', [
@@ -57,20 +61,21 @@ class FeedbackController extends Controller
             ]);
         } else {
             $priority = in_array($validated['category'], ['technical', 'complaint'], true) ? 'high' : 'normal';
-            if ($customerId) {
-                $customer = \App\Models\Customer::query()->find($customerId);
-                if ($customer && app(\App\Services\LoyaltyRedemptionService::class)->activePrioritySupport($customer)) {
-                    $priority = 'urgent';
-                }
-            }
-            SupportTicket::create([
-                'ticket_number' => 'TKT-'.now()->format('ymd').'-'.Str::upper(Str::random(4)),
+
+            $this->tickets->create([
                 'customer_id' => $customerId,
+                'guest_name' => $customerId ? null : $validated['name'],
+                'guest_email' => $customerId ? null : ($validated['email'] ?? null),
+                'guest_phone' => $customerId ? null : $phone,
+                'contact_kind' => $customerId ? 'customer' : 'guest',
+                'source' => 'public_feedback',
                 'subject' => $validated['subject'],
                 'description' => $description,
                 'priority' => $priority,
+                'priority_locked' => false,
                 'status' => 'open',
                 'category' => $validated['category'],
+                'actor' => auth()->user(),
             ]);
         }
 

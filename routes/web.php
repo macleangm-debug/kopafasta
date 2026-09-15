@@ -1113,8 +1113,10 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         });
 
         // Support
-        $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
-        Route::middleware('permission:support.tickets')->group(function (): void {
+        Route::middleware('permission:support.tickets')->group(function () use ($registerResource): void {
+            $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
+            Route::get('support-tickets-customers', [SupportTicketController::class, 'searchCustomers'])
+                ->name('support-tickets.customers');
             Route::get('broken-pages', [BrokenPageController::class, 'index'])->name('broken-pages.index');
             Route::post('broken-pages/classify-open', [BrokenPageController::class, 'classifyOpen'])->name('broken-pages.classify-open');
             Route::post('broken-pages/reset-baseline', [BrokenPageController::class, 'resetBaseline'])->name('broken-pages.reset-baseline');

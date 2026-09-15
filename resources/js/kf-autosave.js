@@ -221,6 +221,9 @@ window.kfBindAutosaveForm = function (form, options = {}) {
             if (typeof window.kfFlashInlineSaved === 'function') {
                 window.kfFlashInlineSaved(labels.saved);
             }
+            if (typeof window.kfMirrorAutosaveFormToView === 'function') {
+                window.kfMirrorAutosaveFormToView(form);
+            }
             form.dispatchEvent(new CustomEvent('kf-autosave-saved', {
                 bubbles: true,
                 detail: { data },
@@ -313,6 +316,47 @@ window.kfFlushAutosaveForm = function (form) {
     form._kfAutosave?.flush?.();
 };
 
+/**
+ * After a successful autosave, mirror named field values into the card View panel
+ * so Angalia updates without a reload (Family/Kin previously stayed stale until refresh).
+ */
+window.kfMirrorAutosaveFormToView = function (form) {
+    if (!(form instanceof HTMLFormElement)) return;
+    const card = form.closest('.glass-card, [id^="profile-"]');
+    if (! card) return;
+    const fd = new FormData(form);
+    const labels = {
+        single: form.getAttribute('data-kf-marital-single') || 'Single',
+        married: form.getAttribute('data-kf-marital-married') || 'Married',
+        divorced: form.getAttribute('data-kf-marital-divorced') || 'Divorced',
+        widowed: form.getAttribute('data-kf-marital-widowed') || 'Widowed',
+    };
+    card.querySelectorAll('[data-kf-view-field]').forEach((el) => {
+        const name = el.getAttribute('data-kf-view-field');
+        if (! name) return;
+        let value = fd.get(name);
+        if (value == null) return;
+        value = String(value).trim();
+        if (name === 'marital_status' && value) {
+            value = labels[value] || value;
+        }
+        if (name === 'nok_relationship' && value && el.getAttribute('data-kf-view-label-map')) {
+            try {
+                const map = JSON.parse(el.getAttribute('data-kf-view-label-map') || '{}');
+                value = map[value] || value;
+            } catch (e) { /* keep raw */ }
+        }
+        el.textContent = value !== '' ? value : '—';
+    });
+    const marital = String(fd.get('marital_status') || '').toLowerCase();
+    if (marital) {
+        const showSpouse = marital === 'married';
+        card.querySelectorAll('[data-kf-spouse-row]').forEach((row) => {
+            row.classList.toggle('hidden', ! showSpouse);
+        });
+    }
+};
+
 export function registerKfAutosave(Alpine) {
     markAccountShellContext();
 
@@ -384,7 +428,9 @@ export function registerKfAutosave(Alpine) {
         document.addEventListener('change', ensureBound, true);
     }
 
-    // profile-select / address pickers notify here — flush even when change targeting is awkward.
+    // profile-select / address pickers notify here — one coalesced flush (duplicate
+    // pick()+listener flushes were racing seq and cancelling ✓ Imehifadhiwa).
+    let profileSelectFlushTimer = null;
     document.addEventListener('profile-select', (e) => {
         const name = e.detail?.name || '';
         let form = e.target instanceof Element ? e.target.closest('form[data-kf-autosave]') : null;
@@ -395,8 +441,12 @@ export function registerKfAutosave(Alpine) {
                 form = null;
             }
         }
-        if (form) {
-            window.kfFlushAutosaveForm(form);
-        }
+        if (! form) return;
+        window.kfBindAutosaveForm(form);
+        clearTimeout(profileSelectFlushTimer);
+        profileSelectFlushTimer = setTimeout(() => {
+            profileSelectFlushTimer = null;
+            form._kfAutosave?.flush?.();
+        }, 0);
     });
 }

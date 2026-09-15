@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\LoyaltyRedemption;
 use App\Models\Setting;
-use App\Models\SupportTicket;
 use App\Services\Plus\PlusService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -578,9 +577,11 @@ class LoyaltyRedemptionService
         $type = (string) ($option['benefit_type'] ?? $redemption->benefit_type);
 
         if ($type === 'fulfilment_task' || $type === 'partner_benefit') {
-            SupportTicket::create([
+            app(\App\Services\Support\SupportTicketService::class)->create([
                 'ticket_number' => 'RWD-'.now()->format('ymd').'-'.Str::upper(Str::random(4)),
                 'customer_id' => $customer->id,
+                'contact_kind' => 'customer',
+                'source' => 'reward',
                 'subject' => 'Reward fulfilment: '.$redemption->label,
                 'description' => 'Customer unlocked "'.$redemption->label.'". Fulfil this reward. Redemption #'.$redemption->id.'.',
                 'priority' => 'high',
