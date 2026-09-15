@@ -206,6 +206,14 @@ class AboutBorrowerRegistrationClosureTest extends TestCase
         $this->assertStringContainsString("STORAGE_PREFIX + owner + ':'", $js);
     }
 
+    public function test_date_input_reuses_profile_select_autosave_path(): void
+    {
+        $blade = file_get_contents(resource_path('views/components/site/date-input.blade.php'));
+        $this->assertStringContainsString("\$dispatch('profile-select'", $blade);
+        $this->assertFileExists(resource_path('js/profile-autosave-view.js'));
+        $this->assertStringContainsString('profile-autosave-view', file_get_contents(resource_path('js/alpine-init.js')));
+    }
+
     public function test_autosave_core_file_untouched_in_this_pass(): void
     {
         $this->assertFileExists(resource_path('js/kf-autosave.js'));

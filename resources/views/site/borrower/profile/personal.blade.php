@@ -146,6 +146,11 @@
                                 </dd>
                             </div>
                         </dl>
+                        @unless ($hasDob)
+                            <button type="button" @click="openEdit()" class="mt-4 text-sm font-semibold text-amber-700 hover:text-amber-800">
+                                {{ __('borrower.profile.add_details') }} →
+                            </button>
+                        @endunless
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"

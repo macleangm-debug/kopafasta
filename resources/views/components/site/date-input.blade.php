@@ -162,12 +162,16 @@
             this.pickerMode = 'calendar';
             this.$nextTick(() => {
                 const hidden = this.$el.querySelector('input[type=hidden]');
+                const name = hidden?.name || '';
+                const next = this.value || '';
                 if (hidden) {
-                    hidden.value = this.value || '';
-                    hidden.setAttribute('value', this.value || '');
-                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
-                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                    hidden.value = next;
+                    hidden.setAttribute('value', next);
                 }
+                // Reuse the shared Profile autosave path used by profile-select.
+                // Confirm lives in a teleported sheet (outside the form), so a plain
+                // change event alone is not enough — profile-select bind+flush is.
+                this.$dispatch('profile-select', { name, value: next });
             });
         },
         clear() {
@@ -177,12 +181,12 @@
             this.pickerMode = 'calendar';
             this.$nextTick(() => {
                 const hidden = this.$el.querySelector('input[type=hidden]');
+                const name = hidden?.name || '';
                 if (hidden) {
                     hidden.value = '';
                     hidden.setAttribute('value', '');
-                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
-                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
                 }
+                this.$dispatch('profile-select', { name, value: '' });
             });
         },
         shiftMonth(delta) {
