@@ -156,17 +156,7 @@
     <template x-teleport="body">
         <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-brand flex flex-col">
             <div class="relative z-[3] flex items-start justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-brand to-transparent">
-                <div class="min-w-0 max-w-md">
-                    <x-site.brand-mark size="sm" variant="light" />
-                    @if (filled($guide) && ! $showIdCard)
-                        <div class="mt-3 rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
-                            <p class="text-sm font-semibold">{{ $guide }}</p>
-                            @if ($showOval)
-                                <p class="text-xs text-white/80 mt-1">{{ __('borrower.face_verification_page.oval_hint') }}</p>
-                            @endif
-                        </div>
-                    @endif
-                </div>
+                <x-site.brand-mark size="sm" variant="light" />
                 <button type="button" @click="closeCamera()"
                         class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25 mt-0.5"
                         x-text="labels.close"></button>
@@ -178,12 +168,26 @@
                 <div class="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none">
                     <div class="w-[78%] max-w-[340px] aspect-[4/5] rounded-[50%] border-[3px] border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.3)]"></div>
                 </div>
+                @if (filled($guide))
+                    <div class="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none px-6 pb-36 pt-28">
+                        <div class="w-full max-w-md text-center rounded-2xl bg-black/45 backdrop-blur-sm ring-1 ring-white/20 px-4 py-3 text-white shadow-lg">
+                            <p class="text-sm font-semibold">{{ $guide }}</p>
+                            <p class="text-xs text-white/80 mt-1">{{ __('borrower.face_verification_page.oval_hint') }}</p>
+                        </div>
+                    </div>
+                @endif
             @elseif ($showIdCard)
                 <div class="absolute inset-0 z-[2] flex flex-col items-center justify-center pointer-events-none px-6 gap-4">
                     @if (filled($guide))
                         <p class="text-center text-sm sm:text-base font-semibold text-white bg-black/45 backdrop-blur-sm rounded-2xl px-4 py-3 max-w-md leading-snug shadow-sm">{{ $guide }}</p>
                     @endif
                     <div class="w-full max-w-md aspect-[1.586] rounded-xl border-[2.5px] border-dashed border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.25)]"></div>
+                </div>
+            @elseif (filled($guide))
+                <div class="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none px-6 pb-36 pt-28">
+                    <div class="w-full max-w-md text-center rounded-2xl bg-black/45 backdrop-blur-sm ring-1 ring-white/20 px-4 py-3 text-white shadow-lg">
+                        <p class="text-sm font-semibold">{{ $guide }}</p>
+                    </div>
                 </div>
             @endif
             <div class="relative z-[2] mt-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 bg-gradient-to-t from-brand via-brand/90 to-transparent">

@@ -1497,7 +1497,7 @@ export function applyWizard(config) {
                                 }
                                 return res.ok ? res.json() : Promise.reject(res);
                             }).then((data) => {
-                                // Stale ack only — never rebuild the live form from the response.
+                                // Persistence acknowledgement only — never navigate or rebuild UI.
                                 if (seq !== this.draftSaveSeq) {
                                     return;
                                 }
@@ -1507,11 +1507,6 @@ export function applyWizard(config) {
                                 }
                                 if (data?.draft_reference) {
                                     this.draftReference = data.draft_reference;
-                                }
-                                if (data?.step_key && data.step_key !== this.stepKey
-                                    && this.needsFeeGateBefore(this.stepKey)
-                                    && ! this.isPreFeeSetupStep(this.stepKey)) {
-                                    this.payApplicationFee();
                                 }
                             }).catch(() => {
                                 if (typeof window.kfHideSaving === 'function') {
