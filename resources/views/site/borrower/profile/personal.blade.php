@@ -32,6 +32,9 @@
             $hasContact = filled($customer->phone) || filled($customer->email);
             $hasDob = filled($customer->date_of_birth)
                 && app(\App\Services\ProfileValidationService::class)->dateOfBirthValid($customer->date_of_birth);
+            $hasAboutData = filled($customer->full_name)
+                || filled($customer->gender)
+                || filled($customer->date_of_birth);
             $kinComplete = app(\App\Services\ProfileValidationService::class)->isKinComplete($customer);
             $familyComplete = app(\App\Services\ProfileValidationService::class)->isFamilyComplete($customer);
             // Empty = no persisted data (Add). Incomplete-but-started must still show View.
@@ -114,7 +117,7 @@
                     icon="🎂"
                     :title="__('borrower.profile.personal_information')"
                     :complete="$hasDob"
-                    :empty="false"
+                    :empty="! $hasAboutData"
                     :default-open="$focusHash === 'about'"
                     :default-edit="$editFocus === 'about'">
                     <x-slot:view>
@@ -136,11 +139,6 @@
                                 </dd>
                             </div>
                         </dl>
-                        @unless ($hasDob)
-                            <button type="button" @click="openEdit()" class="mt-4 text-sm font-semibold text-amber-700 hover:text-amber-800">
-                                {{ __('borrower.profile.add_details') }} →
-                            </button>
-                        @endunless
                     </x-slot:view>
                     <x-slot:form>
                         <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"

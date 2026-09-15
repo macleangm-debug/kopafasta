@@ -178,6 +178,29 @@ class ProfileCompletionEligibilityTest extends TestCase
         $this->assertNotContains('region', collect($svc->activityGaps($customer))->pluck('key')->all());
     }
 
+    public function test_persisted_dob_within_profile_save_window_is_not_a_remaining_gap(): void
+    {
+        Setting::setMany([
+            'kyc.min_age' => 18,
+            'kyc.max_age' => 75, // lending setting must not stale-gap a Profile-persisted DOB
+        ]);
+
+        $customer = $this->baseCustomer([
+            'date_of_birth' => '1940-01-31',
+        ]);
+
+        $svc = app(ProfileCompletionService::class);
+        $validation = app(\App\Services\ProfileValidationService::class);
+
+        $this->assertTrue($validation->dateOfBirthValid($customer->date_of_birth));
+        $this->assertNotContains(
+            'dob',
+            collect($svc->sectionGaps($customer, 'personal'))->pluck('key')->all()
+        );
+        $progress = $svc->sectionProgress($customer, 'personal');
+        $this->assertGreaterThan(0, $progress['done']);
+    }
+
     /** @param  array<string, mixed>  $overrides */
     private function baseCustomer(array $overrides = []): Customer
     {

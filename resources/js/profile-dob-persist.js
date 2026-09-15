@@ -153,21 +153,11 @@ async function persistDob(form, value) {
         }
 
         applyDobView(form, data.view_fields || {});
-        // Quietly refresh Remaining / % from the same completion payload — never reopen Remaining.
-        if (typeof window.kfRefreshProfileCompletion === 'function') {
-            window.kfRefreshProfileCompletion(data);
-        }
-        const card = form.closest('.glass-card, #profile-about');
-        if (card && typeof window.Alpine !== 'undefined') {
-            try {
-                const alpine = window.Alpine.$data(card);
-                if (alpine && data.view_fields?.date_of_birth) {
-                    alpine.complete = true;
-                }
-            } catch (e) {
-                // ignore
-            }
-        }
+        // Same post-save completion hook as kfAutosave — do not maintain a separate UI path.
+        form.dispatchEvent(new CustomEvent('kf-autosave-saved', {
+            bubbles: true,
+            detail: { data },
+        }));
         if (typeof window.kfFlashInlineSaved === 'function') {
             window.kfFlashInlineSaved(labels.saved);
         } else if (typeof window.kfHideSaving === 'function') {

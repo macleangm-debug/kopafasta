@@ -61,16 +61,21 @@
                 @if ($completionPercent !== null)
                     @php $pct = max(0, min(100, (int) $completionPercent)); @endphp
                     @if ($pct >= 100)
-                        <p class="inline-flex items-center gap-1.5 rounded-full bg-brand-gold text-brand px-3.5 py-1.5 text-xs font-bold shadow-sm">
+                        <p class="inline-flex items-center gap-1.5 rounded-full bg-brand-gold text-brand px-3.5 py-1.5 text-xs font-bold shadow-sm"
+                           data-kf-completion-percent
+                           data-percent-template="{{ __('borrower.profile.hero_completion_done') }}"
+                           data-kf-completion-done-label="{{ __('borrower.profile.hero_completion_done') }}">
                             {{ __('borrower.profile.hero_completion_done') }}
                         </p>
                     @else
-                        <div class="w-full max-w-sm space-y-2.5">
-                            <p class="inline-flex items-center rounded-full bg-white/15 ring-1 ring-white/25 px-3.5 py-1.5 text-xs font-bold text-brand-gold">
+                        <div class="w-full max-w-sm space-y-2.5" data-kf-completion-hero>
+                            <p class="inline-flex items-center rounded-full bg-white/15 ring-1 ring-white/25 px-3.5 py-1.5 text-xs font-bold text-brand-gold"
+                               data-kf-completion-percent
+                               data-percent-template="{{ __('borrower.profile.hero_completion_percent', ['percent' => ':percent']) }}">
                                 {{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}
                             </p>
                             <div class="h-2 rounded-full bg-white/20 overflow-hidden" role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100">
-                                <div class="h-full rounded-full bg-brand-gold" style="width: {{ $pct }}%"></div>
+                                <div class="h-full rounded-full bg-brand-gold" data-kf-completion-bar style="width: {{ $pct }}%"></div>
                             </div>
                         </div>
                     @endif

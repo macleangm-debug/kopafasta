@@ -35,9 +35,16 @@ class ProfileValidationService
             return false;
         }
 
-        $age = $dob->age;
+        // ONE canonical Profile DOB rule — must match BorrowerController personal save:
+        // after_or_equal:1940-01-01 + before_or_equal:(today - min_age years).
+        // kyc.max_age remains available for lending/eligibility elsewhere; it must not
+        // leave a successfully persisted Profile DOB stuck in Remaining.
+        $floor = Carbon::parse('1940-01-01')->startOfDay();
+        if ($dob->lt($floor)) {
+            return false;
+        }
 
-        return $age >= $this->minAge() && $age <= $this->maxAge();
+        return $dob->age >= $this->minAge();
     }
 
     public function requiresResidenceLetter(): bool
