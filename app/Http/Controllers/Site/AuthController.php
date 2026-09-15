@@ -989,14 +989,14 @@ class AuthController extends Controller
             ]);
         }
 
-        $userTaken = User::query()
+        $existingUser = User::query()
             ->where('role', 'borrower')
             ->where(function ($query) use ($data, $phoneDigits) {
                 $query->where('phone', $data['phone'])
                     ->orWhere('phone', $phoneDigits)
                     ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
             })
-            ->exists();
+            ->first();
 
         $customerTaken = Customer::query()
             ->where(function ($query) use ($data, $phoneDigits) {
@@ -1006,10 +1006,26 @@ class AuthController extends Controller
             })
             ->exists();
 
-        if ($userTaken || $customerTaken) {
+        if ($existingUser || $customerTaken) {
+            $incomplete = $existingUser && \App\Support\BorrowerRegistrationGate::isIncomplete($existingUser);
+
+            if ($incomplete) {
+                return response()->json([
+                    'available' => false,
+                    'status' => 'incomplete',
+                    'message' => __('borrower.auth.phone_incomplete_resume'),
+                    'action' => 'resume',
+                    'action_label' => __('borrower.auth.phone_incomplete_cta'),
+                    'resume_url' => route('site.register.resume'),
+                ]);
+            }
+
             return response()->json([
                 'available' => false,
-                'message' => __('borrower.auth.phone_taken'),
+                'status' => 'active',
+                'message' => __('borrower.auth.phone_taken_login_inline'),
+                'action' => 'login',
+                'action_label' => __('borrower.auth.phone_taken_cta_login'),
                 'redirect' => route('site.login', [
                     'phone' => $data['phone'],
                     'auth_method' => 'pin',
@@ -1017,7 +1033,64 @@ class AuthController extends Controller
             ]);
         }
 
-        return response()->json(['available' => true]);
+        return response()->json(['available' => true, 'status' => 'new']);
+    }
+
+    /**
+     * Resume an incomplete borrower registration for a phone that already started.
+     * Does not create another borrower record.
+     */
+    public function resumeIncompleteRegistration(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+        ]);
+
+        $phoneDigits = preg_replace('/\D/', '', $data['phone']) ?: '';
+        $existingUser = User::query()
+            ->where('role', 'borrower')
+            ->where(function ($query) use ($data, $phoneDigits) {
+                $query->where('phone', $data['phone'])
+                    ->orWhere('phone', $phoneDigits)
+                    ->when(strlen($phoneDigits) >= 9, fn ($q) => $q->orWhere('phone', 'like', '%'.substr($phoneDigits, -9)));
+            })
+            ->first();
+
+        if (! $existingUser || ! \App\Support\BorrowerRegistrationGate::isIncomplete($existingUser)) {
+            $loginUrl = route('site.login', [
+                'phone' => $data['phone'],
+                'auth_method' => 'pin',
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'status' => 'active',
+                    'message' => __('borrower.auth.phone_taken_login_inline'),
+                    'redirect' => $loginUrl,
+                ], 409);
+            }
+
+            return redirect()
+                ->to($loginUrl)
+                ->with('status', __('borrower.auth.phone_taken_login'));
+        }
+
+        Auth::login($existingUser);
+        $request->session()->regenerate();
+
+        $target = route('site.borrower.setup-pin');
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'status' => 'incomplete',
+                'redirect' => $target,
+            ]);
+        }
+
+        return redirect()
+            ->to($target)
+            ->with('status', __('borrower.auth.phone_incomplete_resumed'));
     }
 
     public function registerBorrower(Request $request, ReferralService $referrals): RedirectResponse

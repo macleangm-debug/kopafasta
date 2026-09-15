@@ -172,7 +172,7 @@ class ProfileValidationService
             $gaps[] = [
                 'key' => 'dob',
                 'label' => __('borrower.profile.gaps.date_of_birth'),
-                'url' => $personalUrl.'#profile-identity',
+                'url' => route('site.borrower.profile', ['section' => 'personal', 'focus' => 'about']).'#profile-about',
             ];
         }
         if ((bool) ($this->kycSettings()['require_nida'] ?? true)

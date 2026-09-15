@@ -1869,6 +1869,12 @@ class BorrowerController extends Controller
             $rules = [
                 'phone' => ['nullable', 'string', 'max:20'],
                 'email' => ['nullable', 'email', 'max:120'],
+                'date_of_birth' => [
+                    (! $isAutosave && in_array($focus, ['about', 'all'], true)) ? 'required' : 'nullable',
+                    'date',
+                    'before_or_equal:'.now()->subYears(18)->format('Y-m-d'),
+                    'after_or_equal:1940-01-01',
+                ],
                 'national_id' => [
                     in_array($focus, ['identity', 'all'], true) && ! filled($customer->national_id) ? 'required' : 'nullable',
                     'string',
@@ -1923,6 +1929,10 @@ class BorrowerController extends Controller
                 ], fn ($value) => $value !== null));
             }
 
+            if (in_array($focus, ['about', 'all'], true) && array_key_exists('date_of_birth', $data) && filled($data['date_of_birth'] ?? null)) {
+                $customer->date_of_birth = $data['date_of_birth'];
+            }
+
             if (in_array($focus, ['identity', 'all'], true) && filled($data['national_id'] ?? null)) {
                 if ($customer->identity_locked) {
                     if (filled($customer->national_id)
@@ -1936,6 +1946,22 @@ class BorrowerController extends Controller
                     if ($request->boolean('lock_national_id')) {
                         $customer->identity_locked = true;
                     }
+                }
+            }
+
+            // Preserve NIDA YYYYMMDD ↔ DOB correspondence when both are present.
+            $nidaForDob = (string) ($customer->national_id ?: ($data['national_id'] ?? ''));
+            $dobForNida = $customer->date_of_birth ?: ($data['date_of_birth'] ?? null);
+            if (filled($nidaForDob) && filled($dobForNida)
+                && in_array($focus, ['about', 'identity', 'all'], true)) {
+                $check = \App\Support\NationalIdDob::matchesBorrower($nidaForDob, $dobForNida);
+                if (($check['derived']['ok'] ?? false) && ! ($check['match'] ?? false)) {
+                    $field = in_array($focus, ['about'], true) ? 'date_of_birth' : 'national_id';
+
+                    return back()
+                        ->withInput()
+                        ->withErrors([$field => __('borrower.nida.dob_mismatch_hint')])
+                        ->withFragment($field === 'date_of_birth' ? 'profile-about' : 'profile-identity');
                 }
             }
 
@@ -2487,6 +2513,11 @@ class BorrowerController extends Controller
         }
 
         return match ($focus) {
+            'about' => [
+                'date_of_birth' => $customer->date_of_birth
+                    ? $customer->date_of_birth->format('d M Y')
+                    : null,
+            ],
             'contact' => [
                 'phone' => $customer->phone,
                 'email' => (filled($customer->email) && ! str_ends_with(strtolower((string) $customer->email), '@phone.kopafasta.local'))

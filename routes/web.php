@@ -246,6 +246,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
         Route::get('/register/borrower', [App\Http\Controllers\Site\AuthController::class, 'showRegisterBorrower'])->name('register.borrower');
         Route::post('/register/borrower', [App\Http\Controllers\Site\AuthController::class, 'registerBorrower'])->name('register.borrower.post');
         Route::post('/register/check-phone', [App\Http\Controllers\Site\AuthController::class, 'checkBorrowerPhone'])->name('register.check-phone');
+        Route::post('/register/resume', [App\Http\Controllers\Site\AuthController::class, 'resumeIncompleteRegistration'])->name('register.resume');
 
         Route::post('/waitlist', [App\Http\Controllers\Site\AuthController::class, 'storeWaitlistRequest'])->name('waitlist.store');
         Route::get('/register/vendor', [App\Http\Controllers\Site\AuthController::class, 'showRegisterVendor'])->name('register.vendor');

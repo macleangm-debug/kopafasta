@@ -30,7 +30,7 @@
     })"
     x-init="init()"
 >
-    <input type="hidden" :name="name" :value="formatted" @if ($required) required @endif>
+    <input type="hidden" :name="name" :value="submitValue" :required="required && !readonly">
     <div class="flex flex-wrap items-center gap-1.5 sm:gap-2" role="group" aria-label="{{ __('borrower.nida.number') }}">
         <template x-for="(group, gi) in groups" :key="'g'+gi">
             <span class="inline-flex items-center gap-1.5 sm:gap-2">
@@ -71,6 +71,9 @@
                     get maxLen() {
                         return this.groupLens.reduce((sum, n) => sum + n, 0);
                     },
+                    get isComplete() {
+                        return this.digits.length === this.maxLen;
+                    },
                     get formatted() {
                         const d = this.digits;
                         let pos = 0;
@@ -85,6 +88,10 @@
                         }
                         return parts.join('-');
                     },
+                    get submitValue() {
+                        if (this.readonly) return this.formatted;
+                        return this.isComplete ? this.formatted : '';
+                    },
                     init() {
                         this.digits = this.digits.slice(0, this.maxLen);
                         this.groups = this.groupLens.map((len) => ({ len, value: '' }));
@@ -97,6 +104,13 @@
                             pos += len;
                             return { len, value };
                         });
+                        this.$nextTick(() => this.emitHidden());
+                    },
+                    emitHidden() {
+                        const hidden = this.$root.querySelector('input[type="hidden"]');
+                        if (! hidden) return;
+                        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                        hidden.dispatchEvent(new Event('change', { bubbles: true }));
                     },
                     rebuildFromGroups() {
                         this.digits = this.groups.map((g) => String(g.value || '').replace(/\D/g, '')).join('').slice(0, this.maxLen);

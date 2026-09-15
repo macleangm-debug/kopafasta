@@ -22,6 +22,7 @@
         form: null,
         title: @js($title),
         message: @js($message),
+        messageHtml: null,
         confirmLabel: @js($confirmLabel),
         cancelLabel: @js($cancelLabel),
         confirmClass: @js($confirmClass),
@@ -29,6 +30,7 @@
         defaults: {
             title: @js($title),
             message: @js($message),
+            messageHtml: null,
             confirmLabel: @js($confirmLabel),
             cancelLabel: @js($cancelLabel),
             confirmClass: @js($confirmClass),
@@ -130,6 +132,7 @@
         form = $event.detail?.form ?? null;
         title = $event.detail?.title ?? defaults.title;
         message = $event.detail?.message ?? defaults.message;
+        messageHtml = $event.detail?.messageHtml ?? defaults.messageHtml;
         confirmLabel = $event.detail?.confirmLabel ?? defaults.confirmLabel;
         cancelLabel = $event.detail?.cancelLabel ?? defaults.cancelLabel;
         confirmClass = $event.detail?.confirmClass ?? defaults.confirmClass;
@@ -190,7 +193,8 @@
             </div>
         </div>
         <div class="px-6 py-5 overflow-y-auto overscroll-contain flex-1">
-            <p x-show="message" x-cloak class="text-sm text-gray-600 leading-relaxed" x-text="message"></p>
+            <div x-show="messageHtml" x-cloak class="text-sm text-gray-600 leading-relaxed" x-html="messageHtml"></div>
+            <p x-show="message && !messageHtml" x-cloak class="text-sm text-gray-600 leading-relaxed" x-text="message"></p>
             <div class="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
                 <button type="button"
                         @click="runConfirm($el)"

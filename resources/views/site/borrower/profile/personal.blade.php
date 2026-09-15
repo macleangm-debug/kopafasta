@@ -43,6 +43,7 @@
             $readonly = 'kf-field-readonly';
             $editable = 'kf-field';
             $hasContact = filled($customer->phone) || filled($customer->email);
+            $hasDob = filled($customer->date_of_birth);
             $kinComplete = app(\App\Services\ProfileValidationService::class)->isKinComplete($customer);
             $familyComplete = app(\App\Services\ProfileValidationService::class)->isFamilyComplete($customer);
             $requireMarriageCert = app(\App\Services\ProfileValidationService::class)->requiresMarriageCertificate();
@@ -56,6 +57,7 @@
             $errorFocus = match (true) {
                 $errors->hasAny(['national_id_front', 'national_id_back', 'alternate_id_types', 'alternate_id_front', 'alternate_id_back', 'no_physical_nida_card', 'passport', 'voter_id', 'driving_license', 'other_id']) => 'id_images',
                 $errors->hasAny(['national_id']) => 'identity',
+                $errors->hasAny(['date_of_birth']) => 'about',
                 $errors->hasAny(['phone', 'email']) => 'contact',
                 $errors->hasAny(['marital_status', 'spouse_first_name', 'spouse_middle_name', 'spouse_last_name', 'number_of_children', 'marriage_certificate']) => 'family',
                 $errors->hasAny(['nok_first_name', 'nok_last_name', 'nok_name', 'nok_phone', 'nok_relationship', 'nok_region', 'nok_district', 'nok_street']) => 'kin',
@@ -106,6 +108,60 @@
             </form>
         @else
             <div class="space-y-4">
+                {{-- Personal information / DOB --}}
+                <x-site.profile-section-card
+                    @class(['hidden' => ! $showSoloCard(['about'])])
+                    section-id="profile-about"
+                    icon="🎂"
+                    :title="__('borrower.profile.personal_information')"
+                    :complete="$hasDob"
+                    :empty="! $hasDob"
+                    :default-open="$focusHash === 'about'"
+                    :default-edit="$editFocus === 'about'">
+                    <x-slot:view>
+                        <dl class="grid sm:grid-cols-2 gap-4 text-sm" data-kf-view-host>
+                            <div>
+                                <dt class="text-gray-500">{{ __('borrower.profile.fields.date_of_birth') }}</dt>
+                                <dd class="font-medium text-gray-900 mt-0.5" data-kf-view-field="date_of_birth">
+                                    {{ $customer->date_of_birth?->format('d M Y') ?: '—' }}
+                                </dd>
+                            </div>
+                        </dl>
+                        @unless ($hasDob)
+                            <p class="text-sm text-gray-500 mt-2">{{ __('borrower.profile.section_empty') }}</p>
+                            <button type="button" @click="openEdit()" class="mt-2 text-sm font-semibold text-amber-700 hover:text-amber-800">{{ __('borrower.profile.add_details') }}</button>
+                        @endunless
+                    </x-slot:view>
+                    <x-slot:form>
+                        <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'personal']) }}{{ ! empty($returnUrl) ? '?return='.urlencode($returnUrl) : '' }}"
+                              data-kf-autosave
+                              data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                              data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                              data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                              data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}">
+                            @csrf @method('PUT')
+                            <input type="hidden" name="focus" value="about">
+                            @if (! empty($returnUrl))
+                                <input type="hidden" name="return" value="{{ $returnUrl }}">
+                            @endif
+                            <div class="max-w-sm">
+                                <x-site.date-input
+                                    name="date_of_birth"
+                                    :label="__('borrower.profile.fields.date_of_birth')"
+                                    :value="old('date_of_birth', optional($customer->date_of_birth)->format('Y-m-d'))"
+                                    :required="true"
+                                    :max="now()->subYears(18)->format('Y-m-d')"
+                                    :min="'1940-01-01'"
+                                    :default="now()->subYears(25)->format('Y-m-d')"
+                                    :help="__('borrower.register.age_notice', ['age' => 18])"
+                                    :input-class="$editable"
+                                />
+                                @error('date_of_birth')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                            </div>
+                        </form>
+                    </x-slot:form>
+                </x-site.profile-section-card>
+
                 {{-- Identity / NIDA --}}
                 <x-site.profile-section-card
                     @class(['hidden' => ! $showSoloCard(['identity', 'nida'])])
@@ -152,10 +208,10 @@
                                   const idInput = $el.querySelector('[name=national_id]');
                                   const newId = (idInput?.value || '').trim();
                                   if (! newId) { $el.submit(); return; }
-                                  const message = @js(__('borrower.nida.confirm_lock_message')).replace(':number', newId);
+                                  const messageHtml = @js(__('borrower.nida.confirm_lock_message_html')).replace(':number', newId);
                                   window.confirmForm(null, {
                                       title: @js(__('borrower.nida.confirm_lock_title')),
-                                      message,
+                                      messageHtml,
                                       confirmLabel: @js(__('borrower.nida.confirm_lock_confirm')),
                                       cancelLabel: @js(__('borrower.nida.confirm_lock_back')),
                                       tone: 'warning',
@@ -497,7 +553,8 @@
                               x-data="{
                                   marital: @js(old('marital_status', $customer->marital_status) ?: ''),
                               }"
-                              @profile-select="if ($event.detail && $event.detail.name === 'marital_status') marital = $event.detail.value">
+                              @profile-select.window="if ($event.detail && $event.detail.name === 'marital_status') marital = $event.detail.value || ''"
+                              @change="if ($event.target && $event.target.name === 'marital_status') marital = $event.target.value || ''">
                             @csrf @method('PUT')
                             <input type="hidden" name="focus" value="family">
                             @if (! empty($returnUrl))
@@ -518,19 +575,25 @@
                                     :placeholder="__('borrower.profile.select')"
                                     :select-class="$editable"
                                 />
-                                <div x-show="marital === 'married'" x-cloak class="grid sm:grid-cols-3 gap-4">
+                                <div x-show="marital === 'married'" x-cloak class="grid sm:grid-cols-3 gap-4"
+                                     x-bind:aria-hidden="marital !== 'married'">
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_first_name') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="spouse_first_name" value="{{ old('spouse_first_name', $customer->spouse_first_name) }}" class="{{ $editable }}" autocomplete="off" x-bind:required="marital === 'married'">
+                                        <input type="text" name="spouse_first_name" value="{{ old('spouse_first_name', $customer->spouse_first_name) }}" class="{{ $editable }}" autocomplete="off"
+                                               x-bind:required="marital === 'married'"
+                                               x-bind:disabled="marital !== 'married'">
                                         @error('spouse_first_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_middle_name') }}</label>
-                                        <input type="text" name="spouse_middle_name" value="{{ old('spouse_middle_name', $customer->spouse_middle_name) }}" class="{{ $editable }}" autocomplete="off">
+                                        <input type="text" name="spouse_middle_name" value="{{ old('spouse_middle_name', $customer->spouse_middle_name) }}" class="{{ $editable }}" autocomplete="off"
+                                               x-bind:disabled="marital !== 'married'">
                                     </div>
                                     <div>
                                         <label class="block text-xs text-gray-600 mb-1">{{ __('borrower.profile.fields.spouse_last_name') }} <span class="text-red-500">*</span></label>
-                                        <input type="text" name="spouse_last_name" value="{{ old('spouse_last_name', $customer->spouse_last_name) }}" class="{{ $editable }}" autocomplete="off" x-bind:required="marital === 'married'">
+                                        <input type="text" name="spouse_last_name" value="{{ old('spouse_last_name', $customer->spouse_last_name) }}" class="{{ $editable }}" autocomplete="off"
+                                               x-bind:required="marital === 'married'"
+                                               x-bind:disabled="marital !== 'married'">
                                         @error('spouse_last_name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                                     </div>
                                 </div>

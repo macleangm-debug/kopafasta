@@ -158,7 +158,7 @@
             <div class="relative z-[3] flex items-start justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-brand to-transparent">
                 <div class="min-w-0 max-w-md">
                     <x-site.brand-mark size="sm" variant="light" />
-                    @if (filled($guide))
+                    @if (filled($guide) && ! $showIdCard)
                         <div class="mt-3 rounded-2xl bg-black/40 backdrop-blur-sm px-4 py-3 text-white">
                             <p class="text-sm font-semibold">{{ $guide }}</p>
                             @if ($showOval)
@@ -179,7 +179,10 @@
                     <div class="w-[78%] max-w-[340px] aspect-[4/5] rounded-[50%] border-[3px] border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.3)]"></div>
                 </div>
             @elseif ($showIdCard)
-                <div class="absolute inset-0 z-[2] flex items-center justify-center pointer-events-none px-6">
+                <div class="absolute inset-0 z-[2] flex flex-col items-center justify-center pointer-events-none px-6 gap-4">
+                    @if (filled($guide))
+                        <p class="text-center text-sm sm:text-base font-semibold text-white bg-black/45 backdrop-blur-sm rounded-2xl px-4 py-3 max-w-md leading-snug shadow-sm">{{ $guide }}</p>
+                    @endif
                     <div class="w-full max-w-md aspect-[1.586] rounded-xl border-[2.5px] border-dashed border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.25)]"></div>
                 </div>
             @endif

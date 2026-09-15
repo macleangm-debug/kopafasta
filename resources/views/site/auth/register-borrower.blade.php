@@ -179,7 +179,22 @@
                                                class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition">
                                     </div>
                                     <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.register.mobile_hint') }}</p>
-                                    <p x-show="step1Error || errors.phone" x-cloak class="mt-1.5 text-xs text-rose-600" x-text="step1Error || errors.phone"></p>
+                                    <p x-show="(step1Error || errors.phone) && !phoneConflict" x-cloak class="mt-1.5 text-xs text-rose-600" x-text="step1Error || errors.phone"></p>
+                                    <div x-show="phoneConflict" x-cloak class="mt-3 rounded-xl ring-1 px-4 py-3.5 space-y-3"
+                                         :class="phoneConflict?.status === 'incomplete' ? 'bg-amber-50 ring-amber-200' : 'bg-brand-muted/50 ring-brand/15'">
+                                        <p class="text-sm font-semibold text-gray-900" x-text="phoneConflict?.message"></p>
+                                        <a x-show="phoneConflict?.action === 'login'" x-cloak
+                                           :href="phoneConflict?.redirect || @js(route('site.login'))"
+                                           class="inline-flex items-center justify-center w-full sm:w-auto rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-bold px-5 py-2.5">
+                                            <span x-text="phoneConflict?.action_label || @js(__('borrower.auth.phone_taken_cta_login'))"></span>
+                                        </a>
+                                        <button type="button" x-show="phoneConflict?.action === 'resume'" x-cloak
+                                                @click="resumeRegistration()"
+                                                :disabled="resumingPhone"
+                                                class="inline-flex items-center justify-center w-full sm:w-auto rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand text-sm font-bold px-5 py-2.5 disabled:opacity-50">
+                                            <span x-text="resumingPhone ? @js(__('borrower.register.checking')) : (phoneConflict?.action_label || @js(__('borrower.auth.phone_incomplete_cta')))"></span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <template x-if="!activeCountry.active">
@@ -341,6 +356,8 @@
                 countries: @js($registrationCountries ?? []),
                 countryOpen: false,
                 checkingPhone: false,
+                resumingPhone: false,
+                phoneConflict: null,
                 step1Error: '',
                 step2Error: '',
                 errors: { phone: '', email: '' },
@@ -376,6 +393,7 @@
                     this.form.local_phone = (this.form.local_phone || '').replace(/[^\d\s]/g, '');
                     this.errors.phone = '';
                     this.step1Error = '';
+                    this.phoneConflict = null;
                 },
                 validatePhone() {
                     const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
@@ -394,8 +412,34 @@
                 chooseCountry(country) {
                     this.form.country = country.code;
                     this.form.dial_code = country.prefix;
+                    this.phoneConflict = null;
                     if (!country.active) {
                         this.form.local_phone = '';
+                    }
+                },
+                async resumeRegistration() {
+                    if (this.resumingPhone || !this.phoneConflict || this.phoneConflict.action !== 'resume') return;
+                    this.resumingPhone = true;
+                    try {
+                        const response = await fetch(this.phoneConflict.resume_url || @js(route('site.register.resume')), {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+                            },
+                            body: JSON.stringify({ phone: this.fullPhone() }),
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (data.redirect) {
+                            window.location.href = data.redirect;
+                            return;
+                        }
+                        this.setInlineError(1, data.message || @js(__('borrower.auth.phone_check_failed')));
+                    } catch (e) {
+                        this.setInlineError(1, @js(__('borrower.auth.phone_check_failed')));
+                    } finally {
+                        this.resumingPhone = false;
                     }
                 },
                 async next() {
@@ -407,6 +451,7 @@
                         }
                         this.checkingPhone = true;
                         this.step1Error = '';
+                        this.phoneConflict = null;
                         try {
                             const response = await fetch(@js(route('site.register.check-phone')), {
                                 method: 'POST',
@@ -419,16 +464,14 @@
                             });
                             const data = await response.json();
                             if (! data.available) {
-                                const loginUrl = data.redirect || @js(route('site.login'));
-                                window.dispatchEvent(new CustomEvent('open-confirm-default', {
-                                    detail: {
-                                        tone: 'confirm',
-                                        title: @js(__('borrower.auth.phone_taken_title')),
-                                        message: data.message || @js(__('borrower.auth.phone_taken')),
-                                        confirmLabel: @js(__('borrower.auth.phone_taken_cta')),
-                                        onConfirm: () => { window.location.href = loginUrl; },
-                                    },
-                                }));
+                                this.phoneConflict = {
+                                    status: data.status || 'active',
+                                    message: data.message || @js(__('borrower.auth.phone_taken_login_inline')),
+                                    action: data.action || 'login',
+                                    action_label: data.action_label || @js(__('borrower.auth.phone_taken_cta_login')),
+                                    redirect: data.redirect || @js(route('site.login')),
+                                    resume_url: data.resume_url || @js(route('site.register.resume')),
+                                };
                                 return;
                             }
                         } catch (e) {
