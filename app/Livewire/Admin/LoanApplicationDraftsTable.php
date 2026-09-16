@@ -4,6 +4,7 @@ namespace App\Livewire\Admin;
 
 use App\Models\LoanApplicationDraft;
 use App\Services\LoanApplicationDraftService;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -12,10 +13,22 @@ class LoanApplicationDraftsTable extends Component
 {
     use WithPagination;
 
-    #[Url(as: 'q')] public string $search = '';
-    #[Url] public string $phase = '';
-    #[Url] public string $sort = 'saved_at';
-    #[Url] public string $direction = 'desc';
+    #[Url(as: 'q')]
+    public string $search = '';
+
+    #[Url]
+    public string $phase = '';
+
+    /** @var string ''|browsing|fee_pending|awaiting_guarantor|in_progress */
+    #[Url]
+    public string $status = '';
+
+    #[Url]
+    public string $sort = 'saved_at';
+
+    #[Url]
+    public string $direction = 'desc';
+
     public int $perPage = 20;
 
     public function updatingSearch(): void
@@ -25,6 +38,18 @@ class LoanApplicationDraftsTable extends Component
 
     public function updatingPhase(): void
     {
+        $this->resetPage();
+    }
+
+    public function updatingStatus(): void
+    {
+        $this->resetPage();
+    }
+
+    public function setStatus(string $status): void
+    {
+        $allowed = ['', 'browsing', 'fee_pending', 'awaiting_guarantor', 'in_progress'];
+        $this->status = in_array($status, $allowed, true) ? $status : '';
         $this->resetPage();
     }
 
@@ -38,7 +63,10 @@ class LoanApplicationDraftsTable extends Component
 
     public function render()
     {
-        $drafts = LoanApplicationDraft::query()
+        $draftService = app(LoanApplicationDraftService::class);
+        $counts = $draftService->incompleteStatusCounts();
+
+        $base = LoanApplicationDraft::query()
             ->with(['customer', 'product'])
             ->whereIn('phase', ['details', 'application'])
             ->when($this->search !== '', function ($q) {
@@ -55,14 +83,31 @@ class LoanApplicationDraftsTable extends Component
             })
             ->when($this->phase !== '', fn ($q) => $q->where('phase', $this->phase))
             ->orderBy($this->sort, $this->direction)
-            ->paginate($this->perPage);
+            ->get();
 
-        $draftService = app(LoanApplicationDraftService::class);
+        if ($this->status !== '') {
+            $base = $base->filter(
+                fn (LoanApplicationDraft $draft) => $draftService->statusKey($draft) === $this->status
+            )->values();
+        }
+
+        $page = max(1, (int) $this->getPage());
+        $rows = new LengthAwarePaginator(
+            $base->forPage($page, $this->perPage)->values(),
+            $base->count(),
+            $this->perPage,
+            $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
 
         return view('livewire.admin.loan-application-drafts-table', [
-            'rows'         => $drafts,
+            'rows' => $rows,
             'draftService' => $draftService,
-            'phases'       => ['details' => __('admin.application_drafts.phase_details'), 'application' => __('admin.application_drafts.phase_application')],
+            'counts' => $counts,
+            'phases' => [
+                'details' => __('admin.application_drafts.phase_details'),
+                'application' => __('admin.application_drafts.phase_application'),
+            ],
         ]);
     }
 }

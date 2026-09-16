@@ -79,14 +79,14 @@ class ComplianceController extends Controller
     public function kycReports()
     {
         $stats = [
-            'total_customers' => Customer::count(),
+            'total_customers' => Customer::query()->where('status', '!=', 'pending')->count(),
             'verified'        => CustomerKyc::where('status', 'approved')->count(),
             'pending'         => CustomerKyc::where('status', 'pending')->count(),
             'rejected'        => CustomerKyc::where('status', 'rejected')->count(),
-            'high_risk'       => Customer::where('risk_band', 'high')->orWhere('risk_band', 'extreme')->count(),
-            'pep_flagged'     => Customer::where('is_pep', true)->count(),
-            'blacklisted'     => Customer::where('is_blacklisted', true)->count(),
-            'dormant_90d'     => Customer::whereDoesntHave('loans', function ($q) {
+            'high_risk'       => Customer::query()->where('status', '!=', 'pending')->where(fn ($q) => $q->where('risk_band', 'high')->orWhere('risk_band', 'extreme'))->count(),
+            'pep_flagged'     => Customer::query()->where('status', '!=', 'pending')->where('is_pep', true)->count(),
+            'blacklisted'     => Customer::query()->where('status', '!=', 'pending')->where('is_blacklisted', true)->count(),
+            'dormant_90d'     => Customer::query()->where('status', '!=', 'pending')->whereDoesntHave('loans', function ($q) {
                 $q->where('updated_at', '>=', now()->subDays(90));
             })->count(),
         ];

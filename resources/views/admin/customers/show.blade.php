@@ -32,6 +32,20 @@
     :backUrl="route('admin.customers.index')"
     backLabel="All customers">
 
+@if ($customer->status === 'pending')
+        <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+            <p class="font-semibold">Incomplete registration — not a Member yet</p>
+            <p class="mt-1">
+                They can resume with the phone already on file.
+                @if ($customer->phone)
+                    Contact: <span class="font-semibold tabular-nums">{{ $customer->phone }}</span>
+                    · {{ $customer->full_name }}
+                @endif
+                Encouraging them to finish registration does not activate membership until they complete it themselves.
+            </p>
+        </div>
+    @endif
+
 @if ($customer->nida_locked_until && $customer->nida_locked_until->isFuture())
         <div class="mb-4 rounded-lg bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-900 flex flex-wrap items-center justify-between gap-3">
             <div>

@@ -17,9 +17,13 @@ class ConsoleHubController extends Controller
     {
         $counts = [
             'active' => Customer::query()->where('status', 'active')->count(),
-            'total' => Customer::query()->count(),
+            'total' => Customer::query()->where('status', '!=', 'pending')->count(),
+            'pending' => Customer::query()->where('status', 'pending')->count(),
             'suspended' => Customer::query()->where('status', 'suspended')->count(),
-            'with_loans' => Customer::query()->whereHas('loans', fn ($q) => $q->whereIn('status', ['active', 'disbursed', 'arrears']))->count(),
+            'with_loans' => Customer::query()
+                ->where('status', '!=', 'pending')
+                ->whereHas('loans', fn ($q) => $q->whereIn('status', ['active', 'disbursed', 'arrears']))
+                ->count(),
         ];
 
         return view('admin.hubs.customers', compact('counts'));

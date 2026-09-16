@@ -202,24 +202,26 @@ class FinanceReportsController extends Controller
     // -------- Customer report --------
     public function customers()
     {
-        $total       = Customer::count();
-        $pep         = Customer::where('is_pep', true)->count();
-        $blacklisted = Customer::where('is_blacklisted', true)->count();
-        $active      = Customer::whereHas('loans', fn ($q) => $q->whereIn('status', ['active','arrears','restructured']))->count();
+        $total       = Customer::query()->where('status', '!=', 'pending')->count();
+        $pep         = Customer::query()->where('status', '!=', 'pending')->where('is_pep', true)->count();
+        $blacklisted = Customer::query()->where('status', '!=', 'pending')->where('is_blacklisted', true)->count();
+        $active      = Customer::query()->where('status', '!=', 'pending')->whereHas('loans', fn ($q) => $q->whereIn('status', ['active','arrears','restructured']))->count();
         $dormant     = max(0, $total - $active);
 
-        $byRisk = Customer::selectRaw('COALESCE(risk_band, "unknown") as band, COUNT(*) as total')
+        $byRisk = Customer::query()->where('status', '!=', 'pending')
+            ->selectRaw('COALESCE(risk_band, "unknown") as band, COUNT(*) as total')
             ->groupBy('band')->pluck('total', 'band');
 
-        $top = Customer::withSum(['loans as exposure' => function ($q) {
+        $top = Customer::query()->where('status', '!=', 'pending')
+            ->withSum(['loans as exposure' => function ($q) {
                 $q->whereIn('status', ['active','arrears','restructured']);
             }], 'outstanding_balance')
             ->orderByDesc('exposure')
             ->limit(20)
             ->get();
 
-        $thisMonth = Customer::where('created_at', '>=', now()->startOfMonth())->count();
-        $thisYear  = Customer::where('created_at', '>=', now()->startOfYear())->count();
+        $thisMonth = Customer::query()->where('status', '!=', 'pending')->where('created_at', '>=', now()->startOfMonth())->count();
+        $thisYear  = Customer::query()->where('status', '!=', 'pending')->where('created_at', '>=', now()->startOfYear())->count();
 
         return view('admin.reports.customers', compact(
             'total', 'pep', 'blacklisted', 'active', 'dormant', 'byRisk', 'top', 'thisMonth', 'thisYear'
@@ -261,8 +263,8 @@ class FinanceReportsController extends Controller
         $writtenOffYtd        = (float) Loan::where('status', 'written_off')
                                           ->where('updated_at', '>=', $start)->sum('outstanding_balance');
 
-        $totalCustomers       = Customer::count();
-        $activeCustomers      = Customer::whereHas('loans', fn ($q) => $q->whereIn('status', ['active','arrears','restructured']))->count();
+        $totalCustomers       = Customer::query()->where('status', '!=', 'pending')->count();
+        $activeCustomers      = Customer::query()->where('status', '!=', 'pending')->whereHas('loans', fn ($q) => $q->whereIn('status', ['active','arrears','restructured']))->count();
 
         $cashGl = $ledger->cashMovements($start, $end);
         $cashPosition = $cashGl['from_gl'] && $ledger->hasPostedActivity($start, $end)

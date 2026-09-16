@@ -17,11 +17,11 @@
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="suspended">Suspended</option>
-                <option value="pending">Registration drafts</option>
+                <option value="pending">Incomplete registrations</option>
             </select>
         </div>
 
-        <div class="text-xs text-gray-500 md:ml-auto">{{ $customers->total() }} customer{{ $customers->total() === 1 ? '' : 's' }}</div>
+        <div class="text-xs text-gray-500 md:ml-auto">{{ $customers->total() }} {{ $status === 'pending' ? 'registration' : 'member' }}{{ $customers->total() === 1 ? '' : 's' }}</div>
     </div>
 
     {{-- Desktop table --}}
@@ -49,7 +49,7 @@
                             </td>
                             <td class="px-5 py-3 text-gray-700">{{ $c->phone ?? '—' }}</td>
                             <td class="px-5 py-3">
-                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase {{ $c->status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-700' }}">{{ $c->status ?? 'unknown' }}</span>
+                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase {{ $c->status === 'active' ? 'bg-emerald-100 text-emerald-800' : ($c->status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700') }}">{{ $c->status === 'pending' ? 'incomplete registration' : ($c->status ?? 'unknown') }}</span>
                             </td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center gap-2 min-w-[100px]">

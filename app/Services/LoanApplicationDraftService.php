@@ -846,8 +846,8 @@ class LoanApplicationDraftService
         return $label.' ('.($index + 1).'/'.$total.')';
     }
 
-    /** @return array{label: string, tone: string} */
-    public function statusBadge(LoanApplicationDraft $draft): array
+    /** Operational draft status key — same rules as statusBadge(). */
+    public function statusKey(LoanApplicationDraft $draft): string
     {
         $product = $draft->product ?? LoanProduct::find($draft->loan_product_id);
         $customer = $draft->customer ?? Customer::find($draft->customer_id);
@@ -858,19 +858,59 @@ class LoanApplicationDraftService
         );
 
         if ($feePending) {
-            return ['label' => __('admin.application_drafts.status_fee_pending'), 'tone' => 'amber'];
+            return 'fee_pending';
         }
 
         if ($draft->phase === 'details') {
-            return ['label' => __('admin.application_drafts.status_browsing'), 'tone' => 'gray'];
+            return 'browsing';
         }
 
         $external = ($draft->payload ?? [])['external_guarantor'] ?? null;
         if (is_array($external) && ! empty($external['invitation_url']) && empty($external['approved'])) {
-            return ['label' => __('admin.application_drafts.status_awaiting_guarantor'), 'tone' => 'purple'];
+            return 'awaiting_guarantor';
         }
 
-        return ['label' => __('admin.application_drafts.status_in_progress'), 'tone' => 'blue'];
+        return 'in_progress';
+    }
+
+    /** @return array{label: string, tone: string} */
+    public function statusBadge(LoanApplicationDraft $draft): array
+    {
+        return match ($this->statusKey($draft)) {
+            'fee_pending' => ['label' => __('admin.application_drafts.status_fee_pending'), 'tone' => 'amber'],
+            'browsing' => ['label' => __('admin.application_drafts.status_browsing'), 'tone' => 'gray'],
+            'awaiting_guarantor' => ['label' => __('admin.application_drafts.status_awaiting_guarantor'), 'tone' => 'purple'],
+            default => ['label' => __('admin.application_drafts.status_in_progress'), 'tone' => 'blue'],
+        };
+    }
+
+    /**
+     * Card counts for the Applications in progress queue (same incomplete set).
+     *
+     * @return array{total: int, browsing: int, fee_pending: int, awaiting_guarantor: int, in_progress: int}
+     */
+    public function incompleteStatusCounts(): array
+    {
+        $counts = [
+            'total' => 0,
+            'browsing' => 0,
+            'fee_pending' => 0,
+            'awaiting_guarantor' => 0,
+            'in_progress' => 0,
+        ];
+
+        $drafts = LoanApplicationDraft::query()
+            ->with(['customer', 'product'])
+            ->whereIn('phase', ['details', 'application'])
+            ->get();
+
+        $counts['total'] = $drafts->count();
+        foreach ($drafts as $draft) {
+            $key = $this->statusKey($draft);
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+
+        return $counts;
     }
 
     public function requestedAmount(LoanApplicationDraft $draft): ?float

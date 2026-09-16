@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\Disbursement;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanTopUpRequest;
+use App\Models\Repayment;
 use App\Models\RestructureRequest;
 use App\Services\CapitalPartnerMetricsService;
 use App\Services\LoanApplicationDraftService;
@@ -42,11 +44,20 @@ class DashboardController extends Controller
         )->all();
 
         $stats = [
-            'customers'              => Customer::query()->count(),
+            'customers'              => Customer::query()->where('status', '!=', 'pending')->count(),
+            'pending_registrations'  => Customer::query()->where('status', 'pending')->count(),
             'applications'           => LoanApplication::query()->count(),
             'incomplete_applications'=> app(LoanApplicationDraftService::class)->countIncomplete(),
             'active_loans'           => Loan::query()->where('status', 'active')->count(),
-            'portfolio_tzs'          => (float) Loan::query()->where('status', 'active')->sum('principal_amount'),
+            'outstanding_principal'  => (float) Loan::query()
+                ->whereIn('status', ['active', 'disbursed', 'arrears', 'restructuring'])
+                ->sum('outstanding_balance'),
+            'disbursed_month'        => (float) Disbursement::query()
+                ->where('released_at', '>=', now()->startOfMonth())
+                ->sum('amount'),
+            'collections_month'      => (float) Repayment::query()
+                ->where('paid_at', '>=', now()->startOfMonth())
+                ->sum('amount'),
             'credit_review_queue'    => (int) ($stageCounts['screening'] ?? 0) + (int) ($stageCounts['credit_appraisal'] ?? 0),
             'committee_queue'        => (int) ($stageCounts['pre_approval'] ?? 0),
             'my_assigned_queue'      => LoanApplication::query()

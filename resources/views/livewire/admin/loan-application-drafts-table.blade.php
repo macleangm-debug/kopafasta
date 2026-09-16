@@ -1,4 +1,24 @@
 <div class="space-y-4">
+    @php
+        $cards = [
+            ['', __('admin.application_drafts.card_total'), $counts['total'] ?? 0],
+            ['browsing', __('admin.application_drafts.card_browsing'), $counts['browsing'] ?? 0],
+            ['fee_pending', __('admin.application_drafts.card_fee_pending'), $counts['fee_pending'] ?? 0],
+            ['awaiting_guarantor', __('admin.application_drafts.card_awaiting_guarantor'), $counts['awaiting_guarantor'] ?? 0],
+            ['in_progress', __('admin.application_drafts.card_in_progress'), $counts['in_progress'] ?? 0],
+        ];
+    @endphp
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        @foreach ($cards as [$key, $label, $value])
+            <button type="button"
+                    wire:click="setStatus(@js($key))"
+                    class="rounded-xl px-4 py-3 text-left ring-1 transition {{ $status === $key ? 'bg-brand text-white ring-brand shadow-sm' : 'bg-white text-gray-900 ring-brand/10 hover:ring-brand/30' }}">
+                <p class="text-[10px] uppercase tracking-widest font-semibold {{ $status === $key ? 'text-brand-gold' : 'text-gray-500' }}">{{ $label }}</p>
+                <p class="mt-1 text-2xl font-bold tabular-nums">{{ format_number($value) }}</p>
+            </button>
+        @endforeach
+    </div>
+
     <div class="flex flex-wrap items-center gap-3">
         <div class="relative">
             <select wire:model.live="phase"
@@ -12,6 +32,12 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
             </svg>
         </div>
+        @if ($status !== '')
+            <button type="button" wire:click="setStatus('')"
+                    class="text-xs font-semibold text-brand hover:text-brand-light">
+                {{ __('admin.application_drafts.card_clear') }} →
+            </button>
+        @endif
     </div>
 
     <x-admin.table-shell :records="$rows" :statuses="[]" searchPlaceholder="Search customer, phone, product…">

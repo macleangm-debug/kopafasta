@@ -9,21 +9,25 @@
                     Profiles, KYC, face verification, and guarantors — separate from lending queues.
                 </p>
             </div>
-            <div class="bg-white px-6 py-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-4 py-4">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Total</p>
+            <div class="bg-white px-6 py-5 grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <a href="{{ route('admin.customers.index') }}" class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/10 px-4 py-4 hover:ring-brand/30 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Members</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['total']) }}</p>
-                </div>
-                <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4">
+                </a>
+                <a href="{{ route('admin.customers.index', ['status' => 'pending']) }}" class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4 hover:ring-amber-300 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Incomplete registrations</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['pending'] ?? 0) }}</p>
+                </a>
+                <a href="{{ route('admin.customers.index', ['status' => 'active']) }}" class="rounded-xl bg-emerald-50 ring-1 ring-emerald-100 px-4 py-4 hover:ring-emerald-300 transition">
                     <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Active</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['active']) }}</p>
-                </div>
+                </a>
                 <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-4">
                     <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">With loans</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['with_loans']) }}</p>
                 </div>
-                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-4 py-4">
-                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Suspended</p>
+                <div class="rounded-xl bg-rose-50 ring-1 ring-rose-100 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-widest text-rose-800 font-semibold">Suspended</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['suspended']) }}</p>
                 </div>
             </div>

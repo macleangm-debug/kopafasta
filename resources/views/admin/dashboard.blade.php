@@ -22,14 +22,19 @@
             ['Incomplete', format_number($stats['incomplete_applications']), route('admin.loan-applications.incomplete')],
             ['Applications', format_number($stats['applications']), route('admin.loan-applications.index')],
             ['Active loans', format_number($stats['active_loans']), route('admin.loans.index')],
-            ['Portfolio', format_money($stats['portfolio_tzs'] ?? 0), route('admin.loans.active')],
             ['Capital free', format_money($stats['capital_available']), route('admin.capital-funding.index')],
+        ];
+        $money = [
+            ['Disbursed · month', format_money($stats['disbursed_month'] ?? 0), route('admin.reports.disbursements')],
+            ['Outstanding principal', format_money($stats['outstanding_principal'] ?? 0), route('admin.loans.active')],
+            ['Collections · month', format_money($stats['collections_month'] ?? 0), route('admin.repayments.index')],
         ];
         $ops = [
             ['Restructures', (int) ($stats['pending_restructures'] ?? 0), route('admin.restructure-requests.index')],
             ['Top-ups pending', (int) ($stats['pending_top_ups'] ?? 0), route('admin.top-up-requests.index')],
             ['Top-ups to disburse', (int) ($stats['approved_top_ups'] ?? 0), route('admin.top-up-requests.index')],
-            ['Customers', (int) ($stats['customers'] ?? 0), route('admin.customers.index')],
+            ['Members', (int) ($stats['customers'] ?? 0), route('admin.customers.index')],
+            ['Incomplete registrations', (int) ($stats['pending_registrations'] ?? 0), route('admin.customers.index', ['status' => 'pending'])],
         ];
     @endphp
 
@@ -65,7 +70,16 @@
         @endforeach
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        @foreach ($money as [$label, $value, $url])
+            <a href="{{ $url }}" class="rounded-xl bg-white ring-1 ring-brand/10 px-4 py-4 hover:ring-brand/30 transition block">
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
+                <p class="mt-2 text-xl font-bold tabular-nums text-brand">{{ $value }}</p>
+            </a>
+        @endforeach
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         @foreach ($ops as [$label, $value, $url])
             <a href="{{ $url }}" class="rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 hover:ring-brand/30 transition">
                 <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $label }}</p>
