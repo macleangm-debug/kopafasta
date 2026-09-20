@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Models\ArrearCase;
 use App\Models\Customer;
+use App\Models\CustomerDocument;
 use App\Models\CustomerKyc;
 use App\Models\Disbursement;
 use App\Models\Loan;
@@ -18,6 +19,8 @@ use App\Models\Vendor;
 use App\Models\PartnerTask;
 use App\Models\VendorTask;
 use App\Observers\CustomerKycObserver;
+use App\Observers\GuarantorDocumentHoldReleaseObserver;
+use App\Observers\GuarantorHoldReleaseObserver;
 use App\Policies\ArrearCasePolicy;
 use App\Policies\CustomerPolicy;
 use App\Policies\DisbursementPolicy;
@@ -100,6 +103,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Partner::class, VendorPolicy::class);
 
         CustomerKyc::observe(CustomerKycObserver::class);
+        Customer::observe(GuarantorHoldReleaseObserver::class);
+        CustomerDocument::observe(GuarantorDocumentHoldReleaseObserver::class);
         Gate::policy(VendorTask::class, VendorTaskPolicy::class);
         Gate::policy(PartnerTask::class, VendorTaskPolicy::class);
 

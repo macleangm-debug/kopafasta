@@ -16,11 +16,16 @@ use App\Http\Middleware\RestrictConsoleSettings;
 use App\Models\AuditLog;
 use App\Services\BrokenPageRecorder;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -103,6 +108,34 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->stopIgnoring(AuthorizationException::class);
+
+        // AJAX/fetch callers must get a short human message, never an exception page.
+        $exceptions->render(function (Throwable $e, Request $request) {
+            if (
+                $e instanceof ValidationException
+                || $e instanceof AuthenticationException
+                || $e instanceof AuthorizationException
+                || $e instanceof HttpException
+                || $e instanceof PostTooLargeException
+            ) {
+                return null;
+            }
+
+            if (! $request->expectsJson() && ! $request->ajax()) {
+                return null;
+            }
+
+            $reference = (string) Str::uuid();
+            Log::error('Request failed', [
+                'reference' => $reference,
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Something went wrong. Please try again. Reference '.$reference,
+            ], 500);
+        });
 
         // Status-driven incident log only (403/404/419/429/500/503). Successful
         // routes under the Kopafasta base URL never enter this pipeline.

@@ -53,6 +53,22 @@ function labelsFrom(form) {
     };
 }
 
+function autosaveFailureMessage(raw, parsed, labels) {
+    const jsonMessage = parsed && (
+        parsed.message
+        || (parsed.errors && Object.values(parsed.errors).flat()[0])
+    );
+    if (typeof window.kfHumanErrorMessage === 'function') {
+        return window.kfHumanErrorMessage(jsonMessage, labels.fail);
+    }
+    const text = String(jsonMessage || '').trim();
+    if (text !== '' && ! text.startsWith('<') && ! /<!doctype/i.test(text)) {
+        return text;
+    }
+
+    return labels.fail;
+}
+
 function markAccountShellContext() {
     window.kfIsAccountShellContext = function (node) {
         if (typeof window.kfIsBorrowerProfileContext === 'function' && window.kfIsBorrowerProfileContext(node)) {
@@ -283,9 +299,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     // Empty or non-JSON 200 (aborted race / session bounce) is not a save.
                     if (parsed.ok !== true) {
-                        const msg = parsed.message
-                            || (raw === '' ? labels.fail : raw.slice(0, 120))
-                            || labels.fail;
+                        const msg = autosaveFailureMessage(raw, parsed, labels);
                         const err = new Error(String(msg));
                         err.status = xhr.status === 200 && /unauthenticated/i.test(String(msg))
                             ? 401
@@ -297,9 +311,7 @@ window.kfBindAutosaveForm = function (form, options = {}) {
                     resolve(parsed);
                     return;
                 }
-                const msg = parsed.message
-                    || (parsed.errors && Object.values(parsed.errors).flat()[0])
-                    || labels.fail;
+                const msg = autosaveFailureMessage(raw, parsed, labels);
                 const err = new Error(String(msg));
                 err.status = xhr.status;
                 err.payload = parsed;

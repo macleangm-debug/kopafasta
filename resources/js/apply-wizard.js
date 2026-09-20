@@ -1181,7 +1181,11 @@ export function applyWizard(config) {
                                     resolve(payload);
                                     return;
                                 }
-                                reject(new Error(payload.message || this.i18n.educationDetails?.uploadFailed || 'Upload failed'));
+                                const fallback = this.i18n.educationDetails?.uploadFailed || 'Upload failed';
+                                const message = typeof window.kfHumanErrorMessage === 'function'
+                                    ? window.kfHumanErrorMessage(payload.message, fallback)
+                                    : (String(payload.message || '').trim().startsWith('<') ? fallback : (payload.message || fallback));
+                                reject(new Error(message));
                             };
                             xhr.onerror = () => reject(new Error(this.i18n.educationDetails?.uploadFailed || 'Upload failed'));
                             xhr.send(formData);

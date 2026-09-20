@@ -1,3 +1,4 @@
+import './kf-human-error';
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
 import { registerFormReadyAlpine } from './form-ready';

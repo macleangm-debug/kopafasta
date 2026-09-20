@@ -332,10 +332,13 @@
                     },
 
                     humanizeError(raw) {
-                        const text = String(raw || '').trim();
-                        if (!text) return this.labels.uploadFailed || '';
+                        const fallback = this.labels.uploadFailed || '';
+                        const text = typeof window.kfHumanErrorMessage === 'function'
+                            ? window.kfHumanErrorMessage(raw, fallback)
+                            : String(raw || '').trim();
+                        if (!text || text.startsWith('<') || /<!doctype/i.test(text)) return fallback;
                         if (/files\.|file\.|document_type|max\.|mimes|uploaded/i.test(text) && /[_\[\]]/.test(text)) {
-                            return this.labels.uploadFailed || text;
+                            return fallback;
                         }
                         return text;
                     },

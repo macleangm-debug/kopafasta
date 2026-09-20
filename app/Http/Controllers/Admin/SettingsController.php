@@ -1207,6 +1207,14 @@ class SettingsController extends Controller
 
         Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());
 
+        \App\Models\LoanApplication::query()
+            ->where('status', 'awaiting_guarantor')
+            ->orderBy('id')
+            ->each(function (\App\Models\LoanApplication $application): void {
+                app(\App\Services\GuarantorInvitationService::class)
+                    ->tryReleaseApplicationFromGuarantorHold($application);
+            });
+
         if (Schema::hasColumn('document_types', 'expires')) {
             foreach (DocumentType::query()->pluck('id') as $typeId) {
                 DocumentType::whereKey($typeId)->update([

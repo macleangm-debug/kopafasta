@@ -736,7 +736,7 @@
                                        class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
                                         Continue to Decision
                                     </a>
-                                @else
+                                @elseif (in_array(($guidedNext['cta_kind'] ?? ''), ['start', 'continue'], true))
                                     <a href="{{ $guidedNext['review_href'] }}"
                                        class="inline-flex rounded-xl bg-brand text-white text-sm font-bold px-4 py-2.5 hover:bg-brand-light">
                                         {{ $guidedNext['cta'] }}

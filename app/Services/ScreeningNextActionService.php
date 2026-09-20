@@ -93,14 +93,17 @@ class ScreeningNextActionService
             default => self::BUCKET_DO_NOW,
         };
 
+        $reviewOpen = $stage === 'screening';
         $ctaKind = match (true) {
             $bucket === self::BUCKET_COMPLETED && $stepIsDecision => 'decision',
+            ! $reviewOpen => 'not_screening',
             $waiting !== null => 'waiting',
             $started => 'continue',
             default => 'start',
         };
         $cta = match ($ctaKind) {
             'decision' => 'Continue to Decision',
+            'not_screening' => '',
             'waiting' => (string) ($waiting['label'] ?? 'Waiting'),
             'continue' => 'Continue Reviewing',
             default => 'Start Reviewing',
