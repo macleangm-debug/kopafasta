@@ -46,7 +46,9 @@ class DashboardController extends Controller
         $stats = [
             'customers'              => Customer::query()->where('status', '!=', 'pending')->count(),
             'pending_registrations'  => Customer::query()->where('status', 'pending')->count(),
-            'applications'           => LoanApplication::query()->count(),
+            'applications'           => LoanApplication::query()
+                ->whereNotIn('status', LoanApplication::PRE_SUBMIT_STATUSES)
+                ->count(),
             'incomplete_applications'=> app(LoanApplicationDraftService::class)->countIncomplete(),
             'active_loans'           => Loan::query()->where('status', 'active')->count(),
             'outstanding_principal'  => (float) Loan::query()
@@ -85,6 +87,7 @@ class DashboardController extends Controller
 
         $recentApplications = LoanApplication::query()
             ->with(['customer', 'product', 'assignedAnalyst'])
+            ->whereNotIn('status', LoanApplication::PRE_SUBMIT_STATUSES)
             ->latest()
             ->limit(8)
             ->get();

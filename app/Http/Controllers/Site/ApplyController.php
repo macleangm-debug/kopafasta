@@ -2301,6 +2301,7 @@ class ApplyController extends Controller
 
         $referenceService = app(ReferenceNumberService::class);
         $draftReference = $draft?->draft_reference;
+        $engagementBoosts = app(MemberEngagementRewardService::class)->underwritingBoosts($customer);
 
         if ($draftReference) {
             $existingApplication = LoanApplication::query()
@@ -2308,19 +2309,63 @@ class ApplyController extends Controller
                 ->where('application_number', $draftReference)
                 ->first();
 
-            if ($existingApplication) {
+            if ($existingApplication && ! $existingApplication->isPreSubmit()) {
                 $drafts->clear($customer, (int) $loanProduct->id);
 
                 return redirect()
                     ->route('site.borrower.application', $existingApplication)
                     ->with('status', __('borrower.apply.success.already_submitted_message'));
             }
+
+            if ($existingApplication && $existingApplication->isPreSubmit()) {
+                $alreadyPaid = in_array((string) $existingApplication->application_fee_status, ['paid', 'waived', 'charged'], true);
+                $resolvedFeeStatus = $alreadyPaid
+                    ? ((string) $existingApplication->application_fee_status === 'waived' ? 'waived' : 'paid')
+                    : ($feeStatus === 'pending' ? 'pending' : ($feeStatus === 'paid' || $feeStatus === 'waived' ? 'paid' : 'unpaid'));
+
+                $existingApplication->update([
+                    'requested_amount' => $data['requested_amount'],
+                    'requested_tenure_months' => $data['requested_tenure_months'],
+                    'status' => $status,
+                    'current_stage' => 'screening',
+                    'purpose' => $purposeStored,
+                    'screening_payload' => array_replace(
+                        is_array($existingApplication->screening_payload) ? $existingApplication->screening_payload : [],
+                        [
+                            'product_code' => $loanProduct->code,
+                            'product_questions' => array_filter($data['product_question'] ?? []),
+                            'education_documents' => array_values($draftPayload['education_documents'] ?? []),
+                            'institution_payment' => array_merge(
+                                is_array($draftPayload['institution_payment'] ?? null) ? $draftPayload['institution_payment'] : [],
+                                ['verified' => false],
+                            ),
+                            'engagement' => $engagementBoosts,
+                            'purpose_key' => $purposeKey !== '' ? $purposeKey : null,
+                            'purpose_other' => (is_loan_purpose_other($purposeKey) && $purposeOther !== '') ? $purposeOther : null,
+                            'returned_from_incomplete_at' => now()->toIso8601String(),
+                        ],
+                    ),
+                    'engagement_priority' => (int) ($engagementBoosts['processing_priority'] ?? 0),
+                    'application_fee_amount' => $alreadyPaid
+                        ? $existingApplication->application_fee_amount
+                        : $appFee,
+                    'application_fee_status' => $resolvedFeeStatus,
+                    'application_fee_reference' => $existingApplication->application_fee_reference ?: $feeReference,
+                    'application_fee_channel' => $existingApplication->application_fee_channel ?: $feeChannel,
+                    'application_fee_paid_at' => $existingApplication->application_fee_paid_at ?: $feePaidAt,
+                    'submitted_at' => $existingApplication->submitted_at ?? $submittedAt,
+                    'guarantor_deadline_at' => null,
+                ]);
+
+                $app = $existingApplication->fresh();
+                $applicationNumber = $app->application_number;
+            }
         }
 
-        $applicationNumber = $referenceService->resolveApplicationReference($loanProduct, $draftReference);
-        $engagementBoosts = app(MemberEngagementRewardService::class)->underwritingBoosts($customer);
+        if (! isset($app)) {
+            $applicationNumber = $referenceService->resolveApplicationReference($loanProduct, $draftReference);
 
-        $app = LoanApplication::create([
+            $app = LoanApplication::create([
             'customer_id' => $customer->id,
             'loan_product_id' => $data['loan_product_id'],
             'application_number' => $applicationNumber,
@@ -2354,6 +2399,7 @@ class ApplyController extends Controller
             'application_fee_paid_at' => $feePaidAt,
             'submitted_at' => $submittedAt,
         ]);
+        }
 
         if ($request->filled('asset_reservation_id')) {
             $reservation = AssetReservation::query()
@@ -2765,6 +2811,7 @@ class ApplyController extends Controller
             $byReference = LoanApplication::query()
                 ->where('customer_id', $customer->id)
                 ->where('application_number', $draftReference)
+                ->whereNotIn('status', LoanApplication::PRE_SUBMIT_STATUSES)
                 ->first();
 
             if ($byReference) {
@@ -2775,7 +2822,10 @@ class ApplyController extends Controller
         return LoanApplication::query()
             ->where('customer_id', $customer->id)
             ->where('loan_product_id', $loanProduct->id)
-            ->whereNotIn('status', ['rejected', 'withdrawn', 'disbursed'])
+            ->whereNotIn('status', array_merge(
+                LoanApplication::PRE_SUBMIT_STATUSES,
+                ['rejected', 'withdrawn', 'disbursed'],
+            ))
             ->whereNotNull('submitted_at')
             ->latest('submitted_at')
             ->first();

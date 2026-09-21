@@ -2608,6 +2608,8 @@ return [
         'in_review_hint' => 'Submitted applications currently in underwriting or awaiting action.',
         'draft_in_progress' => 'Application in progress',
         'draft_fee_pending' => 'Guarantor complete — application fee payment required',
+        'complete_profile_to_continue' => 'Complete your profile to continue your loan application.',
+        'complete_profile_to_continue_items' => 'Complete your profile to continue your loan application. :count item(s) remaining: :items.',
         'draft_saved' => 'Last saved :time',
         'open' => 'Open',
         'view_application' => 'View application',

@@ -22,6 +22,14 @@ class LoanApplication extends Model
 
     public const CLOSED_STATUSES = ['rejected', 'withdrawn', 'expired', 'cancelled'];
 
+    /**
+     * Pre-submission / requirements-outstanding. Counted and resumed as Incomplete,
+     * not as a submitted Application.
+     *
+     * @var list<string>
+     */
+    public const PRE_SUBMIT_STATUSES = ['draft'];
+
     /** Borrower-facing post-approval pipeline stages (stored in current_stage). */
     public const BORROWER_STAGE_POST_APPROVAL_FEES = 'post_approval_fees';
 
@@ -77,6 +85,11 @@ class LoanApplication extends Model
     {
         return in_array((string) $this->status, self::CLOSED_STATUSES, true)
             || in_array((string) $this->current_stage, self::CLOSED_STATUSES, true);
+    }
+
+    public function isPreSubmit(): bool
+    {
+        return in_array((string) $this->status, self::PRE_SUBMIT_STATUSES, true);
     }
 
     public function closedStatus(): string

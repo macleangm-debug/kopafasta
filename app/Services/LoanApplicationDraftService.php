@@ -405,6 +405,7 @@ class LoanApplicationDraftService
         $convertedReferences = LoanApplication::query()
             ->where('customer_id', $customer->id)
             ->whereNotNull('application_number')
+            ->whereNotIn('status', LoanApplication::PRE_SUBMIT_STATUSES)
             ->pluck('application_number')
             ->filter()
             ->all();
@@ -420,6 +421,7 @@ class LoanApplicationDraftService
 
                 // A converted spine (same number as a submitted/withdrawn application)
                 // is listed from loan_applications, not as a second draft card.
+                // Pre-submit draft applications share the number and resume via the draft.
                 return $reference !== '' && in_array($reference, $convertedReferences, true);
             })
             ->values();
@@ -962,7 +964,8 @@ class LoanApplicationDraftService
                         $sub->selectRaw('1')
                             ->from('loan_applications')
                             ->whereColumn('loan_applications.customer_id', 'loan_application_drafts.customer_id')
-                            ->whereColumn('loan_applications.application_number', 'loan_application_drafts.draft_reference');
+                            ->whereColumn('loan_applications.application_number', 'loan_application_drafts.draft_reference')
+                            ->whereNotIn('loan_applications.status', LoanApplication::PRE_SUBMIT_STATUSES);
                     });
             });
     }
@@ -977,6 +980,7 @@ class LoanApplicationDraftService
         return LoanApplication::query()
             ->where('customer_id', $customer->id)
             ->where('application_number', $reference)
+            ->whereNotIn('status', LoanApplication::PRE_SUBMIT_STATUSES)
             ->exists();
     }
 

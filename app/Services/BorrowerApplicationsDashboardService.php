@@ -30,7 +30,10 @@ class BorrowerApplicationsDashboardService
             ->where('customer_id', $customer->id)
             ->get(['application_number', 'loan_product_id', 'status']);
 
-        $convertedReferences = $submitted->pluck('application_number')->filter();
+        $convertedReferences = $submitted
+            ->reject(fn ($app) => in_array((string) $app->status, LoanApplication::PRE_SUBMIT_STATUSES, true))
+            ->pluck('application_number')
+            ->filter();
         $inFlightProductIds = $submitted
             ->reject(fn ($app) => $this->isTerminalApplicationStatus((string) $app->status))
             ->pluck('loan_product_id')
@@ -96,6 +99,34 @@ class BorrowerApplicationsDashboardService
         );
 
         $resumeTarget = $this->drafts->resumeTarget($customer, $draft);
+        $wizardUrl = $this->drafts->wizardApplyUrl($draft, $resumeTarget);
+        $profileSummary = app(ProfileCompletionService::class)->completionSummary($customer);
+        $profilePercent = (int) ($profileSummary['percent'] ?? $profileProgress['percent'] ?? 0);
+        $profileComplete = $profilePercent >= 100;
+        $firstGap = collect($profileSummary['actionable'] ?? [])->first();
+        $missingLabels = collect($profileSummary['actionable'] ?? [])
+            ->pluck('label')
+            ->filter(fn ($label) => filled($label))
+            ->values()
+            ->all();
+
+        $detail = $feePending
+            ? __('borrower.applications_list.draft_fee_pending')
+            : __('borrower.applications_list.draft_in_progress');
+        $actionUrl = $wizardUrl;
+        $actionLabel = __('borrower.applications_list.continue_application');
+
+        if (! $profileComplete) {
+            $count = max(1, count($missingLabels));
+            $detail = $missingLabels !== []
+                ? __('borrower.applications_list.complete_profile_to_continue_items', [
+                    'count' => $count,
+                    'items' => implode('; ', $missingLabels),
+                ])
+                : __('borrower.applications_list.complete_profile_to_continue');
+            $actionUrl = (string) ($firstGap['url'] ?? route('site.borrower.profile'));
+            $actionLabel = __('borrower.applications_list.complete_profile');
+        }
 
         return [
             'is_draft'           => true,
@@ -110,8 +141,8 @@ class BorrowerApplicationsDashboardService
             'status_label'       => $this->borrowerStatus->forDraft($draft)['label'],
             'status_tone'        => 'gray',
             'is_closed'          => false,
-            'profile_percent'    => $profileProgress['percent'],
-            'profile_complete'   => $profileProgress['percent'] >= 100,
+            'profile_percent'    => $profilePercent,
+            'profile_complete'   => $profileComplete,
             'application_percent'=> $applicationProgress['percent'],
             'application_status' => $applicationProgress['label'],
             'progress_percent'   => $applicationProgress['percent'],
@@ -120,13 +151,12 @@ class BorrowerApplicationsDashboardService
             'created_at'         => $draft->created_at,
             'updated_at'         => $draft->saved_at ?? $draft->updated_at,
             'sort_at'            => ($draft->saved_at ?? $draft->updated_at)?->timestamp ?? 0,
-            'detail'             => $feePending
-                ? __('borrower.applications_list.draft_fee_pending')
-                : __('borrower.applications_list.draft_in_progress'),
-            'action_url'         => $this->drafts->wizardApplyUrl($draft, $resumeTarget),
-            'action_label'       => __('borrower.applications_list.continue_application'),
-            'continue_url'       => $this->drafts->wizardApplyUrl($draft, $resumeTarget),
-            'continue_label'     => __('borrower.applications_list.continue_application'),
+            'detail'             => $detail,
+            'missing_profile_items' => $missingLabels,
+            'action_url'         => $actionUrl,
+            'action_label'       => $actionLabel,
+            'continue_url'       => $actionUrl,
+            'continue_label'     => $actionLabel,
             'preview_url'        => $this->drafts->resumeUrl($customer, $draft),
             'preview_label'      => __('borrower.applications_list.view_application'),
             'saved_at_human'     => optional($draft->saved_at)->diffForHumans(),
