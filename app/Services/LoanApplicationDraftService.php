@@ -445,7 +445,7 @@ class LoanApplicationDraftService
             return null;
         }
 
-        $existing = $this->find($customer, (int) $productId);
+        $existing = $this->findStored($customer, (int) $productId);
         $incomingInputs = is_array($data['inputs'] ?? null) ? $data['inputs'] : [];
         $existingInputs = is_array($existing?->payload['inputs'] ?? null) ? $existing->payload['inputs'] : [];
         $mergedInputs = $existingInputs;
@@ -509,6 +509,11 @@ class LoanApplicationDraftService
         if (! $draftReference && $product) {
             $draftReference = app(ReferenceNumberService::class)->applicationReference($product);
             $payload['draft_reference'] = $draftReference;
+        }
+
+        // A submitted application already owns this number. Do not resurrect or extend that draft.
+        if ($this->isSubmittedSpine($customer, $draftReference) || $this->isSubmittedSpine($customer, $existing?->draft_reference)) {
+            return $existing;
         }
 
         // Locked product purpose is authoritative — persist before fee/resume gates run.
@@ -602,14 +607,17 @@ class LoanApplicationDraftService
         }
 
         $product = LoanProduct::find($loanProductId);
-        $draft = $this->find($customer, $loanProductId)
-            ?? new LoanApplicationDraft([
-                'customer_id' => $customer->id,
-                'loan_product_id' => $loanProductId,
-                'phase' => 'application',
-                'step' => 0,
-                'payload' => [],
-            ]);
+        $draft = $this->findStored($customer, $loanProductId);
+        if ($draft && $this->isSubmittedSpine($customer, $draft->draft_reference)) {
+            return $draft;
+        }
+        $draft = $draft ?? new LoanApplicationDraft([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $loanProductId,
+            'phase' => 'application',
+            'step' => 0,
+            'payload' => [],
+        ]);
 
         if (! $draft->draft_reference && $product) {
             $draft->draft_reference = app(ReferenceNumberService::class)->applicationReference($product);
@@ -638,14 +646,17 @@ class LoanApplicationDraftService
         }
 
         $product = LoanProduct::find($loanProductId);
-        $draft = $this->find($customer, $loanProductId)
-            ?? new LoanApplicationDraft([
-                'customer_id' => $customer->id,
-                'loan_product_id' => $loanProductId,
-                'phase' => 'application',
-                'step' => 0,
-                'payload' => [],
-            ]);
+        $draft = $this->findStored($customer, $loanProductId);
+        if ($draft && $this->isSubmittedSpine($customer, $draft->draft_reference)) {
+            return $draft;
+        }
+        $draft = $draft ?? new LoanApplicationDraft([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $loanProductId,
+            'phase' => 'application',
+            'step' => 0,
+            'payload' => [],
+        ]);
 
         if (! $product) {
             return $draft;
@@ -693,14 +704,17 @@ class LoanApplicationDraftService
         }
 
         $product = LoanProduct::find($loanProductId);
-        $draft = $this->find($customer, $loanProductId)
-            ?? new LoanApplicationDraft([
-                'customer_id' => $customer->id,
-                'loan_product_id' => $loanProductId,
-                'phase' => 'application',
-                'step' => 0,
-                'payload' => [],
-            ]);
+        $draft = $this->findStored($customer, $loanProductId);
+        if ($draft && $this->isSubmittedSpine($customer, $draft->draft_reference)) {
+            return $draft;
+        }
+        $draft = $draft ?? new LoanApplicationDraft([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $loanProductId,
+            'phase' => 'application',
+            'step' => 0,
+            'payload' => [],
+        ]);
 
         if (! $draft->draft_reference && $product) {
             $draft->draft_reference = app(ReferenceNumberService::class)->applicationReference($product);
@@ -816,9 +830,17 @@ class LoanApplicationDraftService
             $query->where('loan_product_id', $loanProductId);
         }
 
-        return $loanProductId
-            ? $query->first()
-            : $query->whereIn('phase', ['details', 'application'])->orderByDesc('saved_at')->first();
+        if ($loanProductId) {
+            $draft = $query->first();
+
+            return ($draft && $this->isSubmittedSpine($customer, $draft->draft_reference)) ? null : $draft;
+        }
+
+        return $query
+            ->whereIn('phase', ['details', 'application'])
+            ->orderByDesc('saved_at')
+            ->get()
+            ->first(fn (LoanApplicationDraft $draft) => ! $this->isSubmittedSpine($customer, $draft->draft_reference));
     }
 
     /** Human-readable wizard position for admin dashboards. */
@@ -899,9 +921,8 @@ class LoanApplicationDraftService
             'in_progress' => 0,
         ];
 
-        $drafts = LoanApplicationDraft::query()
+        $drafts = $this->incompleteDraftQuery()
             ->with(['customer', 'product'])
-            ->whereIn('phase', ['details', 'application'])
             ->get();
 
         $counts['total'] = $drafts->count();
@@ -923,9 +944,48 @@ class LoanApplicationDraftService
 
     public function countIncomplete(): int
     {
+        return $this->incompleteDraftQuery()->count();
+    }
+
+    /**
+     * Drafts still in progress. A draft whose number already belongs to a submitted
+     * application is the originating spine, not a second journey.
+     */
+    public function incompleteDraftQuery()
+    {
         return LoanApplicationDraft::query()
             ->whereIn('phase', ['details', 'application'])
-            ->count();
+            ->where(function ($query) {
+                $query->whereNull('draft_reference')
+                    ->orWhere('draft_reference', '')
+                    ->orWhereNotExists(function ($sub) {
+                        $sub->selectRaw('1')
+                            ->from('loan_applications')
+                            ->whereColumn('loan_applications.customer_id', 'loan_application_drafts.customer_id')
+                            ->whereColumn('loan_applications.application_number', 'loan_application_drafts.draft_reference');
+                    });
+            });
+    }
+
+    public function isSubmittedSpine(Customer $customer, ?string $reference): bool
+    {
+        $reference = trim((string) $reference);
+        if ($reference === '') {
+            return false;
+        }
+
+        return LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->where('application_number', $reference)
+            ->exists();
+    }
+
+    private function findStored(Customer $customer, int $loanProductId): ?LoanApplicationDraft
+    {
+        return LoanApplicationDraft::query()
+            ->where('customer_id', $customer->id)
+            ->where('loan_product_id', $loanProductId)
+            ->first();
     }
 
     /** @param  Collection<int, array{key: string, label: string}>  $wizardSteps */

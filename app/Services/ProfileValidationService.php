@@ -136,6 +136,47 @@ class ProfileValidationService
             && filled($customer->nok_street);
     }
 
+    public function isBusinessOwner(Customer $customer): bool
+    {
+        return ($customer->activity_type ?? $customer->employment_type) === 'business_owner';
+    }
+
+    public function requiresBusinessTin(Customer $customer): bool
+    {
+        return $this->isBusinessOwner($customer)
+            && (bool) ($this->kycSettings()['require_tin'] ?? false);
+    }
+
+    public function requiresBusinessLicence(Customer $customer): bool
+    {
+        return $this->isBusinessOwner($customer)
+            && (bool) ($this->kycSettings()['require_business_licence'] ?? false);
+    }
+
+    public function businessVerificationComplete(Customer $customer): bool
+    {
+        $details = is_array($customer->activity_details) ? $customer->activity_details : [];
+
+        if ($this->requiresBusinessTin($customer)) {
+            if (blank($details['tin_number'] ?? null) || ! $this->hasDocument($customer, 'tin_certificate')) {
+                return false;
+            }
+        }
+
+        if ($this->requiresBusinessLicence($customer)) {
+            foreach (['licence_number', 'licence_authority', 'licence_issued_on'] as $key) {
+                if (blank($details[$key] ?? null)) {
+                    return false;
+                }
+            }
+            if (! $this->hasDocument($customer, 'business_license')) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function requiresEmploymentContract(Customer $customer): bool
     {
         return ($customer->activity_type ?? $customer->employment_type) === 'employed';

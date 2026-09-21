@@ -17,22 +17,7 @@
             :body="__('borrower.settings.hero_body')"
         />
 
-        @if (session('status'))
-            <div
-                x-data
-                x-init="
-                    $nextTick(() => window.showBorrowerFeedback({
-                        title: @js(__('borrower.feedback.saved_title')),
-                        message: @js(session('status')),
-                        tone: 'success',
-                    }));
-                "
-                class="sr-only"
-                aria-hidden="true"
-            ></div>
-        @endif
-
-        <div class="space-y-6">
+    <div class="space-y-6">
             <x-site.profile-section-card
                 :title="auth()->user()->pin_set_at ? __('borrower.security_tab.change_pin') : __('borrower.security_tab.set_pin')"
                 :complete="(bool) auth()->user()->pin_set_at"

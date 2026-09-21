@@ -232,6 +232,39 @@ class CustomerPayment extends Model
             }
         }
 
+        $type = (string) ($this->payment_type ?? '');
+        $forLabel = null;
+        $forUrl = null;
+        $forSecondary = null;
+        $forSecondaryUrl = null;
+
+        if ($applicationNumber) {
+            $forLabel = ($product?->name ?: 'Application').' · '.$applicationNumber;
+            $forUrl = $applicationUrl;
+        } elseif ($loanNumber) {
+            $forLabel = 'Loan '.$loanNumber;
+            $forUrl = $loanUrl;
+        } elseif (in_array($type, ['kopafasta_plus', 'plus_subscription', 'plus_membership'], true)) {
+            $forLabel = 'Kopafasta Plus membership / subscription';
+        } elseif (in_array($type, ['registration_fee', 'membership_fee', 'membership_renewal'], true)) {
+            $forLabel = 'Historical membership / registration';
+        } elseif (in_array($type, ['recovery_fee', 'recovery_charge', 'collection_fee'], true)) {
+            $forLabel = $loanNumber ? ('Loan '.$loanNumber) : 'Recovery charge';
+            $forUrl = $loanUrl;
+            $caseRef = data_get($this->provider_meta, 'recovery_case_number')
+                ?? data_get($this->provider_meta, 'recovery_case_id');
+            if (filled($caseRef)) {
+                $forSecondary = 'Recovery case '.$caseRef;
+            }
+        } elseif ($type === 'penalty_payment') {
+            $forLabel = $loanNumber ? ('Loan '.$loanNumber.' · Penalty') : 'Penalty';
+            $forUrl = $loanUrl;
+        } elseif ($assetTitle) {
+            $forLabel = 'Asset · '.$assetTitle;
+        } elseif ($partnerName) {
+            $forLabel = ($partnerRole ?: 'Partner').' · '.$partnerName;
+        }
+
         $lines = array_values(array_filter([
             $this->typeLabel(),
             $product?->name ? ('Product · '.$product->name) : null,
@@ -239,6 +272,7 @@ class CustomerPayment extends Model
             $loanNumber ? ('Loan · '.$loanNumber) : null,
             $assetTitle ? ('Asset · '.$assetTitle) : null,
             $partnerName ? ('Partner · '.$partnerName) : null,
+            $forLabel ? ('For · '.$forLabel) : null,
         ]));
 
         return [
@@ -252,6 +286,10 @@ class CustomerPayment extends Model
             'asset' => $assetTitle,
             'partner' => $partnerName,
             'partner_role' => $partnerRole,
+            'for' => $forLabel,
+            'for_url' => $forUrl,
+            'for_secondary' => $forSecondary,
+            'for_secondary_url' => $forSecondaryUrl,
             'lines' => $lines,
         ];
     }

@@ -81,9 +81,6 @@
         @if ($docs->isNotEmpty())
             <div class="space-y-2">
                 @foreach ($docs as $doc)
-                    @if (empty($doc['url']))
-                        @continue
-                    @endif
                     <article class="rounded-xl ring-1 ring-slate-200 px-3 py-3 space-y-1">
                         <p class="text-sm font-bold text-slate-900">{{ $doc['label'] ?? 'Document' }}</p>
                         @if (! empty($doc['type_label']))
@@ -98,11 +95,16 @@
                         @if (! empty($doc['request_label']))
                             <p class="text-xs text-slate-500">Request: {{ $doc['request_label'] }}</p>
                         @endif
-                        <button type="button"
-                                onclick="window.kfOpenDocumentPreview(@js($doc['url']), @js($doc['label'] ?? 'Document'), @js($doc['kind'] ?? null))"
-                                class="text-sm font-bold text-brand underline">
-                            View document
-                        </button>
+                        @if (! empty($doc['url']))
+                            <x-admin.document-preview
+                                :url="$doc['url']"
+                                :label="$doc['label'] ?? 'View document'"
+                                :type="$doc['kind'] ?? null"
+                                variant="link"
+                            />
+                        @else
+                            <p class="text-xs font-semibold text-amber-800">{{ $doc['label'] ?? 'Document' }} — missing</p>
+                        @endif
                     </article>
                 @endforeach
             </div>

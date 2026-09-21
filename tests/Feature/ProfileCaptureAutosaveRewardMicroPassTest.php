@@ -6,6 +6,8 @@ use App\Models\Customer;
 use App\Models\LoyaltyPointTransaction;
 use App\Models\User;
 use App\Services\MemberEngagementRewardService;
+use App\Services\ProfileCompletionService;
+use App\Support\Celebration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -100,5 +102,30 @@ class ProfileCaptureAutosaveRewardMicroPassTest extends TestCase
         $this->assertSame(25, (int) ($actions['complete_profile']['points'] ?? 0));
         $this->assertSame(0, (int) ($actions['upload_documents']['points'] ?? -1));
         $this->assertSame(0, (int) ($actions['update_information']['points'] ?? -1));
+    }
+
+    public function test_reaching_100_percent_does_not_open_a_profile_complete_modal(): void
+    {
+        $customer = $this->makeCustomer(['loyalty_points' => 0]);
+
+        $this->mock(ProfileCompletionService::class, function ($mock): void {
+            $mock->shouldReceive('calculate')->andReturn(['percent' => 100]);
+        });
+
+        app(MemberEngagementRewardService::class)->afterDocumentUploaded($customer, 'residence_letter');
+        app(MemberEngagementRewardService::class)->afterProfileSectionSaved($customer->fresh(), 'residence');
+
+        $this->assertNotContains('profile_complete', Celebration::reasons());
+        $this->assertSame([], Celebration::reasons());
+        $this->assertSame(25, (int) $customer->fresh()->loyalty_points);
+
+        $rewards = file_get_contents(app_path('Services/MemberEngagementRewardService.php'));
+        $controller = file_get_contents(app_path('Http/Controllers/Site/BorrowerController.php'));
+        $holder = file_get_contents(resource_path('views/components/site/profile-document-field.blade.php'));
+
+        $this->assertStringNotContainsString("flashOne('profile_complete')", $rewards);
+        $this->assertStringNotContainsString("Celebration::flashOne('profile_complete')", $controller);
+        $this->assertStringNotContainsString('profile_ready_to_submit', $controller);
+        $this->assertStringContainsString('kfFlashInlineSaved', $holder);
     }
 }

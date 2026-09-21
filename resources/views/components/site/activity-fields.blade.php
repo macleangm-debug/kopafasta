@@ -5,6 +5,10 @@
     'prefix' => '',
     'groupedSections' => false,
     'employmentContract' => null,
+    'tinCertificate' => null,
+    'businessLicense' => null,
+    'requireTin' => false,
+    'requireLicence' => false,
 ])
 
 @php
@@ -150,6 +154,64 @@
                     </div>
                 </div>
             </section>
+
+            @if ($requireTin || $requireLicence)
+                <section id="profile-business-verification" class="border-t border-gray-100 pt-6" x-show="activityType === 'business_owner'" x-cloak>
+                    <h2 class="font-semibold mb-1">{{ __('borrower.profile.business_verification') }}</h2>
+                    <p class="text-xs text-gray-500 mb-4">{{ __('borrower.profile.business_verification_hint') }}</p>
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        @if ($requireTin)
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.tin_number') }} <span class="text-red-500">*</span></label>
+                                <input type="text" name="activity_details[tin_number]" x-model="details.tin_number"
+                                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <x-site.profile-document-field
+                                    :document="$tinCertificate"
+                                    field-name="tin_certificate"
+                                    pages-field-name="tin_certificate_pages"
+                                    mode="multi"
+                                    :label="__('borrower.profile.tin_certificate')"
+                                    input-host-id="tin-certificate-pages"
+                                />
+                            </div>
+                        @endif
+                        @if ($requireLicence)
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.licence_number') }} <span class="text-red-500">*</span></label>
+                                <input type="text" name="activity_details[licence_number]" x-model="details.licence_number"
+                                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.licence_authority') }} <span class="text-red-500">*</span></label>
+                                <input type="text" name="activity_details[licence_authority]" x-model="details.licence_authority"
+                                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.licence_issued_on') }} <span class="text-red-500">*</span></label>
+                                <input type="date" name="activity_details[licence_issued_on]" x-model="details.licence_issued_on"
+                                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.licence_expires_on') }}</label>
+                                <input type="date" name="activity_details[licence_expires_on]" x-model="details.licence_expires_on"
+                                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <x-site.profile-document-field
+                                    :document="$businessLicense"
+                                    field-name="business_license"
+                                    pages-field-name="business_license_pages"
+                                    mode="multi"
+                                    :label="__('borrower.profile.business_license')"
+                                    input-host-id="business-license-pages"
+                                />
+                            </div>
+                        @endif
+                    </div>
+                </section>
+            @endif
         </div>
     @else
         <div class="grid sm:grid-cols-2 gap-4">

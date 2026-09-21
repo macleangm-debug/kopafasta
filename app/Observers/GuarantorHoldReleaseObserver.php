@@ -33,7 +33,7 @@ class GuarantorHoldReleaseObserver
 
         self::$releasing = true;
         try {
-            app(GuarantorInvitationService::class)->releaseHeldApplicationsForGuarantor($customer);
+            app(GuarantorInvitationService::class)->releaseHeldApplicationsForMember($customer);
         } finally {
             self::$releasing = false;
         }

@@ -178,6 +178,118 @@ class ProfileCompletionEligibilityTest extends TestCase
         $this->assertNotContains('region', collect($svc->activityGaps($customer))->pluck('key')->all());
     }
 
+    public function test_business_owner_tin_and_licence_follow_settings_and_skip_employed(): void
+    {
+        Setting::setMany([
+            'kyc.require_tin' => true,
+            'kyc.require_business_licence' => true,
+        ]);
+
+        $svc = app(ProfileCompletionService::class);
+        $owner = $this->completeBusinessOwnerProfile();
+        $ownerGaps = collect($svc->activityGaps($owner))->pluck('key')->all();
+
+        $this->assertContains('tin_number', $ownerGaps);
+        $this->assertContains('tin_certificate', $ownerGaps);
+        $this->assertContains('licence_number', $ownerGaps);
+        $this->assertContains('business_license', $ownerGaps);
+        $this->assertLessThan(100, $svc->calculate($owner)['percent']);
+
+        $employed = $this->baseCustomer([
+            'activity_type' => 'employed',
+            'employment_type' => 'employed',
+            'income_range' => '500000_1000000',
+            'activity_details' => [
+                'employer_name' => 'Acme',
+                'job_title' => 'Clerk',
+            ],
+        ]);
+        $employedGaps = collect($svc->activityGaps($employed))->pluck('key')->all();
+        $this->assertNotContains('tin_number', $employedGaps);
+        $this->assertNotContains('business_license', $employedGaps);
+    }
+
+    public function test_satisfied_business_tin_restores_completion_when_licence_is_off(): void
+    {
+        Setting::set('kyc.require_tin', true);
+
+        $owner = $this->completeBusinessOwnerProfile();
+        $details = $owner->activity_details;
+        $details['tin_number'] = '123456789';
+        $owner->forceFill(['activity_details' => $details])->save();
+
+        $type = \App\Models\DocumentType::create([
+            'code' => 'tin_certificate',
+            'name' => 'TIN certificate',
+            'is_active' => true,
+        ]);
+        \App\Models\CustomerDocument::create([
+            'customer_id' => $owner->id,
+            'document_type_id' => $type->id,
+            'loan_application_id' => null,
+            'file_path' => 'kyc/tin.pdf',
+            'status' => 'pending_review',
+        ]);
+
+        $svc = app(ProfileCompletionService::class);
+        $gaps = collect($svc->activityGaps($owner->fresh()))->pluck('key')->all();
+        $this->assertNotContains('tin_number', $gaps);
+        $this->assertNotContains('tin_certificate', $gaps);
+        $this->assertSame(100, $svc->calculate($owner->fresh())['percent']);
+    }
+
+    public function test_policy_notice_is_pre_screening_only(): void
+    {
+        Setting::setMany([
+            'kyc.require_tin' => true,
+            'kyc.policy_changed_at' => now()->toIso8601String(),
+        ]);
+
+        $owner = $this->completeBusinessOwnerProfile();
+        $product = \App\Models\LoanProduct::create([
+            'code' => 'IL-TIN-'.bin2hex(random_bytes(2)),
+            'name' => 'TIN notice',
+            'is_active' => true,
+            'interest_rate' => 0.05,
+            'min_amount' => 100000,
+            'max_amount' => 5000000,
+            'tenure_min_months' => 1,
+            'tenure_max_months' => 12,
+        ]);
+
+        \App\Models\LoanApplication::create([
+            'customer_id' => $owner->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-TIN-SCREEN',
+            'requested_amount' => 500000,
+            'requested_tenure_months' => 6,
+            'status' => 'submitted',
+            'current_stage' => 'screening',
+            'submitted_at' => now()->subDay(),
+        ]);
+
+        $svc = app(ProfileCompletionService::class);
+        $this->assertNull($svc->policyUpdateNotice($owner->fresh()));
+        $this->assertLessThan(100, $svc->calculate($owner->fresh())['percent']);
+
+        \App\Models\LoanApplication::create([
+            'customer_id' => $owner->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-TIN-HOLD',
+            'requested_amount' => 500000,
+            'requested_tenure_months' => 6,
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+            'submitted_at' => now()->subDay(),
+        ]);
+
+        $notice = $svc->policyUpdateNotice($owner->fresh());
+        $this->assertNotNull($notice);
+        $this->assertSame('Profile requirements updated', $notice['title']);
+        $this->assertContains('tin_number', collect($notice['items'])->pluck('key')->all());
+        $this->assertContains('tin_certificate', collect($notice['items'])->pluck('key')->all());
+    }
+
     public function test_persisted_dob_within_profile_save_window_is_not_a_remaining_gap(): void
     {
         Setting::setMany([

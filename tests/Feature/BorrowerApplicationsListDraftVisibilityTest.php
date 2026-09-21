@@ -165,4 +165,67 @@ class BorrowerApplicationsListDraftVisibilityTest extends TestCase
         $this->assertContains('APP-IL-LIVE1', $numbers);
         $this->assertNotContains('APP-IL-DUP1', $numbers);
     }
+
+    public function test_successful_submission_cannot_resume_or_recreate_the_originating_draft(): void
+    {
+        $customer = $this->borrower();
+        $il = $this->product('IL');
+        $savedAt = now()->subHour();
+
+        LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $il->id,
+            'application_number' => 'APP-IL-ZR93',
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+            'requested_amount' => 500_000,
+            'requested_tenure_months' => 6,
+            'submitted_at' => now()->subHour(),
+        ]);
+
+        $origin = $this->draft($customer, $il, 'APP-IL-ZR93');
+        $origin->forceFill(['saved_at' => $savedAt, 'updated_at' => $savedAt])->save();
+
+        $drafts = app(\App\Services\LoanApplicationDraftService::class);
+
+        $this->assertNull($drafts->find($customer, $il->id));
+        $this->assertNull($drafts->payloadForWizard($customer, $il->id));
+
+        $drafts->save($customer, [
+            'phase' => 'application',
+            'step' => 4,
+            'loan_product_id' => $il->id,
+            'draft_reference' => 'APP-IL-ZR93',
+            'form' => ['requested_amount' => 900_000],
+        ]);
+        $drafts->saveApplicationFee($customer, $il->id, ['status' => 'paid', 'reference' => 'FEE-1']);
+
+        $origin->refresh();
+        $this->assertSame('APP-IL-ZR93', $origin->draft_reference);
+        $this->assertEquals($savedAt->toDateTimeString(), $origin->saved_at->toDateTimeString());
+        $this->assertSame(1, LoanApplicationDraft::query()->where('customer_id', $customer->id)->count());
+        $this->assertSame(0, $drafts->countIncomplete());
+
+        $drafts->save($customer, [
+            'phase' => 'application',
+            'step' => 1,
+            'loan_product_id' => $il->id,
+            'draft_reference' => 'APP-IL-ZR93',
+        ]);
+
+        $this->assertSame(1, LoanApplicationDraft::query()->where('customer_id', $customer->id)->count());
+        $this->assertNull($drafts->find($customer, $il->id));
+
+        $origin->delete();
+
+        $drafts->save($customer, [
+            'phase' => 'application',
+            'step' => 2,
+            'loan_product_id' => $il->id,
+            'draft_reference' => 'APP-IL-ZR93',
+            'form' => ['requested_amount' => 700_000],
+        ]);
+
+        $this->assertSame(0, LoanApplicationDraft::query()->where('customer_id', $customer->id)->count());
+    }
 }

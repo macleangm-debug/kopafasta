@@ -82,9 +82,13 @@
                         detail: { tone: 'warning', title: @js(brand_name()), message: @js(session('warning')), lines: [] }
                     }));
                 @elseif (session('status'))
-                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
-                        detail: { tone: 'success', title: @js(brand_name()), message: @js(session('status')), lines: [] }
-                    }));
+                    @php
+                        $statusMessage = (string) session('status');
+                        $ordinarySave = (bool) preg_match('/\b(saved|updated|imehifadhiwa|imesasishwa)\b/i', $statusMessage);
+                    @endphp
+                    if (typeof window.kfFlashInlineSaved === 'function') {
+                        window.kfFlashInlineSaved(@js($ordinarySave ? __('borrower.document_upload.saved') : $statusMessage));
+                    }
                 @endif
             });
          "></div>

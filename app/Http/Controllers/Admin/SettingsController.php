@@ -1167,6 +1167,7 @@ class SettingsController extends Controller
             'require_selfie'    => ['nullable', 'boolean'],
             'require_address_proof' => ['nullable', 'boolean'],
             'require_income_proof'  => ['nullable', 'boolean'],
+            'require_business_licence' => ['nullable', 'boolean'],
             'require_marriage_certificate' => ['nullable', 'boolean'],
             'min_age'  => ['required', 'integer', 'min:18', 'max:100'],
             'max_age'  => ['required', 'integer', 'min:18', 'max:120'],
@@ -1182,7 +1183,9 @@ class SettingsController extends Controller
             'document_type_expires.*' => ['nullable', 'boolean'],
         ]);
 
-        foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','require_marriage_certificate','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
+        $previous = Setting::group('kyc');
+
+        foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','require_business_licence','require_marriage_certificate','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
             $data[$k] = (bool) ($data[$k] ?? false);
         }
 
@@ -1202,10 +1205,24 @@ class SettingsController extends Controller
         $data['crb_freshness_days'] = (int) ($data['crb_freshness_days'] ?? 90);
         $data['require_residence_letter'] = (bool) ($data['require_address_proof'] ?? false);
 
+        $policyChanged = false;
+        foreach (['require_tin', 'require_address_proof', 'require_income_proof', 'require_business_licence'] as $flag) {
+            if ((bool) ($previous[$flag] ?? false) !== (bool) ($data[$flag] ?? false)) {
+                $policyChanged = true;
+            }
+        }
+        if ((bool) ($previous['require_residence_letter'] ?? false) !== $data['require_residence_letter']) {
+            $policyChanged = true;
+        }
+
         $expiresFlags = $data['document_type_expires'] ?? [];
         unset($data['document_type_expires']);
 
-        Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());
+        $settings = collect($data)->mapWithKeys(fn ($v, $k) => ["kyc.$k" => $v])->all();
+        if ($policyChanged) {
+            $settings['kyc.policy_changed_at'] = now()->toIso8601String();
+        }
+        Setting::setMany($settings);
 
         \App\Models\LoanApplication::query()
             ->where('status', 'awaiting_guarantor')

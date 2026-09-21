@@ -148,9 +148,56 @@
                     </div>
                     @if ($rows->isEmpty())
                         <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_not_added_hint') }}</p>
-                    @elseif ($showWaitingCopy)
-                        <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_hold_body') }}</p>
-                    @elseif ($showReadyBeforeSubmit)
+            @elseif ($showWaitingCopy)
+                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_hold_body') }}</p>
+                @php
+                    $policyNotices = collect();
+                    if ($isHeld) {
+                        $completion = app(\App\Services\ProfileCompletionService::class);
+                        foreach ($guarantorLinks as $link) {
+                            $guarantorCustomer = app(\App\Services\GuarantorAccessService::class)->guarantorCustomerForLink($link);
+                            $notice = $guarantorCustomer ? $completion->policyUpdateNotice($guarantorCustomer) : null;
+                            if (! empty($notice['items'])) {
+                                $policyNotices->push([
+                                    'name' => $link->displayName(),
+                                    'notice' => $notice,
+                                ]);
+                            }
+                        }
+                    }
+                @endphp
+                @foreach ($policyNotices as $policyNotice)
+                    <div class="mt-3 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+                        <p class="font-semibold">{{ $policyNotice['notice']['title'] }}</p>
+                        <p class="mt-1">{{ $policyNotice['name'] }} — {{ $policyNotice['notice']['body'] }}</p>
+                        <ul class="mt-2 space-y-1">
+                            @foreach ($policyNotice['notice']['items'] as $item)
+                                <li class="font-semibold">{{ $item['label'] }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endforeach
+                @if ($isHeld && $application)
+                    @php $preScreeningHold = app(\App\Services\GuarantorInvitationService::class)->preScreeningHold($application); @endphp
+                    @foreach ($preScreeningHold['parties'] ?? [] as $party)
+                        <div class="mt-3 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+                            <p class="font-semibold">
+                                {{ $party['role'] === 'borrower' ? __('borrower.loan_profile.prescreening_role_borrower') : __('borrower.loan_profile.prescreening_role_guarantor') }}
+                                @if (! empty($party['name'])) — {{ $party['name'] }} @endif
+                            </p>
+                            <ul class="mt-2 space-y-1">
+                                @foreach ($party['missing'] as $item)
+                                    <li class="font-semibold">{{ $item }}</li>
+                                @endforeach
+                            </ul>
+                            <p class="mt-2 text-amber-900">{{ $party['next'] }}</p>
+                            @if (! empty($party['url']))
+                                <a href="{{ $party['url'] }}" class="mt-2 inline-flex font-semibold underline">{{ __('borrower.loan_profile.prescreening_open_profile') }}</a>
+                            @endif
+                        </div>
+                    @endforeach
+                @endif
+            @elseif ($showReadyBeforeSubmit)
                         <p class="text-sm text-gray-600 mt-1">{{ $primary->type }}</p>
                     @endif
                 </div>

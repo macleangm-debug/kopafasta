@@ -20,6 +20,10 @@
                 || filled($customer->income_range)
                 || collect($activityDetails)->contains(fn ($v, $k) => ! str_starts_with((string) $k, '_') && filled($v) && ! is_array($v));
             $focus = request()->query('focus');
+            $kycFlags = \App\Models\Setting::group('kyc');
+            $requireTin = (bool) ($kycFlags['require_tin'] ?? false);
+            $requireLicence = (bool) ($kycFlags['require_business_licence'] ?? false);
+            $isBusinessOwner = ($customer->activity_type ?? $customer->employment_type) === 'business_owner';
             $openActivity = ($wizardMode ?? false) || ($editing ?? false)
                 || $errors->hasAny(['activity_type', 'income_range', 'employment_contract', 'activity_details'])
                 || request()->boolean('edit')
@@ -117,6 +121,45 @@
                         </div>
                     @endforeach
                 </dl>
+                @if ($isBusinessOwner && ($requireTin || $requireLicence))
+                    <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}" enctype="multipart/form-data" class="mt-4 space-y-4"
+                          data-kf-autosave
+                          data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                          data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                          data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                          data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
+                          data-inline-document-progress
+                          data-saving-message="{{ __('borrower.profile.uploading') }}">
+                        @csrf @method('PUT')
+                        <input type="hidden" name="activity_type" value="{{ $customer->activity_type ?? $customer->employment_type }}">
+                        <input type="hidden" name="income_range" value="{{ $customer->income_range }}">
+                        @foreach ($activityDetails as $detailKey => $detailValue)
+                            @if (is_scalar($detailValue) && filled($detailValue) && ! str_starts_with((string) $detailKey, '_'))
+                                <input type="hidden" name="activity_details[{{ $detailKey }}]" value="{{ $detailValue }}">
+                            @endif
+                        @endforeach
+                        @if ($requireTin)
+                            <x-site.profile-document-field
+                                :document="$tinCertificate ?? null"
+                                field-name="tin_certificate"
+                                pages-field-name="tin_certificate_pages"
+                                mode="multi"
+                                :label="__('borrower.profile.tin_certificate')"
+                                input-host-id="tin-certificate-view"
+                            />
+                        @endif
+                        @if ($requireLicence)
+                            <x-site.profile-document-field
+                                :document="$businessLicense ?? null"
+                                field-name="business_license"
+                                pages-field-name="business_license_pages"
+                                mode="multi"
+                                :label="__('borrower.profile.business_license')"
+                                input-host-id="business-license-view"
+                            />
+                        @endif
+                    </form>
+                @endif
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
@@ -146,6 +189,10 @@
                         :activity-details="old('activity_details', $customer->activity_details ?? [])"
                         :income-range="old('income_range', normalize_income_range_key($customer->income_range) ?? $customer->income_range)"
                         :employment-contract="$employmentContract ?? null"
+                        :tin-certificate="$tinCertificate ?? null"
+                        :business-license="$businessLicense ?? null"
+                        :require-tin="$requireTin"
+                        :require-licence="$requireLicence"
                         :grouped-sections="true"
                     />
 

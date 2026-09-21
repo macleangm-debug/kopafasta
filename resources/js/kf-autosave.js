@@ -58,9 +58,6 @@ function autosaveFailureMessage(raw, parsed, labels) {
         parsed.message
         || (parsed.errors && Object.values(parsed.errors).flat()[0])
     );
-    if (typeof window.kfHumanErrorMessage === 'function') {
-        return window.kfHumanErrorMessage(jsonMessage, labels.fail);
-    }
     const text = String(jsonMessage || '').trim();
     if (text !== '' && ! text.startsWith('<') && ! /<!doctype/i.test(text)) {
         return text;
@@ -68,7 +65,6 @@ function autosaveFailureMessage(raw, parsed, labels) {
 
     return labels.fail;
 }
-
 function markAccountShellContext() {
     window.kfIsAccountShellContext = function (node) {
         if (typeof window.kfIsBorrowerProfileContext === 'function' && window.kfIsBorrowerProfileContext(node)) {

@@ -66,9 +66,8 @@ class LoanApplicationDraftsTable extends Component
         $draftService = app(LoanApplicationDraftService::class);
         $counts = $draftService->incompleteStatusCounts();
 
-        $base = LoanApplicationDraft::query()
+        $base = $draftService->incompleteDraftQuery()
             ->with(['customer', 'product'])
-            ->whereIn('phase', ['details', 'application'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {
