@@ -44,18 +44,19 @@
     if ($help === null) {
         $help = __('borrower.register.mobile_hint');
     }
-    $selectClass = $selectClass ?? ($variant === 'rounded'
-        ? 'w-28 shrink-0 px-3.5 py-3 rounded-xl bg-white border border-gray-300 text-base outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10'
-        : 'w-28 shrink-0 rounded-lg border-gray-300 text-base focus:border-amber-500 focus:ring-amber-500');
     $inputClass = $inputClass ?? ($variant === 'rounded'
-        ? 'flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-base outline-none transition'
-        : 'flex-1 rounded-lg border-gray-300 text-base focus:border-amber-500 focus:ring-amber-500');
+        ? 'min-w-0 flex-1 px-3 py-3 sm:px-3.5 rounded-xl bg-white border border-gray-300 focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10 text-base outline-none transition'
+        : 'min-w-0 flex-1 rounded-lg border-gray-300 text-base focus:border-amber-500 focus:ring-amber-500');
     $labelClass = $variant === 'rounded'
         ? 'block text-sm font-medium text-gray-700 mb-1.5'
         : 'block text-xs font-medium text-gray-600 mb-1';
+    // Compact prefix so +255 | number fits cleanly at 360px / 390px (no emoji padding).
     $prefixDisplayClass = $variant === 'rounded'
-        ? 'w-28 shrink-0 px-3.5 py-3 rounded-xl bg-gray-50 border border-gray-300 text-base text-gray-700 font-medium inline-flex items-center justify-center select-none'
-        : 'w-28 shrink-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-base text-gray-700 font-medium inline-flex items-center justify-center select-none';
+        ? 'shrink-0 w-[4.25rem] sm:w-[4.75rem] px-2 py-3 rounded-xl bg-gray-50 border border-gray-300 text-sm sm:text-base text-gray-700 font-medium inline-flex items-center justify-center select-none tabular-nums'
+        : 'shrink-0 w-[4.25rem] sm:w-[4.75rem] rounded-lg border border-gray-300 bg-gray-50 px-2 py-2 text-sm sm:text-base text-gray-700 font-medium inline-flex items-center justify-center select-none tabular-nums';
+    $selectClass = $selectClass ?? ($variant === 'rounded'
+        ? 'shrink-0 w-[4.25rem] sm:w-[4.75rem] px-2 py-3 rounded-xl bg-white border border-gray-300 text-sm sm:text-base outline-none transition focus:border-gray-900 focus:ring-4 focus:ring-gray-900/10'
+        : 'shrink-0 w-[4.25rem] sm:w-[4.75rem] rounded-lg border-gray-300 text-sm sm:text-base focus:border-amber-500 focus:ring-amber-500');
     $controlExtra = trim((string) ($prefixClass ?? ''));
     if ($controlExtra !== '') {
         $selectClass .= ' '.$controlExtra;
@@ -87,18 +88,18 @@
             {{ $label }} @if ($required)<span class="text-red-500">*</span>@endif
         </label>
     @endif
-    <div class="flex w-full min-w-0 gap-2">
+    <div class="flex w-full min-w-0 items-stretch gap-1.5 sm:gap-2">
         @if ($lockedCountry)
-            <div class="{{ $prefixDisplayClass }}" aria-hidden="true">
-                <span>{{ ($countries[0]['emoji'] ?? '') }} {{ $lockedPrefix }}</span>
+            <div class="{{ $prefixDisplayClass }}" aria-hidden="true" title="{{ $lockedPrefix }}">
+                <span>{{ $lockedPrefix }}</span>
             </div>
             <input type="hidden" data-phone-prefix value="{{ $lockedPrefix }}">
         @else
             <div class="lg:hidden shrink-0" x-data="{ pickerOpen: false }">
                 <button type="button" @click="pickerOpen = true"
-                        class="{{ $selectClass }} inline-flex items-center justify-between gap-1 text-left">
-                    <span class="truncate" x-text="(@js(collect($countries)->mapWithKeys(fn ($c) => [$c['prefix'] => ($c['emoji'] ?? '').' '.$c['prefix']])->all()))[prefix] || prefix"></span>
-                    <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                        class="{{ $selectClass }} inline-flex items-center justify-center gap-0.5 text-left">
+                    <span class="truncate tabular-nums" x-text="prefix"></span>
+                    <svg class="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                 </button>
                 <x-site.bottom-sheet :title="$label ?: 'Country'" open="pickerOpen">
                     <div class="space-y-1 max-h-[60vh] overflow-y-auto">
@@ -115,13 +116,13 @@
             </div>
             <select x-model="prefix" data-phone-prefix class="{{ $selectClass }} max-lg:sr-only" @change="syncHidden()">
                 @foreach ($countries as $country)
-                    <option value="{{ $country['prefix'] }}">{{ $country['emoji'] }} {{ $country['prefix'] }}</option>
+                    <option value="{{ $country['prefix'] }}">{{ $country['prefix'] }}</option>
                 @endforeach
             </select>
         @endif
         <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only x-model="local" data-phone-local
                placeholder="712 345 678"
-               autocomplete="{{ $lockedCountry ? 'off' : 'tel-national' }}"
+               autocomplete="tel-national"
                name="{{ $name }}_local"
                @input="local = String(local || '').replace(/\D/g, ''); syncHidden()"
                @if ($requiredWhen) data-required-when="{{ $requiredWhen }}" @endif

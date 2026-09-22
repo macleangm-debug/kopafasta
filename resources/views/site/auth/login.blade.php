@@ -94,7 +94,7 @@
                                 <label class="block text-sm font-medium text-gray-700">{{ __('site.auth.pin_label') }}</label>
                                 <a href="{{ route('site.forgot-pin', array_filter(['phone' => $prefillPhone])) }}" class="text-xs text-brand font-medium hover:underline">{{ __('site.auth.forgot_pin') }}</a>
                             </div>
-                            <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="off"
+                            <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
                                    placeholder="••••"
                                    required
                                    class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 tracking-[0.5em] font-mono text-center text-base outline-none">
@@ -197,7 +197,7 @@
                                     <label class="block text-sm font-medium text-gray-700">{{ __('site.auth.pin_label') }}</label>
                                     <a href="{{ route('site.forgot-pin', array_filter(['phone' => $prefillPhone])) }}" class="text-xs text-brand font-medium hover:underline">{{ __('site.auth.forgot_pin') }}</a>
                                 </div>
-                                <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="off"
+                                <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
                                        placeholder="••••"
                                        data-required-when="pin"
                                        @required($authMethod === 'pin')

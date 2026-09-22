@@ -21,14 +21,33 @@
     };
     $openRequest = $requests->first(fn ($row) => $row->needsBorrowerAction() && $matchesStep($row));
     $queuedRequest = $requests->first(fn ($row) => $row->isQueued() && $matchesStep($row));
+    $failCode = (string) ($step['fail_reason_code'] ?? '');
+    $missingEvidence = in_array($failCode, [
+        'statements_missing',
+        'nida_missing',
+        'nida_malformed',
+        'nida_incomplete',
+        'face_photo_missing',
+        'id_photo_missing',
+        'photos_missing',
+        'proof_missing',
+        'document_unclear',
+        'poor_quality',
+        'wrong_document',
+        'proof_invalid',
+    ], true);
+    $identityStep = str_starts_with((string) ($step['item_key'] ?? ''), 'identity.');
     $showComposer = ! empty($requestable['preset'])
         && (
-            ! empty($nationalIdMissing)
+            ($identityStep && ! empty($nationalIdMissing))
             || ($step['type'] ?? '') === 'request'
-            || ($step['verdict'] ?? null) === 'fail'
+            || (($step['verdict'] ?? null) === 'fail' && $missingEvidence)
+            || ! empty($step['awaiting_data'])
         );
-    $headline = $requestable['headline'] ?? 'National ID required';
-    $reason = $requestable['reason'] ?? 'National ID is not on this member\'s profile.';
+    $headline = $requestable['headline']
+        ?? ($requestable['label'] ?? 'Supporting document required');
+    $reason = $requestable['reason']
+        ?? ('Please provide: '.($requestable['label'] ?? 'the required supporting document').'.');
 @endphp
 @if ($openRequest)
     <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 space-y-2">

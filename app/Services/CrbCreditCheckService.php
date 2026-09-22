@@ -434,7 +434,12 @@ class CrbCreditCheckService
         $freshness = $this->freshness->statusMeta($history);
 
         $score = $history?->score ?? ($credit['score'] ?? null);
-        $recommendation = $credit['recommendation'] ?? $this->recommendationFromScore(is_numeric($score) ? (int) $score : null);
+        $recommendation = array_key_exists('recommendation', $credit)
+            ? $credit['recommendation']
+            : $this->recommendationFromScore(is_numeric($score) ? (int) $score : null);
+        if (! empty($payload['error']) || str_contains(strtolower((string) ($payload['status'] ?? '')), 'no record')) {
+            $recommendation = null;
+        }
 
         $identityFromCustomer = [
             'full_name' => $customer->full_name,
@@ -460,6 +465,9 @@ class CrbCreditCheckService
             'crb_ruid'             => $payload['crb_ruid'] ?? $reportMeta['ruid'] ?? $nidaVerification['crb_ruid'] ?? null,
             'report_type'          => $payload['report_type'] ?? null,
             'search_score'         => $payload['search_score'] ?? $reportMeta['search_score'] ?? null,
+            'scenario'             => $payload['scenario'] ?? $reportMeta['scenario'] ?? null,
+            'error'                => $payload['error'] ?? null,
+            'no_record'            => filled($payload['error'] ?? null) || str_contains(strtolower((string) ($payload['status'] ?? '')), 'no record'),
             'identity'             => array_merge($identityFromCustomer, array_filter([
                 'full_name' => $personal['full_name'] ?? null,
                 'surname' => $personal['surname'] ?? null,
@@ -508,22 +516,93 @@ class CrbCreditCheckService
         return $history->fresh();
     }
 
-    /** @return array{credit: array<string, mixed>, personal?: array<string, mixed>, report_meta?: array<string, mixed>} */
+    /** @return array{credit: array<string, mixed>, personal?: array<string, mixed>, report_meta?: array<string, mixed>, scenario?: string, status?: string, error?: string} */
     private function buildCreditPayload(Customer $customer, ?CrbIdentityResult $identityResult): array
     {
         if ($this->crb->usesStub()) {
-            $sample = config('crb_credit_samples.default', []);
+            if (app()->environment('production')) {
+                throw new \RuntimeException('Production refused stub CRB credit payload. Configure live D&B or leave the pull unavailable.');
+            }
+            $scenario = is_array($identityResult?->raw ?? null)
+                ? ($identityResult->raw['scenario'] ?? null)
+                : null;
+            $built = app(\App\Services\Crb\StubCrbCreditFixture::class)->build($customer, is_string($scenario) ? $scenario : null);
 
             return [
-                'credit' => $sample['credit'] ?? $sample,
-                'personal' => $sample['personal'] ?? [],
-                'report_meta' => $sample['report_meta'] ?? [],
+                'credit' => $built['credit'] ?? [],
+                'personal' => $built['personal'] ?? [],
+                'report_meta' => $built['report_meta'] ?? [],
+                'scenario' => $built['scenario'] ?? 'clean',
+                'status' => $built['status'] ?? null,
+                'error' => $built['error'] ?? null,
             ];
         }
 
         $xml = $identityResult?->raw['response'] ?? null;
 
         return $this->buildCreditPayloadFromXml(is_string($xml) ? $xml : null);
+    }
+
+    /**
+     * Install a deterministic stub CIR for Gate 3 testing (never a live D&B pull).
+     * Preserves prior CreditHistory rows; creates a new latest row for the scenario.
+     *
+     * @param  'clean'|'pass'|'refer'|'hard_fail'|'wrong_subject'|'stale'|'no_record'  $scenario
+     */
+    public function installStubReport(
+        Customer $customer,
+        string $scenario = 'clean',
+        ?\DateTimeInterface $checkedAt = null,
+        array $auditContext = [],
+    ): CreditHistory {
+        if (app()->environment('production')) {
+            throw new \RuntimeException('Stub CRB fixtures cannot be installed in production. D&B unavailable must not fall back to fake underwriting evidence.');
+        }
+        if (! $this->crb->usesStub()) {
+            throw new \RuntimeException('Stub CRB fixtures require CRB_DRIVER=stub or KYC CRB sandbox mode.');
+        }
+
+        $fixture = app(\App\Services\Crb\StubCrbCreditFixture::class);
+        $normalized = $fixture->normalizeScenario($scenario) ?? 'clean';
+        if ($normalized === 'stale' && $checkedAt === null) {
+            $days = app(CrbFreshnessService::class)->freshnessDays() + 1;
+            $checkedAt = now()->subDays($days);
+        }
+
+        $built = $fixture->build($customer, $normalized === 'stale' ? 'clean' : $normalized);
+        $payload = [
+            'report_type' => $normalized === 'no_record' ? 'none' : 'credit',
+            'national_id' => $customer->national_id,
+            'crb_ruid' => $built['report_meta']['ruid'] ?? null,
+            'search_score' => $built['report_meta']['search_score'] ?? null,
+            'credit' => $built['credit'] ?? [],
+            'personal' => $built['personal'] ?? [],
+            'report_meta' => $built['report_meta'] ?? [],
+            'scenario' => $built['scenario'] ?? $normalized,
+            'status' => $built['status'] ?? null,
+            'error' => $built['error'] ?? null,
+            'audit' => array_merge([
+                'purpose' => 'stub_fixture_install',
+                'scenario' => $normalized,
+            ], $auditContext),
+        ];
+
+        // Persist scenario preference so subsequent stub refreshes stay deterministic.
+        $kyc = $customer->kyc;
+        if ($kyc) {
+            $kycPayload = is_array($kyc->payload) ? $kyc->payload : [];
+            $kycPayload['crb_stub_scenario'] = $normalized === 'stale' ? 'clean' : $normalized;
+            $kyc->forceFill(['payload' => $kycPayload])->save();
+        }
+
+        return CreditHistory::create([
+            'customer_id' => $customer->id,
+            'source' => 'crb_stub',
+            'score' => $built['credit']['score'] ?? null,
+            'risk_grade' => $built['credit']['risk_grade'] ?? null,
+            'payload' => $payload,
+            'checked_at' => $checkedAt ?? now(),
+        ]);
     }
 
     /** @return array{credit: array<string, mixed>, personal: array<string, mixed>, report_meta: array<string, mixed>} */

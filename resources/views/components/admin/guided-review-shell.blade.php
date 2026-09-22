@@ -6,6 +6,7 @@
     'personChip' => null,
     'gateProgress' => null,
     'progressLabel' => null,
+    'overallRemaining' => null,
     'backUrl' => null,
     'backLabel' => 'Back to Screening',
 ])
@@ -23,6 +24,7 @@
         'post_approval' => 'Post-approval',
         default => 'Overall Screening',
     };
+    $overallRemaining = $overallRemaining !== null ? (int) $overallRemaining : null;
 @endphp
 
 <x-admin.layout
@@ -31,7 +33,7 @@
     :backUrl="$backUrl"
     :backLabel="$backLabel">
 
-    <div class="max-w-xl mx-auto" data-guided-review>
+    <div class="max-w-[960px] mx-auto w-full px-0 sm:px-1" data-guided-review>
         <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-white"
              x-data="{ verdict: '', reason: '', missing: false }">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 py-4 text-white">
@@ -65,6 +67,9 @@
                     </div>
                     @if ($gateProgress)
                         <p class="text-[11px] text-slate-500 mt-1.5">{{ $gateProgress }}</p>
+                    @endif
+                    @if ($overallRemaining !== null && $overallRemaining > 0)
+                        <p class="text-[11px] text-slate-400 mt-1">{{ $overallRemaining }} {{ $overallRemaining === 1 ? 'check remains' : 'checks remain' }} overall</p>
                     @endif
                 </div>
             </div>

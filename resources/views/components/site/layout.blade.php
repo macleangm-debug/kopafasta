@@ -26,32 +26,65 @@
     $currentCountry = collect($siteCountries)->firstWhere('code', $siteCountry) ?? ['code' => 'TZ', 'name' => 'Tanzania', 'emoji' => '🇹🇿'];
     $auth = (bool) $auth;
     $minimal = (bool) $minimal;
+    // Document language must be bare en/sw (not sw-TZ) for correct browser language signals.
+    $htmlLang = in_array($siteLocale, ['en', 'sw'], true) ? $siteLocale : 'sw';
 
     // Incomplete registration (Details → PIN → Security): no Welcome back / Logout chrome.
     $registrationIncomplete = \App\Support\BorrowerRegistrationGate::isIncomplete(auth()->user());
 @endphp
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full scroll-smooth {{ $auth ? 'overflow-hidden' : '' }}">
+<html lang="{{ $htmlLang }}"
+      @if ($auth) translate="no" class="h-full notranslate scroll-smooth" @else class="h-full scroll-smooth" @endif>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    {{-- Allow user zoom. interactive-widget helps Chrome Android resize with the keyboard instead of overlapping the form. --}}
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
+    @if ($auth)
+        <meta name="google" content="notranslate">
+    @endif
     <meta name="app-currency" content="{{ currency_code() }}">
     <x-site.seo :document="$document" />
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
+    {{-- Block browser Notification/Push prompts before deferred Vite bundles run. Internal in-app notifications are unaffected. --}}
+    <script>
+        (function () {
+            try {
+                if (typeof Notification !== 'undefined' && Notification.requestPermission) {
+                    Notification.requestPermission = function () { return Promise.resolve('denied'); };
+                }
+            } catch (e) {}
+            try {
+                if (navigator.permissions && navigator.permissions.query) {
+                    var original = navigator.permissions.query.bind(navigator.permissions);
+                    navigator.permissions.query = function (desc) {
+                        if (desc && (desc.name === 'notifications' || desc.name === 'push')) {
+                            return Promise.resolve({ state: 'denied', onchange: null });
+                        }
+                        return original(desc);
+                    };
+                }
+            } catch (e) {}
+        })();
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body @class([
     'bg-white text-gray-900 antialiased flex flex-col',
-    'h-[100svh] max-h-[100svh] overflow-hidden' => $auth,
+    // Auth: min-height + scrollable main — avoid locked 100svh which jumps when Android keyboard opens.
+    'min-h-dvh' => $auth,
     'min-h-full' => ! $auth,
 ])>
     <x-site.environment-banner />
 
-    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100" @unless($minimal) x-data="{ menuOpen: false, menuView: 'main' }" @endunless>
+    <header @class([
+        'z-40 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100',
+        'sticky top-0' => ! $auth,
+        'shrink-0' => $auth,
+    ]) @unless($minimal) x-data="{ menuOpen: false, menuView: 'main' }" @endunless>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 grid grid-cols-[minmax(0,1fr)_auto] {{ $minimal ? '' : 'lg:grid-cols-[auto_1fr_auto]' }} items-center gap-2 sm:gap-4">
             @if ($minimal)
                 <span class="flex items-center min-w-0 max-w-[min(100%,11.5rem)] sm:max-w-none shrink">

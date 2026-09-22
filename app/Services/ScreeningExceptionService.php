@@ -34,6 +34,7 @@ class ScreeningExceptionService
         'id_mismatch',
         'crb_reject',
         'crb_never_checked',
+        'crb_expired',
     ];
 
     /**

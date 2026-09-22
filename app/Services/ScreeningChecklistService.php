@@ -24,10 +24,18 @@ class ScreeningChecklistService
     /** @var array<int, true> */
     private array $healedPledgeIds = [];
 
+    /** @var array<string, array<string, mixed>|null> */
+    private array $capacityMemo = [];
+
+    /** @var array<string, true> */
+    private array $healedGate2Keys = [];
+
     public function forgetRequestMemo(): void
     {
         $this->viewModelMemo = [];
         $this->deskSubjectsMemo = [];
+        $this->capacityMemo = [];
+        $this->healedGate2Keys = [];
     }
 
     /** @return array<string, array{label: string, items: array<string, mixed>, subjects?: list<string>}> */
@@ -440,6 +448,7 @@ class ScreeningChecklistService
                     'fail_reason_code' => $autoNa ? null : ($row['fail_reason_code'] ?? null),
                     'fail_reason_custom' => $autoNa ? null : ($row['fail_reason_custom'] ?? null),
                     'fail_reason_label' => $autoNa ? null : $this->failReasonLabel($meta['fail_reasons'], $row),
+                    'source' => $autoNa ? null : ($row['source'] ?? null),
                     'at' => $autoNa ? null : ($row['at'] ?? null),
                     'by' => $autoNa ? null : $by,
                     'by_name' => $isDocuments
@@ -451,6 +460,7 @@ class ScreeningChecklistService
                     'statement_months' => $autoNa ? null : ($row['statement_months'] ?? StatementCapacityService::DEFAULT_MONTHS),
                     'statement_monthly' => $autoNa ? null : ($row['statement_monthly'] ?? null),
                     'statement_weekly' => $autoNa ? null : ($row['statement_weekly'] ?? null),
+                    'notes' => $autoNa ? null : ($row['notes'] ?? null),
                 ];
                 $item['destination'] = app(ScreeningChecklistGateService::class)->destination(
                     $application,
@@ -470,6 +480,38 @@ class ScreeningChecklistService
                 $item['quiet_auto'] = app(ScreeningChecklistGateService::class)->isQuietAuto($item);
                 $item['system_determined'] = app(ScreeningChecklistGateService::class)->isSystemDetermined($item);
                 $item['human_work'] = app(ScreeningChecklistGateService::class)->isHumanWork($item);
+                if (! $autoNa && ($meta['gate'] ?? null) === 'statements_vs_declared') {
+                    $subjectCustomer = $context['customer'] ?? null;
+                    if ($subjectCustomer instanceof Customer) {
+                        $resolvedIncome = app(StatementCapacityService::class)->resolveIncome(
+                            $application,
+                            $subjectCustomer,
+                            $this->subjectKey($person, $guarantorLinkId, $memberId),
+                        );
+                        $item['declared_monthly_income'] = (float) ($resolvedIncome['declared_monthly_income'] ?? 0);
+                        $item['income_basis'] = (string) ($resolvedIncome['income_basis'] ?? 'declared');
+                        $item['affordability_income'] = (float) ($resolvedIncome['net_income'] ?? 0);
+                        $item['declared_income_label'] = income_range_label($subjectCustomer->income_range);
+                        $item['statement_comparison'] = app(StatementCapacityService::class)->compareToDeclared(
+                            (float) ($row['statement_monthly'] ?? 0),
+                            (float) $item['declared_monthly_income'],
+                        );
+                        $item['capacity'] = $this->capacityDisplay(
+                            $application,
+                            $person,
+                            $guarantorLinkId,
+                            $memberId,
+                            $subjectCustomer,
+                        );
+                        $item['gate2_panel'] = $this->gate2Panel($item);
+                        $item = $this->healStaleGate2RevenueMismatch(
+                            $application,
+                            $this->subjectKey($person, $guarantorLinkId, $memberId),
+                            $item,
+                            $row,
+                        );
+                    }
+                }
                 if (! $autoNa && ($meta['gate'] ?? null) === 'statements_vs_declared' && (float) ($row['statement_monthly'] ?? 0) > 0) {
                     $item['evidence']['rows'][] = [
                         'label' => 'Statement deposits',
@@ -643,7 +685,11 @@ class ScreeningChecklistService
                     if (($incoming['source'] ?? '') === 'system') {
                         $failEntry['source'] = 'system';
                     }
-                    $items[$key] = $this->mergeStatementCapture($key, $failEntry, $incoming, (array) ($items[$key] ?? []), $verdict);
+                    $items[$key] = $this->withAnalystNote(
+                        $this->mergeStatementCapture($key, $failEntry, $incoming, (array) ($items[$key] ?? []), $verdict),
+                        $incoming,
+                        (array) ($items[$key] ?? []),
+                    );
                 } else {
                     $entry = [
                         'verdict' => $verdict,
@@ -660,12 +706,16 @@ class ScreeningChecklistService
                     if (($incoming['source'] ?? '') === 'system') {
                         $entry['source'] = 'system';
                     }
-                    $items[$key] = $this->mergeStatementCapture(
-                        $key,
-                        $entry,
+                    $items[$key] = $this->withAnalystNote(
+                        $this->mergeStatementCapture(
+                            $key,
+                            $entry,
+                            $incoming,
+                            (array) ($items[$key] ?? []),
+                            $verdict,
+                        ),
                         $incoming,
                         (array) ($items[$key] ?? []),
-                        $verdict,
                     );
                 }
             }
@@ -969,7 +1019,7 @@ class ScreeningChecklistService
         // (e.g. valuer photos arrived after awaiting_data, or docs_missing after files landed).
         if ($source === 'system_skip' || ($suggestion['verdict'] ?? '') === '') {
             if ($existing === null || in_array($existingSource, $autoSources, true)) {
-                return [
+                $cleared = [
                     'verdict' => null,
                     'checked' => false,
                     'source' => null,
@@ -978,6 +1028,15 @@ class ScreeningChecklistService
                     'at' => null,
                     'by' => null,
                 ];
+                if ($fullKey === StatementCapacityService::CHECKLIST_KEY) {
+                    foreach (['statement_deposits_total', 'statement_months', 'statement_monthly', 'statement_weekly', 'notes'] as $field) {
+                        if (array_key_exists($field, $row)) {
+                            $cleared[$field] = $row[$field];
+                        }
+                    }
+                }
+
+                return $cleared;
             }
 
             return $row;
@@ -1486,10 +1545,113 @@ class ScreeningChecklistService
             return $incoming;
         }
 
+        $posted = strtolower(trim((string) ($incoming['verdict'] ?? '')));
+        if (in_array($posted, ['pass', 'fail', 'na'], true)) {
+            return $incoming;
+        }
+
         $customer = $this->resolveSubjectCustomer($application, $person, $guarantorLinkId, $memberId);
         $auto = $capacity->verdictAgainstDeclared((float) $capture['statement_monthly'], $customer);
 
+        // Capacity owns Gate 2: inject the new totals in-memory so AffordabilityService sees them.
+        // Keep statement keys FLAT — data_set must not split activity_income.income_evidence on dots.
+        $subject = $this->subjectKey($person, $guarantorLinkId, $memberId);
+        $payload = (array) ($application->screening_payload ?? []);
+        $items = (array) data_get($payload, 'screening_checklist.by_subject.'.$subject.'.items', []);
+        $items[StatementCapacityService::CHECKLIST_KEY] = array_merge(
+            (array) ($items[StatementCapacityService::CHECKLIST_KEY] ?? []),
+            $capture
+        );
+        data_set($payload, 'screening_checklist.by_subject.'.$subject.'.items', $items);
+        $application->screening_payload = $payload;
+        unset($this->capacityMemo[$application->id.'|'.$person.'|'.(int) $guarantorLinkId.'|'.(int) $memberId.'|'.(int) ($customer?->id ?? 0)]);
+
+        if ($customer instanceof Customer) {
+            $display = $this->capacityDisplay($application, $person, $guarantorLinkId, $memberId, $customer);
+            if (is_array($display)
+                && ($display['income_basis'] ?? '') === 'statement'
+                && empty($display['capacity_pass'])) {
+                $auto = [
+                    'verdict' => 'fail',
+                    'fail_reason_code' => 'income_insufficient',
+                    'source' => 'system',
+                ];
+            }
+        }
+
         return array_merge($incoming, $auto);
+    }
+
+    /**
+     * Older Gate 2 autos failed on declared↔statement discrepancy. Heal those rows to capacity policy
+     * without changing owner-entered deposit totals.
+     *
+     * @param  array<string, mixed>  $item
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function healStaleGate2RevenueMismatch(
+        LoanApplication $application,
+        string $subject,
+        array $item,
+        array $row,
+    ): array {
+        $source = (string) ($item['source'] ?? $row['source'] ?? '');
+        if (($item['verdict'] ?? null) !== 'fail'
+            || $source !== 'system'
+            || (string) ($item['fail_reason_code'] ?? '') !== 'revenue_mismatch'
+            || (float) ($item['statement_monthly'] ?? 0) <= 0) {
+            return $item;
+        }
+
+        $capacity = is_array($item['capacity'] ?? null) ? $item['capacity'] : null;
+        $pass = is_array($capacity)
+            && ($capacity['income_basis'] ?? '') === 'statement'
+            && ! empty($capacity['capacity_pass']);
+        $fail = is_array($capacity)
+            && ($capacity['income_basis'] ?? '') === 'statement'
+            && empty($capacity['capacity_pass']);
+
+        if ($pass) {
+            $item['verdict'] = 'pass';
+            $item['fail_reason_code'] = null;
+            $item['fail_reason_label'] = null;
+            $item['checked'] = true;
+        } elseif ($fail) {
+            $item['fail_reason_code'] = 'income_insufficient';
+            $item['fail_reason_label'] = (string) data_get(
+                config('screening_checklist'),
+                'activity_income.items.income_evidence.fail_reasons.income_insufficient',
+                'Income evidence insufficient for the claimed revenue',
+            );
+        } else {
+            // Discrepancy alone is not a fail once totals exist.
+            $item['verdict'] = 'pass';
+            $item['fail_reason_code'] = null;
+            $item['fail_reason_label'] = null;
+            $item['checked'] = true;
+        }
+
+        $item['gate2_panel'] = $this->gate2Panel($item);
+
+        $memoKey = $application->id.'|'.$subject.'|'.StatementCapacityService::CHECKLIST_KEY;
+        if (! isset($this->healedGate2Keys[$memoKey])) {
+            $this->healedGate2Keys[$memoKey] = true;
+            $payload = (array) ($application->screening_payload ?? []);
+            $items = (array) data_get($payload, 'screening_checklist.by_subject.'.$subject.'.items', []);
+            $stored = (array) ($items[StatementCapacityService::CHECKLIST_KEY] ?? []);
+            $stored['verdict'] = $item['verdict'];
+            $stored['checked'] = ($item['verdict'] ?? null) === 'pass';
+            $stored['fail_reason_code'] = $item['fail_reason_code'] ?? null;
+            $stored['fail_reason_custom'] = null;
+            $stored['source'] = 'system';
+            $stored['at'] = $stored['at'] ?? now()->toIso8601String();
+            $items[StatementCapacityService::CHECKLIST_KEY] = $stored;
+            data_set($payload, 'screening_checklist.by_subject.'.$subject.'.items', $items);
+            $application->forceFill(['screening_payload' => $payload])->saveQuietly();
+        }
+
+        return $item;
     }
 
     /**
@@ -1509,6 +1671,13 @@ class ScreeningChecklistService
             return $entry;
         }
 
+        if (array_key_exists('notes', $incoming)) {
+            $note = trim((string) $incoming['notes']);
+            $entry['notes'] = $note !== '' ? $note : null;
+        } elseif (filled($existing['notes'] ?? null)) {
+            $entry['notes'] = $existing['notes'];
+        }
+
         $capture = app(StatementCapacityService::class)->fromIncoming($incoming);
 
         if ($capture === null) {
@@ -1525,6 +1694,24 @@ class ScreeningChecklistService
             throw new \InvalidArgumentException(
                 'Key the total deposits from the statement (and the months covered) before passing the revenue match. The system uses that average for capacity and any counter-offer.'
             );
+        }
+
+        return $entry;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @param  array<string, mixed>  $incoming
+     * @param  array<string, mixed>  $existing
+     * @return array<string, mixed>
+     */
+    private function withAnalystNote(array $entry, array $incoming, array $existing): array
+    {
+        if (array_key_exists('notes', $incoming)) {
+            $note = trim((string) $incoming['notes']);
+            $entry['notes'] = $note !== '' ? $note : null;
+        } elseif (filled($existing['notes'] ?? null)) {
+            $entry['notes'] = $existing['notes'];
         }
 
         return $entry;
@@ -2940,6 +3127,181 @@ class ScreeningChecklistService
             'hint' => $autoOn
                 ? 'Auto-assign is on. The valuer already has the task. Matching: '.$matching.'.'
                 : 'Auto-assign is off. Ops picks the valuer.',
+        ];
+    }
+
+    /**
+     * Explicit Gate 2 conclusion for wizard + checklist. Display only.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>|null
+     */
+    private function gate2Panel(array $item): ?array
+    {
+        $comparison = is_array($item['statement_comparison'] ?? null) ? $item['statement_comparison'] : null;
+        $capacity = is_array($item['capacity'] ?? null) ? $item['capacity'] : null;
+        $monthly = (float) ($item['statement_monthly'] ?? 0);
+        if ($monthly <= 0 && ! $comparison && ! ($capacity && ($capacity['income_basis'] ?? '') === 'statement')) {
+            return null;
+        }
+
+        $declared = (float) ($item['declared_monthly_income'] ?? ($comparison['declared_monthly'] ?? 0));
+        $verified = $monthly > 0 ? $monthly : (float) ($capacity['income'] ?? 0);
+        $max = (float) ($capacity['max_repayment'] ?? 0);
+        $required = (float) ($capacity['proposed_repayment'] ?? 0);
+        $within = (bool) ($capacity['capacity_pass'] ?? false);
+        $basis = (string) ($capacity['income_basis'] ?? '');
+        $discrepancy = $comparison && (float) ($comparison['difference'] ?? 0) < 0;
+
+        $chip = match (true) {
+            $basis !== 'statement' || $verified <= 0 => 'WAITING',
+            $within => 'PASSED',
+            default => 'FAILED',
+        };
+
+        $continue = match ($chip) {
+            'PASSED' => 'Eligible to proceed once remaining Gate 2 observations for this person are complete.',
+            'FAILED' => 'Verified repayment capacity does not meet the configured affordability requirement.',
+            default => 'Complete the remaining required Gate 2 checks for this person.',
+        };
+        if ($chip === 'PASSED' && ($item['verdict'] ?? null) === 'pass' && empty($item['human_work'])) {
+            $continue = 'Eligible to proceed to Gate 3 when every required participant also passes Gate 2.';
+        }
+
+        return [
+            'title' => 'VERIFIED REPAYMENT CAPACITY',
+            'declared_label' => $item['declared_income_label'] ?? null,
+            'declared_monthly' => $declared,
+            'verified_monthly' => $verified,
+            'statement_total' => (float) ($item['statement_deposits_total'] ?? 0),
+            'difference' => $comparison['difference'] ?? ($verified - $declared),
+            'coverage_pct' => $comparison['coverage_pct'] ?? ($declared > 0 ? round(($verified / $declared) * 100, 1) : null),
+            'discrepancy' => $discrepancy,
+            'discrepancy_note' => $discrepancy
+                ? 'The verified statement average is below the income declared during application. This does not by itself fail Gate 2. Repayment capacity is assessed using the applicable verified-income policy below.'
+                : null,
+            'required_label' => (string) ($capacity['required_label'] ?? 'Required loan repayment'),
+            'required_repayment' => $required,
+            'repayment_cadence' => (string) ($capacity['repayment_cadence'] ?? 'monthly'),
+            'ratio_label' => (string) ($capacity['ratio_label'] ?? ''),
+            'max_repayment' => $max,
+            'headroom' => (float) ($capacity['headroom'] ?? 0),
+            'shortfall' => (float) ($capacity['shortfall'] ?? 0),
+            'assessment' => (string) ($capacity['assessment'] ?? ''),
+            'capacity_result' => (string) ($capacity['result'] ?? ''),
+            'chip' => $chip,
+            'continue' => $continue,
+            'checklist_verdict' => $item['verdict'] ?? null,
+        ];
+    }
+
+    /**
+     * Display payload from the existing affordability engine. No second formula.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function capacityDisplay(
+        LoanApplication $application,
+        string $person,
+        ?int $guarantorLinkId,
+        ?int $memberId,
+        Customer $customer,
+    ): ?array {
+        $memoKey = $application->id.'|'.$person.'|'.(int) $guarantorLinkId.'|'.(int) $memberId.'|'.$customer->id;
+        if (array_key_exists($memoKey, $this->capacityMemo)) {
+            return $this->capacityMemo[$memoKey];
+        }
+
+        $policy = app(AffordabilityPolicyService::class)->snapshot();
+
+        if ($person === 'guarantor' && $guarantorLinkId) {
+            $borrower = app(AffordabilityService::class)->evaluate($application);
+            $eval = app(AffordabilityService::class)->evaluateForGuarantor(
+                $customer,
+                (float) ($borrower['proposed_installment'] ?? 0),
+                $application,
+                $guarantorLinkId,
+            );
+
+            return $this->capacityMemo[$memoKey] = $this->formatCapacity(
+                $eval,
+                $policy,
+                (float) ($eval['additional_exposure'] ?? 0),
+            );
+        }
+
+        if ($person === 'member' && $memberId) {
+            $group = app(GroupAffordabilityService::class)->evaluate($application);
+            $row = collect($group['members'] ?? [])->first(
+                fn ($member) => (int) ($member['customer_id'] ?? 0) === (int) $customer->id
+            );
+            if (! is_array($row)) {
+                return $this->capacityMemo[$memoKey] = null;
+            }
+
+            return $this->capacityMemo[$memoKey] = $this->formatCapacity($row, $policy, (float) ($row['proposed_installment'] ?? 0));
+        }
+
+        $eval = app(AffordabilityService::class)->evaluate($application);
+
+        return $this->capacityMemo[$memoKey] = $this->formatCapacity(
+            $eval,
+            $policy,
+            (float) ($eval['proposed_installment'] ?? 0),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $eval
+     * @param  array<string, mixed>  $policy
+     * @return array<string, mixed>
+     */
+    private function formatCapacity(array $eval, array $policy, float $proposed): array
+    {
+        $income = (float) ($eval['net_income'] ?? 0);
+        $max = (float) ($eval['max_repayment_capacity'] ?? 0);
+        $existing = array_key_exists('existing_obligations', $eval)
+            ? (float) $eval['existing_obligations']
+            : round($max - (float) ($eval['available_capacity'] ?? 0), 2);
+        $verdict = (string) ($eval['verdict'] ?? '');
+        $within = in_array($verdict, ['pass', 'warn'], true);
+        $delta = round($max - $proposed, 2);
+        $pct = (float) ($eval['repayment_ratio_pct'] ?? $policy['repayment_ratio_pct'] ?? 0);
+        $basis = (string) ($eval['income_basis'] ?? '');
+        $requiredLabel = array_key_exists('additional_exposure', $eval)
+            ? 'Required guarantee exposure'
+            : 'Required loan repayment';
+        $cadence = (string) ($eval['repayment_cadence'] ?? 'monthly');
+
+        $assessment = match (true) {
+            $basis !== 'statement' => 'Enter the statement total so Kopafasta can assess verified repayment capacity.',
+            $income <= 0 => 'No verified monthly income is available from the statement totals.',
+            $within && $delta >= 0 => 'Evidence supports the required repayment.',
+            default => 'Verified income does not support the required repayment.',
+        };
+
+        return [
+            'ratio' => (float) ($eval['repayment_ratio'] ?? $policy['repayment_ratio'] ?? 0),
+            'ratio_pct' => $pct,
+            'ratio_label' => app(AffordabilityPolicyService::class)->formatRatioLabel($pct),
+            'income' => $income,
+            'income_basis' => $basis,
+            'declared_monthly' => (float) ($eval['declared_monthly_income'] ?? 0),
+            'max_repayment' => $max,
+            'proposed_repayment' => $proposed,
+            'required_label' => $requiredLabel,
+            'repayment_cadence' => $cadence,
+            'existing_obligations' => $existing,
+            'headroom' => $delta >= 0 ? $delta : 0.0,
+            'shortfall' => $delta < 0 ? abs($delta) : 0.0,
+            'engine_verdict' => $verdict,
+            'capacity_pass' => $within,
+            'result' => $within ? '✓ CAPACITY PASSED' : '✕ CAPACITY FAILED',
+            'gate_chip' => $basis === 'statement'
+                ? ($within ? 'PASSED' : 'FAILED')
+                : 'WAITING',
+            'assessment' => $assessment,
+            'reason' => (string) ($eval['reason'] ?? ''),
         ];
     }
 }

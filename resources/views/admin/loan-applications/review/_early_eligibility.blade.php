@@ -80,12 +80,28 @@
         @endforeach
     </ol>
 
-    @if (($seq['pending_rejection'] ?? false) && ($seq['remaining_label'] ?? null))
-        <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-3 py-2.5">
-            <p class="text-sm font-bold text-rose-950">
-                {{ (($seq['park_gate'] ?? '') === 'verified') ? 'Verified affordability failed' : 'Initial affordability failed' }}
+    @if (($seq['pending_rejection'] ?? false))
+        <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-3 py-2.5 space-y-1">
+            <p class="text-sm font-bold text-rose-950">Pending automatic rejection</p>
+            <p class="text-sm text-rose-900">
+                {{ (($seq['park_gate'] ?? '') === 'verified') ? 'Verified affordability failed.' : 'Declared affordability failed.' }}
+                The application will be automatically re-evaluated before the rejection deadline.
             </p>
-            <p class="text-sm text-rose-800">Pending automatic rejection · {{ $seq['remaining_label'] }} remaining</p>
+            @if (! empty($seq['remaining_label']))
+                <p class="text-sm font-semibold text-rose-800">Scheduled re-evaluation · {{ $seq['remaining_label'] }} remaining</p>
+            @endif
+            @php $parkMeta = is_array($seq['park'] ?? null) ? $seq['park'] : []; @endphp
+            @if (! empty($parkMeta['parked_at']) || ! empty($parkMeta['auto_reject_at']))
+                <p class="text-xs text-rose-800/80">
+                    @if (! empty($parkMeta['parked_at']))
+                        Parked {{ \Illuminate\Support\Carbon::parse($parkMeta['parked_at'])->timezone(config('app.timezone'))->format('d M Y H:i') }}
+                    @endif
+                    @if (! empty($parkMeta['parked_at']) && ! empty($parkMeta['auto_reject_at'])) · @endif
+                    @if (! empty($parkMeta['auto_reject_at']))
+                        Due {{ \Illuminate\Support\Carbon::parse($parkMeta['auto_reject_at'])->timezone(config('app.timezone'))->format('d M Y H:i') }}
+                    @endif
+                </p>
+            @endif
         </div>
     @endif
 

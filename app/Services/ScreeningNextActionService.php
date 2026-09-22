@@ -27,6 +27,7 @@ class ScreeningNextActionService
         private readonly ScreeningSequenceService $sequence,
         private readonly ApplicationDocumentRequestService $documents,
         private readonly CollateralSecureService $collateralSecure,
+        private readonly CapacityAutoRejectService $autoReject,
     ) {}
 
     /**
@@ -82,31 +83,30 @@ class ScreeningNextActionService
             $this->pushWalk($application, $step);
         }
 
-        $started = filled(data_get($application->screening_payload, 'guided.started_at'));
         $stage = (string) $application->current_stage;
+        $started = filled(data_get($application->screening_payload, 'guided.started_at'));
         $screeningOpen = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
         $stepIsDecision = ($step['type'] ?? '') === 'decision';
-        $stillOpen = in_array($step['type'] ?? '', ['human', 'request', 'attention', 'waiting', 'resolution', 'clarification', 'gate_1', 'gate_complete', 'collateral_secure'], true);
+        $stillOpen = in_array($step['type'] ?? '', ['human', 'request', 'attention', 'waiting', 'resolution', 'clarification', 'gate_1', 'gate_2_passed', 'gate_3_passed', 'gate_complete', 'gate_remaining', 'collateral_secure'], true);
         $bucket = match (true) {
             ! $screeningOpen || ($stepIsDecision && ! $stillOpen) => self::BUCKET_COMPLETED,
             $waiting !== null => self::BUCKET_WAITING,
             default => self::BUCKET_DO_NOW,
         };
 
-        $reviewOpen = $stage === 'screening';
         $ctaKind = match (true) {
             $bucket === self::BUCKET_COMPLETED && $stepIsDecision => 'decision',
-            ! $reviewOpen => 'not_screening',
             $waiting !== null => 'waiting',
             $started => 'continue',
             default => 'start',
         };
         $cta = match ($ctaKind) {
             'decision' => 'Continue to Decision',
-            'not_screening' => '',
             'waiting' => (string) ($waiting['label'] ?? 'Waiting'),
             'continue' => 'Continue Reviewing',
-            default => 'Start Reviewing',
+            default => in_array($stage, ['screening', 'credit_appraisal'], true)
+                ? 'Continue Reviewing'
+                : 'Start Reviewing',
         };
 
         $resume = $this->resumeFromStep($unresolved);
@@ -133,7 +133,7 @@ class ScreeningNextActionService
         };
 
         $blockers = $this->unresolvedCount($subjects, $application, $actor, $review, $groupReview);
-        $gateProgress = $this->gateProgressForStep($step, $subjects, $application, $actor, $review, $groupReview);
+        $gateProgress = $this->gateProgressForStep($step, $subjects, $application, $actor, $review, $groupReview, $snapshot);
 
         return [
             'cta' => $cta,
@@ -182,19 +182,333 @@ class ScreeningNextActionService
             'what_happens_next' => $this->whatHappensNext($step, $waiting, $ctaKind, $blockers),
             'recommended' => $step['recommended'] ?? null,
             'sequence' => $snapshot,
-            'subjects' => collect($subjects)->map(fn ($s) => [
-                'label' => $s['label'] ?? null,
-                'person' => $s['person'] ?? null,
-                'm' => $s['m'] ?? null,
-                'g' => $s['g'] ?? null,
-                'customer_id' => $s['customer_id'] ?? null,
+            'gate2_summary' => $this->gate2Summary($application, $actor, $review, $groupReview, $subjects),
+            'gate3_summary' => $this->gate3Summary($application, $actor, $review, $groupReview, $subjects),
+            'subjects' => (function () use ($application, $subjects, $actor, $review, $groupReview) {
+                $guarantorTotal = collect($subjects)->where('person', 'guarantor')->count();
+                $guarantorIndex = 0;
+                $mapped = [];
+                foreach ($subjects as $s) {
+                    $name = filled($s['sublabel'] ?? null)
+                        ? (string) $s['sublabel']
+                        : (string) ($s['label'] ?? 'Participant');
+                    if (($s['person'] ?? '') === 'guarantor') {
+                        $guarantorIndex++;
+                        if ($guarantorTotal > 1 && ! filled($s['sublabel'] ?? null)) {
+                            $name = 'Guarantor '.$guarantorIndex;
+                        }
+                    }
+                    $gate2 = $this->personGate2Status(
+                        $application,
+                        $actor,
+                        $review,
+                        $groupReview,
+                        $s,
+                    );
+                    $gate3 = $this->personGate3Status(
+                        $application,
+                        $actor,
+                        $review,
+                        $groupReview,
+                        $s,
+                    );
+                    $mapped[] = [
+                        'label' => $name,
+                        'role' => $s['label'] ?? null,
+                        'person' => $s['person'] ?? null,
+                        'm' => $s['m'] ?? null,
+                        'g' => $s['g'] ?? null,
+                        'customer_id' => $s['customer_id'] ?? null,
+                        'complete' => (bool) ($s['complete'] ?? false),
+                        'failed' => (int) ($s['failed'] ?? 0),
+                        'done' => (int) ($s['done'] ?? 0),
+                        'total' => (int) ($s['total'] ?? 0),
+                        'gate2' => $gate2,
+                        'gate3' => $gate3,
+                        'href' => route('admin.loan-applications.guided-screening', array_filter([
+                            'loan_application' => $application,
+                            'focus_person' => $s['person'] ?? null,
+                            'focus_m' => $s['m'] ?? null,
+                            'focus_g' => $s['g'] ?? null,
+                        ])),
+                    ];
+                }
+
+                return $mapped;
+            })(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $subject
+     * @return array{chip: string, label: string}
+     */
+    private function personGate2Status(
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+        array $subject,
+    ): array {
+        $person = (string) ($subject['person'] ?? 'borrower');
+        $m = isset($subject['m']) ? (int) $subject['m'] : null;
+        $g = isset($subject['g']) ? (int) $subject['g'] : null;
+        $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
+        $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
+        $income = $gates['income'] ?? null;
+        $total = (int) ($income['total'] ?? 0);
+        $decided = (int) ($income['decided'] ?? 0);
+        $failed = (int) ($income['failed'] ?? 0);
+        $capacityFail = false;
+        $checks = [
+            'capacity' => ['label' => 'Capacity', 'chip' => 'WAITING'],
+            'activity' => ['label' => 'Activity evidence', 'chip' => 'WAITING'],
+            'patterns' => ['label' => 'Statement patterns', 'chip' => 'WAITING'],
+        ];
+        $openOnDesk = 0;
+        foreach ($income['groups'] ?? [] as $group) {
+            foreach ($group['items'] ?? [] as $item) {
+                $key = (string) ($item['key'] ?? '');
+                if ($this->itemNeedsAction($item)) {
+                    $openOnDesk++;
+                }
+                if (! empty($item['captures_statement']) && is_array($item['capacity'] ?? null)) {
+                    $capacity = $item['capacity'];
+                    if (($capacity['income_basis'] ?? '') === 'statement') {
+                        $checks['capacity']['chip'] = ! empty($capacity['capacity_pass']) ? 'PASSED' : 'FAILED';
+                        if (empty($capacity['capacity_pass'])) {
+                            $capacityFail = true;
+                        }
+                    } elseif ((float) ($item['statement_monthly'] ?? 0) <= 0) {
+                        $checks['capacity']['chip'] = 'WAITING';
+                    }
+                }
+                if ($key === 'activity_income.activity_plausible') {
+                    $checks['activity']['chip'] = match ($item['verdict'] ?? null) {
+                        'pass', 'na' => 'PASSED',
+                        'fail' => 'FAILED',
+                        default => 'WAITING',
+                    };
+                }
+                if ($key === 'activity_income.bank_or_mobile_money') {
+                    $checks['patterns']['chip'] = match ($item['verdict'] ?? null) {
+                        'pass', 'na' => 'PASSED',
+                        'fail' => 'FAILED',
+                        default => 'WAITING',
+                    };
+                }
+                if ($key === 'guarantor_wrap.capacity_confirmed') {
+                    $checks['capacity_confirmed'] = [
+                        'label' => 'Guarantor capacity confirmed',
+                        'chip' => match ($item['verdict'] ?? null) {
+                            'pass', 'na' => 'PASSED',
+                            'fail' => 'FAILED',
+                            default => 'WAITING',
+                        },
+                    ];
+                }
+            }
+        }
+
+        $chip = match (true) {
+            $total < 1 => 'WAITING',
+            $capacityFail => 'FAILED',
+            $failed > 0 => 'REFER',
+            $decided >= $total => 'PASSED',
+            default => 'WAITING',
+        };
+
+        $remainingChecks = collect($checks)
+            ->filter(fn ($row) => ($row['chip'] ?? '') === 'WAITING' || ($row['chip'] ?? '') === 'FAILED')
+            ->values()
+            ->all();
+
+        return [
+            'chip' => $chip,
+            'label' => 'Gate 2 '.$chip,
+            'done' => $decided,
+            'total' => $total,
+            'failed' => $failed,
+            'checks' => array_values($checks),
+            'remaining_checks' => $remainingChecks,
+            'remaining_count' => $openOnDesk,
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $subjects
+     * @return array<string, mixed>
+     */
+    private function gate2Summary(
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+        array $subjects,
+    ): array {
+        $rows = [];
+        $gateRemaining = 0;
+        foreach ($subjects as $subject) {
+            $status = $this->personGate2Status($application, $actor, $review, $groupReview, $subject);
+            $name = filled($subject['sublabel'] ?? null)
+                ? (string) $subject['sublabel']
+                : (string) ($subject['label'] ?? 'Participant');
+            $gateRemaining += (int) ($status['remaining_count'] ?? 0);
+            $rows[] = [
+                'name' => $name,
+                'role' => $subject['label'] ?? null,
+                'chip' => $status['chip'],
+                'checks' => $status['checks'] ?? [],
+                'remaining_count' => $status['remaining_count'] ?? 0,
                 'href' => route('admin.loan-applications.guided-screening', array_filter([
                     'loan_application' => $application,
-                    'focus_person' => $s['person'] ?? null,
-                    'focus_m' => $s['m'] ?? null,
-                    'focus_g' => $s['g'] ?? null,
+                    'focus_person' => $subject['person'] ?? null,
+                    'focus_m' => $subject['m'] ?? null,
+                    'focus_g' => $subject['g'] ?? null,
                 ])),
-            ])->all(),
+            ];
+        }
+
+        $chips = collect($rows)->pluck('chip');
+        $overall = match (true) {
+            $chips->contains('FAILED') => 'FAILED',
+            $chips->contains('REFER') => 'REFER',
+            $chips->contains('WAITING') || $rows === [] => 'WAITING',
+            default => 'PASSED',
+        };
+
+        return [
+            'rows' => $rows,
+            'overall' => $overall,
+            'gate_remaining' => $gateRemaining,
+            'continue' => match ($overall) {
+                'PASSED' => 'Continue to Gate 3',
+                'FAILED' => 'Follow the existing Screening rejection path for this affordability failure.',
+                'REFER' => 'Resolve the referred Gate 2 concerns before continuing.',
+                default => $gateRemaining === 1
+                    ? '1 check remains in Gate 2. Continue Reviewing opens the next one.'
+                    : $gateRemaining.' checks remain in Gate 2. Continue Reviewing opens the next one.',
+            },
+            'can_continue' => $overall === 'PASSED',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $subject
+     * @return array{chip: string, label: string, remaining_count: int, panel?: array<string, mixed>}
+     */
+    private function personGate3Status(
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+        array $subject,
+    ): array {
+        $customer = $this->subjectCustomer($application, $review, $subject);
+        $panel = app(Gate3CrbPanelService::class)->panel(
+            $application,
+            $customer,
+            [
+                'person' => $subject['person'] ?? 'borrower',
+                'm' => $subject['m'] ?? null,
+                'g' => $subject['g'] ?? null,
+            ],
+            $actor,
+        );
+
+        $person = (string) ($subject['person'] ?? 'borrower');
+        $m = isset($subject['m']) ? (int) $subject['m'] : null;
+        $g = isset($subject['g']) ? (int) $subject['g'] : null;
+        $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
+        $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
+        $crbGate = $gates['crb'] ?? null;
+        $openOnDesk = 0;
+        $failed = (int) ($crbGate['failed'] ?? 0);
+        $total = (int) ($crbGate['total'] ?? 0);
+        $decided = (int) ($crbGate['decided'] ?? 0);
+        foreach ($crbGate['groups'] ?? [] as $group) {
+            foreach ($group['items'] ?? [] as $item) {
+                if ($this->itemNeedsAction($item)) {
+                    $openOnDesk++;
+                }
+            }
+        }
+
+        $chip = (string) ($panel['chip'] ?? 'WAITING');
+        if ($chip === 'PASSED' && $openOnDesk > 0) {
+            $chip = 'WAITING';
+        }
+        if ($failed > 0 && $chip === 'PASSED') {
+            $chip = 'FAILED';
+        }
+
+        return [
+            'chip' => $chip,
+            'label' => 'Gate 3 '.$chip,
+            'done' => $decided,
+            'total' => $total,
+            'failed' => $failed,
+            'remaining_count' => $openOnDesk,
+            'panel' => $panel,
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $subjects
+     * @return array<string, mixed>
+     */
+    private function gate3Summary(
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+        array $subjects,
+    ): array {
+        $rows = [];
+        $gateRemaining = 0;
+        foreach ($subjects as $subject) {
+            $status = $this->personGate3Status($application, $actor, $review, $groupReview, $subject);
+            $name = filled($subject['sublabel'] ?? null)
+                ? (string) $subject['sublabel']
+                : (string) ($subject['label'] ?? 'Participant');
+            $gateRemaining += (int) ($status['remaining_count'] ?? 0);
+            $rows[] = [
+                'name' => $name,
+                'role' => $subject['label'] ?? null,
+                'chip' => $status['chip'],
+                'remaining_count' => $status['remaining_count'] ?? 0,
+                'freshness' => $status['panel']['freshness']['status'] ?? null,
+                'subject_match' => ! empty($status['panel']['subject']['matches']),
+                'href' => route('admin.loan-applications.guided-screening', array_filter([
+                    'loan_application' => $application,
+                    'focus_person' => $subject['person'] ?? null,
+                    'focus_m' => $subject['m'] ?? null,
+                    'focus_g' => $subject['g'] ?? null,
+                ])),
+            ];
+        }
+
+        $chips = collect($rows)->pluck('chip');
+        $overall = match (true) {
+            $chips->contains('FAILED') => 'FAILED',
+            $chips->contains('REFER') => 'REFER',
+            $chips->contains('WAITING') || $rows === [] => 'WAITING',
+            default => 'PASSED',
+        };
+
+        return [
+            'rows' => $rows,
+            'overall' => $overall,
+            'gate_remaining' => $gateRemaining,
+            'continue' => match ($overall) {
+                'PASSED' => 'Continue to Gate 4 when ready. Gate 3 stays complete for this file.',
+                'FAILED' => 'Follow the existing Screening rejection / replacement path for this CRB failure.',
+                'REFER' => 'Resolve reviewable CRB findings before Gate 3 can pass.',
+                default => $gateRemaining === 1
+                    ? '1 check remains in Gate 3. Continue Reviewing opens the next one.'
+                    : $gateRemaining.' checks remain in Gate 3. Continue Reviewing opens the next one.',
+            },
+            'can_continue' => $overall === 'PASSED',
         ];
     }
 
@@ -263,8 +577,18 @@ class ScreeningNextActionService
         $pinM = isset($cursor['at_m']) ? (int) $cursor['at_m'] : null;
         $pinG = isset($cursor['at_g']) ? (int) $cursor['at_g'] : null;
 
-        if ($snapshot['pending_rejection'] ?? false) {
-            return $this->gateOneStep($application, $snapshot, $groupReview);
+        if (($snapshot['pending_rejection'] ?? false) || $this->autoReject->isPending($application)) {
+            $waiting = $this->waitingState($application, $snapshot, $groupReview)
+                ?? [
+                    'kind' => 'policy',
+                    'label' => 'Pending automatic rejection',
+                    'detail' => 'Screening is paused while this application awaits automatic affordability re-evaluation. No analyst action is required right now.',
+                    'gate' => 'declared',
+                    'gate_index' => 1,
+                    'since' => data_get($application->screening_payload, 'capacity_auto_reject.parked_at'),
+                ];
+
+            return $this->waitingStep($waiting, $snapshot);
         }
 
         if ($pinItem === '' && ! ($snapshot['declared']['pass'] ?? false)) {
@@ -280,34 +604,52 @@ class ScreeningNextActionService
             return $this->collateralSecureStep($application, $snapshot);
         }
 
-        $skipItem = (string) ($cursor['after_item'] ?? '');
+        $gate2Seen = (bool) data_get($application->screening_payload, 'guided.seen_gates.income');
+        $gate3Seen = (bool) data_get($application->screening_payload, 'guided.seen_gates.crb');
+        $skipItemEarly = (string) ($cursor['after_item'] ?? '');
+        if ($pinItem === ''
+            && $skipItemEarly === ''
+            && ! $gate2Seen
+            && $this->incomeGateFullyResolved($subjects, $application, $actor, $review, $groupReview)) {
+            return $this->gateTwoPassedStep($subjects, $application, $actor, $review, $groupReview);
+        }
+        if ($pinItem === ''
+            && $skipItemEarly === ''
+            && $gate2Seen
+            && ! $gate3Seen
+            && $this->crbGateFullyResolved($subjects, $application, $actor, $review, $groupReview)) {
+            return $this->gateThreePassedStep($subjects, $application, $actor, $review, $groupReview);
+        }
+
+        $skipItem = $skipItemEarly;
         $skipPerson = (string) ($cursor['after_person'] ?? '');
         $skipM = isset($cursor['after_m']) ? (int) $cursor['after_m'] : null;
         $skipG = isset($cursor['after_g']) ? (int) $cursor['after_g'] : null;
         $passedCursor = $skipItem === '';
 
         $subjectTotal = max(1, count($subjects));
-        foreach ($this->orderedSubjects($subjects) as $subject) {
-            $subjectIndex = $this->subjectIndex($subjects, $subject);
-            $person = (string) ($subject['person'] ?? 'borrower');
-            $m = isset($subject['m']) ? (int) $subject['m'] : null;
-            $g = isset($subject['g']) ? (int) $subject['g'] : null;
-            $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
-            $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
-            $customer = $this->subjectCustomer($application, $review, $subject);
-            $card = $this->checklist->identityPeopleCard($desk, $customer);
-
-            foreach (['income', 'crb', 'collateral', 'identity', 'final'] as $gateKey) {
+        // Gate-first so Borrower ↔ Guarantor can finish the same gate together.
+        foreach (['income', 'crb', 'collateral', 'identity', 'final'] as $gateKey) {
+            foreach ($this->orderedSubjects($subjects) as $subject) {
+                $subjectIndex = $this->subjectIndex($subjects, $subject);
+                $person = (string) ($subject['person'] ?? 'borrower');
+                $m = isset($subject['m']) ? (int) $subject['m'] : null;
+                $g = isset($subject['g']) ? (int) $subject['g'] : null;
+                $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
+                $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
+                $customer = $this->subjectCustomer($application, $review, $subject);
+                $card = $this->checklist->identityPeopleCard($desk, $customer);
                 $gate = $gates[$gateKey] ?? null;
                 if (! is_array($gate) || ($pinItem === '' && ! empty($gate['locked']))) {
                     continue;
                 }
-                foreach ($gate['groups'] ?? [] as $group) {
+                foreach ($this->orderedGateGroups($gateKey, $gate['groups'] ?? []) as $group) {
                     foreach ($group['items'] ?? [] as $item) {
+                        $itemKey = (string) ($item['key'] ?? '');
                         $samePerson = $person === $pinPerson
                             && (int) ($m ?? 0) === (int) ($pinM ?? 0)
                             && (int) ($g ?? 0) === (int) ($pinG ?? 0);
-                        if ($pinItem !== '' && $samePerson && (string) ($item['key'] ?? '') === $pinItem) {
+                        if ($pinItem !== '' && $samePerson && $itemKey === $pinItem) {
                             $step = $this->itemStep(
                                 $application,
                                 $item,
@@ -324,19 +666,42 @@ class ScreeningNextActionService
                             return $step;
                         }
 
-                        if (! $this->itemNeedsAction($item) || $pinItem !== '') {
-                            continue;
-                        }
-
+                        // Advance the after-cursor even when the marker item is already complete.
+                        // Otherwise Save→Continue past a finished statement check skips the whole file
+                        // and falls through to a misleading Gate 6 "N requirements remain" screen.
                         if (! $passedCursor) {
                             $sameSkip = $person === $skipPerson
                                 && (int) ($m ?? 0) === (int) ($skipM ?? 0)
                                 && (int) ($g ?? 0) === (int) ($skipG ?? 0);
-                            if ($sameSkip && (string) ($item['key'] ?? '') === $skipItem) {
+                            // Tolerate missing after_g/after_m when only one subject of that person exists.
+                            if ($person === $skipPerson && $itemKey === $skipItem && (
+                                $sameSkip
+                                || ($skipG === null && $skipM === null)
+                            )) {
                                 $passedCursor = true;
                             }
 
                             continue;
+                        }
+
+                        if (! $this->itemNeedsAction($item) || $pinItem !== '') {
+                            continue;
+                        }
+
+                        if ($gateKey !== 'income'
+                            && $pinItem === ''
+                            && ! $gate2Seen
+                            && $this->incomeGateFullyResolved($subjects, $application, $actor, $review, $groupReview)) {
+                            return $this->gateTwoPassedStep($subjects, $application, $actor, $review, $groupReview);
+                        }
+
+                        if ($gateKey !== 'income'
+                            && $gateKey !== 'crb'
+                            && $pinItem === ''
+                            && $gate2Seen
+                            && ! $gate3Seen
+                            && $this->crbGateFullyResolved($subjects, $application, $actor, $review, $groupReview)) {
+                            return $this->gateThreePassedStep($subjects, $application, $actor, $review, $groupReview);
                         }
 
                         return $this->itemStep(
@@ -359,19 +724,24 @@ class ScreeningNextActionService
             return $this->firstActionableStep($application, $actor, $review, $groupReview, $subjects, $snapshot, array_diff_key($cursor, array_flip(['at_item', 'at_person', 'at_m', 'at_g'])));
         }
 
-        $remaining = $this->unresolvedCount($subjects, $application, $actor, $review, $groupReview);
-        if ($remaining > 0) {
-            return [
-                'type' => 'gate_complete',
-                'gate' => (string) ($snapshot['next_action']['gate'] ?? 'final'),
-                'gate_index' => (int) ($snapshot['next_action']['gate_index'] ?? 6),
-                'gate_label' => 'Final review',
-                'title' => 'Checks still need attention',
-                'prompt' => $remaining === 1
-                    ? '1 requirement remains before Screening can be completed.'
-                    : $remaining.' requirements remain before Screening can be completed.',
-                'primary' => 'View Review Checklist',
-            ];
+        // after_item walk found nothing — retry from the earliest unresolved gate without the cursor.
+        if ($skipItem !== '') {
+            return $this->firstActionableStep(
+                $application,
+                $actor,
+                $review,
+                $groupReview,
+                $subjects,
+                $snapshot,
+                array_diff_key($cursor, array_flip(['after_item', 'after_person', 'after_m', 'after_g'])),
+            );
+        }
+
+        $remainingBreakdown = $this->unresolvedBreakdown($subjects, $application, $actor, $review, $groupReview);
+        $remaining = (int) ($remainingBreakdown['total'] ?? 0);
+        $earliest = $remainingBreakdown['earliest_gate'] ?? null;
+        if ($remaining > 0 && is_string($earliest) && $earliest !== '') {
+            return $this->gateRemainingStep($earliest, $remainingBreakdown, $snapshot);
         }
 
         return [
@@ -431,6 +801,152 @@ class ScreeningNextActionService
     }
 
     /**
+     * Gate 2 fully decided for every desk subject — pause before Gate 3 until owner continues.
+     *
+     * @param  list<array<string, mixed>>  $subjects
+     */
+    private function incomeGateFullyResolved(
+        array $subjects,
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+    ): bool {
+        $sawIncome = false;
+        foreach ($subjects as $subject) {
+            $person = (string) ($subject['person'] ?? 'borrower');
+            $m = isset($subject['m']) ? (int) $subject['m'] : null;
+            $g = isset($subject['g']) ? (int) $subject['g'] : null;
+            $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
+            $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
+            $income = $gates['income'] ?? null;
+            if (! is_array($income) || (int) ($income['total'] ?? 0) < 1) {
+                continue;
+            }
+            $sawIncome = true;
+            foreach ($income['groups'] ?? [] as $group) {
+                foreach ($group['items'] ?? [] as $item) {
+                    if ($this->itemNeedsAction($item)) {
+                        return false;
+                    }
+                }
+            }
+            if ((int) ($income['failed'] ?? 0) > 0) {
+                return false;
+            }
+        }
+
+        return $sawIncome;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $subjects
+     * @return array<string, mixed>
+     */
+    private function gateTwoPassedStep(
+        array $subjects,
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+    ): array {
+        $summary = $this->gate2Summary($application, $actor, $review, $groupReview, $subjects);
+        $rows = collect($summary['rows'] ?? [])->map(fn ($row) => [
+            'name' => $row['name'] ?? 'Participant',
+            'role' => $row['role'] ?? 'participant',
+            'pass' => ($row['chip'] ?? '') === 'PASSED',
+        ])->all();
+
+        return [
+            'type' => 'gate_2_passed',
+            'gate' => 'income',
+            'gate_index' => 2,
+            'gate_label' => 'Verified affordability',
+            'title' => 'Gate 2 · Verified affordability',
+            'prompt' => 'All required participants passed Gate 2.',
+            'participants' => $rows,
+            'all_pass' => ($summary['overall'] ?? '') === 'PASSED',
+            'primary' => 'Continue to Gate 3',
+        ];
+    }
+
+    /**
+     * Gate 3 fully decided for every desk subject — pause before Gate 4 until owner continues.
+     *
+     * @param  list<array<string, mixed>>  $subjects
+     */
+    private function crbGateFullyResolved(
+        array $subjects,
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+    ): bool {
+        $summary = $this->gate3Summary($application, $actor, $review, $groupReview, $subjects);
+        if (($summary['overall'] ?? '') !== 'PASSED') {
+            return false;
+        }
+        $sawCrb = false;
+        foreach ($subjects as $subject) {
+            $person = (string) ($subject['person'] ?? 'borrower');
+            $m = isset($subject['m']) ? (int) $subject['m'] : null;
+            $g = isset($subject['g']) ? (int) $subject['g'] : null;
+            $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
+            $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
+            $crb = $gates['crb'] ?? null;
+            if (! is_array($crb) || (int) ($crb['total'] ?? 0) < 1) {
+                continue;
+            }
+            $sawCrb = true;
+            foreach ($crb['groups'] ?? [] as $group) {
+                foreach ($group['items'] ?? [] as $item) {
+                    if ($this->itemNeedsAction($item)) {
+                        return false;
+                    }
+                }
+            }
+            if ((int) ($crb['failed'] ?? 0) > 0) {
+                return false;
+            }
+        }
+
+        return $sawCrb;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $subjects
+     * @return array<string, mixed>
+     */
+    private function gateThreePassedStep(
+        array $subjects,
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+    ): array {
+        $summary = $this->gate3Summary($application, $actor, $review, $groupReview, $subjects);
+        $rows = collect($summary['rows'] ?? [])->map(fn ($row) => [
+            'name' => $row['name'] ?? 'Participant',
+            'role' => $row['role'] ?? 'participant',
+            'pass' => ($row['chip'] ?? '') === 'PASSED',
+            'chip' => $row['chip'] ?? 'WAITING',
+        ])->all();
+
+        return [
+            'type' => 'gate_3_passed',
+            'gate' => 'crb',
+            'gate_index' => 3,
+            'gate_label' => 'CRB / Credit history',
+            'title' => 'Gate 3 · CRB & credit history',
+            'prompt' => 'All required participants cleared Gate 3.',
+            'participants' => $rows,
+            'all_pass' => ($summary['overall'] ?? '') === 'PASSED',
+            'gate3_summary' => $summary,
+            'primary' => 'Continue to Gate 4',
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $item
      * @param  array<string, mixed>  $subject
      * @param  array<string, mixed>  $card
@@ -453,12 +969,61 @@ class ScreeningNextActionService
         $index = ScreeningSequenceService::gateIndex($gateKey);
         $requestable = $this->requestablePreset($key, $item);
         $contact = $this->contactContext($key, $card, $customer, $item['destination'] ?? null);
-        $isSystemItem = ! empty($item['catalog_system'])
+        $isSystemItem = ! empty($item['system_determined'])
+            || ! empty($item['catalog_system'])
             || ! empty($item['system_checked'])
             || ! empty($item['documents_checked'])
             || $this->gates->isSystemFail($item);
-        $isRequest = $requestable && (($item['verdict'] ?? null) === 'fail' || ! empty($item['awaiting_data']));
-        $isAttention = $isSystemItem && ! $isRequest;
+        $isRequest = $requestable && (
+            ! empty($item['awaiting_data'])
+            || (($item['verdict'] ?? null) === 'fail' && $this->isMissingEvidenceFail($item))
+        );
+        $isAttention = $isSystemItem && ! $isRequest && empty($item['captures_statement']);
+        $factCapture = ! empty($item['captures_statement'])
+            && ! in_array($item['verdict'] ?? null, ['pass', 'fail', 'na'], true);
+        $outcomes = $factCapture || (! empty($item['captures_statement']) && ! empty($item['system_determined']))
+            ? []
+            : $this->outcomesFor($key);
+
+        $gate3Panel = null;
+        if ($gateKey === 'crb') {
+            $gate3Panel = app(Gate3CrbPanelService::class)->panel(
+                $application,
+                $customer,
+                [
+                    'person' => $subject['person'] ?? 'borrower',
+                    'm' => $subject['m'] ?? null,
+                    'g' => $subject['g'] ?? null,
+                ],
+                auth()->user() instanceof User ? auth()->user() : null,
+            );
+            // Do not ask Pass/Concern for system identity findings or secondary review while blocked.
+            if (! empty($gate3Panel['block_secondary'])
+                || in_array($key, ['identity.name_vs_crb', 'identity.marital_vs_crb'], true)
+                || str_contains($key, 'crb_reviewed')) {
+                if (! empty($gate3Panel['block_secondary']) || $isSystemItem) {
+                    $isAttention = true;
+                    $outcomes = [];
+                }
+                // Reviewable marital/refer: panel carries accept forms — not Pass/Concern radios.
+                if (in_array($key, ['identity.marital_vs_crb'], true)
+                    && empty($gate3Panel['block_secondary'])
+                    && ($item['verdict'] ?? null) === null) {
+                    $isAttention = true;
+                    $outcomes = [];
+                }
+                if (str_contains($key, 'crb_reviewed')
+                    && empty($gate3Panel['block_secondary'])
+                    && in_array(($gate3Panel['chip'] ?? ''), ['REFER', 'FAILED', 'WAITING'], true)
+                    && ($item['verdict'] ?? null) === null) {
+                    // Keep human Pass only when chip is clear enough; REFER uses accept on findings.
+                    if (($gate3Panel['chip'] ?? '') === 'REFER') {
+                        $isAttention = true;
+                        $outcomes = [];
+                    }
+                }
+            }
+        }
 
         $base = [
             'gate' => $gateKey,
@@ -473,6 +1038,8 @@ class ScreeningNextActionService
             'item_short' => $itemKey,
             'fail_reasons' => $item['fail_reasons'] ?? [],
             'verdict' => $item['verdict'] ?? null,
+            'fail_reason_code' => $item['fail_reason_code'] ?? null,
+            'awaiting_data' => ! empty($item['awaiting_data']),
             'requestable' => $requestable,
             'destination' => $item['destination'] ?? null,
             'contact' => $contact,
@@ -486,6 +1053,31 @@ class ScreeningNextActionService
                 'name' => $customer?->full_name ?? ($subject['sublabel'] ?? null),
             ],
             'evidence' => $item['evidence'] ?? [],
+            'captures_statement' => ! empty($item['captures_statement']),
+            'statement_deposits_total' => $item['statement_deposits_total'] ?? null,
+            'statement_monthly' => $item['statement_monthly'] ?? null,
+            'declared_monthly_income' => $item['declared_monthly_income'] ?? null,
+            'income_basis' => $item['income_basis'] ?? null,
+            'affordability_income' => $item['affordability_income'] ?? null,
+            'notes' => $item['notes'] ?? '',
+            'statement_comparison' => $item['statement_comparison'] ?? null,
+            'capacity' => $item['capacity'] ?? null,
+            'declared_income_label' => $item['declared_income_label'] ?? null,
+            'gate2_panel' => $item['gate2_panel'] ?? null,
+            'gate2_checks' => $this->gate2CheckStatuses(
+                $application,
+                auth()->user() instanceof User ? auth()->user() : null,
+                [
+                    'person' => $subject['person'] ?? 'borrower',
+                    'm' => $subject['m'] ?? null,
+                    'g' => $subject['g'] ?? null,
+                ],
+                $gateKey,
+            ),
+            'gate3_panel' => $gate3Panel,
+            'system_determined' => ! empty($item['system_determined']) || ($isSystemItem && ! $factCapture),
+            'fact_capture' => $factCapture,
+            'note_label' => $this->noteLabel($key),
         ];
 
         if ($isAttention) {
@@ -506,8 +1098,10 @@ class ScreeningNextActionService
                 'label' => 'Required next step',
                 'detail' => $requestable['label'] ?? 'Request the missing evidence',
             ] : null,
-            'primary' => $requestable ? 'Request & pause' : 'Save & Next',
-            'outcomes' => $this->outcomesFor($key),
+            'primary' => $requestable && $isRequest
+                ? 'Request & pause'
+                : ($factCapture ? 'Save & Next' : 'Save & Next'),
+            'outcomes' => $outcomes,
         ]);
     }
 
@@ -603,6 +1197,46 @@ class ScreeningNextActionService
      */
     private function waitingState(LoanApplication $application, array $snapshot, array $groupReview): ?array
     {
+        // Capacity park dominates ordinary waiting (guarantor / docs / collateral).
+        if (($snapshot['pending_rejection'] ?? false) || $this->autoReject->isPending($application)) {
+            $park = is_array($snapshot['park'] ?? null) ? $snapshot['park'] : ($this->autoReject->state($application) ?? []);
+            $detailParts = [
+                'Screening is paused while this application awaits automatic affordability re-evaluation. No analyst action is required right now.',
+                (($snapshot['park_gate'] ?? ($park['gate'] ?? '')) === 'verified')
+                    ? 'Verified affordability failed.'
+                    : 'Declared affordability failed.',
+            ];
+            if (! empty($snapshot['remaining_label'])) {
+                $detailParts[] = $snapshot['remaining_label'].' remaining.';
+            } else {
+                $remaining = $this->autoReject->remainingLabel($application);
+                if (filled($remaining)) {
+                    $detailParts[] = $remaining.' remaining.';
+                }
+            }
+            if (! empty($park['parked_at'])) {
+                try {
+                    $detailParts[] = 'Parked '. \Illuminate\Support\Carbon::parse($park['parked_at'])->timezone(config('app.timezone'))->format('d M Y H:i').'.';
+                } catch (\Throwable) {
+                }
+            }
+            if (! empty($park['auto_reject_at'])) {
+                try {
+                    $detailParts[] = 'Scheduled re-evaluation '. \Illuminate\Support\Carbon::parse($park['auto_reject_at'])->timezone(config('app.timezone'))->format('d M Y H:i').'.';
+                } catch (\Throwable) {
+                }
+            }
+
+            return [
+                'kind' => 'policy',
+                'label' => 'Pending automatic rejection',
+                'detail' => implode(' ', $detailParts),
+                'gate' => 'declared',
+                'gate_index' => 1,
+                'since' => $park['parked_at'] ?? null,
+            ];
+        }
+
         $supplement = data_get($application->screening_payload, 'guarantor_supplement');
         if (is_array($supplement)
             && ($supplement['kind'] ?? '') === 'change'
@@ -614,17 +1248,6 @@ class ScreeningNextActionService
                 'gate' => 'declared',
                 'gate_index' => 1,
                 'since' => $supplement['requested_at'] ?? data_get($application->screening_payload, 'guided.waiting_since'),
-            ];
-        }
-
-        if ($snapshot['pending_rejection'] ?? false) {
-            return [
-                'kind' => 'policy',
-                'label' => 'Pending automatic rejection',
-                'detail' => (string) ($snapshot['remaining_label'] ?? ''),
-                'gate' => 'declared',
-                'gate_index' => 1,
-                'since' => null,
             ];
         }
 
@@ -719,6 +1342,130 @@ class ScreeningNextActionService
     }
 
     /**
+     * Compact Gate 2 sub-check status for the capacity card (capacity vs remaining observations).
+     *
+     * @param  array<string, mixed>  $subject
+     * @return list<array{label: string, chip: string}>|null
+     */
+    private function gate2CheckStatuses(
+        LoanApplication $application,
+        ?User $actor,
+        array $subject,
+        string $gateKey,
+    ): ?array {
+        if ($gateKey !== 'income') {
+            return null;
+        }
+
+        $person = (string) ($subject['person'] ?? 'borrower');
+        $m = isset($subject['m']) ? (int) $subject['m'] : null;
+        $g = isset($subject['g']) ? (int) $subject['g'] : null;
+        $desk = $this->checklist->deskViewModel($application, [], [], $actor, $person, $g, $m);
+        $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
+        $income = $gates['income'] ?? null;
+        if (! is_array($income)) {
+            return null;
+        }
+
+        $byKey = [];
+        foreach ($income['groups'] ?? [] as $group) {
+            foreach ($group['items'] ?? [] as $item) {
+                $byKey[(string) ($item['key'] ?? '')] = $item;
+            }
+        }
+
+        $chipFor = function (?array $item, bool $capacity = false) {
+            if (! is_array($item)) {
+                return 'WAITING';
+            }
+            if ($capacity && is_array($item['capacity'] ?? null)) {
+                $cap = $item['capacity'];
+                if (($cap['income_basis'] ?? '') === 'statement') {
+                    return ! empty($cap['capacity_pass']) ? 'PASSED' : 'FAILED';
+                }
+
+                return 'WAITING';
+            }
+            $verdict = $item['verdict'] ?? null;
+            if ($verdict === 'pass' || $verdict === 'na') {
+                return 'PASSED';
+            }
+            if ($verdict === 'fail') {
+                return 'FAILED';
+            }
+
+            return 'WAITING';
+        };
+
+        $evidence = $byKey[StatementCapacityService::CHECKLIST_KEY] ?? null;
+        $activity = $byKey['activity_income.activity_plausible'] ?? null;
+        $pattern = $byKey['activity_income.bank_or_mobile_money'] ?? null;
+
+        $rows = [
+            ['label' => 'Capacity check', 'chip' => $chipFor($evidence, true)],
+            ['label' => 'Activity check', 'chip' => $chipFor($activity)],
+            ['label' => 'Pattern check', 'chip' => $chipFor($pattern)],
+        ];
+
+        $personStatus = $this->personGate2Status($application, $actor, [], [], $subject);
+        $rows[] = ['label' => 'GATE 2', 'chip' => $personStatus['chip'] ?? 'WAITING'];
+
+        return $rows;
+    }
+
+    /**
+     * Gate 2 must present financial evidence before contact/capacity wrap items.
+     *
+     * @param  list<array<string, mixed>>  $groups
+     * @return list<array<string, mixed>>
+     */
+    private function orderedGateGroups(string $gateKey, array $groups): array
+    {
+        if ($gateKey !== 'income') {
+            return $groups;
+        }
+
+        return collect($groups)
+            ->sortBy(function (array $group) {
+                $key = (string) ($group['key'] ?? '');
+
+                return match ($key) {
+                    'activity_income' => 0,
+                    'contacts' => 1,
+                    'guarantor_wrap', 'member_wrap' => 2,
+                    default => 3,
+                };
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Document-request composer only for missing evidence — not capacity/discrepancy fails.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function isMissingEvidenceFail(array $item): bool
+    {
+        $code = (string) ($item['fail_reason_code'] ?? '');
+
+        return in_array($code, [
+            'statements_missing',
+            'nida_missing',
+            'nida_malformed',
+            'nida_incomplete',
+            'face_photo_missing',
+            'id_photo_missing',
+            'photos_missing',
+            'proof_missing',
+            'document_unclear',
+            'poor_quality',
+            'wrong_document',
+            'proof_invalid',
+        ], true);
+    }
+
+    /**
      * @param  array<string, mixed>  $item
      */
     private function itemNeedsAction(array $item): bool
@@ -785,8 +1532,10 @@ class ScreeningNextActionService
         }
         if (str_starts_with($key, 'activity_income.income_evidence') || $key === 'activity_income.income_evidence') {
             return [
+                'headline' => 'Bank statement required',
                 'label' => 'Request statement',
                 'preset' => 'Updated Bank Statement',
+                'reason' => 'Bank / mobile-money statement evidence is required for this Gate 2 check.',
                 'alternatives' => [
                     ['label' => 'Mobile money statement', 'preset' => 'Updated Mobile Money Statement'],
                     ['label' => 'Salary slip', 'preset' => 'Latest salary slip'],
@@ -851,6 +1600,18 @@ class ScreeningNextActionService
     /** @return list<array{value: string, label: string, fail_reason_code?: string}> */
     private function outcomesFor(string $key): array
     {
+        if ($key === 'activity_income.activity_plausible') {
+            return [
+                ['value' => 'pass', 'label' => 'Yes — activity supports the stated income'],
+                ['value' => 'fail', 'label' => 'No — activity does not support the stated income'],
+            ];
+        }
+        if ($key === 'activity_income.bank_or_mobile_money') {
+            return [
+                ['value' => 'pass', 'label' => 'No concerning patterns'],
+                ['value' => 'fail', 'label' => 'Yes — concerning pattern observed'],
+            ];
+        }
         if ($key === 'residence.local_government') {
             return [
                 ['value' => 'pass', 'label' => 'Confirmed'],
@@ -882,15 +1643,26 @@ class ScreeningNextActionService
         ];
     }
 
+    private function noteLabel(string $key): string
+    {
+        return match (true) {
+            str_starts_with($key, 'contacts.call_') || $key === 'residence.local_government' => 'Verification note',
+            $key === 'activity_income.bank_or_mobile_money',
+            $key === 'activity_income.activity_plausible' => 'Explain concern',
+            default => 'Note',
+        };
+    }
+
     private function defaultPrompt(string $key): string
     {
         return match (true) {
             str_contains($key, 'next_of_kin') => 'Were you able to confirm the next-of-kin information?',
             str_contains($key, 'local_government') => 'Were you able to verify the Local Government Officer?',
             str_contains($key, 'spouse') => 'Were you able to confirm the spouse details?',
+            str_contains($key, 'income_evidence') => 'Key the six-month deposit total. Kopafasta compares it with declared income and calculates repayment capacity.',
             str_contains($key, 'activity_plausible') => 'Does the financial activity support the declared income?',
-            str_contains($key, 'bank_or_mobile') => 'Are there material patterns that need attention?',
-            default => 'Record the result for this check.',
+            str_contains($key, 'bank_or_mobile') => 'Did you observe any concerning patterns on the statements?',
+            default => 'Record the observation for this check.',
         };
     }
 
@@ -946,22 +1718,143 @@ class ScreeningNextActionService
         array $review,
         array $groupReview,
     ): int {
-        $count = 0;
+        return (int) ($this->unresolvedBreakdown($subjects, $application, $actor, $review, $groupReview)['total'] ?? 0);
+    }
+
+    /**
+     * Public diagnostic: outstanding Guided Review checklist rows by gate/person.
+     *
+     * @return array{
+     *   total: int,
+     *   earliest_gate: ?string,
+     *   by_gate: array<string, int>,
+     *   by_gate_person: array<string, array<string, int>>,
+     *   rows: list<array{key: string, label: string, gate: string, person: string, status: string}>
+     * }
+     */
+    public function outstandingRequirements(LoanApplication $application, ?User $actor = null): array
+    {
+        $actor = $actor ?? auth()->user();
+        $application->loadMissing(['customer', 'product', 'loanGroup.members.customer', 'documentRequests', 'customerGuarantors.invitation']);
+        $review = app(LoanApplicationReviewService::class)->dossier($application);
+        try {
+            $groupReview = app(GroupLoanReviewService::class)->dossier($application) ?? [];
+        } catch (\Throwable $e) {
+            report($e);
+            $groupReview = [];
+        }
+        if (! is_array($groupReview)) {
+            $groupReview = [];
+        }
+        $subjects = $this->checklist->deskSubjects($application, $review, $groupReview, $actor);
+
+        return $this->unresolvedBreakdown($subjects, $application, $actor, $review, $groupReview);
+    }
+
+    /**
+     * Full outstanding checklist rows that still need Guided Review action.
+     *
+     * @param  list<array<string, mixed>>  $subjects
+     * @return array{
+     *   total: int,
+     *   earliest_gate: ?string,
+     *   by_gate: array<string, int>,
+     *   by_gate_person: array<string, array<string, int>>,
+     *   rows: list<array{key: string, label: string, gate: string, person: string, status: string}>
+     * }
+     */
+    private function unresolvedBreakdown(
+        array $subjects,
+        LoanApplication $application,
+        ?User $actor,
+        array $review,
+        array $groupReview,
+    ): array {
+        $gateOrder = ['income' => 2, 'crb' => 3, 'collateral' => 4, 'identity' => 5, 'final' => 6];
+        $byGate = [];
+        $byGatePerson = [];
+        $rows = [];
+        $earliest = null;
+        $earliestRank = 99;
+
         foreach ($subjects as $subject) {
             $person = (string) ($subject['person'] ?? 'borrower');
             $m = isset($subject['m']) ? (int) $subject['m'] : null;
             $g = isset($subject['g']) ? (int) $subject['g'] : null;
+            $name = filled($subject['sublabel'] ?? null)
+                ? (string) $subject['sublabel']
+                : (string) ($subject['label'] ?? $person);
             $desk = $this->checklist->deskViewModel($application, $review, $groupReview, $actor, $person, $g, $m);
-            foreach ($desk['groups'] ?? [] as $group) {
-                foreach ($group['items'] ?? [] as $item) {
-                    if ($this->itemNeedsAction($item)) {
-                        $count++;
+            $gates = $this->gates->regroup($desk['groups'] ?? [], $application);
+            foreach ($gates as $gateKey => $gate) {
+                foreach ($gate['groups'] ?? [] as $group) {
+                    foreach ($group['items'] ?? [] as $item) {
+                        if (! $this->itemNeedsAction($item)) {
+                            continue;
+                        }
+                        $byGate[$gateKey] = ($byGate[$gateKey] ?? 0) + 1;
+                        $byGatePerson[$gateKey][$name] = ($byGatePerson[$gateKey][$name] ?? 0) + 1;
+                        $rows[] = [
+                            'key' => (string) ($item['key'] ?? ''),
+                            'label' => (string) ($item['label'] ?? $item['key'] ?? 'Check'),
+                            'gate' => (string) $gateKey,
+                            'person' => $name,
+                            'person_kind' => $person,
+                            'status' => ($item['verdict'] ?? null) === 'fail' ? 'fail' : 'open',
+                            'applicable' => true,
+                        ];
+                        $rank = $gateOrder[$gateKey] ?? 50;
+                        if ($rank < $earliestRank) {
+                            $earliestRank = $rank;
+                            $earliest = (string) $gateKey;
+                        }
                     }
                 }
             }
         }
 
-        return $count;
+        return [
+            'total' => count($rows),
+            'earliest_gate' => $earliest,
+            'by_gate' => $byGate,
+            'by_gate_person' => $byGatePerson,
+            'rows' => $rows,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $breakdown
+     * @param  array<string, mixed>  $snapshot
+     * @return array<string, mixed>
+     */
+    private function gateRemainingStep(string $gateKey, array $breakdown, array $snapshot): array
+    {
+        $index = ScreeningSequenceService::gateIndex($gateKey === 'income' ? 'income' : $gateKey);
+        $label = ScreeningSequenceService::SEQUENCE[$gateKey]
+            ?? ($this->gates::GATES[$gateKey] ?? $gateKey);
+        $gateCount = (int) ($breakdown['by_gate'][$gateKey] ?? 0);
+        $overall = (int) ($breakdown['total'] ?? 0);
+        $people = $breakdown['by_gate_person'][$gateKey] ?? [];
+
+        return [
+            'type' => 'gate_remaining',
+            'gate' => $gateKey,
+            'gate_index' => $index > 0 ? $index : 2,
+            'gate_label' => $label,
+            'title' => $label,
+            'prompt' => $gateCount === 1
+                ? '1 check remains in this gate.'
+                : $gateCount.' checks remain in this gate.',
+            'gate_remaining' => $gateCount,
+            'overall_remaining' => $overall,
+            'people_remaining' => $people,
+            'primary' => 'Continue Reviewing',
+            'recommended' => [
+                'label' => 'Current gate',
+                'detail' => $gateCount.' of this gate remain. '
+                    .($overall > $gateCount ? $overall.' checks remain overall across later gates.' : 'Finish this gate before moving on.'),
+            ],
+        ];
     }
 
     /**
@@ -976,6 +1869,7 @@ class ScreeningNextActionService
         ?User $actor,
         array $review,
         array $groupReview,
+        array $snapshot = [],
     ): array {
         $gateKey = (string) ($step['gate'] ?? '');
         $person = (string) ($step['participant']['person'] ?? 'borrower');
@@ -990,10 +1884,42 @@ class ScreeningNextActionService
         return [
             'done' => $done,
             'total' => $total,
+            'failed' => (int) ($gate['failed'] ?? 0),
             'label' => $total > 0
                 ? 'Gate '.((int) ($step['gate_index'] ?? 0)).' · '.$done.' of '.$total.' applicable checks complete'
                 : (string) ($step['gate_label'] ?? ''),
+            'result' => $this->gateResultLabel($gateKey, $gate, $snapshot),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $gate
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function gateResultLabel(string $gateKey, ?array $gate, array $snapshot): string
+    {
+        foreach ((array) ($snapshot['sequence'] ?? $snapshot['rows'] ?? []) as $row) {
+            if (($row['key'] ?? '') === $gateKey || ($row['desk_gate'] ?? '') === $gateKey) {
+                return match ((string) ($row['status'] ?? '')) {
+                    'passed' => 'PASSED',
+                    'pending_rejection', 'fail' => 'FAILED',
+                    'attention' => 'REFER',
+                    'in_progress', 'open' => 'WAITING',
+                    default => strtoupper((string) ($row['chip'] ?? 'WAITING')),
+                };
+            }
+        }
+        if (! is_array($gate) || (int) ($gate['total'] ?? 0) < 1) {
+            return 'WAITING';
+        }
+        if ((int) ($gate['failed'] ?? 0) > 0) {
+            return 'REFER';
+        }
+        if ((int) ($gate['decided'] ?? 0) >= (int) ($gate['total'] ?? 0)) {
+            return 'PASSED';
+        }
+
+        return 'WAITING';
     }
 
     /**
@@ -1165,6 +2091,29 @@ class ScreeningNextActionService
             }
 
             return $detail;
+        }
+        if (($step['type'] ?? '') === 'gate_remaining') {
+            $gateLeft = (int) ($step['gate_remaining'] ?? 0);
+            $overall = (int) ($step['overall_remaining'] ?? $remaining);
+            $msg = $gateLeft === 1
+                ? 'Finish the remaining check in this gate.'
+                : 'Finish the '.$gateLeft.' remaining checks in this gate.';
+            if ($overall > $gateLeft) {
+                $msg .= ' '.$overall.' checks remain overall — later gates stay locked until this gate is done.';
+            }
+
+            return $msg;
+        }
+        if (($step['type'] ?? '') === 'gate_complete') {
+            return $remaining > 0
+                ? 'Open the next unresolved check. '.$remaining.' requirements remain overall.'
+                : 'Continue with the remaining Screening checks.';
+        }
+        if (($step['type'] ?? '') === 'gate_2_passed') {
+            return '';
+        }
+        if (($step['type'] ?? '') === 'gate_3_passed') {
+            return '';
         }
         if ($ctaKind === 'decision' && ($step['type'] ?? '') === 'decision') {
             return 'Screening is complete. Continue to Decision when you are ready to record the recommendation.';

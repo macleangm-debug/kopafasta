@@ -8,22 +8,25 @@
     $workspace = $workspace ?? request('workspace', 'checklist');
     $readiness = $screeningReadiness ?? null;
     $ready = is_array($readiness) ? (bool) ($readiness['ready'] ?? false) : false;
+    $pendingRejection = app(\App\Services\CapacityAutoRejectService::class)->isPending($record)
+        || (is_array($readiness) && (
+            ($readiness['status'] ?? '') === 'pending_rejection'
+            || ($readiness['pending_rejection'] ?? false)
+            || (($readiness['decision_status']['state'] ?? '') === 'pending_rejection')
+        ));
     $suggestionLabel = is_array($readiness) ? (string) ($readiness['suggestion_label'] ?? '') : '';
     $nextStep = is_array($readiness) ? (($readiness['next_steps'][0] ?? null)) : null;
-    $incomeGateOpen = is_array($readiness) && ! empty($readiness['income_gate_open']);
+    $wizardEntry = app(\App\Services\ScreeningSequenceService::class)->wizardEntry($record);
     $continueHref = is_array($readiness) && filled($readiness['primary_href'] ?? null)
         ? (string) $readiness['primary_href']
         : (is_array($nextStep) && filled($nextStep['href'] ?? null)
             ? (string) $nextStep['href']
-            : (route('admin.loan-applications.show', [
-                'loan_application' => $record,
-                'workspace' => 'checklist',
-            ]).'#review-desk'));
-    $continueLabel = $ready
-        ? 'Continue to decision'
-        : ((is_array($readiness) ? ($readiness['primary_block_cta'] ?? $readiness['primary_cta'] ?? null) : null) ?: ($incomeGateOpen
-            ? 'Review statements'
-            : 'Open check'));
+            : $wizardEntry['href']);
+    $continueLabel = $pendingRejection
+        ? ((is_array($readiness) ? ($readiness['primary_cta'] ?? null) : null) ?: 'View parked status')
+        : ($ready
+            ? 'Continue to decision'
+            : ((is_array($readiness) ? ($readiness['primary_cta'] ?? $readiness['primary_block_cta'] ?? null) : null) ?: $wizardEntry['cta']));
 
     $decisionPanelUrl = route('admin.loan-applications.show', [
         'loan_application' => $record,
@@ -31,6 +34,7 @@
     ]).'#review-recommendation';
 
     // Show sticky on checklist when guiding next step; on decision when recording.
+    // Capacity park: still show sticky, but as Pending automatic rejection (not ordinary next checks).
     $showScreeningSticky = ! ($fileIsClosed ?? $record->isClosed())
         && $isScreeningSticky && $canReview && empty($recType)
         && in_array($workspace, ['overview', 'checklist', 'decision'], true);
@@ -43,12 +47,16 @@
 @if ($showScreeningSticky || $showCommitteeSticky || $showManagementSticky)
     <div class="fixed inset-x-0 bottom-0 z-40 pointer-events-none">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-4 pointer-events-auto">
-            <div class="rounded-2xl bg-brand text-white shadow-2xl ring-1 ring-brand-gold/40 px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="rounded-2xl {{ $pendingRejection ? 'bg-rose-900 ring-rose-300/40' : 'bg-brand ring-brand-gold/40' }} text-white shadow-2xl ring-1 px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
                 @if ($showScreeningSticky)
                     <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-widest font-semibold text-brand-gold">Screening team · Guided next step</p>
+                        <p class="text-[10px] uppercase tracking-widest font-semibold {{ $pendingRejection ? 'text-rose-200' : 'text-brand-gold' }}">
+                            {{ $pendingRejection ? 'System · Capacity park' : 'Screening team · Guided next step' }}
+                        </p>
                         <p class="text-sm font-bold mt-0.5 truncate">
-                            @if (! $ready)
+                            @if ($pendingRejection)
+                                Pending automatic rejection
+                            @elseif (! $ready)
                                 {{ is_array($readiness) ? ($readiness['status_label'] ?? 'Review in progress') : 'Review in progress' }}
                             @elseif ($workspace !== 'decision')
                                 All required screening checks complete
@@ -56,9 +64,17 @@
                                 Record {{ $suggestionLabel !== '' ? $suggestionLabel : 'your recommendation' }} on this Decision tab
                             @endif
                         </p>
+                        @if ($pendingRejection && is_array($readiness) && filled($readiness['pending_rejection_detail'] ?? $readiness['detail'] ?? null))
+                            <p class="text-xs text-white/80 mt-1 line-clamp-2">{{ $readiness['pending_rejection_detail'] ?? $readiness['detail'] }}</p>
+                        @endif
                     </div>
                     <div class="flex flex-wrap items-center gap-2 shrink-0">
-                        @if (! $ready)
+                        @if ($pendingRejection)
+                            <a href="{{ $continueHref }}"
+                               class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-white text-rose-900 hover:bg-rose-50 px-4 py-2.5 shadow-sm">
+                                {{ $continueLabel }}
+                            </a>
+                        @elseif (! $ready)
                             <a href="{{ $continueHref }}"
                                class="inline-flex items-center gap-1.5 text-sm font-bold rounded-lg bg-brand-gold text-brand hover:brightness-95 px-4 py-2.5 shadow-sm">
                                 {{ $continueLabel }}

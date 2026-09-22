@@ -38,10 +38,14 @@
     $attentionCount = (int) ($readiness['attention_count'] ?? count($unresolved));
     $primaryHref = $isCommitteeStage
         ? $decisionUrl
-        : ($readiness['primary_href'] ?? ($ready ? $decisionUrl : ''));
+        : (($readiness['status'] ?? '') === 'pending_rejection' || ($readiness['pending_rejection'] ?? false)
+            ? ($readiness['primary_href'] ?? $decisionUrl)
+            : ($readiness['primary_href'] ?? ($ready ? $decisionUrl : '')));
     $primaryLabel = $isCommitteeStage
         ? 'Open decision'
-        : ($ready ? 'Continue to decision' : ($readiness['primary_cta'] ?? 'Continue'));
+        : ((($readiness['status'] ?? '') === 'pending_rejection' || ($readiness['pending_rejection'] ?? false))
+            ? ($readiness['primary_cta'] ?? 'View parked status')
+            : ($ready ? 'Continue to decision' : ($readiness['primary_cta'] ?? 'Continue')));
     $defaultTab = $attentionCount > 0 ? 'attention' : ($submissions !== [] ? 'submissions' : 'system');
     $memberSummaries = $readiness['member_summaries'] ?? [];
     $decisionStatus = $readiness['decision_status'] ?? null;

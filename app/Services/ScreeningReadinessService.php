@@ -331,13 +331,17 @@ class ScreeningReadinessService
             $seenBlockers[mb_strtolower($full)] = true;
             $kind = $docService->borrowerActionKind($request);
             $href = $docService->screeningReviewUrl($request, $application, collect($review['guarantors'] ?? [])->all());
+            $entry = app(ScreeningSequenceService::class)->wizardEntry($application);
             $cta = match (true) {
                 $request->status === 'uploaded' => 'Review submission',
-                $kind === 'income' => 'Review statements',
+                $kind === 'income' => $entry['cta'],
                 $kind === 'collateral' => 'Open collateral',
                 in_array($kind, ['identity', 'face'], true) => 'Open identity',
                 default => 'Open request',
             };
+            if ($kind === 'income' && $request->status !== 'uploaded') {
+                $href = $entry['href'];
+            }
             $state = match ($request->status) {
                 'uploaded' => ' · Waiting for your review',
                 'rejected' => ' · Replacement requested',
@@ -385,11 +389,7 @@ class ScreeningReadinessService
                 'label' => $stepLabel,
                 'detail' => $step['detail'] ?? '',
                 'href' => $step['href'] ?? '',
-                'cta' => $step['cta'] ?? match ($step['tone'] ?? '') {
-                    'gate' => 'Review statements',
-                    'critical', 'fail' => 'Open check',
-                    default => 'Open check',
-                },
+                'cta' => $step['cta'] ?? 'Open check',
             ];
         }
         foreach ($anomalies as $anomaly) {
@@ -413,13 +413,17 @@ class ScreeningReadinessService
         $docBlockers = app(LoanApplicationWorkflowService::class)->screeningDocumentBlockers($application);
         $ready = $incomplete === [] && $checklistTotal > 0 && $docBlockers === [];
         $decisionRecorded = filled($application->recommended_at) || filled($application->recommendation_type);
+        $pendingRejection = (bool) ($sequence['pending_rejection'] ?? false)
+            || app(CapacityAutoRejectService::class)->isPending($application);
         $status = match (true) {
+            $pendingRejection => 'pending_rejection',
             $decisionRecorded && $ready => 'decision_recorded',
             $blockingItems !== [] || $docBlockers !== [] => 'needs_attention',
             ! $ready => 'review_in_progress',
             default => 'ready_for_decision',
         };
         $statusLabel = match ($status) {
+            'pending_rejection' => 'Pending automatic rejection',
             'decision_recorded' => 'Decision recorded',
             'needs_attention' => 'Needs attention',
             'ready_for_decision' => 'Ready for decision',
@@ -446,10 +450,17 @@ class ScreeningReadinessService
             'workspace' => 'decision',
         ]).'#review-recommendation';
         $seqNext = $sequence['next_action'] ?? [];
-        $primaryHref = $ready && $laterUnlocked
-            ? $decisionUrl
-            : (string) ($seqNext['href'] ?? $firstBlock['href'] ?? '');
+        $parkHref = route('admin.loan-applications.show', [
+            'loan_application' => $application,
+            'workspace' => 'overview',
+        ]).'#credit-workspace';
+        $primaryHref = $pendingRejection
+            ? (string) ($seqNext['href'] ?? $parkHref)
+            : ($ready && $laterUnlocked
+                ? $decisionUrl
+                : (string) ($seqNext['href'] ?? $firstBlock['href'] ?? ''));
         $primaryCta = match (true) {
+            $pendingRejection => (string) ($seqNext['cta'] ?? 'View parked status'),
             $ready && $laterUnlocked => 'Continue to decision',
             filled($seqNext['cta'] ?? null) => (string) $seqNext['cta'],
             $firstBlock !== null => (string) ($firstBlock['cta'] ?? 'Open check'),
@@ -461,23 +472,27 @@ class ScreeningReadinessService
         $autoCompleteCount = count($autoCompleted);
         $humanOpen = max(0, $checklistTotal - $checklistDone);
         $unresolved = array_values(array_merge($blockingItems, $needsAttention));
+        $parkDetail = $this->pendingRejectionDetail($sequence, $application);
 
         return [
-            'ready' => $ready,
+            'ready' => $ready && ! $pendingRejection,
             'status' => $status,
             'status_label' => $statusLabel,
             'suggestion' => $suggestion,
             'suggestion_label' => $labels[$suggestion] ?? strtoupper($suggestion),
             'headline' => $statusLabel,
-            'detail' => $this->detail($ready, $suggestion, $checklistDone, $checklistTotal, $criticalFailCount),
+            'detail' => $pendingRejection
+                ? $parkDetail
+                : $this->detail($ready, $suggestion, $checklistDone, $checklistTotal, $criticalFailCount),
             'tone' => match ($status) {
+                'pending_rejection' => 'bad',
                 'ready_for_decision', 'decision_recorded' => $suggestion === 'reject' ? 'bad' : 'good',
                 'needs_attention' => 'warn',
                 default => 'neutral',
             },
             'blockers' => array_values($blockers),
             'signals' => array_values($signals),
-            'next_steps' => array_values($nextSteps),
+            'next_steps' => $pendingRejection ? [] : array_values($nextSteps),
             'critical_fails' => array_values(array_slice($criticalFails, 0, 8)),
             'checklist_done' => $checklistDone,
             'checklist_total' => $checklistTotal,
@@ -487,19 +502,21 @@ class ScreeningReadinessService
             'auto_completed' => $autoCompleted,
             'needs_attention' => $needsAttention,
             'blocking_items' => $blockingItems,
-            'unresolved' => $unresolved,
+            'unresolved' => $pendingRejection ? [] : $unresolved,
             'submissions' => $this->submissions($application, $review, $docService),
             'overview_snapshot' => $this->overviewSnapshot($application, $review, $groupReview, $affordVerdict, $crbSignal),
             'gate_chips' => $this->gateChips($gateAgg),
             'subjects_incomplete' => count($incomplete),
             'subjects_total' => count($subjects),
-            'income_gate_open' => $incomeGateOpen,
-            'income_gate_href' => $incomeGateOpen ? (string) ($incomeGateStep['href'] ?? '') : null,
+            'income_gate_open' => $incomeGateOpen && ! $pendingRejection,
+            'income_gate_href' => ($incomeGateOpen && ! $pendingRejection) ? (string) ($incomeGateStep['href'] ?? '') : null,
             'primary_href' => $primaryHref,
             'primary_cta' => $primaryCta,
-            'primary_block_cta' => $firstBlock['cta'] ?? 'Open check',
+            'primary_block_cta' => $pendingRejection
+                ? $primaryCta
+                : ($firstBlock['cta'] ?? 'Open check'),
             'human_open' => $humanOpen,
-            'attention_count' => count($unresolved),
+            'attention_count' => $pendingRejection ? 0 : count($unresolved),
             'sequence' => $sequence,
             'next_action' => $seqNext,
             'member_summaries' => $memberSummaries,
@@ -510,8 +527,11 @@ class ScreeningReadinessService
                 $criticalFails,
                 $laterUnlocked,
                 $checklistFailed,
+                $application,
             ),
             'na_note' => 'N/A counts as reviewed and does not Fail the file — use it when the check truly does not apply (for example collateral on a clean group loan). It still moves the checklist forward.',
+            'pending_rejection' => $pendingRejection,
+            'pending_rejection_detail' => $parkDetail,
         ];
     }
 
@@ -578,13 +598,15 @@ class ScreeningReadinessService
                 'label' => trim((string) ($request->label ?? 'Requested document')),
                 'detail' => trim($request->subjectRoleLabel().' · '.$docService->screeningKindLabel($request)),
                 'status' => $status,
-                'href' => $docService->screeningReviewUrl($request, $application, collect($review['guarantors'] ?? [])->all()),
                 'cta' => match ($kind) {
-                    'income' => 'Review statements',
+                    'income' => app(ScreeningSequenceService::class)->wizardEntry($application)['cta'],
                     'collateral' => 'Open collateral',
                     'identity', 'face' => 'Open identity',
                     default => 'Open request',
                 },
+                'href' => $kind === 'income'
+                    ? app(ScreeningSequenceService::class)->wizardEntry($application)['href']
+                    : $docService->screeningReviewUrl($request, $application, collect($review['guarantors'] ?? [])->all()),
             ];
         }
 
@@ -751,20 +773,18 @@ class ScreeningReadinessService
         array $criticalFails,
         bool $laterUnlocked,
         int $checklistFailed,
+        ?LoanApplication $application = null,
     ): array {
-        $pending = (bool) ($sequence['pending_rejection'] ?? false);
+        $pending = (bool) ($sequence['pending_rejection'] ?? false)
+            || ($application !== null && app(CapacityAutoRejectService::class)->isPending($application));
         $countdown = $sequence['remaining_label'] ?? null;
-        $parkGate = (string) ($sequence['park_gate'] ?? '');
-        $failLabel = $parkGate === 'verified'
-            ? 'Gate 2 — Verified affordability failed'
-            : 'Gate 1 — Initial affordability failed';
 
         if ($pending) {
             return [
                 'state' => 'pending_rejection',
-                'headline' => '1 hard failure',
-                'detail' => $failLabel,
-                'countdown' => $countdown ? 'Pending automatic rejection · '.$countdown : 'Pending automatic rejection',
+                'headline' => 'Pending automatic rejection',
+                'detail' => $this->pendingRejectionDetail($sequence, $application),
+                'countdown' => $countdown ? 'Re-evaluates in '.$countdown : 'Scheduled re-evaluation pending',
             ];
         }
 
@@ -792,6 +812,50 @@ class ScreeningReadinessService
             'detail' => 'Keep working the remaining screening questions.',
             'countdown' => null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $sequence
+     */
+    private function pendingRejectionDetail(array $sequence, ?LoanApplication $application = null): string
+    {
+        $park = is_array($sequence['park'] ?? null) ? $sequence['park'] : [];
+        if ($park === [] && $application) {
+            $park = app(CapacityAutoRejectService::class)->state($application) ?? [];
+        }
+        $parkGate = (string) ($sequence['park_gate'] ?? ($park['gate'] ?? 'declared'));
+        $reason = $parkGate === 'verified'
+            ? 'Verified affordability failed.'
+            : 'Declared affordability failed.';
+        $parts = [
+            'Screening is paused while this application awaits automatic affordability re-evaluation. No analyst action is required right now.',
+            $reason,
+        ];
+
+        if (filled($park['parked_at'] ?? null)) {
+            try {
+                $parts[] = 'Parked '. \Illuminate\Support\Carbon::parse($park['parked_at'])->timezone(config('app.timezone'))->format('d M Y H:i');
+            } catch (\Throwable) {
+                // ignore parse errors
+            }
+        }
+        if (filled($park['auto_reject_at'] ?? null)) {
+            try {
+                $parts[] = 'Scheduled re-evaluation '. \Illuminate\Support\Carbon::parse($park['auto_reject_at'])->timezone(config('app.timezone'))->format('d M Y H:i');
+            } catch (\Throwable) {
+                // ignore parse errors
+            }
+        }
+        if ($application && filled($sequence['remaining_label'] ?? null)) {
+            $parts[] = (string) $sequence['remaining_label'].' remaining';
+        } elseif ($application) {
+            $remaining = app(CapacityAutoRejectService::class)->remainingLabel($application);
+            if (filled($remaining)) {
+                $parts[] = $remaining.' remaining';
+            }
+        }
+
+        return implode(' ', $parts);
     }
 
     /**

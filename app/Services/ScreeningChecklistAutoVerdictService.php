@@ -98,6 +98,9 @@ class ScreeningChecklistAutoVerdictService
 
         $out['contacts.call_guarantor'] = $this->guarantorContactCheck($application, $subjectKind);
         $out['contacts.guarantor_capacity'] = $this->guarantorCapacityCheck($application, $subjectKind, $context);
+        // Wrap-up twin of contacts.guarantor_capacity — same Settings/statement capacity math.
+        // Do not leave a second human "confirm capacity" question after the system already decided.
+        $out['guarantor_wrap.capacity_confirmed'] = $this->guarantorCapacityCheck($application, $subjectKind, $context);
         $out['contacts.call_references'] = $this->referencesCheck();
         $out['contacts.call_spouse'] = $this->spouseContactCheck($customer);
         $out['contacts.call_next_of_kin'] = $this->nextOfKinCheck($customer, $application);
@@ -170,6 +173,13 @@ class ScreeningChecklistAutoVerdictService
         if (! $performed) {
             return ['verdict' => 'fail', 'fail_reason_code' => 'crb_never_checked', 'source' => 'system'];
         }
+        // Gate 3: stale CRB cannot produce a current Pass — Settings → KYC → crb_freshness_days.
+        if (array_key_exists('is_fresh', $crb) && $crb['is_fresh'] === false) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_expired', 'source' => 'system'];
+        }
+        if (! empty($crb['no_record']) || $this->crbLooksLikeNoRecord($crb)) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_no_record', 'source' => 'system'];
+        }
         if ($crbName === '' && $this->crbLooksLikeNoRecord($crb)) {
             return ['verdict' => 'fail', 'fail_reason_code' => 'crb_no_record', 'source' => 'system'];
         }
@@ -191,6 +201,9 @@ class ScreeningChecklistAutoVerdictService
     /** @param  array<string, mixed>  $crb */
     private function crbWasPerformed(array $crb): bool
     {
+        if (! empty($crb['no_record']) || filled($crb['error'] ?? null)) {
+            return true;
+        }
         if (isset($crb['score']) && is_numeric($crb['score'])) {
             return true;
         }
@@ -416,6 +429,9 @@ class ScreeningChecklistAutoVerdictService
 
         if ($rec === '' && ($crb['score'] ?? null) === null && $externalLoans < 1 && $crbOut <= 0) {
             return ['verdict' => '', 'source' => 'system_skip'];
+        }
+        if (array_key_exists('is_fresh', $crb) && $crb['is_fresh'] === false) {
+            return ['verdict' => 'fail', 'fail_reason_code' => 'crb_expired', 'source' => 'system'];
         }
         if ($delinq > 0) {
             return ['verdict' => 'fail', 'fail_reason_code' => 'delinquencies', 'source' => 'system'];
@@ -681,20 +697,39 @@ class ScreeningChecklistAutoVerdictService
      */
     private function guarantorCapacityCheck(LoanApplication $application, string $subjectKind, array $ctx): array
     {
-        if ($subjectKind !== 'guarantor' && ! $this->applicationHasGuarantor($application)) {
-            return ['verdict' => 'na', 'source' => 'auto_na'];
-        }
         if ($subjectKind !== 'guarantor') {
             return ['verdict' => 'na', 'source' => 'auto_na'];
         }
 
-        $afford = (array) ($ctx['affordability'] ?? []);
-        $verdict = (string) ($afford['verdict'] ?? '');
-        if ($verdict === 'fail' || (($afford['pass'] ?? true) === false && $verdict !== 'warn' && $verdict !== '')) {
-            return ['verdict' => 'fail', 'fail_reason_code' => 'insufficient_capacity', 'source' => 'system'];
+        $guarantor = $ctx['customer'] ?? null;
+        $linkId = (int) ($ctx['subject_guarantor_link_id'] ?? $ctx['guarantor_link_id'] ?? $ctx['g'] ?? 0);
+        if (! $guarantor instanceof Customer || $linkId < 1) {
+            return ['verdict' => 'na', 'source' => 'auto_na'];
         }
 
-        return ['verdict' => '', 'source' => 'system_skip'];
+        // Wait for Gate 2 statement totals — same financial path as the borrower.
+        $proven = app(StatementCapacityService::class)->provenMonthlyForGuarantor($application, $linkId);
+        if ($proven === null || $proven <= 0) {
+            return ['verdict' => 'na', 'source' => 'auto_na'];
+        }
+
+        $borrower = app(AffordabilityService::class)->evaluate($application);
+        $eval = app(AffordabilityService::class)->evaluateForGuarantor(
+            $guarantor,
+            (float) ($borrower['proposed_installment'] ?? 0),
+            $application,
+            $linkId,
+        );
+
+        if (in_array((string) ($eval['verdict'] ?? ''), ['pass', 'warn'], true)) {
+            return ['verdict' => 'pass', 'source' => 'system'];
+        }
+
+        return [
+            'verdict' => 'fail',
+            'fail_reason_code' => 'insufficient_capacity',
+            'source' => 'system',
+        ];
     }
 
     /** @return array{verdict: string, source: string} */

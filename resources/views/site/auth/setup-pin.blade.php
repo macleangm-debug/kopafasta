@@ -31,7 +31,7 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.pin_label') }}</label>
-                                <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" data-digits-only required autocomplete="new-password"
+                                <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" data-digits-only required autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
                                        class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-center text-lg tracking-[0.5em] font-mono outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                                 @error('pin')
                                     <p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>
@@ -39,7 +39,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.pin_recovery.confirm_pin') }}</label>
-                                <input type="password" name="pin_confirmation" inputmode="numeric" maxlength="4" pattern="\d{4}" data-digits-only required autocomplete="new-password"
+                                <input type="password" name="pin_confirmation" inputmode="numeric" maxlength="4" pattern="\d{4}" data-digits-only required autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
                                        class="w-full rounded-xl border border-gray-200 px-3.5 py-3 text-center text-lg tracking-[0.5em] font-mono outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                             </div>
 

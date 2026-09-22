@@ -36,7 +36,13 @@ class StatementCapacityService
             return null;
         }
 
-        return $this->compute($total, self::DEFAULT_MONTHS);
+        $computed = $this->compute($total, self::DEFAULT_MONTHS);
+        if (array_key_exists('notes', $incoming)) {
+            $note = trim((string) $incoming['notes']);
+            $computed['notes'] = $note !== '' ? $note : null;
+        }
+
+        return $computed;
     }
 
     /**
@@ -134,31 +140,26 @@ class StatementCapacityService
     }
 
     /**
-     * Save-time Gate 2 verdict: statement monthly vs declared profile income.
+     * Save-time Gate 2: statement totals are facts. Discrepancy vs declared is display-only.
+     * Capacity (Settings repayment ratio × verified income vs required repayment) owns pass/fail.
      *
      * @return array{verdict: string, fail_reason_code: ?string, source: string}
      */
     public function verdictAgainstDeclared(float $monthly, ?Customer $customer): array
     {
-        $declared = $customer instanceof Customer ? $this->declaredMonthly($customer) : 0.0;
-        if ($declared <= 0) {
+        if ($monthly <= 0) {
             return [
                 'verdict' => 'fail',
                 'fail_reason_code' => 'income_insufficient',
                 'source' => 'system',
             ];
         }
-        if ($monthly >= $declared) {
-            return [
-                'verdict' => 'pass',
-                'fail_reason_code' => null,
-                'source' => 'system',
-            ];
-        }
 
+        // Declared income remaining blank does not invalidate a keyed statement total.
+        // AffordabilityService capacity evaluation owns Gate 2 pass/fail.
         return [
-            'verdict' => 'fail',
-            'fail_reason_code' => 'revenue_mismatch',
+            'verdict' => 'pass',
+            'fail_reason_code' => null,
             'source' => 'system',
         ];
     }
@@ -244,6 +245,31 @@ class StatementCapacityService
             'statement_months' => null,
             'statement_monthly' => null,
             'statement_weekly' => null,
+        ];
+    }
+
+    /**
+     * Evidence comparison only. Does not choose Pass or Concern.
+     *
+     * @return array{statement_monthly: float, declared_monthly: float, difference: float, coverage_pct: float, finding: string}|null
+     */
+    public function compareToDeclared(float $statementMonthly, float $declaredMonthly): ?array
+    {
+        if ($statementMonthly <= 0 || $declaredMonthly <= 0) {
+            return null;
+        }
+
+        $difference = round($statementMonthly - $declaredMonthly, 2);
+        $coverage = round(($statementMonthly / $declaredMonthly) * 100, 1);
+
+        return [
+            'statement_monthly' => round($statementMonthly, 2),
+            'declared_monthly' => round($declaredMonthly, 2),
+            'difference' => $difference,
+            'coverage_pct' => $coverage,
+            'finding' => $difference < 0
+                ? 'Statement activity is below the declared monthly income. Review the evidence before confirming this check.'
+                : 'Statement activity covers the declared monthly income. Review the evidence before confirming this check.',
         ];
     }
 }

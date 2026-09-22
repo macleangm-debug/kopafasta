@@ -1,6 +1,7 @@
 @props([
     'tabs' => [],
     'active' => null,
+    'expanded' => true,
 ])
 
 @php
@@ -10,6 +11,32 @@
 
 @if ($tabs === [])
     {{ $slot }}
+@elseif (! $expanded)
+    <div class="document-holder space-y-2">
+        @foreach ($tabs as $tab)
+            @php
+                $url = (string) $tab['url'];
+                $kind = $tab['kind'] ?? (str_contains(strtolower($url), '.pdf') ? 'pdf' : 'image');
+            @endphp
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-3 flex items-center gap-3">
+                <x-admin.document-preview :url="$url" :label="$tab['label'] ?? 'Document'" variant="thumbnail" :type="$kind" />
+                <div class="min-w-0 flex-1">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">{{ $tab['eyebrow'] ?? $tab['label'] ?? 'Document' }}</p>
+                    <p class="text-sm font-bold text-gray-900 mt-0.5 truncate">{{ $tab['reference'] ?? $tab['label'] ?? 'Document' }}</p>
+                    @if (! empty($tab['caption']))
+                        <p class="text-xs text-gray-500 mt-0.5 truncate">{{ $tab['caption'] }}</p>
+                    @endif
+                    @if (! empty($tab['owner']) || ! empty($tab['uploaded_at']))
+                        <p class="text-xs text-gray-500 mt-0.5 truncate">
+                            @if (! empty($tab['owner'])){{ $tab['owner'] }}@endif
+                            @if (! empty($tab['uploaded_at'])){{ ! empty($tab['owner']) ? ' · ' : '' }}Uploaded {{ $tab['uploaded_at'] }}@endif
+                        </p>
+                    @endif
+                </div>
+                <x-admin.document-preview :url="$url" label="View document" :type="$kind" />
+            </div>
+        @endforeach
+    </div>
 @else
     <div class="document-holder rounded-2xl bg-white ring-1 ring-brand/10 overflow-hidden"
          x-data="{

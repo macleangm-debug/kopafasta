@@ -1261,6 +1261,7 @@ class SettingsController extends Controller
             'values' => $values,
             'driver' => config('crb.driver'),
             'usesStub' => app(\App\Services\CrbService::class)->usesStub(),
+            'ops' => app(\App\Services\CrbService::class)->operationalStatus(),
             'sampleNida' => $sample['nida'] ?? '19810713-00001-23456-78',
             'sampleLabel' => $sample['label'] ?? 'Single hit (verified)',
         ];

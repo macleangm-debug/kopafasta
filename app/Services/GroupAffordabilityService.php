@@ -45,7 +45,7 @@ class GroupAffordabilityService
                 'is_group' => false,
                 'verdict' => $single['verdict'],
                 'pass' => (bool) $single['pass'],
-                'repayment_ratio_pct' => (float) ($single['repayment_ratio_pct'] ?? 33.33),
+                'repayment_ratio_pct' => (float) ($single['repayment_ratio_pct'] ?? app(AffordabilityPolicyService::class)->repaymentRatioPct()),
                 'total_requested' => (float) ($application->requested_amount ?? 0),
                 'total_installment' => (float) ($single['proposed_installment'] ?? 0),
                 'total_capacity' => (float) ($single['available_capacity'] ?? 0),
@@ -170,7 +170,7 @@ class GroupAffordabilityService
 
         $reason = match ($groupVerdict) {
             'fail' => $failed !== []
-                ? 'One or more group members cannot cover their share from activity/income (max '.round($ratio * 100, 2).'% rule).'
+                ? 'One or more group members cannot cover their share under the configured repayment-capacity policy ('.app(AffordabilityPolicyService::class)->formatRatioLabel(round($ratio * 100, 2)).').'
                 : 'Combined group capacity is below the total installment.',
             'warn' => 'One or more members are near the repayment capacity limit.',
             default => 'All group members are within available repayment capacity.',
@@ -180,7 +180,7 @@ class GroupAffordabilityService
             'is_group' => true,
             'verdict' => $groupVerdict,
             'pass' => $groupVerdict === 'pass',
-            'repayment_ratio_pct' => round($ratio * 100, 2),
+            'repayment_ratio_pct' => (float) ($groupEval['repayment_ratio_pct'] ?? app(AffordabilityPolicyService::class)->repaymentRatioPct()),
             'total_requested' => round($totalRequested ?: $amount, 2),
             'total_installment' => round($totalInstallment, 2),
             'total_capacity' => round($totalCapacity, 2),

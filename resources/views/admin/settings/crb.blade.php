@@ -4,18 +4,38 @@
 
     <div class="mb-6 grid md:grid-cols-3 gap-4">
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-xs uppercase tracking-widest text-gray-500">Configured driver</p>
-            <p class="mt-1 text-lg font-bold text-gray-900">{{ strtoupper($driver) }}</p>
+            <p class="text-xs uppercase tracking-widest text-gray-500">Configured provider</p>
+            <p class="mt-1 text-sm font-bold text-gray-900">{{ $ops['provider'] ?? 'Dun & Bradstreet Tanzania' }}</p>
+            <p class="mt-1 text-xs text-gray-500">Driver config: {{ strtoupper($ops['driver_config'] ?? $driver) }}</p>
         </div>
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-xs uppercase tracking-widest text-gray-500">Active mode</p>
-            <p class="mt-1 text-lg font-bold {{ $usesStub ? 'text-amber-700' : 'text-emerald-700' }}">
-                {{ $usesStub ? 'Sandbox / stub' : 'Live bureau' }}
+            <p class="text-xs uppercase tracking-widest text-gray-500">Mode</p>
+            <p class="mt-1 text-lg font-bold {{ ($ops['mode_short'] ?? '') === 'STUB' ? 'text-amber-700' : 'text-emerald-700' }}">
+                {{ $ops['mode'] ?? ($usesStub ? 'TEST / CRB STUB' : 'D&B LIVE') }}
             </p>
+            @if (! empty($ops['production_stub_blocked']))
+                <p class="mt-1 text-xs text-emerald-800">Production blocks stub underwriting evidence.</p>
+            @endif
         </div>
         <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
-            <p class="text-xs uppercase tracking-widest text-gray-500">Password</p>
-            <p class="mt-1 text-sm font-medium text-gray-900">{{ env('CRB_PASSWORD') ? 'Set in CRB_PASSWORD env' : 'Not configured' }}</p>
+            <p class="text-xs uppercase tracking-widest text-gray-500">Configuration</p>
+            <p class="mt-1 text-sm font-medium text-gray-900">Endpoint: {{ ! empty($ops['endpoint_configured']) ? 'Yes' : 'No' }}</p>
+            <p class="text-sm font-medium text-gray-900">Credentials: {{ ! empty($ops['credentials_configured']) ? 'Yes' : 'No' }}</p>
+            <p class="text-xs text-gray-500 mt-1">Password lives in CRB_PASSWORD env only.</p>
+        </div>
+    </div>
+
+    <div class="mb-6 grid md:grid-cols-2 gap-4">
+        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
+            <p class="text-xs uppercase tracking-widest text-gray-500">Last successful provider connection</p>
+            <p class="mt-1 text-sm font-semibold text-gray-900">{{ ! empty($ops['last_success_at']) ? format_app_datetime($ops['last_success_at'], 'd M Y g:i A') : '—' }}</p>
+        </div>
+        <div class="rounded-xl bg-white ring-1 ring-gray-200 p-4">
+            <p class="text-xs uppercase tracking-widest text-gray-500">Last error (sanitized)</p>
+            <p class="mt-1 text-sm font-semibold {{ ! empty($ops['last_error']) ? 'text-rose-800' : 'text-gray-900' }}">{{ $ops['last_error'] ?? '—' }}</p>
+            @if (! empty($ops['last_checked_at']))
+                <p class="text-xs text-gray-500 mt-1">Checked {{ format_app_datetime($ops['last_checked_at'], 'd M Y g:i A') }}</p>
+            @endif
         </div>
     </div>
 
@@ -23,6 +43,7 @@
         @csrf @method('PUT')
 
         <p class="text-sm text-gray-600">Configure how Kopafasta connects to the Tanzania Credit Bureau for NIDA identity verification and optional underwriting credit pulls. Store the SOAP password in <code class="text-[11px]">CRB_PASSWORD</code> — it is never saved in the database.</p>
+        <p class="text-sm text-amber-900 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">Stub / sandbox is for local and staging tests only. Production must use live D&amp;B; provider outage must not fall back to fixture data.</p>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2">

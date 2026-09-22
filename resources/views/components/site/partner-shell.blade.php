@@ -51,12 +51,21 @@
     $overflowNav = array_values(array_filter($nav, fn (array $item) => ! in_array($item['key'], $mobileNavKeys, true)));
 @endphp
 <!doctype html>
-<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">
+<html lang="{{ in_array($siteLocale, ['en', 'sw'], true) ? $siteLocale : 'sw' }}" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
+    <script>
+        (function () {
+            try {
+                if (typeof Notification !== 'undefined' && Notification.requestPermission) {
+                    Notification.requestPermission = function () { return Promise.resolve('denied'); };
+                }
+            } catch (e) {}
+        })();
+    </script>
     <title>{{ $pageTitle }}</title>
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">

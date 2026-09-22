@@ -15,7 +15,7 @@ class AffordabilityService
     ) {}
 
     /**
-     * Evaluate borrower affordability using the one-third income rule.
+     * Evaluate borrower affordability using the configured repayment-to-income policy.
      *
      * @return array{
      *   net_income: float,
@@ -29,6 +29,7 @@ class AffordabilityService
      *   threshold: float,
      *   repayment_ratio: float,
      *   repayment_ratio_pct: float,
+     *   affordability_policy: array<string, mixed>,
      *   verdict: 'pass'|'warn'|'fail',
      *   pass: bool,
      *   status_label: string,
@@ -76,7 +77,9 @@ class AffordabilityService
 
         $newEmi = $this->computeEmi($principal, $rate, $tenure);
 
-        $ratio = $this->countryCredit->repaymentRatio();
+        $policy = app(AffordabilityPolicyService::class)->snapshot();
+        $policy['income_basis'] = $resolved['income_basis'] ?? 'declared';
+        $ratio = (float) $policy['repayment_ratio'];
         $maxRepayment = round($netIncome * $ratio, 2);
         $availableCapacity = max(0.0, round($maxRepayment - $existing, 2));
 
@@ -118,7 +121,8 @@ class AffordabilityService
             'dsr'                     => $dsr,
             'threshold'               => $threshold,
             'repayment_ratio'         => $ratio,
-            'repayment_ratio_pct'     => round($ratio * 100, 2),
+            'repayment_ratio_pct'     => (float) $policy['repayment_ratio_pct'],
+            'affordability_policy'    => $policy,
             'verdict'                 => $verdict,
             'pass'                    => $verdict === 'pass',
             'status_label'            => $statusLabel,

@@ -173,11 +173,15 @@ XML;
         $name = htmlspecialchars(strtoupper(trim((string) $fullName)), ENT_XML1);
         $identifier = htmlspecialchars($identifierNumber, ENT_XML1);
         $mobileXml = htmlspecialchars(trim((string) $mobile), ENT_XML1);
-        $dob = htmlspecialchars((string) $dateOfBirth, ENT_XML1);
+        $dob = htmlspecialchars(trim((string) $dateOfBirth), ENT_XML1);
 
-        $surrogates = '';
+        // D&B Live Request schema names this block <SURROGATES> (see crb/Live Request Manual
+        // XML Templates/Consumer_search.xml). It is NOT a fabricated/synthetic identity.
+        // DATEOFBIRTH is included only when the participant has a real date_of_birth;
+        // we never invent a DOB to satisfy the schema.
+        $optionalCriteria = '';
         if ($dob !== '') {
-            $surrogates = <<<XML
+            $optionalCriteria = <<<XML
       <SURROGATES>
         <NATIONALITY>TZ</NATIONALITY>
         <DATEOFBIRTH>{$dob}</DATEOFBIRTH>
@@ -196,12 +200,37 @@ XML;
     <NAME>{$name}</NAME>
     <IDENTIFIER_NUMBER>{$identifier}</IDENTIFIER_NUMBER>
     <MOBILE>{$mobileXml}</MOBILE>
-    {$surrogates}
+    {$optionalCriteria}
     <ACCOUNTNUMBER></ACCOUNTNUMBER>
     <CUSTOMERID></CUSTOMERID>
   </SEARCH_PARAMETERS>
 </REQUEST>
 XML;
+    }
+
+    /**
+     * Inspect the live search criteria that would be sent — no network call.
+     * Used for UAT readiness / audits without chargeable requests.
+     *
+     * @return array{national_id: string, name: string, mobile: string, date_of_birth: string|null, nationality: string|null, includes_dob: bool, fabricated_dob: false}
+     */
+    public function describeSearchCriteria(
+        string $identifierNumber,
+        ?string $fullName = null,
+        ?string $dateOfBirth = null,
+        ?string $mobile = null,
+    ): array {
+        $dob = $this->formatDobForRequest($dateOfBirth);
+
+        return [
+            'national_id' => (string) (NidaNumber::forCrb($identifierNumber) ?? preg_replace('/\D/', '', $identifierNumber)),
+            'name' => strtoupper(trim((string) $fullName)),
+            'mobile' => trim((string) $mobile),
+            'date_of_birth' => $dob,
+            'nationality' => $dob ? 'TZ' : null,
+            'includes_dob' => filled($dob),
+            'fabricated_dob' => false,
+        ];
     }
 
     private function buildConsumerReviewXml(string $searchRequestId, string $entityKey): string

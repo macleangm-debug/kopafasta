@@ -698,17 +698,19 @@ class LoanApplicationController extends ResourceController
         ]);
     }
 
-    public function saveGuidedScreening(Request $request, LoanApplication $loan_application): RedirectResponse
+    public function saveGuidedScreening(Request $request, LoanApplication $loan_application): RedirectResponse|JsonResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
         $this->assertApplicationMutable($loan_application);
         $next = app(ScreeningNextActionService::class);
+        $json = $this->wantsChecklistJson($request);
 
         if ($request->filled('ack_gate')) {
             $next->markGateSeen($loan_application, (string) $request->input('ack_gate'));
 
-            return redirect()
-                ->route('admin.loan-applications.guided-screening', $loan_application);
+            return $json
+                ? response()->json(['ok' => true])
+                : redirect()->route('admin.loan-applications.guided-screening', $loan_application);
         }
 
         if ($request->filled('continue_past')) {
@@ -740,6 +742,14 @@ class LoanApplicationController extends ResourceController
         $guarantorLinkId = $person === 'guarantor' ? (int) $request->input('g') : null;
         $memberId = $person === 'member' ? (int) $request->input('m') : null;
 
+        if ($person === 'guarantor' && $guarantorLinkId < 1) {
+            $message = 'Select a guarantor before saving their Gate 2 review.';
+
+            return $json
+                ? response()->json(['ok' => false, 'error' => $message], 422)
+                : back()->with('error', $message);
+        }
+
         try {
             app(ScreeningChecklistService::class)->save(
                 $loan_application,
@@ -750,13 +760,41 @@ class LoanApplicationController extends ResourceController
                 $memberId ?: null,
             );
         } catch (\InvalidArgumentException $e) {
-            return back()->with('error', $e->getMessage())->withInput();
+            return $json
+                ? response()->json(['ok' => false, 'error' => $e->getMessage()], 422)
+                : back()->with('error', $e->getMessage())->withInput();
         }
 
         app(ScreeningNextActionService::class)->markActivity($loan_application->fresh());
 
+        if ($json) {
+            return response()->json(['ok' => true, 'saved' => true]);
+        }
+
+        // After statement totals are keyed, stay on this check so the capacity verdict is visible.
+        $statementTotal = data_get($request->input('items', []), 'activity_income.income_evidence.statement_deposits_total');
+        $openItem = (string) $request->input('open_item', '');
+        if ($statementTotal !== null && $statementTotal !== ''
+            && ($openItem === '' || $openItem === \App\Services\StatementCapacityService::CHECKLIST_KEY)) {
+            return redirect()->route('admin.loan-applications.guided-screening', array_filter([
+                'loan_application' => $loan_application,
+                'at_item' => \App\Services\StatementCapacityService::CHECKLIST_KEY,
+                'at_person' => $person,
+                'at_m' => $memberId ?: null,
+                'at_g' => $guarantorLinkId ?: null,
+                'focus_person' => $person,
+                'focus_m' => $memberId ?: null,
+                'focus_g' => $guarantorLinkId ?: null,
+            ]));
+        }
+
         return redirect()
-            ->route('admin.loan-applications.guided-screening', $loan_application);
+            ->route('admin.loan-applications.guided-screening', array_filter([
+                'loan_application' => $loan_application,
+                'focus_person' => $person,
+                'focus_m' => $memberId ?: null,
+                'focus_g' => $guarantorLinkId ?: null,
+            ]));
     }
 
     public function returnClarificationToCommittee(LoanApplication $loan_application): RedirectResponse
