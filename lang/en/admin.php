@@ -18,6 +18,7 @@ return [
         'view_customer_profile'    => 'View customer profile',
         'profile_completion'       => 'Profile completion',
         'application_completion'   => 'Application completion',
+        'application_progress'     => 'Application progress',
         'uploaded_documents'       => 'Uploaded documents',
         'guarantor_status'         => 'Guarantor status',
         'current_step'             => 'Current step',

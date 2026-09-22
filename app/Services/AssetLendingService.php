@@ -235,4 +235,169 @@ class AssetLendingService
     {
         return $this->supplierType($vendor) === 'managed_loan';
     }
+
+    /**
+     * Deposit tiers keyed on asset purchase price (Settings SoT with config defaults).
+     *
+     * @return list<array{from: float, to: ?float, percent: float, active: bool}>
+     */
+    public function depositTiers(): array
+    {
+        $raw = $this->settings()['deposit_tiers'] ?? config('asset_lending.deposit_tiers', []);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        return $this->normalizeTierRows(is_array($raw) ? $raw : [], 'deposit');
+    }
+
+    /**
+     * Financing tiers keyed on financed balance after deposit.
+     *
+     * @return list<array{from: float, to: ?float, monthly_rate_percent: float, method: string, max_tenure_months: int, active: bool}>
+     */
+    public function financingTiers(): array
+    {
+        $raw = $this->settings()['financing_tiers'] ?? config('asset_lending.financing_tiers', []);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        return $this->normalizeTierRows(is_array($raw) ? $raw : [], 'financing');
+    }
+
+    /**
+     * Full Asset Lending pricing quote from asset price (Settings tiers).
+     * Snapshots selected tiers so later Settings edits do not rewrite history.
+     *
+     * @return array<string, mixed>
+     */
+    public function pricingQuoteFromAssetPrice(float $assetPrice, ?int $tenureMonths = null): array
+    {
+        $assetPrice = round(max(0, $assetPrice), 2);
+        $depositTier = $this->matchTier($this->depositTiers(), $assetPrice);
+        $depositPercent = (float) ($depositTier['percent'] ?? 0);
+        $depositAmount = round($assetPrice * ($depositPercent / 100), 2);
+        $financed = round(max(0, $assetPrice - $depositAmount), 2);
+        $financingTier = $this->matchTier($this->financingTiers(), $financed);
+        $monthlyRatePercent = (float) ($financingTier['monthly_rate_percent'] ?? 0);
+        $method = (string) ($financingTier['method'] ?? 'reducing_balance');
+        $maxTenure = (int) ($financingTier['max_tenure_months'] ?? 6);
+        $tenure = $tenureMonths !== null ? max(1, min($maxTenure, $tenureMonths)) : $maxTenure;
+        $monthlyRate = max(0, $monthlyRatePercent / 100);
+        $schedule = $this->reducingBalanceSchedule($financed, $monthlyRate, $tenure);
+        $installment = (float) ($schedule[0]['total_due'] ?? 0);
+        $totalPayable = round($depositAmount + array_sum(array_column($schedule, 'total_due')), 2);
+
+        return [
+            'asset_price' => $assetPrice,
+            'deposit_percent' => $depositPercent,
+            'deposit_amount' => $depositAmount,
+            'financed_amount' => $financed,
+            'monthly_rate_percent' => $monthlyRatePercent,
+            'rate_method' => $method,
+            'tenure_months' => $tenure,
+            'max_tenure_months' => $maxTenure,
+            'repayment_frequency' => 'monthly',
+            'installment' => round($installment, 2),
+            'total_interest' => round(array_sum(array_column($schedule, 'interest')), 2),
+            'total_payable' => $totalPayable,
+            'schedule' => $schedule,
+            'deposit_tier_snapshot' => $depositTier,
+            'financing_tier_snapshot' => $financingTier,
+            'pricing_policy' => 'asset_lending_settings_tiers',
+            'snapshotted_at' => now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $tiers
+     * @return array<string, mixed>|null
+     */
+    public function matchTier(array $tiers, float $amount): ?array
+    {
+        foreach ($tiers as $tier) {
+            if (! ($tier['active'] ?? true)) {
+                continue;
+            }
+            $from = (float) ($tier['from'] ?? 0);
+            $to = $tier['to'];
+            if ($amount + 0.00001 < $from) {
+                continue;
+            }
+            if ($to === null || $to === '' || $amount <= (float) $to + 0.00001) {
+                return $tier;
+            }
+        }
+
+        return $tiers[array_key_last($tiers)] ?? null;
+    }
+
+    /**
+     * @return list<array{installment_no: int, principal: float, interest: float, total_due: float, balance: float}>
+     */
+    public function reducingBalanceSchedule(float $principal, float $monthlyRate, int $tenureMonths): array
+    {
+        $principal = round(max(0, $principal), 2);
+        $tenureMonths = max(1, $tenureMonths);
+        if ($principal <= 0) {
+            return [];
+        }
+
+        // Equal principal + interest on reducing balance (simple reducing schedule).
+        $principalPart = round($principal / $tenureMonths, 2);
+        $balance = $principal;
+        $rows = [];
+        for ($i = 1; $i <= $tenureMonths; $i++) {
+            $interest = round($balance * $monthlyRate, 2);
+            $prin = ($i === $tenureMonths) ? round($balance, 2) : $principalPart;
+            $total = round($prin + $interest, 2);
+            $balance = round(max(0, $balance - $prin), 2);
+            $rows[] = [
+                'installment_no' => $i,
+                'principal' => $prin,
+                'interest' => $interest,
+                'total_due' => $total,
+                'balance' => $balance,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeTierRows(array $rows, string $kind): array
+    {
+        $out = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $from = (float) ($row['from'] ?? 0);
+            $toRaw = $row['to'] ?? null;
+            $to = ($toRaw === null || $toRaw === '' || $toRaw === 'null') ? null : (float) $toRaw;
+            $base = [
+                'from' => $from,
+                'to' => $to,
+                'active' => filter_var($row['active'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            ];
+            if ($kind === 'deposit') {
+                $base['percent'] = (float) ($row['percent'] ?? 0);
+            } else {
+                $base['monthly_rate_percent'] = (float) ($row['monthly_rate_percent'] ?? $row['percent'] ?? 0);
+                $base['method'] = (string) ($row['method'] ?? 'reducing_balance');
+                $base['max_tenure_months'] = (int) ($row['max_tenure_months'] ?? 6);
+            }
+            $out[] = $base;
+        }
+
+        usort($out, fn ($a, $b) => $a['from'] <=> $b['from']);
+
+        return $out;
+    }
 }

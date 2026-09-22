@@ -1729,7 +1729,45 @@ class SettingsController extends Controller
             'vehicle_max_age_years'          => ['required', 'integer', 'min:1', 'max:40'],
             'code_prefix'                    => ['required', 'string', 'max:10'],
             'default_country_code'           => ['required', 'string', 'size:2'],
+            'deposit_tiers'                  => ['nullable', 'array'],
+            'deposit_tiers.*.from'           => ['nullable', 'numeric', 'min:0'],
+            'deposit_tiers.*.to'             => ['nullable', 'numeric', 'min:0'],
+            'deposit_tiers.*.percent'        => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'deposit_tiers.*.active'         => ['nullable'],
+            'financing_tiers'                => ['nullable', 'array'],
+            'financing_tiers.*.from'         => ['nullable', 'numeric', 'min:0'],
+            'financing_tiers.*.to'           => ['nullable', 'numeric', 'min:0'],
+            'financing_tiers.*.monthly_rate_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'financing_tiers.*.max_tenure_months' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'financing_tiers.*.method'       => ['nullable', 'string', 'max:40'],
+            'financing_tiers.*.active'       => ['nullable'],
         ]);
+
+        $lending = app(\App\Services\AssetLendingService::class);
+        $depositTiers = $lending->depositTiers();
+        $financingTiers = $lending->financingTiers();
+        if (! empty($data['deposit_tiers'])) {
+            $depositTiers = collect($data['deposit_tiers'])->map(function ($row) {
+                return [
+                    'from' => (float) ($row['from'] ?? 0),
+                    'to' => ($row['to'] ?? '') === '' || $row['to'] === null ? null : (float) $row['to'],
+                    'percent' => (float) ($row['percent'] ?? 0),
+                    'active' => ! empty($row['active']),
+                ];
+            })->values()->all();
+        }
+        if (! empty($data['financing_tiers'])) {
+            $financingTiers = collect($data['financing_tiers'])->map(function ($row) {
+                return [
+                    'from' => (float) ($row['from'] ?? 0),
+                    'to' => ($row['to'] ?? '') === '' || $row['to'] === null ? null : (float) $row['to'],
+                    'monthly_rate_percent' => (float) ($row['monthly_rate_percent'] ?? 0),
+                    'method' => (string) ($row['method'] ?? 'reducing_balance'),
+                    'max_tenure_months' => (int) ($row['max_tenure_months'] ?? 6),
+                    'active' => ! empty($row['active']),
+                ];
+            })->values()->all();
+        }
 
         Setting::setMany([
             'asset_lending.markup_base'                    => $data['markup_base'],
@@ -1740,6 +1778,8 @@ class SettingsController extends Controller
             'asset_lending.default_monthly_rate_percent'   => $data['default_monthly_rate_percent'],
             'asset_lending.max_asset_photos'               => $data['max_asset_photos'],
             'asset_lending.vehicle_max_age_years'          => $data['vehicle_max_age_years'],
+            'asset_lending.deposit_tiers'                  => $depositTiers,
+            'asset_lending.financing_tiers'                => $financingTiers,
             'partners.code_prefix'                         => strtoupper($data['code_prefix']),
             'partners.default_country_code'                => strtoupper($data['default_country_code']),
         ]);

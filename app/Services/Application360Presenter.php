@@ -51,6 +51,13 @@ class Application360Presenter
         $next = $this->canonicalNext($application, $actor, $stage);
         $lifecycle = $this->lifecycle($application, $stage);
         $attention = $this->attentionSummaries($application, $documentRequests, $next);
+        $people = $this->people($application, $actor, $next);
+        $readiness = $this->readiness($application, $documentRequests, $next, $lifecycle);
+
+        $statusLabel = display_label($application->status, 'application_status');
+        if ($statusLabel === '' || $statusLabel === (string) $application->status) {
+            $statusLabel = str_replace('_', ' ', ucfirst((string) $application->status));
+        }
 
         return [
             'application_number' => $application->application_number,
@@ -59,19 +66,23 @@ class Application360Presenter
             'member_url' => $customer
                 ? route('admin.customers.show', $customer)
                 : null,
+            'is_group' => (bool) $application->loanGroup,
             'product_name' => $product?->name,
+            'product_code' => $product?->code,
             'amount' => $amount,
             'amount_label' => $amount > 0 ? format_money($amount) : '—',
             'stage' => $stage,
             'stage_label' => $this->workflow->stageLabel($stage),
             'status' => (string) $application->status,
-            'status_label' => display_label($application->status, 'application_status'),
+            'status_label' => $statusLabel,
             'gate_label' => $next['gate_label'] ?? null,
             'progress_percent' => $next['percent'] ?? null,
             'overall_status' => $this->overallStatus($next, $application),
             'next' => $next,
             'lifecycle' => $lifecycle,
             'attention' => $attention,
+            'people' => $people,
+            'readiness' => $readiness,
             'timeline' => $this->timeline($application, $stageHistory),
         ];
     }
@@ -98,15 +109,21 @@ class Application360Presenter
                 default => (string) ($row['review_href'] ?? $row['href'] ?? '#'),
             };
 
+            $waiting = is_array($row['waiting'] ?? null) ? $row['waiting'] : null;
+
             return [
                 'source' => 'screening',
                 'headline' => (string) ($row['what_happens_next'] ?? $row['cta'] ?? 'Continue Screening'),
+                'missing' => (string) ($row['what_happens_next'] ?? $row['cta'] ?? 'Continue Screening'),
+                'who' => (string) ($waiting['label'] ?? $row['participant'] ?? 'Staff'),
+                'deadline' => $waiting['deadline'] ?? $waiting['due'] ?? null,
                 'cta' => (string) ($row['cta'] ?? 'Continue Screening'),
                 'href' => $href,
                 'cta_kind' => $ctaKind,
                 'gate_label' => (string) ($row['current_gate_label'] ?? $row['gate_label'] ?? ''),
                 'percent' => $row['percent'] ?? null,
                 'bucket' => $row['bucket'] ?? null,
+                'subjects' => $row['subjects'] ?? [],
             ];
         }
 
@@ -116,12 +133,16 @@ class Application360Presenter
             return [
                 'source' => 'committee',
                 'headline' => (string) ($row['what_happens_next'] ?? $row['cta'] ?? 'Committee review'),
+                'missing' => (string) ($row['what_happens_next'] ?? $row['cta'] ?? 'Committee review'),
+                'who' => 'Credit committee',
+                'deadline' => null,
                 'cta' => (string) ($row['cta'] ?? 'Continue Committee Review'),
                 'href' => (string) ($row['review_href'] ?? $row['href'] ?? '#'),
                 'cta_kind' => ($row['bucket'] ?? '') === 'waiting' ? 'waiting' : 'continue',
                 'gate_label' => null,
                 'percent' => null,
                 'bucket' => $row['bucket'] ?? null,
+                'subjects' => [],
             ];
         }
 
@@ -130,12 +151,16 @@ class Application360Presenter
                 return [
                     'source' => 'servicing',
                     'headline' => 'Facility is live — manage from Credit management',
+                    'missing' => 'No outstanding origination blockers',
+                    'who' => 'Credit operations',
+                    'deadline' => null,
                     'cta' => 'View credit management',
                     'href' => route('admin.loan-applications.show', $application),
                     'cta_kind' => 'completed',
                     'gate_label' => null,
                     'percent' => 100,
                     'bucket' => 'completed',
+                    'subjects' => [],
                 ];
             }
 
@@ -145,6 +170,9 @@ class Application360Presenter
             return [
                 'source' => 'post_approval',
                 'headline' => (string) ($row['next_action'] ?? $row['cta'] ?? 'Continue Post-Approval'),
+                'missing' => (string) ($row['next_action'] ?? $row['cta'] ?? 'Continue Post-Approval'),
+                'who' => (string) ($row['waiting_on'] ?? $row['who'] ?? 'Staff'),
+                'deadline' => $row['deadline'] ?? null,
                 'cta' => (string) ($row['cta'] ?? 'Continue Post-Approval'),
                 'href' => (string) (
                     in_array($ctaKind, ['continue', 'start'], true)
@@ -155,6 +183,7 @@ class Application360Presenter
                 'gate_label' => null,
                 'percent' => $row['percent'] ?? null,
                 'bucket' => $row['bucket'] ?? null,
+                'subjects' => [],
             ];
         }
 
@@ -162,18 +191,25 @@ class Application360Presenter
             return [
                 'source' => 'closed',
                 'headline' => $application->closedReasonLabel() ?: 'File closed',
+                'missing' => $application->closedReasonLabel() ?: 'File closed',
+                'who' => '—',
+                'deadline' => null,
                 'cta' => 'View file',
                 'href' => route('admin.loan-applications.show', $application),
                 'cta_kind' => 'completed',
                 'gate_label' => null,
                 'percent' => null,
                 'bucket' => 'completed',
+                'subjects' => [],
             ];
         }
 
         return [
             'source' => 'file',
             'headline' => 'Open the credit file',
+            'missing' => 'Review the application file',
+            'who' => 'Staff',
+            'deadline' => null,
             'cta' => 'View Overview',
             'href' => route('admin.loan-applications.show', [
                 'loan_application' => $application,
@@ -183,6 +219,7 @@ class Application360Presenter
             'gate_label' => null,
             'percent' => null,
             'bucket' => null,
+            'subjects' => [],
         ];
     }
 
@@ -486,6 +523,258 @@ class Application360Presenter
             fn ($e) => ['at' => $e['at'], 'label' => $e['label']],
             array_slice($events, -12)
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $next
+     * @return list<array<string, mixed>>
+     */
+    private function people(LoanApplication $application, ?User $actor, array $next): array
+    {
+        $subjects = is_array($next['subjects'] ?? null) ? $next['subjects'] : [];
+        if ($subjects !== []) {
+            $cards = [];
+            foreach ($subjects as $subject) {
+                $customerId = $subject['customer_id'] ?? null;
+                $customer = $customerId
+                    ? \App\Models\Customer::query()->find($customerId)
+                    : null;
+                $issue = null;
+                if ((int) ($subject['failed'] ?? 0) > 0) {
+                    $issue = $subject['failed'].' finding(s) need attention';
+                } elseif (! ($subject['complete'] ?? false)) {
+                    $done = (int) ($subject['done'] ?? 0);
+                    $total = (int) ($subject['total'] ?? 0);
+                    $issue = $total > 0 ? "Screening {$done}/{$total}" : 'Screening in progress';
+                }
+                $gate3 = $subject['gate3']['label'] ?? ($subject['gate3']['chip'] ?? null);
+                $cards[] = [
+                    'name' => (string) ($subject['label'] ?? 'Participant'),
+                    'role' => (string) ($subject['role'] ?? ucfirst((string) ($subject['person'] ?? 'participant'))),
+                    'kyc' => $this->kycLabel($customer),
+                    'crb' => $gate3 ? (string) $gate3 : '—',
+                    'readiness' => ($subject['complete'] ?? false) ? 'Ready' : ($issue ?? 'In progress'),
+                    'issue' => ($subject['complete'] ?? false) ? null : $issue,
+                    'href' => $customer
+                        ? route('admin.customers.show', $customer)
+                        : ($subject['href'] ?? null),
+                    'tone' => ($subject['complete'] ?? false)
+                        ? 'complete'
+                        : (((int) ($subject['failed'] ?? 0) > 0) ? 'attention' : 'current'),
+                ];
+            }
+
+            return $cards;
+        }
+
+        $cards = [];
+        if ($application->loanGroup) {
+            $group = $application->loanGroup;
+            $cards[] = [
+                'name' => $group->name ?: ('Group #'.$group->id),
+                'role' => 'Group',
+                'kyc' => $group->members?->count().' members',
+                'crb' => '—',
+                'readiness' => 'Group facility',
+                'issue' => null,
+                'href' => route('admin.loan-applications.show', [
+                    'loan_application' => $application,
+                    'workspace' => 'profiles',
+                ]),
+                'tone' => 'current',
+            ];
+            foreach ($group->members ?? [] as $member) {
+                $customer = $member->customer;
+                if (! $customer) {
+                    continue;
+                }
+                $isLeader = (int) ($group->leader_id ?? 0) === (int) $member->id
+                    || (int) ($group->leader_customer_id ?? 0) === (int) $customer->id;
+                $cards[] = $this->customerCard(
+                    $customer,
+                    $isLeader ? 'Leader / borrower' : 'Group member',
+                );
+            }
+        } elseif ($application->customer) {
+            $cards[] = $this->customerCard($application->customer, 'Borrower');
+        }
+
+        foreach ($application->customerGuarantors ?? [] as $link) {
+            $customer = $link->customer ?? $link->guarantorCustomer ?? null;
+            if (! $customer && method_exists($link, 'guarantor')) {
+                $customer = $link->guarantor;
+            }
+            // Common relation shapes
+            if (! $customer) {
+                $customer = $link->relationLoaded('customer') ? $link->customer : null;
+            }
+            if (! $customer && isset($link->guarantor_customer_id)) {
+                $customer = \App\Models\Customer::query()->find($link->guarantor_customer_id);
+            }
+            if (! $customer && isset($link->customer_id) && $application->customer_id != $link->customer_id) {
+                $customer = \App\Models\Customer::query()->find($link->customer_id);
+            }
+            if (! $customer) {
+                $name = $link->invitation?->full_name
+                    ?? $link->name
+                    ?? 'Guarantor';
+                $cards[] = [
+                    'name' => (string) $name,
+                    'role' => 'Guarantor',
+                    'kyc' => display_label($link->status ?? $link->invitation?->status, 'guarantor_status') ?: 'Invited',
+                    'crb' => '—',
+                    'readiness' => 'Awaiting profile',
+                    'issue' => 'Guarantor profile incomplete',
+                    'href' => route('admin.loan-applications.show', [
+                        'loan_application' => $application,
+                        'workspace' => 'profiles',
+                    ]),
+                    'tone' => 'attention',
+                ];
+                continue;
+            }
+            $cards[] = $this->customerCard($customer, 'Guarantor');
+        }
+
+        return $cards;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function customerCard(\App\Models\Customer $customer, string $role): array
+    {
+        $face = display_label($customer->face_verification_status, 'face_verification_status')
+            ?: str_replace('_', ' ', (string) ($customer->face_verification_status ?: 'Not started'));
+        $nida = display_label($customer->nida_verification_status, 'nida_verification_status')
+            ?: str_replace('_', ' ', (string) ($customer->nida_verification_status ?: 'Not verified'));
+        $issue = null;
+        $tone = 'complete';
+        if (! in_array((string) $customer->face_verification_status, ['verified', 'skipped'], true)) {
+            $issue = 'Face verification: '.$face;
+            $tone = 'attention';
+        } elseif (! in_array((string) $customer->nida_verification_status, ['verified'], true)) {
+            $issue = 'National ID: '.$nida;
+            $tone = 'attention';
+        }
+
+        return [
+            'name' => trim($customer->full_name ?: ($customer->first_name.' '.$customer->last_name)) ?: 'Member',
+            'role' => $role,
+            'kyc' => $nida.' · '.$face,
+            'crb' => '—',
+            'readiness' => $issue ? 'Needs attention' : 'Ready',
+            'issue' => $issue,
+            'href' => route('admin.customers.show', $customer),
+            'tone' => $tone,
+        ];
+    }
+
+    private function kycLabel(?\App\Models\Customer $customer): string
+    {
+        if (! $customer) {
+            return '—';
+        }
+        $nida = display_label($customer->nida_verification_status, 'nida_verification_status') ?: 'NIDA';
+        $face = display_label($customer->face_verification_status, 'face_verification_status') ?: 'Face';
+
+        return $nida.' · '.$face;
+    }
+
+    /**
+     * @param  Collection<int, LoanApplicationDocumentRequest>|null  $documentRequests
+     * @param  array<string, mixed>  $next
+     * @param  list<array<string, mixed>>  $lifecycle
+     * @return list<array{key: string, label: string, state: string, detail: ?string, href: ?string}>
+     */
+    private function readiness(
+        LoanApplication $application,
+        ?Collection $documentRequests,
+        array $next,
+        array $lifecycle,
+    ): array {
+        $byKey = collect($lifecycle)->keyBy('key');
+        $openDocs = ($documentRequests ?? collect())
+            ->filter(fn ($req) => ! in_array((string) ($req->status ?? ''), ['satisfied', 'cancelled', 'closed'], true));
+
+        $collateralDetail = 'N/A';
+        $collateralState = 'na';
+        try {
+            $collateral = $this->collateralSecure->state($application);
+            if (is_array($collateral) && $this->collateralSecure->isOpen($application)) {
+                $collateralState = 'attention';
+                $collateralDetail = (string) ($collateral['status'] ?? 'Outstanding');
+            } elseif (is_array($collateral)) {
+                $collateralState = 'complete';
+                $collateralDetail = 'Complete';
+            }
+        } catch (\Throwable) {
+            // leave N/A
+        }
+
+        $feeStatus = (string) ($application->application_fee_status ?? '');
+        $feeState = match (true) {
+            $feeStatus === '' => 'na',
+            in_array($feeStatus, ['paid', 'waived', 'charged'], true) => 'complete',
+            default => 'attention',
+        };
+
+        $rows = [
+            [
+                'key' => 'application',
+                'label' => 'Application & affordability',
+                'state' => $feeState === 'attention' ? 'attention' : ($byKey->get('application')['state'] ?? 'upcoming'),
+                'detail' => $feeState === 'attention'
+                    ? 'Application fee outstanding'
+                    : ($feeState === 'complete' ? 'Fee settled' : null),
+                'href' => $byKey->get('application')['href'] ?? null,
+            ],
+            [
+                'key' => 'screening',
+                'label' => 'Screening & CRB',
+                'state' => $byKey->get('screening')['state'] ?? 'upcoming',
+                'detail' => $next['gate_label'] ?? null,
+                'href' => $byKey->get('screening')['href'] ?? null,
+            ],
+            [
+                'key' => 'documents',
+                'label' => 'Documents',
+                'state' => $openDocs->isNotEmpty() ? 'attention' : 'complete',
+                'detail' => $openDocs->isNotEmpty()
+                    ? ($openDocs->count().' outstanding')
+                    : 'Complete',
+                'href' => route('admin.loan-applications.show', [
+                    'loan_application' => $application,
+                    'workspace' => 'checklist',
+                ]),
+            ],
+            [
+                'key' => 'collateral',
+                'label' => 'Collateral / security',
+                'state' => $collateralState,
+                'detail' => $collateralDetail,
+                'href' => $collateralState === 'na' ? null : route('admin.loan-applications.show', [
+                    'loan_application' => $application,
+                    'workspace' => 'profiles',
+                ]),
+            ],
+        ];
+
+        foreach (['decision', 'committee', 'offer', 'post_approval', 'contract', 'disbursement'] as $key) {
+            $step = $byKey->get($key);
+            $rows[] = [
+                'key' => $key,
+                'label' => match ($key) {
+                    'post_approval' => 'Post-Approval',
+                    default => ucfirst(str_replace('_', '-', $key)),
+                },
+                'state' => $step['state'] ?? 'upcoming',
+                'detail' => null,
+                'href' => $step['href'] ?? null,
+            ];
+        }
+
+        return $rows;
     }
 
     /**

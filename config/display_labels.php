@@ -162,12 +162,14 @@ return [
         ],
 
         'face_verification_status' => [
-            'none'     => 'Not started',
-            'pending'  => 'Pending review',
-            'verified' => 'Verified',
-            'rejected' => 'Rejected',
-            'failed'   => 'Failed',
-            'skipped'  => 'Skipped',
+            'none'               => 'Not started',
+            'pending'            => 'Pending review',
+            'verified'           => 'Verified',
+            'rejected'           => 'Rejected',
+            'failed'             => 'Failed',
+            'skipped'            => 'Skipped',
+            'incomplete'         => 'Incomplete',
+            'revision_required'  => 'Revision required',
         ],
 
         'nida_verification_status' => [

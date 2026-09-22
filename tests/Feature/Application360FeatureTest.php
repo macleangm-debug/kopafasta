@@ -23,18 +23,23 @@ class Application360FeatureTest extends TestCase
             ->assertOk()
             ->assertSee('id="application-360"', false)
             ->assertSee('Needs Attention / Next Action', false)
-            ->assertSee('Lifecycle', false)
+            ->assertSee('People', false)
+            ->assertSee('Journey / readiness', false)
             ->assertSee('Open Member 360', false)
             ->getContent();
 
         $this->assertStringContainsString($app->application_number, $html);
         $this->assertStringContainsString('Application 360', $html);
+        $this->assertStringContainsString('What is missing?', $html);
 
         $panel = app(Application360Presenter::class)->forApplication($app, $admin);
         $this->assertNotSame('', (string) ($panel['next']['cta'] ?? ''));
         $this->assertNotSame('', (string) ($panel['next']['href'] ?? ''));
         $this->assertNotEmpty($panel['lifecycle']);
+        $this->assertNotEmpty($panel['people']);
+        $this->assertNotEmpty($panel['readiness']);
         $this->assertSame('screening', $panel['next']['source'] ?? null);
+        $this->assertSame('Borrower', $panel['people'][0]['role'] ?? null);
     }
 
     public function test_application_360_keeps_member_link_separate_from_credit_file(): void

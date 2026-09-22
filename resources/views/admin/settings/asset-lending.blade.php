@@ -7,6 +7,7 @@
         class="mb-8"
         :tabs="[
             'markup' => 'Markup',
+            'pricing' => 'Pricing tiers',
             'codes' => 'Partner codes',
         ]"
     >
@@ -44,6 +45,87 @@
                                    :value="$values['vehicle_max_age_years'] ?? config('asset_lending.vehicle_max_age_years', 10)" required />
                 </div>
                 <p class="text-xs text-gray-500">Deposit deadline is the working-day window after approval for the borrower to pay the asset deposit (before post-approval fees). Insurance for marketplace assets uses the full listed asset value. Vehicle max age limits the year-of-manufacture dropdown on borrower collateral (e.g. 10 → from {{ now()->year - 10 }} to {{ now()->year }}).</p>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="pricing">
+            @php
+                $lending = app(\App\Services\AssetLendingService::class);
+                $depositTiers = old('deposit_tiers', $lending->depositTiers());
+                $financingTiers = old('financing_tiers', $lending->financingTiers());
+            @endphp
+            <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-8">
+                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-xs text-amber-950">
+                    <p class="font-bold">Configured Asset Lending pricing policy</p>
+                    <p class="mt-1">These tiers are editable commercial configuration (proposal defaults). Deposit tiers use <strong>asset purchase price</strong>; financing tiers use <strong>financed balance after deposit</strong>. Quotes snapshot the selected tiers so later edits do not rewrite existing facilities.</p>
+                </div>
+
+                <div>
+                    <p class="text-sm font-semibold text-gray-900">Deposit tiers (by asset price)</p>
+                    <p class="text-xs text-gray-500 mt-1 mb-3">Leave “To” blank for an open-ended top band.</p>
+                    <div class="space-y-2" id="deposit-tier-rows">
+                        @foreach ($depositTiers as $i => $row)
+                            <div class="grid grid-cols-12 gap-2 items-end">
+                                <div class="col-span-3">
+                                    <label class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">From</label>
+                                    <input type="number" name="deposit_tiers[{{ $i }}][from]" value="{{ $row['from'] ?? 0 }}" class="mt-1 w-full rounded-lg border-gray-200 text-sm" min="0" step="1">
+                                </div>
+                                <div class="col-span-3">
+                                    <label class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">To</label>
+                                    <input type="number" name="deposit_tiers[{{ $i }}][to]" value="{{ $row['to'] ?? '' }}" class="mt-1 w-full rounded-lg border-gray-200 text-sm" min="0" step="1" placeholder="Open">
+                                </div>
+                                <div class="col-span-3">
+                                    <label class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Deposit %</label>
+                                    <input type="number" name="deposit_tiers[{{ $i }}][percent]" value="{{ $row['percent'] ?? 0 }}" class="mt-1 w-full rounded-lg border-gray-200 text-sm" min="0" max="100" step="0.01">
+                                </div>
+                                <div class="col-span-3 pb-2">
+                                    <label class="inline-flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                        <input type="checkbox" name="deposit_tiers[{{ $i }}][active]" value="1" @checked($row['active'] ?? true)>
+                                        Active
+                                    </label>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-sm font-semibold text-gray-900">Financing tiers (by financed amount)</p>
+                    <p class="text-xs text-gray-500 mt-1 mb-3">Monthly reducing-balance rate and maximum tenure.</p>
+                    <div class="space-y-2">
+                        @foreach ($financingTiers as $i => $row)
+                            <div class="grid grid-cols-12 gap-2 items-end">
+                                <div class="col-span-2">
+                                    <label class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">From</label>
+                                    <input type="number" name="financing_tiers[{{ $i }}][from]" value="{{ $row['from'] ?? 0 }}" class="mt-1 w-full rounded-lg border-gray-200 text-sm" min="0" step="1">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">To</label>
+                                    <input type="number" name="financing_tiers[{{ $i }}][to]" value="{{ $row['to'] ?? '' }}" class="mt-1 w-full rounded-lg border-gray-200 text-sm" min="0" step="1" placeholder="Open">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Monthly %</label>
+                                    <input type="number" name="financing_tiers[{{ $i }}][monthly_rate_percent]" value="{{ $row['monthly_rate_percent'] ?? 0 }}" class="mt-1 w-full rounded-lg border-gray-200 text-sm" min="0" max="100" step="0.01">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Max months</label>
+                                    <input type="number" name="financing_tiers[{{ $i }}][max_tenure_months]" value="{{ $row['max_tenure_months'] ?? 6 }}" class="mt-1 w-full rounded-lg border-gray-200 text-sm" min="1" max="60">
+                                </div>
+                                <div class="col-span-2">
+                                    <input type="hidden" name="financing_tiers[{{ $i }}][method]" value="reducing_balance">
+                                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Method</p>
+                                    <p class="text-xs font-semibold text-gray-800 mt-2">Reducing balance</p>
+                                </div>
+                                <div class="col-span-2 pb-2">
+                                    <label class="inline-flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                        <input type="checkbox" name="financing_tiers[{{ $i }}][active]" value="1" @checked($row['active'] ?? true)>
+                                        Active
+                                    </label>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
             </div>
         </x-admin.settings-panel>
 
