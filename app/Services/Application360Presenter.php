@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDocumentRequest;
+use App\Models\LoanApplicationDraft;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -84,6 +85,185 @@ class Application360Presenter
             'people' => $people,
             'readiness' => $readiness,
             'timeline' => $this->timeline($application, $stageHistory),
+        ];
+    }
+
+    /**
+     * Application 360 for incomplete drafts — same hierarchy as submitted files.
+     * Uses LoanApplicationDraftService snapshot; no second workflow engine.
+     *
+     * @param  array<string, mixed>|null  $snapshot
+     * @param  array{label?: string, tone?: string}|null  $badge
+     * @return array<string, mixed>
+     */
+    public function forDraft(
+        LoanApplicationDraft $draft,
+        ?array $snapshot = null,
+        ?array $badge = null,
+    ): array {
+        $drafts = app(LoanApplicationDraftService::class);
+        $draft->loadMissing(['customer', 'product']);
+        $snapshot ??= $drafts->adminSnapshot($draft);
+        $badge ??= $drafts->statusBadge($draft);
+        $customer = $draft->customer;
+        $product = $draft->product;
+        $amount = $drafts->requestedAmount($draft) ?? 0.0;
+        $percent = (int) ($snapshot['application_completion_percent'] ?? 0);
+        $identityPending = ! empty($snapshot['identity_verification']['pending']);
+        $profileComplete = ! empty($snapshot['profile_information']['complete']);
+        $guarantorStatus = (string) ($snapshot['guarantor']['status'] ?? $snapshot['guarantor_status'] ?? '');
+        $waitingOnGuarantor = str_contains(strtolower($guarantorStatus), 'pending')
+            || str_contains(strtolower($guarantorStatus), 'await')
+            || str_contains(strtolower($guarantorStatus), 'not started');
+
+        $missing = (string) ($snapshot['current_step'] ?? $drafts->progressLabel($draft));
+        $who = 'Borrower';
+        if ($identityPending) {
+            $missing = 'Identity verification incomplete — Face / NIDA still pending';
+        } elseif ($waitingOnGuarantor && ! in_array(strtolower($guarantorStatus), ['not required', 'approved', ''], true)) {
+            $missing = 'Waiting for guarantor — '.$guarantorStatus;
+            $who = 'Guarantor';
+        } elseif (! $profileComplete) {
+            $missing = 'Profile information still incomplete';
+        }
+
+        $href = $customer
+            ? route('admin.customers.show', $customer)
+            : route('admin.loan-applications.incomplete');
+
+        $people = [];
+        if ($customer) {
+            $people[] = $this->customerCard($customer, 'Borrower');
+        }
+        $gName = $snapshot['guarantor']['name'] ?? null;
+        if (filled($gName) || ($guarantorStatus !== '' && strtolower($guarantorStatus) !== 'not required')) {
+            $people[] = [
+                'name' => (string) ($gName ?: 'Guarantor'),
+                'role' => 'Guarantor',
+                'kyc' => $guarantorStatus !== '' ? $guarantorStatus : 'Invited',
+                'crb' => '—',
+                'readiness' => $waitingOnGuarantor ? 'Needs attention' : 'Ready',
+                'issue' => $waitingOnGuarantor ? $guarantorStatus : null,
+                'href' => $customer ? route('admin.customers.show', $customer) : null,
+                'tone' => $waitingOnGuarantor ? 'attention' : 'complete',
+            ];
+        }
+
+        $lifecycle = [
+            ['key' => 'application', 'label' => 'Application', 'state' => 'attention', 'href' => route('admin.loan-applications.incomplete.show', $draft)],
+            ['key' => 'screening', 'label' => 'Screening', 'state' => 'upcoming', 'href' => null],
+            ['key' => 'decision', 'label' => 'Decision', 'state' => 'upcoming', 'href' => null],
+            ['key' => 'committee', 'label' => 'Committee', 'state' => 'upcoming', 'href' => null],
+            ['key' => 'offer', 'label' => 'Offer', 'state' => 'upcoming', 'href' => null],
+            ['key' => 'post_approval', 'label' => 'Post-Approval', 'state' => 'upcoming', 'href' => null],
+            ['key' => 'contract', 'label' => 'Contract', 'state' => 'upcoming', 'href' => null],
+            ['key' => 'disbursement', 'label' => 'Disbursement', 'state' => 'upcoming', 'href' => null],
+        ];
+
+        $readiness = [
+            [
+                'key' => 'application',
+                'label' => 'Application & affordability',
+                'state' => 'attention',
+                'detail' => $missing,
+                'href' => null,
+            ],
+            [
+                'key' => 'identity',
+                'label' => 'Identity / KYC',
+                'state' => $identityPending ? 'attention' : 'complete',
+                'detail' => $identityPending ? 'Pending verification' : 'Complete',
+                'href' => $customer ? route('admin.customers.show', ['customer' => $customer, 'tab' => 'about']) : null,
+            ],
+            [
+                'key' => 'documents',
+                'label' => 'Documents',
+                'state' => empty($snapshot['uploaded_documents'] ?? []) ? 'attention' : 'current',
+                'detail' => empty($snapshot['uploaded_documents'] ?? [])
+                    ? 'None uploaded yet'
+                    : count($snapshot['uploaded_documents']).' on file',
+                'href' => null,
+            ],
+            [
+                'key' => 'screening',
+                'label' => 'Screening & CRB',
+                'state' => 'upcoming',
+                'detail' => 'Starts after submission',
+                'href' => null,
+            ],
+        ];
+        foreach (['decision', 'committee', 'offer', 'post_approval', 'contract', 'disbursement'] as $key) {
+            $readiness[] = [
+                'key' => $key,
+                'label' => match ($key) {
+                    'post_approval' => 'Post-Approval',
+                    default => ucfirst(str_replace('_', '-', $key)),
+                },
+                'state' => 'upcoming',
+                'detail' => null,
+                'href' => null,
+            ];
+        }
+
+        $ref = trim((string) ($draft->draft_reference ?? ''));
+        $appNumber = $ref !== '' ? $ref : ('Draft #'.$draft->id);
+        $timeline = [];
+        if ($draft->created_at) {
+            $timeline[] = ['at' => $draft->created_at->format('d M Y H:i'), 'label' => 'Draft started'];
+        }
+        $last = $snapshot['last_activity'] ?? $draft->saved_at ?? $draft->updated_at;
+        if ($last) {
+            $timeline[] = [
+                'at' => \Illuminate\Support\Carbon::parse($last)->format('d M Y H:i'),
+                'label' => 'Last borrower activity',
+            ];
+        }
+
+        $email = $customer?->email;
+        if (is_string($email) && str_contains($email, '@phone.kopafasta.local')) {
+            $email = null;
+        }
+
+        return [
+            'application_number' => $appNumber,
+            'member_name' => $customer?->full_name ?: trim(($customer?->first_name.' '.$customer?->last_name) ?: '—'),
+            'member_no' => $customer?->member_no,
+            'member_url' => $customer ? route('admin.customers.show', $customer) : null,
+            'member_phone' => $customer?->phone,
+            'member_email' => $email,
+            'is_group' => false,
+            'is_draft' => true,
+            'product_name' => $product?->name,
+            'product_code' => $product?->code,
+            'amount' => $amount,
+            'amount_label' => $amount > 0 ? format_money($amount) : '—',
+            'stage' => 'incomplete',
+            'stage_label' => 'Incomplete application',
+            'status' => 'incomplete',
+            'status_label' => (string) ($badge['label'] ?? 'In progress'),
+            'gate_label' => null,
+            'progress_percent' => $percent,
+            'overall_status' => 'Incomplete — not submitted',
+            'next' => [
+                'source' => 'draft',
+                'headline' => $missing,
+                'missing' => $missing,
+                'who' => $who,
+                'deadline' => null,
+                'cta' => 'Open Member 360',
+                'href' => $href,
+                'cta_kind' => $waitingOnGuarantor ? 'waiting' : 'continue',
+                'gate_label' => null,
+                'percent' => $percent,
+                'bucket' => 'do_now',
+                'subjects' => [],
+            ],
+            'lifecycle' => $lifecycle,
+            'attention' => [],
+            'people' => $people,
+            'readiness' => $readiness,
+            'timeline' => $timeline,
+            'draft_snapshot' => $snapshot,
         ];
     }
 

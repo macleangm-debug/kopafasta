@@ -1056,9 +1056,28 @@ class LoanApplicationDraftService
             }
         }
 
+        $nidaLabel = display_label($customer?->nida_verification_status, 'nida_verification_status')
+            ?: str_replace('_', ' ', (string) ($customer?->nida_verification_status ?: 'Not verified'));
+        $faceLabel = display_label($customer?->face_verification_status, 'face_verification_status')
+            ?: str_replace('_', ' ', (string) ($customer?->face_verification_status ?: 'Not started'));
+        $identityVerified = in_array((string) $customer?->nida_verification_status, ['verified'], true)
+            && in_array((string) $customer?->face_verification_status, ['verified', 'skipped'], true);
+        $identityPending = ! $identityVerified;
+
+        $journeySteps = $wizardSteps->values()->map(function (array $step, int $index) use ($currentIndex) {
+            return [
+                'key' => $step['key'] ?? ('step_'.$index),
+                'label' => $step['label'] ?? ('Step '.($index + 1)),
+                'complete' => $index < $currentIndex,
+                'current' => $index === $currentIndex,
+                'waiting' => null,
+            ];
+        })->all();
+
         return [
             'profile_completion_percent' => (int) ($profileCompletion['percent'] ?? 0),
             'application_completion_percent' => $applicationPercent,
+            'application_steps_total' => $wizardSteps->count(),
             'uploaded_documents' => $uploadedDocuments,
             'asset_photos' => $assetMedia['asset_photos'],
             'insurance_documents' => $assetMedia['insurance_documents'],
@@ -1066,17 +1085,30 @@ class LoanApplicationDraftService
             'guarantor_status' => $guarantorStatus,
             'current_step' => $this->progressLabel($draft),
             'last_activity' => $draft->saved_at ?? $draft->updated_at,
+            'journey_steps' => $journeySteps,
+            'profile_information' => [
+                'complete' => (int) ($profileCompletion['percent'] ?? 0) >= 100,
+                'percent' => (int) ($profileCompletion['percent'] ?? 0),
+            ],
+            'identity_verification' => [
+                'pending' => $identityPending,
+                'verified' => $identityVerified,
+                'nida' => $nidaLabel,
+                'face' => $faceLabel,
+            ],
             'personal' => [
                 'complete' => (bool) ($profileSections['personal']['complete'] ?? false),
                 'name' => $customer?->full_name,
                 'phone' => $customer?->phone,
-                'email' => $customer?->email,
+                'email' => (is_string($customer?->email) && str_contains($customer->email, '@phone.kopafasta.local'))
+                    ? null
+                    : $customer?->email,
                 'nida' => $customer?->national_id,
             ],
             'kyc' => [
                 'complete' => (bool) ($profileSections['face']['complete'] ?? false),
-                'nida' => $customer?->nida_verification_status,
-                'face' => $customer?->face_verification_status,
+                'nida' => $nidaLabel,
+                'face' => $faceLabel,
             ],
             'employment' => [
                 'complete' => (bool) ($profileSections['activity']['complete'] ?? false),

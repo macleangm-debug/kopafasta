@@ -51,6 +51,67 @@ class Application360FeatureTest extends TestCase
         $this->assertStringContainsString('guided-screening', (string) ($panel['next']['href'] ?? ''));
     }
 
+    public function test_incomplete_draft_show_renders_application_360_hierarchy(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $borrower = User::factory()->create(['role' => 'borrower']);
+        $customer = Customer::create([
+            'user_id' => $borrower->id,
+            'customer_number' => 'CU-DR-'.random_int(100, 999),
+            'member_no' => 'M-DR-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Gaspari',
+            'last_name' => 'Shiliba',
+            'phone' => '25571'.random_int(1000000, 9999999),
+            'national_id' => '19900101-12107-00001-21',
+            'date_of_birth' => '1990-01-01',
+            'nida_verification_status' => 'unverified',
+            'face_verification_status' => 'revision_required',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+        $product = LoanProduct::query()->where('code', 'IL')->first()
+            ?? LoanProduct::create([
+                'code' => 'IL',
+                'name' => 'Individual Loan',
+                'category' => 'individual',
+                'interest_rate' => 0.18,
+                'min_amount' => 500_000,
+                'max_amount' => 10_000_000,
+                'tenure_min_months' => 3,
+                'tenure_max_months' => 24,
+                'is_active' => true,
+                'status' => 'active',
+            ]);
+        $draft = \App\Models\LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 2,
+            'draft_reference' => 'APP-IL-TEST'.random_int(100, 999),
+            'payload' => ['form' => ['requested_amount' => 2_000_000]],
+            'saved_at' => now(),
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.incomplete.show', $draft))
+            ->assertOk()
+            ->assertSee('id="application-360"', false)
+            ->assertSee('Needs Attention / Next Action', false)
+            ->assertSee('People', false)
+            ->assertSee('Borrower', false)
+            ->assertSee('Journey / readiness', false)
+            ->assertSee('Current incomplete details', false)
+            ->getContent();
+
+        $this->assertStringContainsString('What is missing?', $html);
+        $panel = app(Application360Presenter::class)->forDraft($draft);
+        $this->assertTrue((bool) ($panel['is_draft'] ?? false));
+        $this->assertNotEmpty($panel['people']);
+        $this->assertSame('Borrower', $panel['people'][0]['role'] ?? null);
+    }
+
     /** @return array{0: User, 1: LoanApplication} */
     private function screeningFile(): array
     {
