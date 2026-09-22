@@ -25,6 +25,18 @@ class PartnerSettlementService
             throw new \InvalidArgumentException('Settlement amount must be positive.');
         }
 
+        // One wallet line per source event — never double-accrue on retry.
+        if ($sourceId !== null) {
+            $existing = VendorPayment::query()
+                ->where('vendor_id', $vendor->id)
+                ->where('source_type', $sourceType)
+                ->where('source_id', $sourceId)
+                ->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         $payment = VendorPayment::create([
             'vendor_id'       => $vendor->id,
             'vendor_task_id'  => $vendorTaskId,
