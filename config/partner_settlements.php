@@ -7,5 +7,6 @@ return [
         'supplier_deposit',
         'managed_loan_repayment',
         'valuation_fee',
+        'affiliate_commission',
     ],
 ];

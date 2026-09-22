@@ -570,20 +570,47 @@ class AffiliateService
         }
 
         return DB::transaction(function () use ($quote, $customer, $feeType, $refType, $refId): AffiliateEvent {
+            $eventType = 'commission_'.$feeType;
+            $applicationId = ($refType === 'loan_application' && $refId) ? $refId : null;
+
+            $existingQuery = AffiliateEvent::query()
+                ->where('vendor_id', $quote['affiliate']->id)
+                ->where('customer_id', $customer->id)
+                ->where('event_type', $eventType);
+
+            if ($applicationId) {
+                $existingQuery->where('loan_application_id', $applicationId);
+            }
+
+            $existing = $existingQuery->lockForUpdate()->first();
+            if ($existing) {
+                return $existing;
+            }
+
             $event = AffiliateEvent::create([
                 'vendor_id'           => $quote['affiliate']->id,
-                'event_type'          => 'commission_'.$feeType,
+                'event_type'          => $eventType,
                 'customer_id'         => $customer->id,
+                'loan_application_id' => $applicationId,
                 'commission_amount'   => $quote['commission'],
             ]);
 
-            app(PartnerSettlementService::class)->accrue(
-                $quote['affiliate'],
-                (int) round($quote['commission']),
-                'affiliate_commission',
-                $event->id,
-                'Affiliate commission on '.str_replace('_', ' ', $feeType),
-            );
+            $existingWallet = \App\Models\VendorPayment::query()
+                ->where('vendor_id', $quote['affiliate']->id)
+                ->where('source_type', 'affiliate_commission')
+                ->where('source_id', $event->id)
+                ->lockForUpdate()
+                ->exists();
+
+            if (! $existingWallet) {
+                app(PartnerSettlementService::class)->accrue(
+                    $quote['affiliate'],
+                    (int) round($quote['commission']),
+                    'affiliate_commission',
+                    $event->id,
+                    'Affiliate commission on '.str_replace('_', ' ', $feeType),
+                );
+            }
 
             app(NotificationService::class)->notifyPartnerOnce($quote['affiliate'], 'affiliate_commission_earned', [
                 'partner' => $quote['affiliate']->name,
