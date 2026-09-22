@@ -809,6 +809,21 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.capacity-auto-reject.fire');
         Route::post('loan-applications/{loan_application}/capacity-auto-reject/cancel', [LoanApplicationController::class, 'cancelCapacityAutoReject'])
             ->name('loan-applications.capacity-auto-reject.cancel');
+        Route::get('loan-applications/{loan_application}/rejection-letter/preview', [LoanApplicationController::class, 'previewRejectionLetter'])
+            ->middleware('permission:applications.review')
+            ->name('loan-applications.rejection-letter.preview');
+        Route::get('staging/capacity-auto-reject/scenario', [\App\Http\Controllers\Admin\StagingCapacityAutoRejectUatController::class, 'scenario'])
+            ->middleware('permission:applications.review')
+            ->name('staging.capacity-auto-reject.scenario');
+        Route::post('staging/capacity-auto-reject/{loan_application}/make-due', [\App\Http\Controllers\Admin\StagingCapacityAutoRejectUatController::class, 'makeDue'])
+            ->middleware('permission:applications.review')
+            ->name('staging.capacity-auto-reject.make-due');
+        Route::post('staging/capacity-auto-reject/{loan_application}/fire-due', [\App\Http\Controllers\Admin\StagingCapacityAutoRejectUatController::class, 'fireDue'])
+            ->middleware('permission:applications.review')
+            ->name('staging.capacity-auto-reject.fire-due');
+        Route::post('staging/capacity-auto-reject/{loan_application}/reset', [\App\Http\Controllers\Admin\StagingCapacityAutoRejectUatController::class, 'reset'])
+            ->middleware('permission:applications.review')
+            ->name('staging.capacity-auto-reject.reset');
         Route::post('loan-applications/{loan_application}/assign-analyst', [LoanApplicationController::class, 'assignAnalyst'])
             ->name('loan-applications.assign-analyst');
         Route::post('loan-applications/{loan_application}/documents/{document}/verify', [LoanApplicationController::class, 'verifyDocument'])
@@ -1281,6 +1296,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         Route::get('settings/signatories', [SignatoryController::class, 'index'])->name('settings.signatories.index');
         Route::get('settings/signatories/create', [SignatoryController::class, 'create'])->name('settings.signatories.create');
         Route::post('settings/signatories', [SignatoryController::class, 'store'])->name('settings.signatories.store');
+        Route::post('settings/signatories/stamp', [SignatoryController::class, 'replaceStamp'])->name('settings.signatories.stamp');
         Route::get('settings/signatories/{signatory}/edit', [SignatoryController::class, 'edit'])->name('settings.signatories.edit');
         Route::put('settings/signatories/{signatory}', [SignatoryController::class, 'update'])->name('settings.signatories.update');
         Route::delete('settings/signatories/{signatory}', [SignatoryController::class, 'destroy'])->name('settings.signatories.destroy');
@@ -1355,6 +1371,15 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
         $registerResource('departments', 'department', DepartmentController::class);
         $registerResource('roles', 'role', RoleController::class);
         $registerResource('approval-limits', 'approval_limit', ApprovalLimitController::class);
-        $registerResource('document-templates', 'document_template', DocumentTemplateController::class);
+
+        Route::get('document-templates', [DocumentTemplateController::class, 'index'])->name('document-templates.index');
+        Route::get('document-templates/preview/{type}', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');
+        Route::put('document-templates/offer-validity', [DocumentTemplateController::class, 'saveOfferValidity'])->name('document-templates.offer-validity');
+        Route::get('document-templates/create', [DocumentTemplateController::class, 'create'])->name('document-templates.create');
+        Route::post('document-templates', [DocumentTemplateController::class, 'store'])->name('document-templates.store');
+        Route::get('document-templates/{document_template}', [DocumentTemplateController::class, 'show'])->name('document-templates.show');
+        Route::get('document-templates/{document_template}/edit', [DocumentTemplateController::class, 'edit'])->name('document-templates.edit');
+        Route::put('document-templates/{document_template}', [DocumentTemplateController::class, 'update'])->name('document-templates.update');
+        Route::delete('document-templates/{document_template}', [DocumentTemplateController::class, 'destroy'])->name('document-templates.destroy');
     });
 });

@@ -84,7 +84,7 @@
         novalidate
         data-no-draft
         autocomplete="off"
-        @submit="if ($refs.activeTab) { $refs.activeTab.value = tab }"
+        @submit="if (typeof window.kfShowInlineSaving === 'function') { window.kfShowInlineSaving('Saving…') }; if ($refs.activeTab) { $refs.activeTab.value = tab }"
     >
         @csrf
         @method($method)

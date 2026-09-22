@@ -36,16 +36,37 @@
 <h2>{{ $t('1. Parties', '1. Wahusika') }}</h2>
 <h3>{{ $t('1.1 Lender', '1.1 Mkopeshaji') }}</h3>
 @if ($isSw)
-    <p>Mkopeshaji ni <strong>{{ $company }}</strong>, yenye leseni/usajili wa kutoa huduma za microfinance nchini {{ $jurisdiction }} (“Mkopeshaji”, “Kopafasta”, “sisi”).</p>
+    <p>Mkopeshaji ni <strong>{{ $company }}</strong> (“Mkopeshaji”, “Kopafasta”, “sisi”).</p>
 @else
-    <p>The lender is <strong>{{ $company }}</strong>, licensed/registered to provide microfinance services in {{ $jurisdiction }} (“Lender”, “Kopafasta”, “we”).</p>
+    <p>The lender is <strong>{{ $company }}</strong> (“Lender”, “Kopafasta”, “we”).</p>
+@endif
+@if (! empty($snapshot['is_preview']))
+    @php
+        $missingIdentity = array_filter([
+            'Registered address' => blank($snapshot['company_address'] ?? null),
+            'BoT licence' => blank($snapshot['licence_number'] ?? null),
+            'Registration number' => blank($snapshot['registration_no'] ?? null),
+            'TIN' => blank($snapshot['company_tin'] ?? null),
+        ]);
+    @endphp
+    @if ($missingIdentity !== [])
+        <p class="na">Company identity is incomplete in Settings → Company Profile: {{ implode(', ', array_keys($missingIdentity)) }}. An issued agreement will not print blank rows.</p>
+    @endif
 @endif
 <table class="kv">
     <tr><td class="label">{{ $t('Legal name', 'Jina la kampuni') }}</td><td class="value">{{ $company }}</td></tr>
-    <tr><td class="label">{{ $t('Address', 'Anwani') }}</td><td class="value">{{ $snapshot['company_address'] ?? '—' }}</td></tr>
-    <tr><td class="label">{{ $t('Licence (BOT)', 'Leseni (BOT)') }}</td><td class="value">{{ $snapshot['licence_number'] ?? '—' }}</td></tr>
-    <tr><td class="label">{{ $t('Registration', 'Usajili') }}</td><td class="value">{{ $snapshot['registration_no'] ?? '—' }}</td></tr>
-    <tr><td class="label">TIN</td><td class="value">{{ $snapshot['company_tin'] ?? '—' }}</td></tr>
+    @if (filled($snapshot['company_address'] ?? null))
+        <tr><td class="label">{{ $t('Address', 'Anwani') }}</td><td class="value">{{ $snapshot['company_address'] }}</td></tr>
+    @endif
+    @if (filled($snapshot['licence_number'] ?? null))
+        <tr><td class="label">{{ $t('Licence (BOT)', 'Leseni (BOT)') }}</td><td class="value">{{ $snapshot['licence_number'] }}</td></tr>
+    @endif
+    @if (filled($snapshot['registration_no'] ?? null))
+        <tr><td class="label">{{ $t('Registration', 'Usajili') }}</td><td class="value">{{ $snapshot['registration_no'] }}</td></tr>
+    @endif
+    @if (filled($snapshot['company_tin'] ?? null))
+        <tr><td class="label">TIN</td><td class="value">{{ $snapshot['company_tin'] }}</td></tr>
+    @endif
 </table>
 
 <h3>{{ $t('1.2 Borrower', '1.2 Mkopaji') }}</h3>
@@ -125,13 +146,13 @@
 @if ($on('penalty_clauses'))
 <h2>{{ $t('9–10. Grace, arrears and penalty', '9–10. Msamaha, deni lililochelewa na adhabu') }}</h2>
 @if ($isSw)
-    <p>Awamu isiyolipwa kufikia tarehe yake inakuwa imechelewa kuanzia siku inayofuata ya kalenda. Muda wa Msamaha: <strong>siku {{ $graceDays }} za kalenda</strong>. Hakuna adhabu ya kimkataba inayoingia wakati wa msamaha. Baada ya msamaha, adhabu inaingia kama ifuatavyo:</p>
+    <p>Awamu isiyolipwa kufikia tarehe yake inakuwa imechelewa kuanzia siku inayofuata ya kalenda. Tarehe ya malipo yenyewe haihamishwi. Kopafasta kisha inatoa kipindi cha utaratibu cha <strong>siku {{ $graceDays }} za kalenda</strong> kabla ya hatua zilizowekwa za ufuatiliaji kuanza. Hakuna adhabu ya kimkataba inayoingia wakati wa kipindi hicho. Baada ya kukamilika, adhabu inaingia kama ifuatavyo:</p>
     <p><strong>{{ $snapshot['penalty_formula_sw'] ?? '' }}</strong></p>
     @if (! empty($examples['penalty_sw']))
         <p>Adhabu ni tofauti na gharama yoyote ya urejeshaji. {{ $examples['penalty_sw'] }}</p>
     @endif
 @else
-    <p>An instalment unpaid by its Due Date is overdue from the next calendar day. Grace Period: <strong>{{ $graceDays }} calendar days</strong>. No contractual overdue penalty accrues during grace. After grace, penalty accrues as follows:</p>
+    <p>An instalment unpaid by its Due Date is past due from the next calendar day. The Due Date itself does not move. Kopafasta then applies an operational grace period of <strong>{{ $graceDays }} calendar days</strong> before the configured escalation process begins. No contractual overdue penalty accrues during that operational grace. After it ends, penalty accrues as follows:</p>
     <p><strong>{{ $snapshot['penalty_formula_en'] ?? '' }}</strong></p>
     @if (! empty($examples['penalty_en']))
         <p>Penalty is separate from any recovery charge. {{ $examples['penalty_en'] }}</p>
@@ -153,10 +174,10 @@
 <h2>{{ $t('12–14. Default, collection and recovery charges', '12–14. Ukiukaji, ufuatiliaji na gharama za urejeshaji') }}</h2>
 @if ($isSw)
     <p>Tukio la Ukiukaji linajumuisha kushindwa kulipa baada ya msamaha; taarifa za uongo kwa kiasi kikubwa; uvunjaji mkubwa; kushughulikia dhamana kinyume cha sheria; au kuzuia urejeshaji halali. Kopafasta inaweza kuchukua hatua za urejeshaji zinazoruhusiwa na Mkataba huu na sheria.</p>
-    <p><strong>Ikiwa mkopo wako utapelekwa kwenye kituo cha huduma kwa wateja, gharama ya ufuatiliaji ya hatua hiyo itaongezwa kwenye kiasi unachodaiwa. Ikiwa baadaye utapelekwa kwa mtoza madeni wa eneo, gharama ya hatua hiyo inaweza kuongezwa tena. Kanuni hiyo hiyo inatumika kwa hatua nyingine zilizoanzishwa na kurekodiwa.</strong></p>
+    <p><strong>Gharama ya urejeshaji inahusu hatua iliyofikiwa tu, na inarekodiwa pale tu hatua hiyo inapopelekwa. Gharama haziongezwi kiotomatiki kwa sababu tu akaunti imehamia hatua nyingine. Mkusanyaji wa nje si hatua ya moja kwa moja pale kipindi cha utaratibu kinapoisha; urejeshaji unafuata sera ya mikopo ya Kopafasta, pamoja na taarifa inayohitajika.</strong></p>
 @else
     <p>An Event of Default includes failure to pay beyond grace; materially false information; material breach; unlawful dealing with collateral; or obstructing lawful recovery. Kopafasta may then take the recovery actions permitted by this Agreement and applicable law.</p>
-    <p><strong>If your loan is sent to the call centre, a call-centre recovery charge will be added to what you already owe. If it is later sent to a field collector, the applicable field-collection charge may be added again. The same principle applies to later recovery stages that are actually initiated and charged.</strong></p>
+    <p><strong>A recovery charge belongs only to the stage actually reached, and is posted only when that stage is assigned. Charges are not automatically added together merely because the account later moves to another stage. External collection is not the automatic next step when the operational grace period ends; recovery follows Kopafasta's lending policy, including any required notice.</strong></p>
 @endif
 <table class="grid">
     <thead>
@@ -173,9 +194,9 @@
             <td>{{ $t('Instalment remains due. No recovery charge yet.', 'Awamu inaendelea kudaiwa. Bado hakuna gharama ya urejeshaji.') }}</td>
         </tr>
         <tr>
-            <td>{{ $t('Grace', 'Msamaha') }}</td>
-            <td>{{ $graceDays }} {{ $t('calendar days', 'siku za kalenda') }}</td>
-            <td>{{ $t('No penalty during grace.', 'Hakuna adhabu wakati wa msamaha.') }}</td>
+            <td>{{ $t('Operational grace', 'Kipindi cha utaratibu') }}</td>
+            <td>{{ $graceDays }} {{ $t('calendar days before configured escalation. The due date does not move.', 'siku za kalenda kabla ya ufuatiliaji uliowekwa. Tarehe ya malipo haihamishwi.') }}</td>
+            <td>{{ $t('No penalty during this operational grace. Past due still begins the day after the due date.', 'Hakuna adhabu wakati wa kipindi hiki. Kuchelewa kunaanza siku baada ya tarehe ya malipo.') }}</td>
         </tr>
         <tr>
             <td>{{ $t('Penalty', 'Adhabu') }}</td>
@@ -192,10 +213,7 @@
     </tbody>
 </table>
 @if ($percentStages)
-<p class="muted">{{ $isSw
-    ? ('Kila asilimia inatumika kwenye '.($recovery['fee_base_label_sw'] ?? 'msingi wa mkopo').' wakati wa kupelekwa: kamisheni ya mshirika na gharama ya kampuni ni asilimia tofauti za msingi huo huo na zinaongezwa pamoja. Hatua hazijumlishwi kwa kila nyingine; kila hatua inarekodi gharama yake inapopelekwa.')
-    : ('Each percentage is applied to the '.($recovery['fee_base_label_en'] ?? 'principal').' at assignment: partner commission and company charge are separate percentages of that same base and are added together. Stages are not compounded with each other; each stage posts its own charge when assigned.')
-}}</p>
+<p class="muted">{{ $t('A charge belongs only to the stage actually reached. It is not stacked onto earlier recovery charges merely because the case moves forward.', 'Gharama inahusu hatua iliyofikiwa tu. Haiongezwi juu ya gharama za awali kwa sababu tu kesi imeendelea.') }}</p>
 @endif
 @if (filled($clauses['default_clause'] ?? null))
     <p>{{ $clauses['default_clause'] }}</p>
@@ -295,7 +313,11 @@
 <table class="kv">
     <tr><td class="label">{{ $t('Phone', 'Simu') }}</td><td class="value">{{ $snapshot['complaints_phone'] ?? '—' }}</td></tr>
     <tr><td class="label">Email</td><td class="value">{{ $snapshot['complaints_email'] ?? '—' }}</td></tr>
-    <tr><td class="label">{{ $t('Physical address', 'Anwani ya ofisi') }}</td><td class="value">{{ $snapshot['complaints_address'] ?? '—' }}</td></tr>
+    @if (filled($snapshot['complaints_address'] ?? null))
+        <tr><td class="label">{{ $t('Physical address', 'Anwani ya ofisi') }}</td><td class="value">{{ $snapshot['complaints_address'] }}</td></tr>
+    @elseif (! empty($snapshot['is_preview']))
+        <tr><td class="label">{{ $t('Physical address', 'Anwani ya ofisi') }}</td><td class="value na">{{ $t('Not configured in Company Profile', 'Haijawekwa kwenye Wasifu wa Kampuni') }}</td></tr>
+    @endif
 </table>
 <p>{{ $t('Complaints are handled under Kopafasta’s complaints procedure and applicable consumer-protection requirements.', 'Malalamiko yanashughulikiwa chini ya taratibu za malalamiko za Kopafasta na mahitaji ya ulinzi wa watumiaji.') }}</p>
 
@@ -314,17 +336,17 @@
 @endif
 
 <h2>{{ $t('26. No waiver', '26. Kutotumia haki') }}</h2>
-<p>{{ $t('Delay or failure to exercise a right is not a waiver.', 'Kuchelewa au kushindwa kutumia haki si kuiacha.') }}</p>
+<p>{{ $isSw ? ($clauses['waiver_clause_sw'] ?? '') : ($clauses['waiver_clause_en'] ?? '') }}</p>
 
 <h2>{{ $t('27. Severability', '27. Utenganishaji') }}</h2>
-<p>{{ $t('If a provision is invalid, the rest of this Agreement continues.', 'Iwapo kifungu kimoja ni batili, vingine vinaendelea.') }}</p>
+<p>{{ $isSw ? ($clauses['severability_clause_sw'] ?? '') : ($clauses['severability_clause_en'] ?? '') }}</p>
 
 <h2>{{ $t('28. Entire agreement', '28. Mkataba mzima') }}</h2>
-<p>{{ $t('This Agreement, the Offer Letter, Facility Schedule and annexes are the agreement concerning the Loan.', 'Mkataba huu, Barua ya Ofa, Jedwali la Huduma na viambatisho ndio makubaliano kuhusu Mkopo.') }}</p>
+<p>{{ $isSw ? ($clauses['entire_agreement_clause_sw'] ?? '') : ($clauses['entire_agreement_clause_en'] ?? '') }}</p>
 
 @if ($on('jurisdiction'))
 <h2>{{ $t('29. Governing law', '29. Sheria inayotumika') }}</h2>
-<p>{{ $t('This Agreement is governed by the laws of', 'Mkataba huu unatawaliwa na sheria za') }} <strong>{{ $jurisdiction }}</strong>.</p>
+<p>{{ $isSw ? ($clauses['governing_law_clause_sw'] ?? '') : ($clauses['governing_law_clause_en'] ?? '') }}</p>
 @endif
 
 <h2>{{ $t('30. Language', '30. Lugha') }}</h2>
@@ -394,14 +416,10 @@
 
 <div class="annex">
     <h2>{{ $t('Annex B — Charges and default summary', 'Kiambatisho B — Muhtasari wa ada na ukiukaji') }}</h2>
+
+    <h3>{{ $t('Costs before disbursement', 'Gharama kabla ya utoaji wa mkopo') }}</h3>
+    <p class="muted">{{ $t('Applicable charges for completing and disbursing this loan (payment timing follows the post-approval journey).', 'Ada zinazohusiana na kukamilisha na kutoa mkopo huu (muda wa malipo unafuata safari baada ya idhini).') }}</p>
     <table class="charges">
-        <tr><td>{{ $t('Interest rate', 'Kiwango cha riba') }}</td><td>{{ format_number(($snapshot['displayed_monthly_rate'] ?? 0) * 100, 2) }}% {{ $t('per month', 'kwa mwezi') }}</td></tr>
-        <tr><td>{{ $t('Grace period', 'Muda wa msamaha') }}</td><td>{{ $graceDays }} {{ $t('calendar days', 'siku za kalenda') }}</td></tr>
-        <tr><td>{{ $t('Penalty', 'Adhabu') }}</td><td>{{ format_number($snapshot['penalty_rate'] ?? 0, 2) }}% {{ $isSw ? ($snapshot['penalty_basis_label_sw'] ?? '') : ($snapshot['penalty_basis_label'] ?? 'per day') }} {{ $t('on the first overdue instalment remainder', 'kwenye salio la awamu ya kwanza iliyochelewa') }}</td></tr>
-        <tr><td>{{ $t('Penalty cap', 'Kizuizi cha adhabu') }}</td><td>{{ $penaltyCap }}% {{ $t('of all overdue instalment remainders', 'ya salio zote za awamu zilizochelewa') }}</td></tr>
-        @foreach ($stages as $stage)
-            <tr><td>{{ $isSw ? ($stage['label_sw'] ?? $stage['label'] ?? '') : ($stage['label_en'] ?? $stage['label'] ?? '') }}</td><td>{{ $isSw ? ($stage['display_sw'] ?? '') : ($stage['display_en'] ?? '') }}</td></tr>
-        @endforeach
         @foreach ($facilityCharges as $charge)
             <tr><td>{{ $charge['name'] ?? $charge['code'] ?? '' }}</td><td>{{ $isSw ? ($charge['display_sw'] ?? '') : ($charge['display_en'] ?? '') }}</td></tr>
         @endforeach
@@ -411,6 +429,17 @@
                 <td>{{ format_money($snapshot['gps_fee']['total'] ?? 0) }} · {{ $t('install + monthly × tenure', 'usakinishaji + kila mwezi × muda') }}</td>
             </tr>
         @endif
+    </table>
+
+    <h3>{{ $t('Costs that may apply if repayments fall into default', 'Gharama zinazoweza kutokea endapo malipo yatachelewa') }}</h3>
+    <p class="muted">{{ $t('Not charged as part of receiving or disbursing the loan. Applicable only if the account reaches the relevant stage.', 'Si sehemu ya gharama za kupata au kutolewa mkopo. Zinatumika tu akaunti inapofikia hatua husika.') }}</p>
+    <table class="charges">
+        <tr><td>{{ $t('Operational grace before escalation', 'Kipindi cha utaratibu kabla ya ufuatiliaji') }}</td><td>{{ $graceDays }} {{ $t('calendar days', 'siku za kalenda') }}</td></tr>
+        <tr><td>{{ $t('Penalty (after grace)', 'Adhabu (baada ya kipindi cha utaratibu)') }}</td><td>{{ format_number($snapshot['penalty_rate'] ?? 0, 2) }}% {{ $isSw ? ($snapshot['penalty_basis_label_sw'] ?? '') : ($snapshot['penalty_basis_label'] ?? 'per day') }} {{ $t('on the first overdue instalment remainder', 'kwenye salio la awamu ya kwanza iliyochelewa') }}</td></tr>
+        <tr><td>{{ $t('Penalty cap', 'Kizuizi cha adhabu') }}</td><td>{{ $penaltyCap }}% {{ $t('of all overdue instalment remainders', 'ya salio zote za awamu zilizochelewa') }}</td></tr>
+        @foreach ($stages as $stage)
+            <tr><td>{{ $isSw ? ($stage['label_sw'] ?? $stage['label'] ?? '') : ($stage['label_en'] ?? $stage['label'] ?? '') }}</td><td>{{ $isSw ? ($stage['display_sw'] ?? '') : ($stage['display_en'] ?? '') }}</td></tr>
+        @endforeach
         @if (filled($clauses['collection_charge'] ?? null))
             <tr><td>{{ $t('Collection charge note', 'Maelezo ya gharama ya ufuatiliaji') }}</td><td>{{ $clauses['collection_charge'] }}</td></tr>
         @endif
@@ -418,7 +447,7 @@
             <tr><td>{{ $t('Legal recovery note', 'Maelezo ya urejeshaji wa kisheria') }}</td><td>{{ $clauses['legal_recovery'] }}</td></tr>
         @endif
     </table>
-    <p class="muted">{{ $t('A recovery charge becomes payable only when the relevant recovery stage is actually initiated and the charge is posted, subject to applicable law. Third-party costs that Kopafasta is permitted to pass through shall not exceed actual amounts paid to those third parties.', 'Gharama ya urejeshaji inadaiwa pale tu hatua husika inapoanzishwa na gharama inarekodiwa, kwa kuzingatia sheria. Gharama za wahusika wengine ambazo Kopafasta inaruhusiwa kuzipitisha hazitazidi kiasi halisi kilicholipwa kwa wahusika hao.') }}</p>
+    <p class="muted">{{ $t('A recovery charge becomes payable only when the relevant recovery stage is actually initiated and the charge is posted, subject to applicable law. Charges are not automatically stacked across stages. Third-party costs that Kopafasta is permitted to pass through shall not exceed actual amounts paid to those third parties.', 'Gharama ya urejeshaji inadaiwa pale tu hatua husika inapoanzishwa na gharama inarekodiwa, kwa kuzingatia sheria. Gharama hazijumlishwi kiotomatiki katika hatua zote. Gharama za wahusika wengine ambazo Kopafasta inaruhusiwa kuzipitisha hazitazidi kiasi halisi kilicholipwa kwa wahusika hao.') }}</p>
 </div>
 
 @if ($showGpsFee)

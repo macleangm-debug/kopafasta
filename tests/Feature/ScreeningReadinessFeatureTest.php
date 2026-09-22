@@ -115,11 +115,9 @@ class ScreeningReadinessFeatureTest extends TestCase
             fn ($row) => str_contains((string) ($row['label'] ?? ''), 'Mobile Money')
         );
         $this->assertNotNull($income);
-        $this->assertSame('Review statements', $income['cta']);
-        $this->assertStringContainsString('gate=income', $income['href']);
-        $this->assertStringContainsString('activity_income', $income['href']);
-        $this->assertStringNotContainsString('open_group=collateral', $income['href']);
-        $this->assertStringNotContainsString('desk_phase=security', $income['href']);
+        $entry = app(\App\Services\ScreeningSequenceService::class)->wizardEntry($app);
+        $this->assertSame($entry['cta'], $income['cta']);
+        $this->assertSame($entry['href'], $income['href']);
         $this->assertStringContainsString('Updated Mobile Money Statement', $income['label']);
         $this->assertStringNotContainsString('required document(s) not verified', json_encode($readiness['unresolved'] ?? []));
     }

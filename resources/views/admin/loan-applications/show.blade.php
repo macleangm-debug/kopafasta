@@ -178,25 +178,40 @@
         $capacityPending = $capacityAutoReject->isPending($record);
         $capacityHours = $capacityPending ? $capacityAutoReject->hoursRemaining($record) : null;
         $capacityState = $capacityPending ? ($capacityAutoReject->state($record) ?? []) : [];
+        $capacityRemaining = $capacityPending ? $capacityAutoReject->remainingLabel($record) : null;
+        $stagingUatAllowed = app()->environment(['local', 'staging']);
+        $isNaturalScheduleUat = $record->application_number === 'APP-UAT-G1-260916072731';
     @endphp
     @if ($capacityPending && ! $fileIsClosed)
-        <div class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div class="mb-5 rounded-2xl bg-rose-50 ring-1 ring-rose-200 px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div class="min-w-0">
-                <p class="text-xs uppercase tracking-widest text-amber-800 font-bold">System sorted</p>
-                <p class="text-sm font-semibold text-amber-950 mt-1">
-                    @if ($capacityHours === 0)
-                        {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin_due') }}
-                    @else
-                        {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin', ['hours' => $capacityHours ?? '—']) }}
-                    @endif
+                <p class="text-xs uppercase tracking-widest text-rose-800 font-bold">Pending automatic rejection</p>
+                <p class="text-sm font-semibold text-rose-950 mt-1">
+                    Screening is paused while this application awaits automatic affordability re-evaluation. No analyst action is required right now.
                 </p>
-                <p class="text-xs text-amber-900/80 mt-1">
+                <p class="text-xs text-rose-900/80 mt-1">
                     Ask {{ format_money((float) ($capacityState['requested_amount'] ?? $record->requested_amount ?? 0)) }}
                     · installment {{ format_money((float) ($capacityState['proposed_installment'] ?? 0)) }}
                     · capacity {{ format_money((float) ($capacityState['available_capacity'] ?? 0)) }}
+                    @if (filled($capacityState['parked_at'] ?? null))
+                        · parked {{ format_app_datetime($capacityState['parked_at'], 'd M Y H:i') }}
+                    @endif
+                    @if (filled($capacityState['auto_reject_at'] ?? null))
+                        · scheduled {{ format_app_datetime($capacityState['auto_reject_at'], 'd M Y H:i') }}
+                    @endif
+                    @if (filled($capacityRemaining))
+                        · {{ $capacityRemaining }} remaining
+                    @elseif ($capacityHours !== null)
+                        · {{ $capacityHours === 0 ? 'due now' : $capacityHours.'h remaining' }}
+                    @endif
                 </p>
             </div>
             <div class="flex flex-wrap gap-2 shrink-0">
+                <a href="{{ route('admin.loan-applications.rejection-letter.preview', $record) }}"
+                   target="_blank" rel="noopener"
+                   class="inline-flex text-xs font-bold px-3 py-2 rounded-lg bg-white ring-1 ring-rose-300 text-rose-950 hover:bg-rose-100">
+                    Preview rejection letter
+                </a>
                 @php
                     $canManageCapacity = $capacityAutoReject->canAct(auth()->user());
                 @endphp
@@ -214,8 +229,56 @@
                         </button>
                     </form>
                 @else
-                    <p class="text-xs font-semibold text-amber-900/80 self-center">View only — credit committee confirms Send now / Keep in screening.</p>
+                    <p class="text-xs font-semibold text-rose-900/80 self-center">View only — credit committee confirms Send now / Keep in screening.</p>
                 @endif
+            </div>
+        </div>
+    @elseif (! $fileIsClosed && in_array($record->status, ['submitted', 'under_review', 'screening'], true))
+        <div class="mb-4 flex flex-wrap gap-2">
+            <a href="{{ route('admin.loan-applications.rejection-letter.preview', $record) }}"
+               target="_blank" rel="noopener"
+               class="inline-flex text-xs font-semibold px-3 py-2 rounded-lg bg-white ring-1 ring-slate-200 text-slate-700 hover:bg-slate-50">
+                Preview rejection letter
+            </a>
+        </div>
+    @endif
+
+    @if ($stagingUatAllowed && ! $fileIsClosed)
+        <div class="mb-5 rounded-2xl bg-slate-900 text-white px-5 py-4 space-y-3">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-bold">Staging UAT · Capacity auto-reject</p>
+                <p class="text-sm mt-1 text-white/90">
+                    Controls the real engine timer / fire path. Does not change production defaults.
+                    @if ($isNaturalScheduleUat)
+                        <span class="font-semibold text-amber-300">Natural schedule app — prefer the dedicated sim application for fire/reset.</span>
+                    @endif
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('admin.staging.capacity-auto-reject.scenario') }}"
+                   class="inline-flex text-xs font-bold px-3 py-2 rounded-lg bg-brand-gold text-brand hover:brightness-95">
+                    Open / create SIM scenario
+                </a>
+                @unless ($isNaturalScheduleUat)
+                    <form method="POST" action="{{ route('admin.staging.capacity-auto-reject.make-due', $record) }}">
+                        @csrf
+                        <button type="submit" class="inline-flex text-xs font-bold px-3 py-2 rounded-lg bg-white/10 ring-1 ring-white/30 hover:bg-white/20">
+                            A. Make timer due
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.staging.capacity-auto-reject.fire-due', $record) }}">
+                        @csrf
+                        <button type="submit" class="inline-flex text-xs font-bold px-3 py-2 rounded-lg bg-rose-500 hover:bg-rose-400 text-white">
+                            B. Fire scheduled path
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.staging.capacity-auto-reject.reset', $record) }}">
+                        @csrf
+                        <button type="submit" class="inline-flex text-xs font-bold px-3 py-2 rounded-lg bg-white/10 ring-1 ring-white/30 hover:bg-white/20">
+                            Reset → Pending
+                        </button>
+                    </form>
+                @endunless
             </div>
         </div>
     @endif

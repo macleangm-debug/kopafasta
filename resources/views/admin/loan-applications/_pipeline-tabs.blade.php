@@ -2,7 +2,7 @@
 @php
     $tabs = [
         'under_review'   => ['Credit screening', 'admin.loan-applications.pipeline.under-review'],
-        'system_sorted'  => ['System sorted', 'admin.loan-applications.pipeline.system-sorted'],
+        'system_sorted'  => ['Automatic rejections', 'admin.loan-applications.pipeline.system-sorted'],
         'committee'      => ['Credit committee', 'admin.loan-applications.pre-approvals'],
         'management_approval' => ['Management approval', 'admin.loan-applications.pipeline.management-approval'],
         'approved'       => ['Management queue', 'admin.loan-applications.pipeline.approved'],

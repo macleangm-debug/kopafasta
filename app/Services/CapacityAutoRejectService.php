@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ApplicationStageHistory;
+use App\Models\LoanAgreement;
 use App\Models\LoanApplication;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -176,6 +177,17 @@ class CapacityAutoRejectService
         $capacity = (float) ($groupEval['total_capacity'] ?? 0);
         $failedMembers = $groupEval['failed_members'] ?? [];
 
+        $policySnap = app(AffordabilityPolicyService::class)->snapshot();
+        if (is_array($groupEval['affordability']['affordability_policy'] ?? null)) {
+            $policySnap = $groupEval['affordability']['affordability_policy'];
+        } elseif (isset($groupEval['repayment_ratio_pct'])) {
+            $policySnap['repayment_ratio_pct'] = (float) $groupEval['repayment_ratio_pct'];
+            $policySnap['repayment_ratio'] = round(((float) $groupEval['repayment_ratio_pct']) / 100, 4);
+            $policySnap['affordability_ratio_label'] = app(AffordabilityPolicyService::class)
+                ->formatRatioLabel((float) $groupEval['repayment_ratio_pct']);
+        }
+        $policySnap['income_basis'] = $verified ? 'statement' : 'declared';
+
         $state = [
             'status' => self::STATUS_PENDING,
             'gate' => $verified ? 'verified' : 'declared',
@@ -192,7 +204,8 @@ class CapacityAutoRejectService
             'requested_amount' => $requested,
             'proposed_installment' => $installment,
             'available_capacity' => $capacity,
-            'repayment_ratio_pct' => (float) ($groupEval['repayment_ratio_pct'] ?? 33.33),
+            'repayment_ratio_pct' => (float) ($policySnap['repayment_ratio_pct'] ?? $groupEval['repayment_ratio_pct'] ?? app(AffordabilityPolicyService::class)->repaymentRatioPct()),
+            'affordability_policy' => $policySnap,
             'failed_members' => $failedMembers,
             'group_members' => $groupEval['members'] ?? [],
             'affordability_reason' => $policy['reason'] ?? ($groupEval['reason'] ?? null),
@@ -204,6 +217,10 @@ class CapacityAutoRejectService
             $state['proposed_installment'] = (float) ($single['proposed_installment'] ?? $installment);
             $state['available_capacity'] = (float) ($single['available_capacity'] ?? $capacity);
             $state['requested_amount'] = (float) ($application->requested_amount ?? $requested);
+            if (is_array($single['affordability_policy'] ?? null)) {
+                $state['affordability_policy'] = $single['affordability_policy'];
+                $state['repayment_ratio_pct'] = (float) ($single['repayment_ratio_pct'] ?? $state['repayment_ratio_pct']);
+            }
         }
 
         $payload = $application->screening_payload ?? [];
@@ -312,7 +329,7 @@ class CapacityAutoRejectService
             return __('borrower.loan_profile.capacity_auto_reject_reason_group', [
                 'amount' => format_money((float) ($state['requested_amount'] ?? $application->requested_amount ?? 0)),
                 'members' => implode(', ', $names),
-                'ratio' => rtrim(rtrim(number_format((float) ($state['repayment_ratio_pct'] ?? 33.33), 2), '0'), '.'),
+                'ratio' => rtrim(rtrim(number_format((float) ($state['repayment_ratio_pct'] ?? data_get($state, 'affordability_policy.repayment_ratio_pct') ?? app(AffordabilityPolicyService::class)->repaymentRatioPct()), 2), '0'), '.'),
             ], $locale);
         }
 
@@ -372,7 +389,13 @@ class CapacityAutoRejectService
                 $state['available_capacity'] = (float) ($groupEval['total_capacity'] ?? 0);
                 $state['failed_members'] = $groupEval['failed_members'] ?? [];
                 $state['group_members'] = $groupEval['members'] ?? [];
-                $state['repayment_ratio_pct'] = (float) ($groupEval['repayment_ratio_pct'] ?? 33.33);
+                $state['repayment_ratio_pct'] = (float) ($groupEval['repayment_ratio_pct'] ?? app(AffordabilityPolicyService::class)->repaymentRatioPct());
+                if (is_array($groupEval['affordability']['affordability_policy'] ?? null)) {
+                    $state['affordability_policy'] = $groupEval['affordability']['affordability_policy'];
+                } elseif (! isset($state['affordability_policy'])) {
+                    $state['affordability_policy'] = app(AffordabilityPolicyService::class)->snapshot();
+                    $state['affordability_policy']['repayment_ratio_pct'] = $state['repayment_ratio_pct'];
+                }
                 if (! ($state['is_group'] ?? false)) {
                     $single = $groupEval['affordability'] ?? [];
                     $state['net_income'] = (float) ($single['net_income'] ?? 0);
@@ -474,5 +497,74 @@ class CapacityAutoRejectService
             ?? app()->getLocale();
 
         return in_array($locale, ['en', 'sw'], true) ? $locale : 'en';
+    }
+
+    /**
+     * Staging/UAT only: advance auto_reject_at into the past so the scheduler path can run.
+     * Does not reject and does not change production timer defaults.
+     */
+    public function advanceTimerDue(LoanApplication $application): bool
+    {
+        $state = $this->state($application);
+        if (($state['status'] ?? null) !== self::STATUS_PENDING) {
+            return false;
+        }
+
+        $state['auto_reject_at'] = now()->subMinute()->toIso8601String();
+        $state['uat_timer_advanced_at'] = now()->toIso8601String();
+        $payload = $application->screening_payload ?? [];
+        $payload['capacity_auto_reject'] = $state;
+        $application->update(['screening_payload' => $payload]);
+
+        return true;
+    }
+
+    /**
+     * Same path as FireCapacityAutoRejects / fireDue for one application (immediate: false).
+     */
+    public function fireScheduledPath(LoanApplication $application): LoanApplication
+    {
+        $state = $this->state($application);
+        if (($state['status'] ?? null) !== self::STATUS_PENDING) {
+            throw new \RuntimeException('Application is not pending automatic rejection.');
+        }
+
+        $at = $state['auto_reject_at'] ?? null;
+        if (! $at || now()->lt(\Illuminate\Support\Carbon::parse($at))) {
+            throw new \RuntimeException('Timer is not due yet. Advance the timer first.');
+        }
+
+        return $this->fire($application, null, immediate: false);
+    }
+
+    /**
+     * Staging/UAT only: reopen a fired/rejected capacity scenario back to pending park.
+     */
+    public function resetPendingPark(LoanApplication $application): ?array
+    {
+        $payload = $application->screening_payload ?? [];
+        unset($payload['capacity_auto_reject']);
+
+        $application->update([
+            'status' => 'submitted',
+            'current_stage' => 'screening',
+            'rejection_reason_code' => null,
+            'rejection_reason_codes' => null,
+            'rejection_reason' => null,
+            'rejection_advice_code' => null,
+            'rejection_advice' => null,
+            'rejection_internal_notes' => null,
+            'screening_rejection_reason_code' => null,
+            'recommended_at' => null,
+            'recommendation_type' => null,
+            'screening_payload' => $payload,
+        ]);
+
+        LoanAgreement::query()
+            ->where('loan_application_id', $application->id)
+            ->where('document_type', 'rejection_letter')
+            ->delete();
+
+        return $this->evaluateAndPark($application->fresh(['customer', 'product']));
     }
 }

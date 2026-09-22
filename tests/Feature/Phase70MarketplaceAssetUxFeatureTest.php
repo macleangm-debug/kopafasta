@@ -223,4 +223,26 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             'status' => 'sourcing',
         ]);
     }
+
+    public function test_public_marketplace_detail_renders_when_overview_copy_is_an_array(): void
+    {
+        app()->setLocale('sw');
+        MarketplaceAsset::create([
+            'slug' => 'solar-home-system',
+            'category' => 'equipment',
+            'title' => 'Solar Home System 500W',
+            'description' => 'Complete kit with panels, inverter, and battery backup.',
+            'supplier_name' => 'SunPower East Africa',
+            'asset_value' => 2800000,
+            'supplier_deposit' => 560000,
+            'weekly_installment' => 54000,
+            'photos' => ['/images/marketplace/solar.jpg'],
+            'is_active' => true,
+        ]);
+
+        $this->get(route('site.marketplace.show', 'solar-home-system'))
+            ->assertOk()
+            ->assertSee('Solar Home System 500W')
+            ->assertSee(__('site.product_detail.overview_heading'));
+    }
 }

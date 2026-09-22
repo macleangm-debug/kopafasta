@@ -1,5 +1,5 @@
 <x-admin.layout title="System sorted" heading="" subheading="">
-    <x-admin.letterhead kicker="Credit committee" title="System sorted" subtitle="Capacity auto-reject queue — screening can view; credit committee confirms Send now or Keep in screening" />
+    <x-admin.letterhead kicker="Credit committee" title="Automatic rejections" subtitle="Capacity auto-reject queue — Screening can view; credit committee confirms Send now or Keep in screening" />
 @include('admin.loan-applications._pipeline-tabs', ['active' => 'system_sorted'])
 
     <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">

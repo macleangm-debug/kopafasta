@@ -26,13 +26,19 @@ class LoanPenaltyPolicy
     {
         $loan->loadMissing('product');
         $global = self::loanSettings();
-
-        $grace = (int) (
-            $loan->default_grace_days
-            ?? $loan->product?->default_grace_days
-            ?? $global['default_grace_days']
-            ?? config('loan_product_defaults.default_grace_days', 7)
+        $generalGrace = (int) (
+            $global['default_grace_days']
+            ?? config('loan_product_defaults.default_grace_days', 3)
         );
+        $useGeneral = (bool) ($loan->product?->use_general_grace_period ?? false);
+
+        $grace = $useGeneral
+            ? $generalGrace
+            : (int) (
+                $loan->default_grace_days
+                ?? $loan->product?->default_grace_days
+                ?? $generalGrace
+            );
 
         $rate = (float) (
             $loan->penalty_rate_percent
@@ -65,14 +71,20 @@ class LoanPenaltyPolicy
         $code = strtoupper((string) $product->code);
         $overrides = config("loan_product_defaults.products.{$code}", []);
         $global = self::loanSettings();
+        $generalGrace = (int) (
+            $global['default_grace_days']
+            ?? config('loan_product_defaults.default_grace_days', 3)
+        );
+        $useGeneral = (bool) ($product->use_general_grace_period ?? false);
 
         return [
-            'default_grace_days' => (int) (
-                $product->default_grace_days
-                ?? $overrides['default_grace_days']
-                ?? $global['default_grace_days']
-                ?? config('loan_product_defaults.default_grace_days', 7)
-            ),
+            'default_grace_days' => $useGeneral
+                ? $generalGrace
+                : (int) (
+                    $product->default_grace_days
+                    ?? $overrides['default_grace_days']
+                    ?? $generalGrace
+                ),
             'penalty_rate_percent' => (float) (
                 $product->penalty_rate_percent
                 ?? $overrides['penalty_rate_percent']

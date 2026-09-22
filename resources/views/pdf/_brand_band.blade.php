@@ -4,17 +4,18 @@
     $bandTag = $bandTag ?? '';
     $bandMeta = $bandMeta ?? '';
 @endphp
+<div class="masthead">
 <table class="band" width="100%" cellspacing="0" cellpadding="0" bgcolor="#0f3d2e">
     <tr>
         <td class="brand-cell" bgcolor="#0f3d2e" valign="middle">
             <table cellspacing="0" cellpadding="0">
                 <tr>
                     @if ($mark)
-                        <td valign="middle" style="padding-right:12px">
+                        <td valign="middle" style="padding-right:8px;line-height:1">
                             <img src="{{ $mark }}" class="logo" alt="kopafasta">
                         </td>
                     @endif
-                    <td valign="middle">
+                    <td valign="middle" style="line-height:1.05">
                         <div class="wordmark">kopafasta</div>
                         <div class="legal">{{ pdf_text($bandTitle) }}</div>
                         @if ($bandTag !== '')
@@ -28,5 +29,6 @@
     </tr>
 </table>
 <table class="gold-bar" width="100%" cellspacing="0" cellpadding="0" bgcolor="#f5c842">
-    <tr><td bgcolor="#f5c842" style="height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+    <tr><td bgcolor="#f5c842" style="height:3px;font-size:0;line-height:0">&nbsp;</td></tr>
 </table>
+</div>

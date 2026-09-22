@@ -27,7 +27,7 @@
 
                 @if (! empty($asset['description']))
                     <div class="mt-6 glass-card p-5">
-                        <h2 class="text-xs uppercase tracking-widest text-brand font-bold mb-2">{{ __('site.product_detail.overview') }}</h2>
+                        <h2 class="text-xs uppercase tracking-widest text-brand font-bold mb-2">{{ __('site.product_detail.overview_heading') }}</h2>
                         <p class="text-sm text-gray-800 leading-relaxed">{{ $asset['description'] }}</p>
                     </div>
                 @endif

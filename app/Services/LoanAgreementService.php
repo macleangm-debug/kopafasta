@@ -16,6 +16,9 @@ use Illuminate\Validation\ValidationException;
 
 class LoanAgreementService
 {
+    /** Admin document-template preview language only — never persisted to borrower prefs. */
+    private ?string $previewLocaleOverride = null;
+
     /**
      * Offer letter, pre-disbursement contract, executed contract, and the letter to show as signed.
      *
@@ -163,6 +166,138 @@ class LoanAgreementService
         $this->writeAgreementPdf($agreement, $pdf, $snapshot);
 
         return $agreement;
+    }
+
+    /**
+     * Stream the real rejection-letter template without rejecting, notifying, or persisting.
+     */
+    public function previewRejectionLetterPdf(LoanApplication $application): \Barryvdh\DomPDF\PDF
+    {
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
+
+        $original = [
+            'rejection_reason_code' => $application->rejection_reason_code,
+            'rejection_reason_codes' => $application->rejection_reason_codes,
+            'rejection_reason' => $application->rejection_reason,
+            'rejection_advice_code' => $application->rejection_advice_code,
+            'rejection_advice' => $application->rejection_advice,
+        ];
+
+        try {
+            if (! filled($application->rejection_reason_code) && ! filled($application->rejection_reason_codes)) {
+                $capacity = app(CapacityAutoRejectService::class);
+                $state = $capacity->state($application);
+                $application->rejection_reason_code = CapacityAutoRejectService::REASON_CODE;
+                $application->rejection_reason_codes = [CapacityAutoRejectService::REASON_CODE];
+                $application->rejection_reason = $capacity->borrowerReasonMessage($application, $state);
+                $application->rejection_advice_code = CapacityAutoRejectService::ADVICE_CODE;
+                $application->rejection_advice = null;
+            }
+
+            $snapshot = $this->withRejectionLetterFields(
+                $application,
+                $this->snapshotFromApplication($application),
+            );
+            $snapshot['is_preview'] = true;
+            $snapshot['rejected_at'] = $snapshot['rejected_at'] ?? now()->toDateString();
+
+            $agreement = new LoanAgreement([
+                'loan_application_id' => $application->id,
+                'customer_id' => $application->customer_id,
+                'document_type' => 'rejection_letter',
+                'reference' => 'PREVIEW-'.strtoupper(Str::random(8)),
+                'snapshot' => $snapshot,
+                'status' => 'draft',
+            ]);
+
+            return $this->renderAgreementPdf(null, 'pdf.rejection-letter', [
+                'application' => $application,
+                'snapshot' => $snapshot,
+                'agreement' => $agreement,
+            ]);
+        } finally {
+            foreach ($original as $key => $value) {
+                $application->setAttribute($key, $value);
+            }
+        }
+    }
+
+    /**
+     * Admin Legal Settings preview for runtime document types using safe sample application data.
+     * Does not persist agreements or change application state.
+     * Optional $previewLocale overrides display language for Admin only (does not mutate borrower prefs).
+     *
+     * @param  'offer_letter'|'rejection_letter'|'loan_contract'  $documentType
+     */
+    public function previewRuntimeDocumentPdf(string $documentType, ?LoanApplication $application = null, ?string $previewLocale = null): \Barryvdh\DomPDF\PDF
+    {
+        $application ??= LoanApplication::query()
+            ->with(['customer', 'product', 'signatures', 'customerGuarantors.guarantor'])
+            ->latest('id')
+            ->first();
+
+        if (! $application) {
+            throw ValidationException::withMessages([
+                'preview' => 'No loan application is available to render a sample preview. Create or open an application first.',
+            ]);
+        }
+
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
+
+        return $this->withPreviewLocale($previewLocale, function () use ($documentType, $application) {
+            return match ($documentType) {
+                'rejection_letter', 'decision_letter' => $this->previewRejectionLetterPdf($application),
+                'offer_letter' => $this->previewOfferLetterPdf($application),
+                'loan_contract' => $this->previewLoanContractPdf($application),
+                default => throw ValidationException::withMessages([
+                    'preview' => 'Unknown document type for preview.',
+                ]),
+            };
+        });
+    }
+
+    public function previewOfferLetterPdf(LoanApplication $application): \Barryvdh\DomPDF\PDF
+    {
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
+        $snapshot = $this->snapshotFromApplication($application);
+        $snapshot['is_preview'] = true;
+
+        $agreement = new LoanAgreement([
+            'loan_application_id' => $application->id,
+            'customer_id' => $application->customer_id,
+            'document_type' => 'offer_letter',
+            'reference' => 'PREVIEW-OL-'.strtoupper(Str::random(6)),
+            'snapshot' => $snapshot,
+            'status' => 'draft',
+        ]);
+
+        return $this->renderAgreementPdf(null, 'pdf.offer-letter', [
+            'application' => $application,
+            'snapshot' => $snapshot,
+            'agreement' => $agreement,
+        ]);
+    }
+
+    public function previewLoanContractPdf(LoanApplication $application): \Barryvdh\DomPDF\PDF
+    {
+        $application->loadMissing(['customer', 'product', 'signatures', 'customerGuarantors.guarantor']);
+        $snapshot = $this->snapshotFromApplication($application);
+        $snapshot['is_preview'] = true;
+
+        $agreement = new LoanAgreement([
+            'loan_application_id' => $application->id,
+            'customer_id' => $application->customer_id,
+            'document_type' => 'loan_contract',
+            'reference' => 'PREVIEW-LC-'.strtoupper(Str::random(6)),
+            'snapshot' => $snapshot,
+            'status' => 'draft',
+        ]);
+
+        return $this->renderAgreementPdf(null, 'pdf.loan-contract', [
+            'application' => $application,
+            'snapshot' => $snapshot,
+            'agreement' => $agreement,
+        ]);
     }
 
     /**
@@ -1215,6 +1350,7 @@ class LoanAgreementService
     private function withRejectionLetterFields(LoanApplication $application, array $snapshot): array
     {
         $locale = $this->borrowerContractLocale($application);
+        $policyService = app(AffordabilityPolicyService::class);
         $reasons = app(LoanRejectionReasonService::class)->reasonsForLetter(
             $application->rejection_reason_codes,
             $application->rejection_reason_code,
@@ -1234,22 +1370,69 @@ class LoanAgreementService
         $snapshot['requested_amount'] = (float) ($application->requested_amount ?? $snapshot['principal'] ?? 0);
         $snapshot['rejected_at'] = $application->updated_at?->toDateString() ?? now()->toDateString();
         $snapshot['locale'] = $locale;
-        $snapshot['letter_kind'] = 'decision';
-        $snapshot['show_legal_stamp'] = false;
+        $snapshot['letter_kind'] = 'rejection';
+        $snapshot['show_legal_stamp'] = true;
+        $snapshot['decision_heading'] = $locale === 'sw'
+            ? 'UAMUZI WA OMBI LA MKOPO'
+            : 'LOAN APPLICATION DECISION';
 
         $capacity = data_get($application->screening_payload, 'capacity_auto_reject');
+        $storedPolicy = is_array($capacity['affordability_policy'] ?? null)
+            ? $capacity['affordability_policy']
+            : null;
+        if ($storedPolicy === null && is_array($capacity) && isset($capacity['repayment_ratio_pct'])) {
+            $storedPolicy = [
+                'repayment_ratio_pct' => (float) $capacity['repayment_ratio_pct'],
+                'repayment_ratio' => round(((float) $capacity['repayment_ratio_pct']) / 100, 4),
+                'policy_version' => (int) data_get($capacity, 'settings_version.affordability_policy_version', 0),
+                'income_basis' => (($capacity['gate'] ?? '') === 'verified') ? 'statement' : 'declared',
+            ];
+        }
+        $policy = $policyService->resolveFromStored($storedPolicy);
+
+        $isCapacity = in_array(CapacityAutoRejectService::REASON_CODE, $reasons['codes'] ?? [], true)
+            || ($application->rejection_reason_code === CapacityAutoRejectService::REASON_CODE)
+            || is_array($capacity);
+
+        $snapshot['is_capacity_rejection'] = $isCapacity;
+        $snapshot['affordability_policy'] = $policy;
+        $snapshot['affordability_ratio'] = $policy['affordability_ratio_label'];
+        $snapshot['affordability_ratio_pct'] = (float) $policy['repayment_ratio_pct'];
+        $snapshot['income_basis'] = (string) ($policy['income_basis']
+            ?? ((is_array($capacity) && ($capacity['gate'] ?? '') === 'verified') ? 'statement' : 'declared'));
+
         if (is_array($capacity)) {
             $snapshot['capacity_auto_reject'] = [
                 'is_group' => (bool) ($capacity['is_group'] ?? false),
                 'proposed_installment' => (float) ($capacity['proposed_installment'] ?? 0),
                 'available_capacity' => (float) ($capacity['available_capacity'] ?? 0),
                 'requested_amount' => (float) ($capacity['requested_amount'] ?? $application->requested_amount ?? 0),
+                'net_income' => (float) ($capacity['net_income'] ?? 0),
                 'failed_members' => $capacity['failed_members'] ?? [],
                 'group_members' => $capacity['group_members'] ?? [],
-                'repayment_ratio_pct' => (float) ($capacity['repayment_ratio_pct'] ?? 33.33),
+                'repayment_ratio_pct' => (float) ($policy['repayment_ratio_pct']),
+                'affordability_policy' => $policy,
+                'gate' => $capacity['gate'] ?? null,
             ];
             $snapshot['failed_members'] = $capacity['failed_members'] ?? [];
             $snapshot['is_group_rejection'] = (bool) ($capacity['is_group'] ?? false);
+            $snapshot['proposed_monthly_repayment'] = (float) ($capacity['proposed_installment'] ?? 0);
+            $snapshot['supported_monthly_repayment'] = (float) ($capacity['available_capacity'] ?? 0);
+            $snapshot['requested_amount'] = (float) ($capacity['requested_amount'] ?? $snapshot['requested_amount']);
+        } else {
+            $snapshot['proposed_monthly_repayment'] = (float) ($snapshot['estimated_emi'] ?? 0);
+            $snapshot['supported_monthly_repayment'] = 0.0;
+        }
+
+        // Capacity figures stay in the capacity block. Catalog reason labels remain
+        // the borrower-facing reason list; do not blank them just because a capacity
+        // narrative was also stored.
+        if ($isCapacity && ! ($snapshot['is_group_rejection'] ?? false) && ! filled($snapshot['rejection_advice'])) {
+            $snapshot['rejection_advice'] = app(LoanRejectionReasonService::class)->resolveBorrowerAdvice(
+                CapacityAutoRejectService::ADVICE_CODE,
+                null,
+                $locale,
+            );
         }
 
         return $snapshot;
@@ -1270,7 +1453,7 @@ class LoanAgreementService
                 if (method_exists($metrics, 'getFont')) {
                     $font = $metrics->getFont('DejaVu Sans');
                 }
-                $canvas->page_text(42, 820, 'Page {PAGE_NUM} of {PAGE_COUNT}', $font, 8, [0.42, 0.49, 0.45]);
+                $canvas->page_text(48, 822, 'Page {PAGE_NUM} of {PAGE_COUNT}', $font, 8, [0.42, 0.49, 0.45]);
             }
         } catch (\Throwable $e) {
             report($e);
@@ -1327,6 +1510,10 @@ class LoanAgreementService
 
     private function borrowerContractLocale(?LoanApplication $application): string
     {
+        if ($this->previewLocaleOverride !== null) {
+            return $this->previewLocaleOverride;
+        }
+
         $application?->loadMissing('customer.user');
         $user = $application?->customer?->user;
         $prefs = is_array($user?->preferences) ? $user->preferences : [];
@@ -1360,6 +1547,25 @@ class LoanAgreementService
             return $callback();
         } finally {
             app()->setLocale($previous);
+        }
+    }
+
+    /**
+     * Admin preview language switch — temporary locale only; never writes borrower preferences.
+     */
+    private function withPreviewLocale(?string $previewLocale, callable $callback): mixed
+    {
+        if (! is_string($previewLocale) || ! in_array($previewLocale, ['en', 'sw'], true)) {
+            return $callback();
+        }
+
+        $previousOverride = $this->previewLocaleOverride;
+        $this->previewLocaleOverride = $previewLocale;
+
+        try {
+            return $callback();
+        } finally {
+            $this->previewLocaleOverride = $previousOverride;
         }
     }
 }

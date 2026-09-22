@@ -15,21 +15,6 @@
     ];
 @endphp
 
-@if (session('status'))
-    <div
-        x-data
-        x-init="
-            $nextTick(() => window.showBorrowerFeedback && window.showBorrowerFeedback({
-                title: @js(__('borrower.feedback.saved_title')),
-                message: @js(session('status')),
-                tone: 'success',
-            }));
-        "
-        class="sr-only"
-        aria-hidden="true"
-    ></div>
-@endif
-
 <p class="text-sm text-gray-600 mb-4">{{ __('site.partner_account.docs_page_intro') }}</p>
 <div class="grid lg:grid-cols-3 gap-6">
     @if ($canUpload)

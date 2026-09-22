@@ -47,9 +47,9 @@ return [
         ['CRB integration', 'admin.settings.crb', 'crb'],
     ],
     'Legal' => [
-        ['Contracts & clauses', 'admin.settings.legal', 'legal'],
-        ['Signatories', 'admin.settings.signatories.index', 'signatories'],
-        ['Document templates', 'admin.document-templates.index', 'document-templates'],
+        ['Signatories & Company Seal', 'admin.settings.signatories.index', 'signatories'],
+        ['Document Templates', 'admin.document-templates.index', 'document-templates'],
+        ['Contracts & Clauses', 'admin.settings.legal', 'legal'],
     ],
     'Finance' => [
         ['Finance defaults', 'admin.settings.finance', 'finance'],

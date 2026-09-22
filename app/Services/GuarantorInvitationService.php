@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ApplicationStageHistory;
 use App\Models\Customer;
 use App\Models\CustomerGuarantor;
 use App\Models\Guarantor;
@@ -1254,33 +1255,142 @@ class GuarantorInvitationService
     }
 
     /**
-     * Move awaiting_guarantor → screening only when every approved guarantor has a complete profile.
+     * Null when an awaiting_guarantor application may enter Screening.
+     * One answer for the list, the release, and UAT reconciliation.
      */
-    public function tryReleaseApplicationFromGuarantorHold(?LoanApplication $application): bool
+    public function guarantorHoldBlocker(?LoanApplication $application): ?string
     {
         if (! $application || $application->status !== 'awaiting_guarantor') {
-            return false;
+            return 'not_on_guarantor_hold';
         }
 
         $approvedLinks = CustomerGuarantor::query()
-            ->with('invitation')
             ->where('loan_application_id', $application->id)
             ->where('status', 'approved')
             ->get();
 
         if ($approvedLinks->isEmpty()) {
-            return false;
+            return 'no_approved_guarantor';
         }
 
-        $onboarding = app(GuarantorOnboardingService::class);
         $access = app(GuarantorAccessService::class);
+        $completion = app(ProfileCompletionService::class);
+        $borrower = $application->customer;
+        if (! $borrower || ! $completion->isFullyComplete($borrower)) {
+            return 'borrower_profile_incomplete';
+        }
 
         foreach ($approvedLinks as $approvedLink) {
             $guarantorCustomer = $access->guarantorCustomerForLink($approvedLink);
-            if (! $guarantorCustomer || ! ($onboarding->guarantorProfileStatus($guarantorCustomer)['met'] ?? false)) {
-                return false;
+            if (! $guarantorCustomer) {
+                return 'approved_guarantor_not_linked';
+            }
+            if (! $completion->isFullyComplete($guarantorCustomer)) {
+                return 'guarantor_profile_incomplete';
             }
         }
+
+        return null;
+    }
+
+    /**
+     * Who still blocks entry to Screening, and the exact missing profile items.
+     * Only while the application is still awaiting that entry. Later stages are left alone.
+     *
+     * @return array{applies: bool, parties: list<array{role: string, name: ?string, missing: list<string>, next: string, url: ?string}>}
+     */
+    public function preScreeningHold(?LoanApplication $application): array
+    {
+        if (! $application || $application->status !== 'awaiting_guarantor') {
+            return ['applies' => false, 'parties' => []];
+        }
+
+        $completion = app(ProfileCompletionService::class);
+        $parties = [];
+        $borrower = $application->customer;
+        if ($borrower && ! $completion->isFullyComplete($borrower)) {
+            $parties[] = $this->incompleteProfileParty('borrower', $borrower, $completion);
+        }
+
+        $approvedLinks = CustomerGuarantor::query()
+            ->where('loan_application_id', $application->id)
+            ->where('status', 'approved')
+            ->get();
+
+        if ($approvedLinks->isEmpty()) {
+            $parties[] = [
+                'role' => 'guarantor',
+                'name' => null,
+                'missing' => [__('borrower.loan_profile.prescreening_guarantor_not_ready')],
+                'next' => __('borrower.loan_profile.prescreening_guarantor_must_accept'),
+                'url' => null,
+            ];
+        } else {
+            $access = app(GuarantorAccessService::class);
+            foreach ($approvedLinks as $approvedLink) {
+                $guarantorCustomer = $access->guarantorCustomerForLink($approvedLink);
+                if (! $guarantorCustomer) {
+                    $parties[] = [
+                        'role' => 'guarantor',
+                        'name' => $approvedLink->displayName(),
+                        'missing' => [__('borrower.loan_profile.prescreening_guarantor_not_linked')],
+                        'next' => __('borrower.loan_profile.prescreening_guarantor_must_accept'),
+                        'url' => null,
+                    ];
+
+                    continue;
+                }
+                if (! $completion->isFullyComplete($guarantorCustomer)) {
+                    $parties[] = $this->incompleteProfileParty('guarantor', $guarantorCustomer, $completion);
+                }
+            }
+        }
+
+        return ['applies' => true, 'parties' => $parties];
+    }
+
+    /**
+     * @return array{role: string, name: ?string, missing: list<string>, next: string, url: ?string}
+     */
+    private function incompleteProfileParty(string $role, Customer $customer, ProfileCompletionService $completion): array
+    {
+        $summary = $completion->completionSummary($customer);
+        $missing = collect($summary['actionable'] ?? [])
+            ->pluck('label')
+            ->filter(fn ($label) => filled($label))
+            ->values()
+            ->all();
+        $name = trim((string) ($customer->legalDisplayName() ?? ''));
+        if ($name === '') {
+            $name = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+        }
+        $nextUrl = $role === 'borrower'
+            ? (collect($summary['actionable'] ?? [])->first()['url'] ?? route('site.borrower.profile'))
+            : null;
+
+        return [
+            'role' => $role,
+            'name' => $name !== '' ? $name : null,
+            'missing' => $missing !== [] ? $missing : [__('borrower.loan_profile.prescreening_profile_incomplete')],
+            'next' => $role === 'borrower'
+                ? __('borrower.loan_profile.prescreening_borrower_next')
+                : __('borrower.loan_profile.prescreening_guarantor_next', ['name' => $name !== '' ? $name : __('borrower.application.guarantor_role')]),
+            'url' => $nextUrl,
+        ];
+    }
+
+    /**
+     * Move awaiting_guarantor → screening only when the borrower and every approved guarantor
+     * are complete in the profile engine. Applications already past this status are not moved back.
+     */
+    public function tryReleaseApplicationFromGuarantorHold(?LoanApplication $application): bool
+    {
+        if ($this->guarantorHoldBlocker($application) !== null) {
+            return false;
+        }
+
+        $fromStage = (string) ($application->current_stage ?: 'awaiting_guarantor');
+        $fromStatus = (string) $application->status;
 
         $application->update([
             'status'                => 'submitted',
@@ -1289,6 +1399,8 @@ class GuarantorInvitationService
             'guarantor_deadline_at' => null,
         ]);
 
+        $this->recordAutomaticScreeningEntry($application, $fromStage, $fromStatus);
+
         $released = $application->fresh(['customer', 'product']);
         app(CapacityAutoRejectService::class)->evaluateAndPark($released);
         app(CrbCreditCheckService::class)->pullAndAttachAfterCapacityPass($released->fresh(['customer', 'product']));
@@ -1296,11 +1408,51 @@ class GuarantorInvitationService
         return true;
     }
 
+    /**
+     * One stage-history and audit row for the automatic pre-Screening release.
+     * A later profile save must not write a second Screening entry.
+     */
+    private function recordAutomaticScreeningEntry(LoanApplication $application, string $fromStage, string $fromStatus): void
+    {
+        $alreadyRecorded = ApplicationStageHistory::query()
+            ->where('loan_application_id', $application->id)
+            ->where('to_stage', 'screening')
+            ->where('remarks', 'like', 'Entered Credit Screening%')
+            ->exists();
+
+        if ($alreadyRecorded) {
+            return;
+        }
+
+        $remarks = 'Entered Credit Screening. Actor: System (automatic). '
+            .'Reason: pre-Screening requirements completed. '
+            .'Status: '.$fromStatus.' → submitted.';
+
+        ApplicationStageHistory::create([
+            'loan_application_id' => $application->id,
+            'from_stage' => $fromStage,
+            'to_stage' => 'screening',
+            'changed_by' => null,
+            'remarks' => $remarks,
+        ]);
+
+        app(AuditService::class)->log(null, 'application.stage_changed', $application, [
+            'current_stage' => $fromStage,
+            'status' => $fromStatus,
+        ], [
+            'current_stage' => 'screening',
+            'status' => 'submitted',
+            'actor' => 'system',
+            'action' => 'entered_credit_screening',
+            'reason' => 'pre-Screening requirements completed',
+            'remarks' => $remarks,
+        ]);
+    }
+
     /** After a guarantor finishes their profile, release any held applications they already accepted. */
     public function releaseHeldApplicationsForGuarantor(Customer $guarantor): int
     {
-        $onboarding = app(GuarantorOnboardingService::class);
-        if (! ($onboarding->guarantorProfileStatus($guarantor)['met'] ?? false)) {
+        if (! app(ProfileCompletionService::class)->isFullyComplete($guarantor)) {
             return 0;
         }
 
@@ -1322,6 +1474,37 @@ class GuarantorInvitationService
             });
 
         return $released;
+    }
+
+    /** When the borrower finishes their own profile, release their held applications too. */
+    public function releaseHeldApplicationsForBorrower(Customer $borrower): int
+    {
+        if (! app(ProfileCompletionService::class)->isFullyComplete($borrower)) {
+            return 0;
+        }
+
+        $released = 0;
+        LoanApplication::query()
+            ->where('customer_id', $borrower->id)
+            ->where('status', 'awaiting_guarantor')
+            ->orderBy('id')
+            ->each(function (LoanApplication $application) use (&$released): void {
+                if ($this->tryReleaseApplicationFromGuarantorHold($application)) {
+                    $released++;
+                }
+            });
+
+        return $released;
+    }
+
+    public function releaseHeldApplicationsForMember(Customer $customer): int
+    {
+        if (! app(ProfileCompletionService::class)->isFullyComplete($customer)) {
+            return 0;
+        }
+
+        return $this->releaseHeldApplicationsForGuarantor($customer)
+            + $this->releaseHeldApplicationsForBorrower($customer);
     }
 
     public function reject(CustomerGuarantor $link, ?string $notes = null): void

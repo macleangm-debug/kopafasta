@@ -268,9 +268,24 @@ return [
         'where' => 'Site chatbot widget.',
     ],
     'legal' => [
-        'title' => 'Contracts & clauses',
-        'summary' => 'Legal clause libraries used when generating agreements.',
-        'where' => 'Loan agreements and contract PDFs.',
+        'title' => 'Contracts & Clauses',
+        'summary' => 'The sections and legal clauses that compose contracts.',
+        'where' => 'Loan Contract PDFs. Edit a clause → it belongs to a section → that section appears in contracts → Preview in document.',
+        'how_to' => [
+            'Signatories & Company Seal — who authorizes official documents.',
+            'Document Templates — what official documents Kopafasta issues and how they look.',
+            'Contracts & Clauses — the sections and legal clauses that compose contracts.',
+        ],
+    ],
+    'signatories' => [
+        'title' => 'Signatories & Company Seal',
+        'summary' => 'Who authorizes official documents.',
+        'where' => 'Offer Letter, Decision Letter, and Loan Contract signature and stamp blocks.',
+    ],
+    'document-templates' => [
+        'title' => 'Document Templates',
+        'summary' => 'What official documents Kopafasta issues and how they look.',
+        'where' => 'Runtime Offer, Decision, and Loan Contract PDFs. Preview opens inside Kopafasta.',
     ],
     'working-hours' => [
         'title' => 'Working hours',

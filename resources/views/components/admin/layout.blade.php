@@ -443,6 +443,11 @@
                 secondaryLabel: @js($feedback['secondaryLabel'] ?? null),
                 secondaryHref: @js($feedback['secondaryHref'] ?? null),
             });
+        @elseif (session('saved_quietly'))
+            @php $savedQuietly = (string) session('saved_quietly'); @endphp
+            if (typeof window.kfFlashInlineSaved === 'function') {
+                window.kfFlashInlineSaved(@js($savedQuietly !== '' ? $savedQuietly : 'Saved'));
+            }
         @elseif (session('status'))
             @php
                 $statusMessage = (string) session('status');
@@ -451,11 +456,20 @@
                     ? 'error'
                     : 'success';
             @endphp
+            @if ($statusTone === 'success')
+                @php
+                    $ordinarySave = (bool) preg_match('/\b(saved|updated|imehifadhiwa|imesasishwa)\b/i', $statusMessage);
+                @endphp
+                if (typeof window.kfFlashInlineSaved === 'function') {
+                    window.kfFlashInlineSaved(@js($ordinarySave ? __('borrower.document_upload.saved') : ($statusMessage !== '' ? $statusMessage : 'Saved')));
+                }
+            @else
             window.showAdminFeedback({
-                tone: @js($statusTone),
-                title: @js($statusTone === 'error' ? __('borrower.feedback.tones.error') : __('borrower.feedback.tones.success')),
+                tone: 'error',
+                title: @js(__('borrower.feedback.tones.error')),
                 message: @js($statusMessage),
             });
+            @endif
         @endif
         @if (session('error'))
             window.showAdminFeedback({
@@ -489,7 +503,7 @@
                     </a>
                     <button type="button" id="kf-doc-drawer-close" onclick="window.kfCloseDocumentPreview()"
                             class="text-xs font-bold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg ring-1 ring-slate-200 bg-white">
-                        Back to Review
+                        Close
                     </button>
                 </div>
             </div>
@@ -501,7 +515,7 @@
             </div>
             <div class="sm:hidden px-4 py-3 border-t border-gray-200 bg-white shrink-0">
                 <button type="button" id="kf-doc-drawer-close-mobile" onclick="window.kfCloseDocumentPreview()"
-                        class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3">Back to Review</button>
+                        class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3">Close</button>
             </div>
         </div>
     </div>
@@ -562,7 +576,7 @@ window.kfOpenDocumentPreview = function (url, title, type) {
         closeMobile.textContent = closeLabel;
     }
     if (panel) {
-        if (window.matchMedia('(max-width: 640px)').matches) {
+        if (! fromReview && window.matchMedia('(max-width: 640px)').matches) {
             panel.classList.remove('max-w-3xl', 'max-h-[90vh]', 'rounded-2xl');
             panel.classList.add('max-w-none', 'h-full', 'rounded-none');
         } else {
@@ -572,7 +586,7 @@ window.kfOpenDocumentPreview = function (url, title, type) {
     }
 
     var urlLower = String(url || '').toLowerCase();
-    if (type === 'pdf' || urlLower.indexOf('.pdf') !== -1 || urlLower.indexOf('loan-agreements') !== -1 || urlLower.indexOf('rejection-letter') !== -1) {
+    if (type === 'pdf' || urlLower.indexOf('.pdf') !== -1 || urlLower.indexOf('loan-agreements') !== -1 || urlLower.indexOf('rejection-letter') !== -1 || urlLower.indexOf('document-templates/preview') !== -1 || urlLower.indexOf('final-contract') !== -1) {
         frame.classList.remove('hidden');
         imageWrap.classList.add('hidden');
         frame.src = url;

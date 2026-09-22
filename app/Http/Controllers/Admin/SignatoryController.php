@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompanySignatory;
+use App\Services\LegalSettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -16,6 +17,7 @@ class SignatoryController extends Controller
     {
         return view('admin.settings.signatories.index', [
             'signatories' => CompanySignatory::query()->orderBy('name')->get(),
+            'stampPath' => app(LegalSettingsService::class)->get('stamp_path'),
         ]);
     }
 
@@ -33,7 +35,8 @@ class SignatoryController extends Controller
         CompanySignatory::create($data);
 
         return redirect()->route('admin.settings.signatories.index')
-            ->with('status', 'Signatory added.');
+            ->with('status', 'Saved')
+            ->with('status_quietly', true);
     }
 
     public function edit(CompanySignatory $signatory): View
@@ -72,7 +75,8 @@ class SignatoryController extends Controller
         $signatory->update($data);
 
         return redirect()->route('admin.settings.signatories.index')
-            ->with('status', 'Signatory updated.');
+            ->with('status', 'Saved')
+            ->with('status_quietly', true);
     }
 
     public function destroy(CompanySignatory $signatory): RedirectResponse
@@ -90,6 +94,39 @@ class SignatoryController extends Controller
             ->with('status', 'Signatory removed.');
     }
 
+    public function replaceStamp(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'stamp_image' => ['required', 'image', 'mimes:png,jpeg,jpg,webp', 'max:5120'],
+            'remove_stamp_background' => ['nullable', 'boolean'],
+            'confirm_replace_stamp' => ['accepted'],
+        ]);
+
+        $legal = app(LegalSettingsService::class);
+        $existing = (string) ($legal->get('stamp_path') ?? '');
+
+        $stored = $request->file('stamp_image')->store('legal', 'public');
+        $full = storage_path('app/public/'.ltrim($stored, '/'));
+
+        if ($request->boolean('remove_stamp_background', true) && is_file($full)) {
+            $transparent = $legal->storeTransparentPublicImage($full, 'legal');
+            if ($transparent) {
+                Storage::disk('public')->delete($stored);
+                $stored = $transparent;
+            }
+        }
+
+        if ($existing !== '') {
+            Storage::disk('public')->delete($existing);
+        }
+
+        \App\Models\Setting::set('legal.stamp_path', $stored);
+
+        return redirect()->route('admin.settings.signatories.index')
+            ->with('status', 'Company stamp replaced')
+            ->with('status_quietly', true);
+    }
+
     /** @return array<string, mixed> */
     private function validated(Request $request): array
     {
@@ -99,10 +136,12 @@ class SignatoryController extends Controller
             'email'          => ['nullable', 'email', 'max:150'],
             'signatory_type' => ['required', 'in:ceo,finance_manager,company,legal_advocate'],
             'is_active'      => ['nullable', 'boolean'],
+            'signature_method' => ['nullable', 'in:draw,upload'],
             'signature_image'=> ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'stamp_image'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'remove_signature' => ['nullable', 'boolean'],
             'remove_stamp'     => ['nullable', 'boolean'],
+            'remove_signature_background' => ['nullable', 'boolean'],
         ]) + ['is_active' => $request->boolean('is_active', true)];
     }
 
@@ -116,6 +155,8 @@ class SignatoryController extends Controller
             $data['stamp_image'],
             $data['remove_signature'],
             $data['remove_stamp'],
+            $data['signature_method'],
+            $data['remove_signature_background'],
         );
 
         return $data;
@@ -132,30 +173,65 @@ class SignatoryController extends Controller
 
     private function storeSignature(Request $request): ?string
     {
-        if ($request->hasFile('signature_image')) {
-            return $request->file('signature_image')->store('signatories', 'public');
+        $method = (string) $request->input('signature_method', '');
+        $legal = app(LegalSettingsService::class);
+
+        if ($method === 'upload' || ($method === '' && $request->hasFile('signature_image'))) {
+            if (! $request->hasFile('signature_image')) {
+                return null;
+            }
+
+            $path = $request->file('signature_image')->store('signatories', 'public');
+            $full = storage_path('app/public/'.ltrim($path, '/'));
+
+            // Default ON for uploads: strip paper background so PDFs don't show a rectangle.
+            $removeBg = $request->has('remove_signature_background')
+                ? $request->boolean('remove_signature_background')
+                : true;
+
+            if ($removeBg && is_file($full)) {
+                $transparent = $legal->storeTransparentPublicImage($full, 'signatories');
+                if ($transparent) {
+                    Storage::disk('public')->delete($path);
+
+                    return $transparent;
+                }
+            }
+
+            return $path;
         }
 
-        if (! $request->boolean('signature_touched')) {
-            return null;
+        if ($method === 'draw' || $method === '') {
+            if (! $request->boolean('signature_touched') && $method !== 'draw') {
+                return null;
+            }
+
+            $dataUrl = (string) $request->input('signature_data', '');
+            if ($dataUrl === '' || ! str_starts_with($dataUrl, 'data:image')) {
+                return null;
+            }
+
+            [$meta, $encoded] = explode(',', $dataUrl, 2);
+            $extension = str_contains($meta, 'image/jpeg') ? 'jpg' : 'png';
+            $binary = base64_decode($encoded, true);
+
+            if ($binary === false) {
+                return null;
+            }
+
+            $path = 'signatories/'.Str::uuid().'.'.$extension;
+            Storage::disk('public')->put($path, $binary);
+            $full = storage_path('app/public/'.ltrim($path, '/'));
+            $transparent = $legal->storeTransparentPublicImage($full, 'signatories');
+            if ($transparent) {
+                Storage::disk('public')->delete($path);
+
+                return $transparent;
+            }
+
+            return $path;
         }
 
-        $dataUrl = (string) $request->input('signature_data', '');
-        if ($dataUrl === '' || ! str_starts_with($dataUrl, 'data:image')) {
-            return null;
-        }
-
-        [$meta, $encoded] = explode(',', $dataUrl, 2);
-        $extension = str_contains($meta, 'image/jpeg') ? 'jpg' : 'png';
-        $binary = base64_decode($encoded, true);
-
-        if ($binary === false) {
-            return null;
-        }
-
-        $path = 'signatories/'.Str::uuid().'.'.$extension;
-        Storage::disk('public')->put($path, $binary);
-
-        return $path;
+        return null;
     }
 }

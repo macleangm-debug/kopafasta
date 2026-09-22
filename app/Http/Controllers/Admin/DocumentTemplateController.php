@@ -3,7 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\DocumentTemplate;
+use App\Models\Setting;
+use App\Services\LegalSettingsService;
+use App\Services\LoanAgreementService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\View\View;
 
 class DocumentTemplateController extends ResourceController
 {
@@ -11,6 +18,118 @@ class DocumentTemplateController extends ResourceController
     protected string $routePrefix = 'admin.document-templates';
     protected string $viewFolder = 'document-templates';
     protected string $singular = 'document template';
+
+    public function index(): View
+    {
+        $legal = app(LegalSettingsService::class);
+        $signatory = $legal->activeCeoSignatory();
+
+        return view('admin.document-templates.index', [
+            'offerValidityDays' => $legal->offerValidityDays(),
+            'signatoryName' => $signatory?->name ?? $legal->signatoryName(),
+            'hasStamp' => filled($legal->get('stamp_path')),
+            'runtimeDocuments' => [
+                [
+                    'key' => 'offer_letter',
+                    'title' => 'Offer Letter',
+                    'status' => 'Active',
+                    'languages' => 'EN / SW (borrower locale)',
+                    'signatory' => 'Signatories & Company Seal',
+                    'stamp' => 'Company stamp',
+                    'configure' => route('admin.document-templates.index').'#offer-config',
+                    'detail' => 'Issued after approval. Validity days configured below.',
+                    'updated' => null,
+                ],
+                [
+                    'key' => 'decision_letter',
+                    'title' => 'Decision Letter',
+                    'status' => 'Active',
+                    'languages' => 'EN / SW (borrower locale)',
+                    'signatory' => 'Signatories & Company Seal',
+                    'stamp' => 'Company stamp',
+                    'configure' => route('admin.settings.legal').'#clauses',
+                    'detail' => 'Rejection / decision PDF using decision-time affordability snapshot.',
+                    'updated' => null,
+                ],
+                [
+                    'key' => 'loan_contract',
+                    'title' => 'Loan Contract',
+                    'status' => 'Active',
+                    'languages' => 'EN / SW (borrower locale)',
+                    'signatory' => 'Signatories & Company Seal',
+                    'stamp' => 'Company stamp',
+                    'configure' => route('admin.settings.legal'),
+                    'detail' => 'Post-acceptance contract. Sections and clauses under Contracts & Clauses.',
+                    'updated' => null,
+                ],
+            ],
+        ]);
+    }
+
+    public function preview(Request $request, string $type, LoanAgreementService $agreements): Response|RedirectResponse
+    {
+        $map = [
+            'offer' => 'offer_letter',
+            'offer_letter' => 'offer_letter',
+            'decision' => 'rejection_letter',
+            'decision_letter' => 'rejection_letter',
+            'rejection' => 'rejection_letter',
+            'rejection_letter' => 'rejection_letter',
+            'contract' => 'loan_contract',
+            'loan_contract' => 'loan_contract',
+        ];
+
+        $documentType = $map[$type] ?? null;
+        if (! $documentType) {
+            abort(404);
+        }
+
+        $previewLocale = $request->query('lang');
+        if (! is_string($previewLocale) || ! in_array($previewLocale, ['en', 'sw'], true)) {
+            $previewLocale = null;
+        }
+
+        try {
+            $pdf = $agreements->previewRuntimeDocumentPdf($documentType, null, $previewLocale);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()
+                ->route('admin.document-templates.index')
+                ->withErrors($e->errors());
+        }
+
+        $filename = 'PREVIEW-'.$documentType.($previewLocale ? '-'.$previewLocale : '').'.pdf';
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
+    }
+
+    public function saveOfferValidity(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'offer_validity_days' => ['required', 'integer', 'min:1', 'max:90'],
+        ]);
+
+        Setting::set('legal.offer_validity_days', (int) $data['offer_validity_days']);
+
+        return redirect()
+            ->route('admin.document-templates.index')
+            ->with('status', 'Saved')
+            ->with('status_quietly', true);
+    }
+
+    public function create()
+    {
+        return redirect()
+            ->route('admin.document-templates.index')
+            ->with('status', 'Runtime document types (Offer, Decision, Loan Contract) are generated by the platform. Arbitrary new template types are not supported yet — edit sections and clauses under Contracts & Clauses instead.');
+    }
+
+    public function store(Request $request)
+    {
+        return $this->create();
+    }
 
     protected function rules(?Model $model = null): array
     {

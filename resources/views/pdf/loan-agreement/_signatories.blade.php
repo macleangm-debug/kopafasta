@@ -91,7 +91,7 @@
 
     <table class="kv" style="margin-top:12px">
         <tr>
-            <td style="width:33%;vertical-align:top">
+            <td style="width:{{ ! empty($snapshot['finance_signatory_name']) ? '33%' : '50%' }};vertical-align:top">
                 <strong>{{ $t('Chief Executive Officer', 'Mkurugenzi Mtendaji') }}</strong>
                 @if (! empty($snapshot['ceo_signature_path'] ?? $snapshot['company_signature_path'] ?? null))
                     <div><img src="{{ $snapshot['ceo_signature_path'] ?? $snapshot['company_signature_path'] }}" class="sig-img" alt=""></div>
@@ -101,22 +101,31 @@
                 <div class="muted">{{ pdf_text($snapshot['ceo_signatory_name'] ?? $snapshot['company_signatory_name'] ?? $snapshot['company_legal_name'] ?? brand('legal_name')) }}</div>
                 <div class="muted">{{ pdf_text($snapshot['ceo_signatory_title'] ?? $snapshot['company_signatory_title'] ?? $t('Chief Executive Officer', 'Mkurugenzi Mtendaji')) }}</div>
             </td>
-            <td style="width:33%;vertical-align:top">
-                <strong>{{ $t('Finance manager', 'Meneja fedha') }}</strong>
-                @if (! empty($snapshot['finance_signature_path']))
-                    <div><img src="{{ $snapshot['finance_signature_path'] }}" class="sig-img" alt=""></div>
-                @else
-                    <div class="muted" style="margin-top:18px">______________________________</div>
-                @endif
-                <div class="muted">{{ pdf_text($snapshot['finance_signatory_name'] ?? '—') }}</div>
-                <div class="muted">{{ pdf_text($snapshot['finance_signatory_title'] ?? $t('Finance manager', 'Meneja fedha')) }}</div>
-            </td>
-            <td style="width:34%;vertical-align:top;text-align:center">
+            @if (! empty($snapshot['finance_signatory_name']))
+                <td style="width:33%;vertical-align:top">
+                    <strong>{{ $t('Finance manager', 'Meneja fedha') }}</strong>
+                    @if (! empty($snapshot['finance_signature_path']))
+                        <div><img src="{{ $snapshot['finance_signature_path'] }}" class="sig-img" alt=""></div>
+                    @else
+                        <div class="muted" style="margin-top:18px">______________________________</div>
+                    @endif
+                    <div class="muted">{{ pdf_text($snapshot['finance_signatory_name']) }}</div>
+                    <div class="muted">{{ pdf_text($snapshot['finance_signatory_title'] ?? $t('Finance manager', 'Meneja fedha')) }}</div>
+                </td>
+            @elseif (! empty($snapshot['is_preview']))
+                <td style="width:33%;vertical-align:top">
+                    <strong>{{ $t('Finance manager', 'Meneja fedha') }}</strong>
+                    <div class="na" style="margin-top:10px">{{ $t('Not configured in Signatories', 'Haijawekwa katika Wasaini') }}</div>
+                </td>
+            @endif
+            <td style="width:{{ ! empty($snapshot['finance_signatory_name']) || ! empty($snapshot['is_preview']) ? '34%' : '50%' }};vertical-align:top;text-align:center">
                 <strong>{{ $t('Company stamp', 'Muhuri wa kampuni') }}</strong>
                 @if (! empty($snapshot['company_stamp_path']))
                     <div><img src="{{ $snapshot['company_stamp_path'] }}" class="stamp-img" alt=""></div>
+                @elseif (! empty($snapshot['is_preview']))
+                    <div class="na" style="margin-top:12px">{{ $t('Stamp not configured', 'Muhuri haujawekwa') }}</div>
                 @else
-                    <div class="muted" style="margin-top:12px">-</div>
+                    <div class="muted" style="margin-top:12px">________________</div>
                 @endif
             </td>
         </tr>

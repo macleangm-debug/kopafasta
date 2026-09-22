@@ -196,18 +196,13 @@ class MemberEngagementRewardService
             return;
         }
 
-        $points = $this->loyalty->earn(
+        $this->loyalty->earn(
             $customer,
             'complete_profile',
             'Profile complete',
             'profile_completion',
             (int) $customer->id,
         );
-
-        if ($points > 0) {
-            \App\Support\Celebration::flashOne('profile_complete');
-            session()->flash('celebration_points', $points);
-        }
     }
 
     /** @return array<string, mixed> */

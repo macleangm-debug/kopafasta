@@ -21,6 +21,7 @@ class LoanProduct extends Model
             'max_amount' => 'decimal:2',
             'application_fee_amount' => 'integer',
             'default_grace_days' => 'integer',
+            'use_general_grace_period' => 'boolean',
             'penalty_rate_percent' => 'decimal:2',
             'requires_collateral' => 'boolean',
             'requires_guarantor' => 'boolean',

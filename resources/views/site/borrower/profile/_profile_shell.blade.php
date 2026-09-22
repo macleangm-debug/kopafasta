@@ -19,15 +19,6 @@
     @endif
 @endif
 
-@if (! request()->boolean('solo') && session('status') && ! session('kf_suppress_saved'))
-    {{-- Page flash only — never collide with the live canonical autosave toast attributes. --}}
-    <div class="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 px-3.5 py-1.5 text-xs font-bold"
-         role="status" data-kf-page-status>
-        <span aria-hidden="true">✓</span>
-        <span>{{ session('status') }}</span>
-    </div>
-@endif
-
 {{-- Marker for shared saving-overlay: Profile never uses the blocking modal. --}}
 <div data-kf-profile-page hidden aria-hidden="true"></div>
 
@@ -37,6 +28,27 @@
     'subtitle' => null,
     'share' => ($active ?? '') !== 'hub' ? 'kf-prof-'.$active : null,
 ])
+
+@php
+    $policyNotice = isset($customer) ? app(\App\Services\ProfileCompletionService::class)->policyUpdateNotice($customer) : null;
+@endphp
+@if (! empty($policyNotice['items']))
+    <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-4 text-sm text-amber-950" role="status">
+        <p class="font-semibold">{{ $policyNotice['title'] }}</p>
+        <p class="mt-1 text-amber-900">{{ $policyNotice['body'] }}</p>
+        <ul class="mt-3 space-y-1">
+            @foreach ($policyNotice['items'] as $item)
+                <li>
+                    @if (! empty($item['url']))
+                        <a href="{{ $item['url'] }}" class="font-semibold underline">{{ $item['label'] }}</a>
+                    @else
+                        <span class="font-semibold">{{ $item['label'] }}</span>
+                    @endif
+                </li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
 @if (! $wizardMode && ! request()->boolean('solo'))
     @include('site.borrower.profile._member_card', [

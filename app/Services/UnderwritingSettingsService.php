@@ -203,12 +203,16 @@ class UnderwritingSettingsService
     /** Frozen copy of the screening-gate settings at decision time. */
     public function policySnapshot(): array
     {
+        $affordability = app(AffordabilityPolicyService::class)->snapshot();
+
         return [
             'capacity_auto_reject_delay_hours' => $this->capacityAutoRejectDelayHours(),
             'verified_capacity_auto_reject_delay_hours' => $this->verifiedCapacityAutoRejectDelayHours(),
             'group_member_hard_fail_action' => $this->groupMemberHardFailAction(),
             'guarantor_hard_fail_action' => $this->guarantorHardFailAction(),
             'guarantor_replacement_hours' => $this->guarantorReplacementHours(),
+            'affordability_policy_version' => $affordability['policy_version'],
+            'repayment_ratio_pct' => $affordability['repayment_ratio_pct'],
             'captured_at' => now()->toIso8601String(),
         ];
     }

@@ -38,15 +38,25 @@
         </p>
         <div class="grid md:grid-cols-3 gap-3">
             @php
-                $graceDefault = old('default_grace_days', $r?->default_grace_days ?? config('loan_product_defaults.default_grace_days', 7));
+                $usesGeneralGrace = (bool) old('use_general_grace_period', $r?->use_general_grace_period ?? ($r === null));
+                $graceDefault = old('default_grace_days', $r?->default_grace_days ?? config('loan_product_defaults.default_grace_days', 3));
                 $penaltyDefault = old('penalty_rate_percent', $r?->penalty_rate_percent ?? config('loan_product_defaults.penalty_rate_percent', 1));
                 $basisDefault = old('penalty_basis', $r?->penalty_basis ?? config('loan_product_defaults.penalty_basis', 'per_day'));
                 $penaltyRateLabel = 'Penalty rate (% of amount owed)';
                 $penaltyRateHelp = 'Default: 1% per day on overdue balance (BOT max cumulative 30%).';
             @endphp
-            <x-admin.input name="default_grace_days" label="Grace period after default (days)" type="number"
-                           :value="$graceDefault" required
-                           help="No penalty is charged until this many days after the instalment due date." />
+            <div class="md:col-span-3">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="hidden" name="use_general_grace_period" value="0">
+                    <input type="checkbox" name="use_general_grace_period" value="1" @checked($usesGeneralGrace)
+                           class="rounded border-gray-300 text-brand focus:ring-brand">
+                    Use general operational grace period
+                </label>
+                <p class="mt-1 text-xs text-gray-500">When checked, this product uses Settings → Loan Rules → Repayment & arrears (recommended 3 days). Uncheck to set a product grace period. This does not move the contractual due date.</p>
+            </div>
+            <x-admin.input name="default_grace_days" label="Product operational grace (days)" type="number"
+                           :value="$graceDefault"
+                           help="Used only when “Use general operational grace period” is off." />
             <x-admin.input name="penalty_rate_percent" :label="$penaltyRateLabel" type="number" step="0.01"
                            :value="$penaltyDefault" required
                            :help="$penaltyRateHelp" />

@@ -78,7 +78,8 @@ class LoanProductController extends ResourceController
             'repayment_cadence'   => ['required', 'in:weekly,monthly'],
             'min_amount'          => ['required', 'numeric', 'min:0'],
             'max_amount'          => ['required', 'numeric', 'min:0'],
-            'default_grace_days' => ['required', 'integer', 'min:0', 'max:90'],
+            'default_grace_days' => ['nullable', 'integer', 'min:0', 'max:90', 'required_unless:use_general_grace_period,1'],
+            'use_general_grace_period' => ['nullable', 'boolean'],
             'penalty_rate_percent' => ['required', 'numeric', 'min:0', 'max:5'],
             'penalty_basis' => ['required', 'in:per_day,per_month,one_time'],
             'requires_collateral' => ['nullable', 'boolean'],
@@ -190,6 +191,12 @@ class LoanProductController extends ResourceController
         $this->normalizeMoneyRequest($request);
         $cloning = $request->filled('clone_from_id');
         $validated = $request->validate($cloning ? $this->cloneRules() : $this->rules());
+        if ($request->boolean('use_general_grace_period')) {
+            $validated['use_general_grace_period'] = true;
+            unset($validated['default_grace_days']);
+        } else {
+            $validated['use_general_grace_period'] = false;
+        }
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
@@ -306,6 +313,12 @@ class LoanProductController extends ResourceController
         $before = app(AuditService::class)->snapshot($record);
         $this->normalizeMoneyRequest($request);
         $validated = $request->validate($this->rules($record));
+        if ($request->boolean('use_general_grace_period')) {
+            $validated['use_general_grace_period'] = true;
+            unset($validated['default_grace_days']);
+        } else {
+            $validated['use_general_grace_period'] = false;
+        }
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];

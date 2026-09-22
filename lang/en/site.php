@@ -1000,6 +1000,7 @@ return [
         'audience' => [
             'default' => 'Designed for :type borrowers who need flexible, transparent financing through our mobile platform.',
         ],
+        'overview_heading' => 'Overview',
         'overview' => [
             'default' => ':name provides clear limits, disclosed rates, and a mobile-first application — based on the product rules configured for this offer.',
             'IL' => 'Fast personal capital for verified individuals. Small tiers may not require collateral.',

@@ -44,7 +44,7 @@ class ProfileCompletionService
             }
         }
 
-        return true;
+        return app(ProfileValidationService::class)->businessVerificationComplete($customer);
     }
 
     public function isResidenceComplete(Customer $customer): bool
@@ -55,6 +55,17 @@ class ProfileCompletionService
             && filled($customer->lga_officer_name)
             && filled($customer->lga_officer_position)
             && filled($customer->lga_officer_phone);
+    }
+
+    public function residenceSectionComplete(Customer $customer): bool
+    {
+        $validation = app(ProfileValidationService::class);
+        $complete = $this->isResidenceComplete($customer);
+        if ($validation->requiresResidenceLetter()) {
+            $complete = $complete && $validation->hasResidenceLetter($customer);
+        }
+
+        return $complete;
     }
 
     /**
@@ -90,7 +101,7 @@ class ProfileCompletionService
             [
                 'key'        => 'residence',
                 'label'      => __('borrower.profile.residence'),
-                'status'     => $this->isResidenceComplete($customer) ? 'complete' : 'missing',
+                'status'     => $this->residenceSectionComplete($customer) ? 'complete' : 'missing',
                 'action_url' => route('site.borrower.profile', ['section' => 'residence']),
             ],
             [
@@ -329,7 +340,7 @@ class ProfileCompletionService
             $missing = match ($kind) {
                 'activity_type' => ! filled($type),
                 'income_range' => ! filled($customer->income_range),
-                'employment_contract' => true,
+                'employment_contract' => ! $validation->hasDocument($customer, 'employment_contract'),
                 'document' => ! $validation->hasDocument($customer, $req['document_code'] ?? $key),
                 default => blank($details[$key] ?? null),
             };
@@ -346,6 +357,99 @@ class ProfileCompletionService
         }
 
         return $this->uniqueGaps($gaps);
+    }
+
+    /**
+     * Pre-screening only. Explains a drop caused by a KYC policy change.
+     * Applications already in Screening or later are left alone.
+     *
+     * @return array{title: string, body: string, items: list<array{key: string, label: string, url: string}>}|null
+     */
+    public function policyUpdateNotice(Customer $customer): ?array
+    {
+        $changedRaw = Setting::get('kyc.policy_changed_at');
+        if (! filled($changedRaw)) {
+            return null;
+        }
+
+        try {
+            $changedAt = \Illuminate\Support\Carbon::parse((string) $changedRaw);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (! $this->preScreeningPolicyApplies($customer, $changedAt)) {
+            return null;
+        }
+
+        $items = [];
+        foreach (['activity', 'residence'] as $section) {
+            foreach ($this->sectionGaps($customer, $section) as $gap) {
+                if ($this->isPolicyGatedGap($customer, (string) ($gap['key'] ?? ''))) {
+                    $items[] = $gap;
+                }
+            }
+        }
+
+        $items = $this->uniqueGaps($items);
+        if ($items === []) {
+            return null;
+        }
+
+        return [
+            'title' => __('borrower.profile.requirements_updated_title'),
+            'body' => __('borrower.profile.requirements_updated_body'),
+            'items' => $items,
+        ];
+    }
+
+    private function preScreeningPolicyApplies(Customer $customer, \Illuminate\Support\Carbon $changedAt): bool
+    {
+        $applicationIds = \App\Models\GuarantorInvitation::query()
+            ->where('guarantor_customer_id', $customer->id)
+            ->pluck('loan_application_id')
+            ->filter()
+            ->all();
+
+        return \App\Models\LoanApplication::query()
+            ->where('status', 'awaiting_guarantor')
+            ->where(function ($query) use ($customer, $applicationIds) {
+                $query->where('customer_id', $customer->id);
+                if ($applicationIds !== []) {
+                    $query->orWhereIn('id', $applicationIds);
+                }
+            })
+            ->where(function ($query) use ($changedAt) {
+                $query->where('submitted_at', '<', $changedAt)
+                    ->orWhere(function ($inner) use ($changedAt) {
+                        $inner->whereNull('submitted_at')->where('created_at', '<', $changedAt);
+                    });
+            })
+            ->exists();
+    }
+
+    private function isPolicyGatedGap(Customer $customer, string $key): bool
+    {
+        if ($key === '') {
+            return false;
+        }
+
+        $validation = app(ProfileValidationService::class);
+        if (in_array($key, ['tin_number', 'tin_certificate'], true)) {
+            return $validation->requiresBusinessTin($customer);
+        }
+        if (in_array($key, ['licence_number', 'licence_authority', 'licence_issued_on', 'business_license'], true)) {
+            return $validation->requiresBusinessLicence($customer);
+        }
+        if ($key === 'residence_letter') {
+            return $validation->requiresResidenceLetter();
+        }
+        if (! app(IncomeProofService::class)->isRequired()) {
+            return false;
+        }
+
+        return collect($this->incomeProofGaps($customer))
+            ->contains(fn (array $gap) => ($gap['key'] ?? '') === $key);
     }
 
     /**
@@ -909,6 +1013,8 @@ class ProfileCompletionService
             ];
         }
 
+        $items = array_merge($items, $this->businessVerificationRequirements($customer));
+
         if ($validation->requiresEmploymentContract($customer)) {
             $items[] = [
                 'key' => 'employment_contract',
@@ -924,6 +1030,62 @@ class ProfileCompletionService
         }
 
         // Income Verification is a separate card — never folded into Activity Information requirements.
+
+        return $items;
+    }
+
+    /**
+     * Business Owner evidence gated by KYC settings. Stored details are kept if the activity changes.
+     *
+     * @return list<array{key: string, label: string, url: string, kind?: string, document_code?: string}>
+     */
+    private function businessVerificationRequirements(Customer $customer): array
+    {
+        $validation = app(ProfileValidationService::class);
+        $url = route('site.borrower.profile', [
+            'section' => 'activity',
+            'focus' => 'activity',
+            'edit' => 1,
+        ]).'#profile-business-verification';
+        $items = [];
+
+        if ($validation->requiresBusinessTin($customer)) {
+            $items[] = [
+                'key' => 'tin_number',
+                'label' => __('borrower.profile.tin_number'),
+                'url' => $url,
+                'kind' => 'field',
+            ];
+            $items[] = [
+                'key' => 'tin_certificate',
+                'label' => __('borrower.profile.tin_certificate'),
+                'url' => $url,
+                'kind' => 'document',
+                'document_code' => 'tin_certificate',
+            ];
+        }
+
+        if ($validation->requiresBusinessLicence($customer)) {
+            foreach ([
+                'licence_number' => __('borrower.profile.licence_number'),
+                'licence_authority' => __('borrower.profile.licence_authority'),
+                'licence_issued_on' => __('borrower.profile.licence_issued_on'),
+            ] as $key => $label) {
+                $items[] = [
+                    'key' => $key,
+                    'label' => $label,
+                    'url' => $url,
+                    'kind' => 'field',
+                ];
+            }
+            $items[] = [
+                'key' => 'business_license',
+                'label' => __('borrower.profile.business_license'),
+                'url' => $url,
+                'kind' => 'document',
+                'document_code' => 'business_license',
+            ];
+        }
 
         return $items;
     }

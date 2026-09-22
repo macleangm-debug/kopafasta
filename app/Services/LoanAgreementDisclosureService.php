@@ -41,14 +41,14 @@ class LoanAgreementDisclosureService
 
         return [
             'company_legal_name' => $legalName,
-            'company_address' => $address !== '' ? $address : '—',
-            'licence_number' => $licence !== '' ? $licence : '—',
-            'registration_no' => $registration !== '' ? $registration : '—',
-            'company_tin' => $tin !== '' ? $tin : '—',
+            'company_address' => $address !== '' ? $address : null,
+            'licence_number' => $licence !== '' ? $licence : null,
+            'registration_no' => $registration !== '' ? $registration : null,
+            'company_tin' => $tin !== '' ? $tin : null,
             'jurisdiction' => (string) ($legal['jurisdiction'] ?? app(LegalSettingsService::class)->jurisdiction()),
             'complaints_phone' => $complaintsPhone !== '' ? $complaintsPhone : '—',
             'complaints_email' => $complaintsEmail !== '' ? $complaintsEmail : '—',
-            'complaints_address' => $complaintsAddress !== '' ? $complaintsAddress : '—',
+            'complaints_address' => $complaintsAddress !== '' ? $complaintsAddress : null,
             'document_version' => self::DOCUMENT_VERSION,
         ];
     }
@@ -65,7 +65,7 @@ class LoanAgreementDisclosureService
         $defaults = $product
             ? LoanPenaltyPolicy::defaultsForProduct($product)
             : [
-                'default_grace_days' => (int) Setting::get('loan.default_grace_days', 7),
+                'default_grace_days' => (int) Setting::get('loan.default_grace_days', (int) config('loan_product_defaults.default_grace_days', 3)),
                 'penalty_rate_percent' => (float) Setting::get('loan.default_penalty_rate', 1),
                 'penalty_basis' => (string) Setting::get('loan.penalty_basis', 'per_day'),
             ];
@@ -100,14 +100,14 @@ class LoanAgreementDisclosureService
             'penalty_cap_base_en' => 'the sum of all overdue instalment remainders at the time of accrual',
             'penalty_cap_base_sw' => 'jumla ya salio la awamu zote zilizochelewa wakati wa kuhesabu adhabu',
             'penalty_formula_en' => sprintf(
-                'Penalty accrues at %s%% %s on the unpaid remainder of the first overdue instalment, beginning on the calendar day after the Grace Period of %d day(s) expires. Cumulative penalty shall not exceed %s%% of the sum of all overdue instalment remainders.',
+                'The contractual due date does not move. Penalty accrues at %s%% %s on the unpaid remainder of the first overdue instalment, beginning on the calendar day after the operational grace period of %d day(s) ends. Cumulative penalty shall not exceed %s%% of the sum of all overdue instalment remainders.',
                 format_number($rate, 2),
                 $basisLabel,
                 $grace,
                 format_number($cap, 0)
             ),
             'penalty_formula_sw' => sprintf(
-                'Adhabu inaingia kwa %s%% %s kwenye salio lisilolipwa la awamu ya kwanza iliyochelewa, kuanzia siku ya kalenda baada ya Muda wa Msamaha wa siku %d kumalizika. Adhabu jumla haitazidi %s%% ya jumla ya salio la awamu zote zilizochelewa.',
+                'Tarehe ya malipo ya kimkataba haihamishwi. Adhabu inaingia kwa %s%% %s kwenye salio lisilolipwa la awamu ya kwanza iliyochelewa, kuanzia siku ya kalenda baada ya kipindi cha utaratibu cha siku %d kumalizika. Adhabu jumla haitazidi %s%% ya jumla ya salio la awamu zote zilizochelewa.',
                 format_number($rate, 2),
                 $basisLabelSw,
                 $grace,
@@ -137,19 +137,16 @@ class LoanAgreementDisclosureService
             ? 'kiasi kinachodaiwa wakati wa kupelekwa hatua husika'
             : 'msingi wa mkopo';
 
-        $grace = (int) ($this->penaltyDisclosure($application)['grace_days'] ?? 7);
-        $lead = $this->recovery->callCenterLeadDays();
-        $ccDay = max(1, $grace - $lead + 1);
         $auctionHold = $this->recovery->auctionHoldDays();
 
         $triggers = [
             'call_center' => [
-                'en' => "Assigned when days past due reach day {$ccDay} (grace {$grace} minus lead {$lead}, plus 1). Charge posted immediately on assignment.",
-                'sw' => "Inapelekwa siku ya {$ccDay} baada ya tarehe ya malipo (msamaha siku {$grace} kutoa siku {$lead} za maandalizi, pamoja na 1). Gharama inarekodiwa mara moja baada ya kupelekwa.",
+                'en' => 'May be assigned only after the operational grace period, if the account enters the call-centre stage under Kopafasta’s recovery policy and any required notice. Ending grace does not by itself assign an external collector. The charge is posted only if this stage is actually assigned.',
+                'sw' => 'Inaweza kupelekwa tu baada ya kipindi cha utaratibu, ikiwa akaunti itaingia hatua ya kituo cha huduma kwa mujibu wa sera ya urejeshaji ya Kopafasta na taarifa inayohitajika. Mwisho wa kipindi hicho pekee haupeleki mkusanyaji wa nje. Gharama inarekodiwa tu hatua hii ikishapelekwa.',
             ],
             'debt_collector' => [
-                'en' => 'Assigned on escalation after the call-centre stage, subject to SLA and recovery policy. Charge posted on assignment.',
-                'sw' => 'Inapelekwa baada ya hatua ya kituo cha huduma, kwa mujibu wa SLA na sera ya urejeshaji. Gharama inarekodiwa baada ya kupelekwa.',
+                'en' => 'May apply only if the account is later escalated to debt collection under the recovery policy, after earlier stages and any required notice. It is not the automatic next step when grace ends. The charge is posted only if this stage is actually assigned.',
+                'sw' => 'Inaweza kutumika tu ikiwa akaunti itaongezwa baadaye kwenye ukusanyaji wa madeni kwa mujibu wa sera, baada ya hatua za awali na taarifa inayohitajika. Si hatua ya moja kwa moja pale kipindi cha utaratibu kinapoisha. Gharama inarekodiwa tu hatua hii ikishapelekwa.',
             ],
             'repossession' => [
                 'en' => 'Where the loan is secured and lawful repossession conditions are met. Any repossession charge is posted when that action is initiated.',
@@ -188,35 +185,25 @@ class LoanAgreementDisclosureService
 
             if ($feeType === 'fixed') {
                 $amount = (float) ($fixed ?? 0);
-                if ($amount > 0) {
-                    $displayEn = 'Fixed fee of TZS '.format_number($amount, 0).' posted when this stage is assigned.';
-                    $displaySw = 'Ada ya TZS '.format_number($amount, 0).' inarekodiwa pale hatua hii inapopelekwa.';
+                $borrowerAmount = $markup > 0 ? $amount * (1 + ($markup / 100)) : $amount;
+                if ($borrowerAmount > 0) {
+                    $displayEn = 'TZS '.format_number($borrowerAmount, 0).' if this stage is actually assigned. Not charged for receiving or disbursing the loan, and not added merely because another stage was reached.';
+                    $displaySw = 'TZS '.format_number($borrowerAmount, 0).' ikiwa hatua hii itapelekwa. Si gharama ya kupata au kutolewa mkopo, wala haiongezwi kwa sababu tu hatua nyingine imefikiwa.';
                 } else {
-                    $displayEn = 'A fixed TZS fee (not a percentage of the loan) is posted when this stage is assigned, as configured in Settings at signing.';
-                    $displaySw = 'Ada ya kiasi kilichowekwa (TZS), si asilimia ya mkopo, inarekodiwa pale hatua hii inapopelekwa, kama ilivyowekwa kwenye Mipangilio wakati wa kusaini.';
-                }
-                if ($markup > 0) {
-                    $displayEn .= ' Company charge of '.$this->pct($markup).'% of that fee is added.';
-                    $displaySw .= ' Gharama ya kampuni ya '.$this->pct($markup).'% ya ada hiyo inaongezwa.';
+                    $displayEn = 'A fixed amount configured in Settings, posted only if this stage is actually assigned.';
+                    $displaySw = 'Kiasi kilichowekwa kwenye Mipangilio, kinarekodiwa tu hatua hii ikishapelekwa.';
                 }
             } elseif ($feeType === 'hybrid') {
                 $amount = (float) ($fixed ?? 0);
-                $displayEn = 'TZS '.format_number($amount, 0).' plus '.$this->pct($commission).'% of the '.$baseLabelEn.' at assignment.';
-                $displaySw = 'TZS '.format_number($amount, 0).' pamoja na '.$this->pct($commission).'% ya '.$baseLabelSw.' wakati wa kupelekwa.';
-                if ($markup > 0) {
-                    $displayEn .= ' Company charge of '.$this->pct($markup).'% of that total is added.';
-                    $displaySw .= ' Gharama ya kampuni ya '.$this->pct($markup).'% ya jumla hiyo inaongezwa.';
-                }
+                $percent = $commission + $markup;
+                $displayEn = 'TZS '.format_number($amount, 0).' plus '.$this->pct($percent).'% of the '.$baseLabelEn.', only if this stage is actually assigned.';
+                $displaySw = 'TZS '.format_number($amount, 0).' pamoja na '.$this->pct($percent).'% ya '.$baseLabelSw.', tu ikiwa hatua hii itapelekwa.';
             } else {
                 $total = $commission + $markup;
                 $displayEn = $this->pct($total).'% of the '.$baseLabelEn
-                    .' at assignment, comprising '.$this->pct($commission).'% recovery-partner fee'
-                    .($markup > 0 ? ' and '.$this->pct($markup).'% Kopafasta platform fee' : '')
-                    .' (both on the same recovery base; not markup on the partner fee). Posted only when this stage is actually assigned.';
+                    .', only if this stage is actually assigned. Not charged for receiving or disbursing the loan.';
                 $displaySw = $this->pct($total).'% ya '.$baseLabelSw
-                    .' wakati wa kupelekwa, ikijumuisha '.$this->pct($commission).'% ada ya mshirika wa urejeshaji'
-                    .($markup > 0 ? ' na '.$this->pct($markup).'% ada ya jukwaa la Kopafasta' : '')
-                    .' (zote kwenye msingi mmoja; si ongezeko juu ya ada ya mshirika). Inarekodiwa pale tu hatua inapopelekwa.';
+                    .', tu ikiwa hatua hii itapelekwa. Si gharama ya kupata au kutolewa mkopo.';
             }
 
             $stages[] = [
@@ -236,24 +223,28 @@ class LoanAgreementDisclosureService
         }
 
         $early = ChargesFee::query()->where('code', 'EARLY_FEE')->where('is_active', true)->first();
+        $earlyAmount = $early ? (float) $early->amount : 0.0;
+        if (! $early || $earlyAmount <= 0) {
+            $earlyEn = 'You may settle your loan early. No early-settlement fee applies to this loan.';
+            $earlySw = 'Unaweza kulipa mkopo wako mapema. Kwa mkopo huu, hakuna ada ya malipo ya mapema.';
+        } else {
+            $earlyEn = sprintf(
+                'You may settle your loan early. If you do, an early-settlement fee of %s%% of the outstanding balance applies, as configured for this loan.',
+                format_number($earlyAmount, 2)
+            );
+            $earlySw = sprintf(
+                'Unaweza kulipa mkopo wako mapema. Ukilipa mapema, ada ya malipo ya mapema ya %s%% ya salio inatumika, kama ilivyowekwa kwa mkopo huu.',
+                format_number($earlyAmount, 2)
+            );
+        }
 
         return [
             'fee_base' => $feeBase,
             'fee_base_label_en' => $baseLabelEn,
             'fee_base_label_sw' => $baseLabelSw,
             'stages' => $stages,
-            'early_settlement_en' => $early
-                ? sprintf(
-                    'Where early settlement is permitted, the catalog charge is %s%% of outstanding balance (code EARLY_FEE), or as stated in the Charges Schedule at signing.',
-                    format_number((float) $early->amount, 2)
-                )
-                : 'Where early settlement is permitted, any early-settlement charge is as stated in the Charges Schedule at signing.',
-            'early_settlement_sw' => $early
-                ? sprintf(
-                    'Pale malipo ya mapema yanaporuhusiwa, ada ya katalogi ni %s%% ya salio, au kama ilivyoainishwa kwenye Jedwali la Ada wakati wa kusaini.',
-                    format_number((float) $early->amount, 2)
-                )
-                : 'Pale malipo ya mapema yanaporuhusiwa, ada yoyote ya malipo ya mapema ni kama ilivyoainishwa kwenye Jedwali la Ada wakati wa kusaini.',
+            'early_settlement_en' => $earlyEn,
+            'early_settlement_sw' => $earlySw,
             'payment_allocation_en' => 'Unless applicable law requires otherwise: (1) accrued penalties; (2) accrued interest; (3) outstanding principal; (4) other amounts lawfully due. Oldest unpaid instalment first.',
             'payment_allocation_sw' => 'Isipokuwa sheria inayotumika iagize vinginevyo: (1) adhabu zilizokwishaingia; (2) riba iliyokwishaingia; (3) msingi wa mkopo ambao haujalipwa; (4) kiasi kingine kinachodaiwa kihalali. Deni la zamani zaidi kwanza.',
             'group_liability_en' => 'Group recovery is staged: first the defaulting member (individual), then group liability as configured, then an external recovery partner. Every member must sign this Agreement. The Group Leader is not automatically personally liable for every member merely by being leader, unless the Group Terms say so.',
@@ -288,21 +279,19 @@ class LoanAgreementDisclosureService
             'markup' => (float) $estimate['markup'],
             'total' => (float) $estimate['total'],
             'display_en' => sprintf(
-                'GPS is a post-approval fee paid before disbursement: installation TZS %s plus TZS %s per month for %d month(s) (monitoring TZS %s)%s, total TZS %s. A debt collector may instruct deactivation; that deactivation has no extra borrower charge.',
+                'GPS is a post-approval fee paid before disbursement: installation TZS %s plus TZS %s per month for %d month(s) (monitoring TZS %s), total TZS %s. A debt collector may instruct deactivation; that deactivation has no extra borrower charge.',
                 format_number($estimate['device_cost'], 0),
                 format_number($estimate['monthly_monitoring'], 0),
                 $estimate['months'],
                 format_number($estimate['monitoring_total'], 0),
-                $estimate['markup'] > 0 ? ', plus platform markup TZS '.format_number($estimate['markup'], 0) : '',
                 format_number($estimate['total'], 0)
             ),
             'display_sw' => sprintf(
-                'GPS ni ada baada ya kuidhinishwa, inayolipwa kabla ya utoaji: usakinishaji TZS %s pamoja na TZS %s kwa mwezi kwa miezi %d (ufuatiliaji TZS %s)%s, jumla TZS %s. Mtozaji wa eneo anaweza kuagiza kuzimwa; kuzimwa hakuna ada ya ziada kwa mkopaji.',
+                'GPS ni ada baada ya kuidhinishwa, inayolipwa kabla ya utoaji: usakinishaji TZS %s pamoja na TZS %s kwa mwezi kwa miezi %d (ufuatiliaji TZS %s), jumla TZS %s. Mtozaji wa eneo anaweza kuagiza kuzimwa; kuzimwa hakuna ada ya ziada kwa mkopaji.',
                 format_number($estimate['device_cost'], 0),
                 format_number($estimate['monthly_monitoring'], 0),
                 $estimate['months'],
                 format_number($estimate['monitoring_total'], 0),
-                $estimate['markup'] > 0 ? ', pamoja na ongezeko la jukwaa TZS '.format_number($estimate['markup'], 0) : '',
                 format_number($estimate['total'], 0)
             ),
         ];

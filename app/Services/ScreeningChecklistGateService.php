@@ -70,8 +70,10 @@ class ScreeningChecklistGateService
         if (! empty($item['auto_na'])) {
             return true;
         }
+        // Statement totals are facts the analyst enters; once captured and scored, policy owns the result.
         if (! empty($item['captures_statement'])) {
-            return false;
+            return (float) ($item['statement_monthly'] ?? 0) > 0
+                && in_array($item['verdict'] ?? null, ['pass', 'fail', 'na'], true);
         }
         $auto = ! empty($item['system_checked'])
             || ! empty($item['catalog_system'])
@@ -162,16 +164,11 @@ class ScreeningChecklistGateService
 
         $map = match (true) {
             str_starts_with($fullKey, 'activity_income.income_evidence') => [
-                'cta' => 'Review statements',
+                'cta' => app(ScreeningSequenceService::class)->wizardEntry($application)['cta'],
                 'gate' => 'income',
-                'query' => [
-                    'desk_phase' => 'capacity',
-                    'gate' => 'income',
-                    'capacity_tab' => 'checks',
-                    'open_group' => 'activity_income',
-                    'open_item' => 'activity_income.income_evidence',
-                ],
-                'hash' => 'item-activity_income.income_evidence',
+                'href' => app(ScreeningSequenceService::class)->wizardEntry($application)['href'],
+                'query' => [],
+                'hash' => '',
             ],
             str_starts_with($fullKey, 'activity_income.') => [
                 'cta' => 'Open Activity & Income',
@@ -341,7 +338,9 @@ class ScreeningChecklistGateService
         }
 
         $out = [
-            'href' => route('admin.loan-applications.show', $query).'#'.($map['hash'] ?? 'review-desk'),
+            'href' => filled($map['href'] ?? null)
+                ? (string) $map['href']
+                : route('admin.loan-applications.show', $query).'#'.($map['hash'] ?? 'review-desk'),
             'cta' => $map['cta'],
             'gate' => $map['gate'],
         ];

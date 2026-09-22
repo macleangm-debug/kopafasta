@@ -587,28 +587,19 @@ class ScreeningSequenceService
         }
 
         if (! ($declared['pass'] ?? false)) {
-            return [
+            return $this->withWizardEntry($application, [
                 'label' => 'Next action: Complete initial affordability',
                 'detail' => (string) ($declared['detail'] ?? ''),
-                'cta' => 'View affordability',
-                'href' => $this->deskHref($application, 'income'),
                 'resolution' => null,
-            ];
+            ]);
         }
 
         if (! ($verified['pass'] ?? false)) {
-            return [
+            return $this->withWizardEntry($application, [
                 'label' => 'Next action: Review income statements',
                 'detail' => 'Step 2.1 Enter statement totals → 2.2 Activity support → 2.3 Patterns → 2.4 Affordability',
-                'cta' => 'Review statements',
-                'href' => route('admin.loan-applications.show', [
-                    'loan_application' => $application,
-                    'workspace' => 'checklist',
-                    'gate' => 'income',
-                    'open_item' => 'activity_income.income_evidence',
-                ]).'#item-activity_income.income_evidence',
                 'resolution' => null,
-            ];
+            ]);
         }
 
         $later = [
@@ -636,25 +627,21 @@ class ScreeningSequenceService
 
         foreach ($later as $gate => $copy) {
             if (! ($unlocked[$gate] ?? false)) {
-                return [
+                return $this->withWizardEntry($application, [
                     'label' => $copy['label'],
                     'detail' => self::LOCK_REASONS[$gate] ?? $copy['detail'],
-                    'cta' => $copy['cta'],
-                    'href' => $this->deskHref($application, $gate === self::GATE_CRB ? 'crb' : ($gate === self::GATE_IDENTITY ? 'identity' : $gate)),
                     'resolution' => null,
-                ];
+                ]);
             }
             $resolved = $gate === self::GATE_COLLATERAL
                 ? $this->collateralResolved($application, $progress)
                 : $this->gateResolved($progress, $gate);
             if (! $resolved || (int) ($progress[$gate]['failed'] ?? 0) > 0) {
-                return [
+                return $this->withWizardEntry($application, [
                     'label' => $copy['label'],
                     'detail' => $copy['detail'],
-                    'cta' => $copy['cta'],
-                    'href' => $this->deskHref($application, $gate),
                     'resolution' => null,
-                ];
+                ]);
             }
         }
 
@@ -668,6 +655,31 @@ class ScreeningSequenceService
             ]).'#review-recommendation',
             'resolution' => null,
         ];
+    }
+
+    /**
+     * Screening workspace entry. Checklist state decides the wizard step when it opens.
+     *
+     * @return array{cta: string, href: string}
+     */
+    public function wizardEntry(LoanApplication $application): array
+    {
+        $started = filled(data_get($application->screening_payload, 'guided.started_at'))
+            || in_array((string) $application->current_stage, ['screening', 'credit_appraisal'], true);
+
+        return [
+            'cta' => $started ? 'Continue Reviewing' : 'Start Reviewing',
+            'href' => route('admin.loan-applications.guided-screening', $application),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $action
+     * @return array<string, mixed>
+     */
+    private function withWizardEntry(LoanApplication $application, array $action): array
+    {
+        return array_merge($action, $this->wizardEntry($application));
     }
 
     private function deskHref(LoanApplication $application, string $gate): string

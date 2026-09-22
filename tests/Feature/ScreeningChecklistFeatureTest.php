@@ -137,7 +137,7 @@ class ScreeningChecklistFeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('Facility summary', $overview);
         $this->assertStringContainsString('Borrower CRB', $overview);
-        $this->assertStringContainsString('Start Reviewing', $overview);
+        $this->assertStringContainsString('Continue Reviewing', $overview);
         $this->assertStringContainsString('Review Checklist', $overview);
         $this->assertStringNotContainsString('id="review-desk"', $overview);
         $this->assertStringNotContainsString('>Expand</span>', $overview);
@@ -461,6 +461,7 @@ class ScreeningChecklistFeatureTest extends TestCase
                             'verdict' => 'pass',
                             'statement_deposits_total' => 6_000_000,
                             'statement_months' => 6,
+                            'notes' => 'Statement deposits support declared income',
                         ],
                     ],
                 ],
@@ -476,6 +477,7 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertSame(6, (int) ($item['statement_months'] ?? 0));
         $this->assertEquals(1_000_000, (float) ($item['statement_monthly'] ?? 0));
         $this->assertEquals(round(1_000_000 * 12 / 52, 2), (float) ($item['statement_weekly'] ?? 0));
+        $this->assertSame('Statement deposits support declared income', $item['notes'] ?? null);
     }
 
     public function test_gate2_parses_comma_formatted_deposits(): void
@@ -506,6 +508,38 @@ class ScreeningChecklistFeatureTest extends TestCase
         $this->assertEquals(6_000_000, (float) ($item['statement_deposits_total'] ?? 0));
         $this->assertEquals(1_000_000, (float) ($item['statement_monthly'] ?? 0));
         $this->assertSame('system', $item['source'] ?? null);
+    }
+
+    public function test_gate2_explicit_analyst_verdict_is_kept(): void
+    {
+        $admin = $this->staff();
+        $app = $this->application($admin);
+        $app->customer->update(['monthly_income' => 2_000_000]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.screening-checklist', $app), [
+                'person' => 'borrower',
+                'items' => [
+                    'activity_income' => [
+                        'income_evidence' => [
+                            'statement_deposits_total' => 600_000,
+                            'statement_months' => 6,
+                            'verdict' => 'pass',
+                            'notes' => 'Reviewed the statement in the wizard.',
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionMissing('error');
+
+        $app->refresh();
+        $items = data_get($app->screening_payload, 'screening_checklist.by_subject.borrower.items', []);
+        $item = $items['activity_income.income_evidence'] ?? [];
+        $this->assertSame('pass', $item['verdict'] ?? null);
+        $this->assertNotSame('system', $item['source'] ?? null);
+        $this->assertSame('Reviewed the statement in the wizard.', $item['notes'] ?? null);
+        $this->assertEquals(100_000, (float) ($item['statement_monthly'] ?? 0));
     }
 
     public function test_gate2_save_without_verdict_auto_passes_when_monthly_covers_declared(): void

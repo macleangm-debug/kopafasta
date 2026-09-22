@@ -9,17 +9,19 @@
 
     $tabs = [
         ['overview', 'Overview'],
-        ['personal', 'Personal'],
-        ['face', 'Face'],
-        ['residence', 'Residence'],
-        ['activity', 'Activity'],
-        ['kin', 'Next of kin'],
-        ['documents', 'Documents'],
+        ['about', 'About you'],
+        ['residence', 'Where you live'],
+        ['activity', 'What you do'],
+        ['payment', 'Payment account'],
+        ['assets', 'Assets'],
+        ['applications', 'Applications'],
         ['loans', 'Loans'],
         ['payments', 'Payments'],
-        ['guarantors', 'Guarantors'],
     ];
     $tab = request('tab', 'overview');
+    if ($tab === 'signature') {
+        $tab = 'about'; // Signature lives under About you
+    }
     if (! in_array($tab, array_column($tabs, 0), true)) {
         $tab = 'overview';
     }
@@ -103,9 +105,16 @@
             </div>
             @if ($dossier['profile_incomplete'] ?? false)
                 <p class="mt-3 text-xs font-semibold text-amber-100">
-                    Incomplete profile ({{ $profile['percent'] }}%) — missing
-                    {{ collect($dossier['incomplete_sections'] ?? [])->pluck('label')->filter()->take(4)->implode(', ') ?: 'required sections' }}.
-                    Borrower updates this in the app.
+                    Incomplete profile ({{ $profile['percent'] }}%) —
+                    @php
+                        $gapBits = collect($dossier['incomplete_sections'] ?? [])
+                            ->flatMap(fn ($s) => $s['gap_labels'] ?? [])
+                            ->filter()
+                            ->unique()
+                            ->take(6)
+                            ->values();
+                    @endphp
+                    {{ $gapBits->isNotEmpty() ? $gapBits->implode(', ') : collect($dossier['incomplete_sections'] ?? [])->pluck('label')->filter()->take(4)->implode(', ') }}
                 </p>
             @endif
         </div>
@@ -152,8 +161,8 @@
     <section id="member-file" class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden scroll-mt-24">
         <div class="px-5 pt-5 pb-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white">
             <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Member file</p>
-            <h3 class="text-base font-bold text-gray-900 mt-0.5">Profile sections</h3>
-            <p class="text-xs text-gray-500 mt-0.5">Read-only reference — KYC and document requests happen on the loan application.</p>
+            <h3 class="text-base font-bold text-gray-900 mt-0.5">Member 360</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Staff view of what Kopafasta knows about this member — organized like the borrower Profile.</p>
 
             <div class="mt-4 flex gap-1 overflow-x-auto pb-1" role="tablist">
                 @foreach ($tabs as [$key, $label])

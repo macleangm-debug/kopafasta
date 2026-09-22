@@ -210,7 +210,7 @@ class SettingsController extends Controller
             'signatory_name'      => ['nullable', 'string', 'max:120'],
             'signatory_title'     => ['nullable', 'string', 'max:120'],
             'signatory_email'     => ['nullable', 'email', 'max:150'],
-            'offer_validity_days' => ['required', 'integer', 'min:1', 'max:90'],
+            'offer_validity_days' => ['nullable', 'integer', 'min:1', 'max:90'],
             'jurisdiction'        => ['required', 'string', 'max:200'],
             'collection_fee_text' => ['nullable', 'string', 'max:500'],
             'legal_recovery_text' => ['nullable', 'string', 'max:500'],
@@ -229,6 +229,11 @@ class SettingsController extends Controller
         ]);
 
         $existing = Setting::group('legal');
+
+        // Offer validity is canonical under Document Templates; keep existing if not posted here.
+        if (! array_key_exists('offer_validity_days', $data) || $data['offer_validity_days'] === null) {
+            $data['offer_validity_days'] = (int) ($existing['offer_validity_days'] ?? 14);
+        }
 
         if ($request->boolean('remove_stamp') && ! empty($existing['stamp_path'])) {
             Storage::disk('public')->delete($existing['stamp_path']);
@@ -264,7 +269,7 @@ class SettingsController extends Controller
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["legal.$k" => $v])->all());
         Setting::set('legal.contract_sections', $sections);
 
-        return back()->with('status', 'Legal settings saved.');
+        return back()->with('status', 'Saved')->with('status_quietly', true);
     }
 
     // ---------------- SMS / Email gateway ----------------
@@ -1167,6 +1172,7 @@ class SettingsController extends Controller
             'require_selfie'    => ['nullable', 'boolean'],
             'require_address_proof' => ['nullable', 'boolean'],
             'require_income_proof'  => ['nullable', 'boolean'],
+            'require_business_licence' => ['nullable', 'boolean'],
             'require_marriage_certificate' => ['nullable', 'boolean'],
             'min_age'  => ['required', 'integer', 'min:18', 'max:100'],
             'max_age'  => ['required', 'integer', 'min:18', 'max:120'],
@@ -1182,7 +1188,9 @@ class SettingsController extends Controller
             'document_type_expires.*' => ['nullable', 'boolean'],
         ]);
 
-        foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','require_marriage_certificate','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
+        $previous = Setting::group('kyc');
+
+        foreach (['require_nida','require_tin','require_selfie','require_address_proof','require_income_proof','require_business_licence','require_marriage_certificate','auto_approve_low_risk','crb_check_required','crb_sandbox'] as $k) {
             $data[$k] = (bool) ($data[$k] ?? false);
         }
 
@@ -1202,10 +1210,24 @@ class SettingsController extends Controller
         $data['crb_freshness_days'] = (int) ($data['crb_freshness_days'] ?? 90);
         $data['require_residence_letter'] = (bool) ($data['require_address_proof'] ?? false);
 
+        $policyChanged = false;
+        foreach (['require_tin', 'require_address_proof', 'require_income_proof', 'require_business_licence'] as $flag) {
+            if ((bool) ($previous[$flag] ?? false) !== (bool) ($data[$flag] ?? false)) {
+                $policyChanged = true;
+            }
+        }
+        if ((bool) ($previous['require_residence_letter'] ?? false) !== $data['require_residence_letter']) {
+            $policyChanged = true;
+        }
+
         $expiresFlags = $data['document_type_expires'] ?? [];
         unset($data['document_type_expires']);
 
-        Setting::setMany(collect($data)->mapWithKeys(fn($v, $k) => ["kyc.$k" => $v])->all());
+        $settings = collect($data)->mapWithKeys(fn ($v, $k) => ["kyc.$k" => $v])->all();
+        if ($policyChanged) {
+            $settings['kyc.policy_changed_at'] = now()->toIso8601String();
+        }
+        Setting::setMany($settings);
 
         \App\Models\LoanApplication::query()
             ->where('status', 'awaiting_guarantor')
@@ -1530,6 +1552,8 @@ class SettingsController extends Controller
     public function saveUnderwriting(Request $request)
     {
         $data = $request->validate([
+            'repayment_ratio_pct'                    => ['required', 'numeric', 'min:1', 'max:100'],
+            'hard_affordability_gate'                => ['nullable', 'boolean'],
             'guarantor_invitation_expiry_days'       => ['required', 'integer', 'min:1', 'max:90'],
             'awaiting_guarantor_deadline_days'       => ['required', 'integer', 'min:1', 'max:90'],
             'document_request_default_due_days'      => ['required', 'integer', 'min:1', 'max:'.\App\Services\UnderwritingSettingsService::SCREENING_REQUEST_MAX_DAYS],
@@ -1572,6 +1596,7 @@ class SettingsController extends Controller
         ]);
 
         foreach ([
+            'hard_affordability_gate',
             'hold_applications_until_guarantor_approved',
             'block_acknowledge_without_guarantor',
             'enable_counter_offers',
@@ -1604,6 +1629,11 @@ class SettingsController extends Controller
                 'customer_reminders' => (bool) ($overlay['customer_reminders'] ?? false),
             ];
         })->values()->all();
+
+        $ratioPct = (float) $data['repayment_ratio_pct'];
+        unset($data['repayment_ratio_pct']);
+        app(\App\Services\AffordabilityPolicyService::class)->persistRatioPct($ratioPct);
+        Setting::set('underwriting.hard_affordability_gate', $data['hard_affordability_gate']);
 
         Setting::setMany(collect($data)->mapWithKeys(fn ($v, $k) => ["underwriting.$k" => $v])->all());
 
@@ -2286,10 +2316,10 @@ class SettingsController extends Controller
         $code = strtolower($data['default_code']);
         $ratio = round((float) $data['repayment_ratio_pct'] / 100, 4);
 
+        app(\App\Services\AffordabilityPolicyService::class)->persistRatioPct((float) $data['repayment_ratio_pct'], $code);
+
         Setting::setMany([
             'country.default_code'              => strtoupper($data['default_code']),
-            "country.{$code}.repayment_ratio"   => $ratio,
-            'credit.repayment_ratio'            => $ratio,
             "country.{$code}.crb_freshness_days"=> (int) $data['crb_freshness_days'],
             "country.{$code}.kyc_freshness_days"=> (int) $data['kyc_freshness_days'],
             "country.{$code}.guarantor_required" => (bool) ($data['guarantor_required'] ?? false),

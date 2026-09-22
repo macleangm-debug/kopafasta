@@ -358,6 +358,21 @@ class LoanApplicationController extends ResourceController
         return back()->with('status', 'Auto-reject cancelled — application stays in screening.');
     }
 
+    public function previewRejectionLetter(LoanApplication $loan_application)
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review')
+            || in_array((string) auth()->user()?->role, ['admin', 'super_admin', 'credit_committee', 'credit_analyst'], true), 403);
+
+        $pdf = app(LoanAgreementService::class)->previewRejectionLetterPdf($loan_application);
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="PREVIEW-rejection-'.$loan_application->application_number.'.pdf"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Robots-Tag' => 'noindex, nofollow',
+        ]);
+    }
+
     private function canManageCapacityAutoReject(): bool
     {
         return app(CapacityAutoRejectService::class)->canAct(auth()->user());

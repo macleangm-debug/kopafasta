@@ -4,8 +4,10 @@
         'committee' => 'Recommended by',
         'approved' => 'Next step',
         'disbursement' => 'Release',
+        'system_sorted' => 'Product',
         default => 'Analyst',
     };
+    $borrowerHeader = $pipeline === 'system_sorted' ? 'Borrower' : 'Customer';
 @endphp
 <div>
 <div class="mb-3 flex flex-wrap items-center gap-2">
@@ -17,7 +19,7 @@
 <x-admin.table-shell :records="$rows" :statuses="$statuses" statusGroup="application_status" searchPlaceholder="Search application #, customer, phone, NIDA, product…">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="application_number" label="App #" />
-        <x-admin.th :sort="$sort" :direction="$direction" col="customer_id"        label="Customer" />
+        <x-admin.th :sort="$sort" :direction="$direction" col="customer_id"        :label="$borrowerHeader" />
         <x-admin.th :sort="$sort" :direction="$direction" col="requested_amount"   label="Amount" />
         <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ $contextHeader }}</th>
         <x-admin.th :sort="$sort" :direction="$direction" col="status"             label="Status" />
@@ -28,16 +30,23 @@
         @forelse ($rows as $r)
             @php
                 $contextValue = match ($pipeline) {
-                    'under_review' => $r->product?->name ?? '—',
+                    'under_review', 'system_sorted' => $r->product?->name ?? '—',
                     'committee' => $r->recommendedByUser?->name ?? '—',
                     'approved', 'disbursement' => $pipelineStages[$r->id] ?? '—',
                     default => $r->assignedAnalyst?->name ?? '—',
                 };
+                $borrowerName = trim((string) ($r->customer?->full_name ?? '')) ?: $r->partyLabel();
             @endphp
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->application_number ?? '—' }}</td>
                 <td class="px-5 py-3">
-                    {{ $r->partyLabel() }}
+                    @if ($r->customer)
+                        <a href="{{ route('admin.customers.show', $r->customer) }}" class="font-semibold text-gray-900 hover:text-brand">
+                            {{ $borrowerName }}
+                        </a>
+                    @else
+                        <span class="font-semibold text-gray-900">{{ $borrowerName }}</span>
+                    @endif
                     <div class="text-xs text-gray-500">{{ $r->customer?->phone }}</div>
                 </td>
                 <td class="px-5 py-3">{{ format_money( ($r->requested_amount ?? 0)) }}</td>

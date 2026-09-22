@@ -16,7 +16,8 @@
                 @php
                     $bools = [
                         'require_nida'         => 'Require NIDA',
-                        'require_tin'          => 'Require TIN',
+                        'require_tin'          => 'Require TIN (Business Owner)',
+                        'require_business_licence' => 'Require Business Licence (Business Owner)',
                         'require_selfie'       => 'Require selfie',
                         'require_address_proof'=> 'Require residence verification letter',
                         'require_income_proof' => 'Require income proof',

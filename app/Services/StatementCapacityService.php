@@ -36,7 +36,13 @@ class StatementCapacityService
             return null;
         }
 
-        return $this->compute($total, self::DEFAULT_MONTHS);
+        $computed = $this->compute($total, self::DEFAULT_MONTHS);
+        if (array_key_exists('notes', $incoming)) {
+            $note = trim((string) $incoming['notes']);
+            $computed['notes'] = $note !== '' ? $note : null;
+        }
+
+        return $computed;
     }
 
     /**
@@ -244,6 +250,31 @@ class StatementCapacityService
             'statement_months' => null,
             'statement_monthly' => null,
             'statement_weekly' => null,
+        ];
+    }
+
+    /**
+     * Evidence comparison only. Does not choose Pass or Concern.
+     *
+     * @return array{statement_monthly: float, declared_monthly: float, difference: float, coverage_pct: float, finding: string}|null
+     */
+    public function compareToDeclared(float $statementMonthly, float $declaredMonthly): ?array
+    {
+        if ($statementMonthly <= 0 || $declaredMonthly <= 0) {
+            return null;
+        }
+
+        $difference = round($statementMonthly - $declaredMonthly, 2);
+        $coverage = round(($statementMonthly / $declaredMonthly) * 100, 1);
+
+        return [
+            'statement_monthly' => round($statementMonthly, 2),
+            'declared_monthly' => round($declaredMonthly, 2),
+            'difference' => $difference,
+            'coverage_pct' => $coverage,
+            'finding' => $difference < 0
+                ? 'Statement activity is below the declared monthly income. Review the evidence before confirming this check.'
+                : 'Statement activity covers the declared monthly income. Review the evidence before confirming this check.',
         ];
     }
 }

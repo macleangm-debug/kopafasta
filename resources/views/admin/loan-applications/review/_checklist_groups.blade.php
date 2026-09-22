@@ -163,20 +163,22 @@
                         'call_guarantor', 'call_next_of_kin', 'call_spouse', 'call_references', 'local_government',
                     ], true);
                     $passLabel = match (true) {
-                        ($item['item_key'] ?? '') === 'bank_or_mobile_money' => 'No concerns',
+                        ($item['item_key'] ?? '') === 'bank_or_mobile_money' => 'No concerning patterns',
+                        ($item['item_key'] ?? '') === 'activity_plausible' => 'Yes — activity supports income',
                         $isContactCheck => 'Reached — confirmed',
                         default => 'Pass ✓',
                     };
                     $failLabel = match (true) {
-                        ($item['item_key'] ?? '') === 'bank_or_mobile_money' => 'Concern found',
+                        ($item['item_key'] ?? '') === 'bank_or_mobile_money' => 'Yes — concern observed',
+                        ($item['item_key'] ?? '') === 'activity_plausible' => 'No — does not support income',
                         $isContactCheck => 'Concern',
                         default => 'Concern',
                     };
                     $collapsedStatus = $isAwaiting
                         ? 'Needs review'
                         : match ($item['verdict'] ?? '') {
-                            'pass' => 'Pass',
-                            'fail' => 'Concern',
+                            'pass' => ! empty($item['system_determined']) ? 'System pass' : 'Pass',
+                            'fail' => ! empty($item['system_determined']) ? 'System result' : 'Concern',
                             'na' => 'N/A',
                             default => 'Needs review',
                         };
@@ -230,11 +232,11 @@
                         <div class="flex flex-wrap gap-1.5 shrink-0">
                             @if ($isAwaiting)
                                 <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-amber-50 text-amber-900 ring-1 ring-amber-200">Awaiting data</span>
-                            @elseif (! empty($item['read_only']) || ! empty($item['captures_statement']))
+                            @elseif (! empty($item['read_only']) || ! empty($item['captures_statement']) || ! empty($item['system_determined']))
                                 @if (($item['verdict'] ?? '') === 'pass')
-                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200">Pass ✓</span>
+                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200">System pass ✓</span>
                                 @elseif (($item['verdict'] ?? '') === 'fail')
-                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-amber-50 text-amber-950 ring-1 ring-amber-200">Concern</span>
+                                    <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-amber-50 text-amber-950 ring-1 ring-amber-200">System result</span>
                                 @elseif (($item['verdict'] ?? '') === 'na')
                                     <span class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-sky-100 text-sky-900 ring-1 ring-sky-300">N/A</span>
                                 @endif
@@ -279,49 +281,37 @@
                             </div>
                         @endif
                         @if (! empty($item['evidence']['documents']) || ($item['evidence']['layout'] ?? null) === 'documents')
-                            <div class="rounded-xl ring-1 ring-brand/15 overflow-hidden bg-white">
-                                <div class="px-3.5 py-2.5 bg-gradient-to-r from-brand-muted/60 to-white border-b border-brand/10">
-                                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ $item['evidence']['documents_heading'] ?? 'Documents on file' }}</p>
-                                    <p class="text-[11px] text-gray-600 mt-0.5">
-                                        {{ ($item['evidence_type'] ?? '') === 'activity'
-                                            ? 'Open activity proof documents — contracts, licences, business photos, TIN, etc.'
-                                            : 'Open full bank / mobile money statement — PDF and images supported.' }}
-                                    </p>
-                                </div>
-                                @if (! empty($item['evidence']['documents']))
-                                    <div class="p-3.5 grid sm:grid-cols-2 gap-3">
-                                        @foreach ($item['evidence']['documents'] as $doc)
-                                            <div class="rounded-xl ring-1 ring-brand/10 bg-brand-muted/20 p-3 flex gap-3 items-start">
-                                                <x-admin.document-preview
-                                                    :url="$doc['url']"
-                                                    :label="$doc['label'] ?? 'Document'"
-                                                    variant="thumbnail" />
-                                                <div class="min-w-0 flex-1">
-                                                    <p class="text-sm font-semibold text-gray-900">{{ $doc['label'] ?? 'Document' }}</p>
-                                                    <p class="text-[11px] text-gray-500 mt-0.5 capitalize">
-                                                        {{ ($doc['kind'] ?? 'file') === 'pdf' ? 'PDF' : 'Image' }}
-                                                        @if (! empty($doc['status']))
-                                                            · {{ display_label($doc['status'], 'document_status') ?: $doc['status'] }}
-                                                        @endif
-                                                    </p>
-                                                    <div class="mt-2">
-                                                        <x-admin.document-preview
-                                                            :url="$doc['url']"
-                                                            :label="$item['evidence']['documents_open_label'] ?? 'Open document'"
-                                                            variant="button" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <p class="px-3.5 py-4 text-sm text-rose-800">
-                                        {{ ($item['evidence_type'] ?? '') === 'activity'
-                                            ? 'No activity proof documents uploaded for this person yet.'
-                                            : 'No statement uploaded for this person yet.' }}
-                                    </p>
-                                @endif
-                            </div>
+                            @php
+                                $holderTabs = collect($item['evidence']['documents'] ?? [])
+                                    ->filter(fn ($doc) => filled($doc['url'] ?? null))
+                                    ->values()
+                                    ->map(function ($doc, $index) {
+                                        return [
+                                            'key' => 'doc-'.$index,
+                                            'label' => $doc['label'] ?? 'Document',
+                                            'url' => $doc['url'],
+                                            'kind' => $doc['kind'] ?? null,
+                                            'eyebrow' => $doc['type_label'] ?? ($doc['label'] ?? 'Document'),
+                                            'reference' => $doc['label'] ?? 'Document',
+                                            'caption' => collect([
+                                                ($doc['kind'] ?? null) === 'pdf' ? 'PDF' : (($doc['kind'] ?? null) ? 'Image' : null),
+                                                $doc['status'] ?? null,
+                                            ])->filter()->implode(' · '),
+                                            'owner' => $doc['owner'] ?? null,
+                                            'uploaded_at' => $doc['uploaded_at'] ?? null,
+                                        ];
+                                    })
+                                    ->all();
+                            @endphp
+                            @if ($holderTabs !== [])
+                                <x-admin.document-holder :tabs="$holderTabs" :expanded="false" />
+                            @else
+                                <p class="text-sm text-rose-800">
+                                    {{ ($item['evidence_type'] ?? '') === 'activity'
+                                        ? 'No activity proof documents uploaded for this person yet.'
+                                        : 'No statement uploaded for this person yet.' }}
+                                </p>
+                            @endif
                         @endif
                         @if ((! empty($item['evidence']['photos']) || ! empty($item['evidence']['photo_pairs'])) && ($item['evidence']['layout'] ?? null) !== 'documents')
                             @php
@@ -553,9 +543,56 @@
                            class="mt-1 w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2 focus:ring-2 focus:ring-brand/30">
                 </label>
                 <p class="text-[11px] text-gray-600">
-                    If this statement covers less than 6 months, do not enter deposits. Request a new 6-month statement instead.
+                    Average monthly deposits = 6-month total ÷ 6. Saving records that average on this same checklist item.
                 </p>
-                @if ($canEdit)
+                @if ((float) ($item['statement_monthly'] ?? 0) > 0)
+                    <dl class="grid sm:grid-cols-2 gap-2 text-sm">
+                        <div class="rounded-lg bg-white px-3 py-2 ring-1 ring-brand/10">
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-500">6-month total deposits</dt>
+                            <dd class="font-semibold">{{ format_money((float) $item['statement_deposits_total']) }}</dd>
+                        </div>
+                        <div class="rounded-lg bg-white px-3 py-2 ring-1 ring-brand/10">
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-500">Average monthly deposits</dt>
+                            <dd class="font-semibold">{{ format_money((float) $item['statement_monthly']) }}</dd>
+                        </div>
+                        <div class="rounded-lg bg-white px-3 py-2 ring-1 ring-brand/10">
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-500">Declared monthly income</dt>
+                            <dd class="font-semibold">{{ format_money((float) ($item['declared_monthly_income'] ?? 0)) }}</dd>
+                        </div>
+                        <div class="rounded-lg bg-white px-3 py-2 ring-1 ring-brand/10">
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-500">Affordability uses</dt>
+                            <dd class="font-semibold">{{ ($item['income_basis'] ?? '') === 'statement' ? 'Statement average' : 'Declared income' }} · {{ format_money((float) ($item['affordability_income'] ?? 0)) }}</dd>
+                        </div>
+                    </dl>
+                    @include('admin.loan-applications.review._gate2_finding', [
+                        'panel' => $item['gate2_panel'] ?? null,
+                        'comparison' => $item['statement_comparison'] ?? null,
+                        'capacity' => $item['capacity'] ?? null,
+                        'declaredIncomeLabel' => $item['declared_income_label'] ?? null,
+                        'statementTotal' => $item['statement_deposits_total'] ?? 0,
+                    ])
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">System result</p>
+                    <p class="text-sm font-semibold text-gray-900">
+                        @if (($item['verdict'] ?? null) === 'pass')
+                            Pass — policy applied to the recorded totals
+                        @elseif (($item['verdict'] ?? null) === 'fail')
+                            {{ $item['fail_reason_label'] ?? 'Policy result recorded' }}
+                        @elseif (($item['verdict'] ?? null) === 'na')
+                            N/A
+                        @else
+                            Save totals for Kopafasta to apply Screening policy
+                        @endif
+                    </p>
+                @endif
+                @if (filled($item['notes'] ?? null))
+                    <p class="text-sm text-gray-800"><span class="font-semibold">Note:</span> {{ $item['notes'] }}</p>
+                @endif
+                @if ($canEdit && empty($item['system_determined']))
+                    <label class="block">
+                        <span class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Explain concern</span>
+                        <textarea name="{{ $fieldBase }}[notes]" rows="2"
+                                  class="mt-1 w-full rounded-lg border-0 text-sm ring-1 ring-brand/15 px-3 py-2">{{ $item['notes'] ?? '' }}</textarea>
+                    </label>
                     <button type="submit"
                             class="inline-flex items-center rounded-lg bg-brand text-white text-[11px] font-bold px-3 py-1.5 hover:bg-brand-light">
                         Save statement totals
@@ -564,6 +601,11 @@
                             @click="window.dispatchEvent(new CustomEvent('kf-open-doc-composer', { detail: { labels: ['Updated Bank Statement'] } })); $nextTick(() => document.getElementById('request-more-documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))"
                             class="inline-flex items-center rounded-lg bg-white text-brand text-[11px] font-bold px-2.5 py-1.5 ring-1 ring-brand/20 hover:bg-brand-muted/40">
                         Statement is shorter than 6 months — request a new file
+                    </button>
+                @elseif ($canEdit)
+                    <button type="submit"
+                            class="inline-flex items-center rounded-lg bg-brand text-white text-[11px] font-bold px-3 py-1.5 hover:bg-brand-light">
+                        Save statement totals
                     </button>
                 @endif
             </div>

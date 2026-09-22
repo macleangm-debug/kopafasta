@@ -12,25 +12,22 @@
     >
         <x-admin.settings-panel id="identity">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+                <p class="text-sm text-gray-600 mb-4">Offer, Decision letter, Contract, footer, and Complaints all read this identity. Path: Settings → Company Profile → Identity.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <x-admin.input name="name"            label="Company name"      :value="$values['name'] ?? ''" required />
-                    <x-admin.input name="legal_name"      label="Legal name"        :value="$values['legal_name'] ?? ''" />
-                    <x-admin.input name="registration_no" label="Registration no."  :value="$values['registration_no'] ?? ''" />
+                    <x-admin.input name="legal_name"      label="Legal company name" :value="$values['legal_name'] ?? ''" />
+                    <div class="md:col-span-2">
+                        <x-admin.input name="address"     label="Registered/office address" :value="$values['address'] ?? ''" />
+                    </div>
+                    <x-admin.input name="bot_licence"     label="BoT licence number" :value="$values['bot_licence'] ?? ''" />
+                    <x-admin.input name="registration_no" label="Company registration number" :value="$values['registration_no'] ?? ''" />
                     <x-admin.input name="tin"             label="TIN"               :value="$values['tin'] ?? ''" />
-                    <x-admin.input name="bot_licence"     label="BOT licence"       :value="$values['bot_licence'] ?? ''" />
                     <x-admin.input name="tier"            label="Tier (1/2/3)"      :value="$values['tier'] ?? ''" />
-                </div>
-            </div>
-        </x-admin.settings-panel>
-
-        <x-admin.settings-panel id="contact">
-            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <x-admin.input name="email"           label="Primary contact email" type="email" :value="$values['email'] ?? ''" />
+                    <x-admin.input name="email"           label="Official email" type="email" :value="$values['email'] ?? ''" />
                     <div>
                         <x-site.phone-input
                             name="phone"
-                            :label="'Primary phone / hotline'"
+                            :label="'Official phone'"
                             :value="$values['phone'] ?? ''"
                             :locked-country="app(\App\Services\CountrySettingsService::class)->defaultCountryCode()"
                             :allow-country-change="true"
@@ -38,12 +35,18 @@
                             :help="null"
                         />
                     </div>
+                </div>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="contact">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <x-admin.input name="hotline_label"   label="Hotline label (e.g. Customer care)" :value="$values['hotline_label'] ?? ''" />
                     <x-admin.input name="website"         label="Website"           :value="$values['website'] ?? ''" />
                     <x-admin.input name="app_base_url"    label="App base URL"      :value="$values['app_base_url'] ?? ''" placeholder="https://www.kopafasta.com" />
-                    <x-admin.input name="address"         label="Address"           :value="$values['address'] ?? ''" />
                 </div>
-                <p class="text-xs text-gray-500">Public footer and legal surfaces use this primary email and phone. Extra internal phones remain available via Settings keys if an operational system already stores them — they are not part of the public-contact UI.</p>
+                <p class="text-xs text-gray-500">Official email and phone are on Identity. Public footer and legal surfaces use those values.</p>
 
                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-200 px-5 py-4 space-y-3">
                     <div>

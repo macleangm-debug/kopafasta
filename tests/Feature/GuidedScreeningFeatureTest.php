@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\CustomerDocument;
+use App\Models\DocumentType;
 use App\Models\CustomerGuarantor;
 use App\Models\Guarantor;
 use App\Models\GuarantorInvitation;
@@ -41,6 +43,224 @@ class GuidedScreeningFeatureTest extends TestCase
         $app->refresh();
         $this->assertNotEmpty(data_get($app->screening_payload, 'guided.started_at'));
         $this->assertNotEmpty(data_get($app->screening_payload, 'guided.resume'));
+    }
+
+    public function test_statement_step_keeps_document_collapsed_and_opens_existing_preview(): void
+    {
+        [$admin, $app] = $this->file();
+        $type = DocumentType::create([
+            'code' => 'bank_statement',
+            'name' => 'Bank statement',
+            'is_active' => true,
+        ]);
+        CustomerDocument::create([
+            'customer_id' => $app->customer_id,
+            'document_type_id' => $type->id,
+            'file_path' => 'customer/'.$app->customer_id.'/documents/statement.pdf',
+            'status' => 'pending_review',
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.guided-screening', [
+                'loan_application' => $app,
+                'at_item' => 'activity_income.income_evidence',
+                'at_person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('data-guided-review', $html);
+        $this->assertStringContainsString('Bank statement', $html);
+        $this->assertStringContainsString('class="document-holder', $html);
+        $this->assertStringContainsString('View document', $html);
+        $this->assertStringContainsString('kfOpenDocumentPreview', $html);
+        $this->assertStringNotContainsString('h-[80vh]', $html);
+        $this->assertStringContainsString('Total deposits for the 6-month statement period', $html);
+        $this->assertStringContainsString('Kopafasta records the totals and applies the existing Screening policy', $html);
+        $this->assertStringNotContainsString('items[activity_income][income_evidence][verdict]', $html);
+        $this->assertStringContainsString('id="kf-doc-drawer" class="fixed inset-0 z-[100] hidden"', $html);
+
+        $desk = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'checklist',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Continue Reviewing', $desk);
+        $this->assertStringContainsString(route('admin.loan-applications.guided-screening', $app), $desk);
+        $this->assertStringNotContainsString('Review statements', $desk);
+    }
+
+    public function test_gate2_shows_engine_capacity_on_wizard_and_checklist_without_a_verdict(): void
+    {
+        [$admin, $app] = $this->file();
+        $app->customer->update(['monthly_income' => 3_000_000]);
+        $type = DocumentType::create([
+            'code' => 'bank_statement',
+            'name' => 'Bank statement',
+            'is_active' => true,
+        ]);
+        CustomerDocument::create([
+            'customer_id' => $app->customer_id,
+            'document_type_id' => $type->id,
+            'file_path' => 'customer/'.$app->customer_id.'/documents/statement.pdf',
+            'status' => 'pending_review',
+        ]);
+        $payload = $app->screening_payload ?? [];
+        $payload['screening_checklist']['by_subject']['borrower']['items']['activity_income.income_evidence'] = [
+            'statement_deposits_total' => 11_265_630,
+            'statement_months' => 6,
+            'statement_monthly' => 1_877_605,
+            'statement_weekly' => round(1_877_605 * 12 / 52, 2),
+            'notes' => 'Reviewed the six-month total',
+        ];
+        $app->forceFill([
+            'screening_payload' => $payload,
+            'current_stage' => 'screening',
+        ])->save();
+
+        $evaluation = app(\App\Services\AffordabilityService::class)->evaluate($app->fresh());
+        $ratioLabel = app(\App\Services\AffordabilityPolicyService::class)->formatRatioLabel(
+            (float) $evaluation['repayment_ratio_pct']
+        );
+        $result = in_array($evaluation['verdict'], ['pass', 'warn'], true)
+            ? '✓ PASSED'
+            : '✕ FAILED';
+
+        $wizard = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.guided-screening', [
+                'loan_application' => $app,
+                'at_item' => 'activity_income.income_evidence',
+                'at_person' => 'borrower',
+            ]))
+            ->assertOk()
+            ->getContent();
+        $checklist = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', [
+                'loan_application' => $app,
+                'workspace' => 'checklist',
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        foreach ([
+            'GATE 2 — VERIFIED AFFORDABILITY',
+            'Required loan repayment',
+            'Evidence supports (maximum)',
+            'Headroom',
+            format_money((float) $evaluation['max_repayment_capacity']),
+            format_money((float) $evaluation['proposed_installment']),
+            $result,
+            'Income discrepancy',
+            '62.6%',
+            '-'.format_money(1_122_395),
+            format_money(1_877_605),
+            $ratioLabel,
+            'Evidence supports a maximum repayment of',
+        ] as $needle) {
+            $this->assertStringContainsString($needle, $wizard, 'wizard: '.$needle);
+            $this->assertStringContainsString($needle, $checklist, 'checklist: '.$needle);
+        }
+        $this->assertStringContainsString('Gate 2 summary', $wizard);
+        $this->assertStringContainsString('Kopafasta records the totals and applies the existing Screening policy', $wizard);
+        $this->assertStringNotContainsString('items[activity_income][income_evidence][verdict]', $wizard);
+
+        $app->refresh();
+        $item = $app->screening_payload['screening_checklist']['by_subject']['borrower']['items']['activity_income.income_evidence'];
+        $this->assertNull($item['verdict'] ?? null);
+        $this->assertSame(11_265_630, (int) $item['statement_deposits_total']);
+        $this->assertSame('screening', $app->current_stage);
+        $this->assertSame('statement', $evaluation['income_basis']);
+    }
+
+    public function test_gate2_statement_save_without_verdict_applies_system_policy_and_opens_observation(): void
+    {
+        [$admin, $app] = $this->file();
+        $app->customer->update(['monthly_income' => 2_000_000]);
+        DocumentType::create([
+            'code' => 'bank_statement',
+            'name' => 'Bank statement',
+            'is_active' => true,
+        ]);
+        CustomerDocument::create([
+            'customer_id' => $app->customer_id,
+            'document_type_id' => DocumentType::query()->where('code', 'bank_statement')->value('id'),
+            'file_path' => 'customer/'.$app->customer_id.'/documents/statement.pdf',
+            'status' => 'pending_review',
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.guided-screening.save', $app), [
+                'person' => 'borrower',
+                'gate' => 'income',
+                'open_item' => 'activity_income.income_evidence',
+                'items' => [
+                    'activity_income' => [
+                        'income_evidence' => [
+                            'statement_deposits_total' => '12,000,000',
+                            'statement_months' => 6,
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $item = $app->fresh()->screening_payload['screening_checklist']['by_subject']['borrower']['items']['activity_income.income_evidence'];
+        $this->assertSame('pass', $item['verdict'] ?? null);
+        $this->assertSame('system', $item['source'] ?? null);
+        $this->assertSame(2_000_000.0, (float) $item['statement_monthly']);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.guided-screening', $app))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Does activity support the stated income', $html);
+        $this->assertStringContainsString('Yes — activity supports the stated income', $html);
+        $this->assertStringContainsString('No — activity does not support the stated income', $html);
+        $this->assertSame('screening', $app->fresh()->current_stage);
+    }
+
+    public function test_gate2_keeps_borrower_and_guarantor_on_income_gate_in_parallel(): void
+    {
+        [$admin, $app] = $this->fileWithGuarantor(3_000_000, 4_000_000);
+        $payload = $app->screening_payload ?? [];
+        $payload['guided']['seen_gates']['declared'] = true;
+        $app->forceFill(['screening_payload' => $payload])->save();
+        DocumentType::create([
+            'code' => 'bank_statement',
+            'name' => 'Bank statement',
+            'is_active' => true,
+        ]);
+        CustomerDocument::create([
+            'customer_id' => $app->customer_id,
+            'document_type_id' => DocumentType::query()->where('code', 'bank_statement')->value('id'),
+            'file_path' => 'customer/'.$app->customer_id.'/documents/statement.pdf',
+            'status' => 'pending_review',
+        ]);
+
+        $guided = app(ScreeningNextActionService::class)->forApplication($app->fresh(), $admin);
+        $this->assertSame('income', $guided['step']['gate'] ?? null);
+        $this->assertGreaterThanOrEqual(2, count($guided['subjects'] ?? []));
+        $this->assertSame('WAITING', $guided['gate2_summary']['overall'] ?? null);
+
+        $guarantor = collect($guided['subjects'])->first(fn ($s) => ($s['person'] ?? '') === 'guarantor');
+        $this->assertNotEmpty($guarantor['href'] ?? null);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get($guarantor['href'])
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Gate 2 summary', $html);
+        $this->assertStringContainsString('Grace', $html);
+        $this->assertStringContainsString('data-participant-switcher', $html);
+        $this->assertStringContainsString('Gate 2 WAITING', $html);
+        $step = app(ScreeningNextActionService::class)->forApplication($app->fresh(), $admin, [
+            'focus_person' => 'guarantor',
+            'focus_g' => $guarantor['g'] ?? null,
+        ]);
+        $this->assertSame('income', $step['step']['gate'] ?? null);
+        $this->assertSame('guarantor', $step['step']['participant']['person'] ?? null);
     }
 
     public function test_wizard_answer_writes_the_same_checklist_record(): void
@@ -163,7 +383,7 @@ class GuidedScreeningFeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('Do now', $html);
         $this->assertStringContainsString($app->application_number, $html);
-        $this->assertStringContainsString('Start Reviewing', $html);
+        $this->assertStringContainsString('Continue Reviewing', $html);
     }
 
     public function test_committee_clarification_resumes_in_the_wizard(): void
@@ -455,7 +675,7 @@ class GuidedScreeningFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('Facility summary', $html);
-        $this->assertStringContainsString('Start Reviewing', $html);
+        $this->assertStringContainsString('Continue Reviewing', $html);
         $this->assertStringContainsString('Review Checklist', $html);
         $this->assertStringNotContainsString('Guided Screening', $html);
         $this->assertStringNotContainsString('Save & Next', $html);

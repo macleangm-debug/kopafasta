@@ -8,7 +8,7 @@
  * - penalty_cap_percent (global loan rules): cumulative penalty cap (BOT max 30%).
  */
 return [
-    'default_grace_days' => 7,
+    'default_grace_days' => 3,
     'penalty_rate_percent' => 1.0,
     'penalty_basis' => 'per_day',
 

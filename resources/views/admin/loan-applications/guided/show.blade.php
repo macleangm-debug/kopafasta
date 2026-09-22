@@ -38,7 +38,7 @@
     :record="$record"
     mode="screening"
     :percent="$guided['percent'] ?? 0"
-    :gateChip="'Gate '.$gateIndex.' of 6'.(! empty($step['gate_label']) ? ' · '.$step['gate_label'] : '')"
+    :gateChip="'Gate '.$gateIndex.' of 6'.(! empty($step['gate_label']) ? ' · '.$step['gate_label'] : '').(! empty($guided['gate_progress']['result']) ? ' · '.$guided['gate_progress']['result'] : '')"
     :personChip="$personChip"
     :gateProgress="$guided['gate_progress']['label'] ?? null"
     :backUrl="$guided['desk_href'] ?? route('admin.loan-applications.show', ['loan_application' => $record, 'workspace' => 'overview'])"
@@ -51,14 +51,38 @@
                         $current = ($participant['person'] ?? null) === ($subject['person'] ?? null)
                             && (int) ($participant['m'] ?? 0) === (int) ($subject['m'] ?? 0)
                             && (int) ($participant['g'] ?? 0) === (int) ($subject['g'] ?? 0);
+                        $mark = (string) ($subject['gate2']['chip'] ?? '');
+                        if ($mark === '') {
+                            $mark = ! empty($subject['complete'])
+                                ? '✓'
+                                : ((int) ($subject['failed'] ?? 0) > 0 ? '!' : '·');
+                        }
                     @endphp
                     <a href="{{ $subject['href'] }}"
                        @class([
-                           'shrink-0 max-w-[10rem] truncate rounded-full px-3 py-1.5 text-xs font-bold ring-1',
+                           'shrink-0 max-w-[14rem] truncate rounded-full px-3 py-1.5 text-xs font-bold ring-1',
                            'bg-brand text-white ring-brand' => $current,
                            'bg-white text-slate-800 ring-slate-200' => ! $current,
-                       ])>{{ $subject['label'] ?: 'Participant' }}</a>
+                       ])>{{ $subject['label'] ?: 'Participant' }} · Gate 2 {{ $mark }}</a>
                 @endforeach
+            </div>
+        @endif
+
+        @if (($step['gate'] ?? '') === 'income' && ! empty($guided['gate2_summary']['rows']))
+            <div class="mt-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 space-y-2" data-gate2-summary>
+                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Gate 2 summary</p>
+                <ul class="space-y-1 text-sm">
+                    @foreach ($guided['gate2_summary']['rows'] as $row)
+                        <li class="flex items-center justify-between gap-2">
+                            <span class="font-semibold text-slate-900">{{ $row['name'] }}</span>
+                            <span class="font-bold {{ ($row['chip'] ?? '') === 'PASSED' ? 'text-emerald-800' : (($row['chip'] ?? '') === 'FAILED' ? 'text-rose-800' : 'text-amber-800') }}">{{ $row['chip'] }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200">
+                    <p class="text-sm font-bold text-slate-900">Application Gate 2 · {{ $guided['gate2_summary']['overall'] ?? 'WAITING' }}</p>
+                    <p class="text-xs text-slate-600">{{ $guided['gate2_summary']['continue'] ?? '' }}</p>
+                </div>
             </div>
         @endif
 
@@ -208,10 +232,16 @@
             </div>
         @elseif ($type === 'waiting')
             <div class="mt-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-5 space-y-2">
-                <p class="text-sm font-bold text-emerald-800">Request sent ✓</p>
-                <p class="text-sm font-bold text-amber-950">{{ $step['title'] }}</p>
-                <p class="text-sm text-amber-900">{{ $step['prompt'] }}</p>
-                <p class="text-xs text-amber-800">You can leave this file. It will return to Do now when the resolution arrives.</p>
+                @if (($step['waiting']['kind'] ?? '') === 'policy')
+                    <p class="text-sm font-bold text-rose-950">{{ $step['title'] }}</p>
+                    <p class="text-sm text-rose-900">{{ $step['prompt'] }}</p>
+                    <p class="text-xs text-rose-800">Ordinary Screening deficiencies may still appear on the file — they are not the guided next action while this park is active.</p>
+                @else
+                    <p class="text-sm font-bold text-emerald-800">Request sent ✓</p>
+                    <p class="text-sm font-bold text-amber-950">{{ $step['title'] }}</p>
+                    <p class="text-sm text-amber-900">{{ $step['prompt'] }}</p>
+                    <p class="text-xs text-amber-800">You can leave this file. It will return to Do now when the resolution arrives.</p>
+                @endif
             </div>
         @elseif ($type === 'collateral_secure')
             <div class="mt-6 rounded-2xl bg-white ring-1 ring-brand/15 px-4 py-4 space-y-3" x-data="{ step: 'review' }">
@@ -300,7 +330,7 @@
                     @endif
                 </form>
             </div>
-        @else
+            @else
             <div class="mt-2 space-y-4">
                 @include('admin.loan-applications.guided._participant_header', [
                     'participant' => $participant,
@@ -311,6 +341,27 @@
                     'step' => $step,
                 ])
                 <h2 class="text-lg font-bold text-slate-900 break-words">{{ $step['title'] ?? $guided['cta'] }}</h2>
+                @php
+                    $affiliateName = $record->customer?->affiliateVendor?->name;
+                    $supplierAsset = $record->assetReservation?->asset;
+                    $supplierName = $supplierAsset?->vendor?->name ?: $supplierAsset?->supplier_name;
+                @endphp
+                @if (filled($affiliateName) || filled($supplierName))
+                    <dl class="grid sm:grid-cols-2 gap-2 text-sm">
+                        @if (filled($affiliateName))
+                            <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2">
+                                <dt class="text-[10px] uppercase tracking-widest text-slate-500">Affiliate</dt>
+                                <dd class="font-semibold text-slate-900">{{ $affiliateName }}</dd>
+                            </div>
+                        @endif
+                        @if (filled($supplierName))
+                            <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2">
+                                <dt class="text-[10px] uppercase tracking-widest text-slate-500">Supplier</dt>
+                                <dd class="font-semibold text-slate-900">{{ $supplierName }}</dd>
+                            </div>
+                        @endif
+                    </dl>
+                @endif
                 @if (! empty($step['revisiting']) && filled($step['verdict'] ?? null))
                     <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
                         <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Already recorded</p>
@@ -362,9 +413,15 @@
                 @include('admin.loan-applications.guided._request_history', ['step' => $step, 'record' => $record])
 
                 @if (empty($step['revisiting']) || blank($step['verdict'] ?? null))
+                    @php
+                        $fieldBase = 'items['.($step['group_key'] ?? 'identity').']['.($step['item_short'] ?? '').']';
+                        $capturesStatement = ! empty($step['captures_statement']);
+                        $requiresVerdict = count($outcomes) > 0;
+                        $noteLabel = $step['note_label'] ?? 'Explain concern';
+                    @endphp
                     <form method="POST" action="{{ route('admin.loan-applications.guided-screening.save', $record) }}"
                           id="guided-screening-form" class="space-y-3" data-no-draft
-                          @submit="if (!verdict) { $event.preventDefault(); missing = true }">
+                          @submit="if (@js($requiresVerdict) && !verdict) { $event.preventDefault(); missing = true }">
                         @csrf
                         <input type="hidden" name="person" value="{{ $participant['person'] ?? 'borrower' }}">
                         <input type="hidden" name="gate" value="{{ $step['gate'] ?? '' }}">
@@ -375,39 +432,107 @@
                         @if (! empty($participant['g']))
                             <input type="hidden" name="g" value="{{ $participant['g'] }}">
                         @endif
-                        @php
-                            $fieldBase = 'items['.($step['group_key'] ?? 'identity').']['.($step['item_short'] ?? '').']';
-                        @endphp
-                        <div class="grid grid-cols-1 gap-2">
-                            @foreach ($outcomes as $outcome)
-                                <label class="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 px-4 py-3">
-                                    <input type="radio" name="{{ $fieldBase }}[verdict]" value="{{ $outcome['value'] }}"
-                                           x-model="verdict"
-                                           required
-                                           @change="missing = false; @if (! empty($outcome['fail_reason_code'])) reason = '{{ $outcome['fail_reason_code'] }}'; @endif"
-                                           class="text-brand">
-                                    <span class="text-sm font-bold text-slate-900">{{ $outcome['label'] }}</span>
+                        @if ($capturesStatement)
+                            <div class="rounded-xl ring-1 ring-brand/15 bg-brand-muted/30 p-3.5 space-y-3"
+                                 x-data="{
+                                    raw: @js(\App\Support\MoneyFormat::forInput($step['statement_deposits_total'] ?? null)),
+                                    declared: @js((float) ($step['declared_monthly_income'] ?? 0)),
+                                    storedMonthly: @js((float) ($step['statement_monthly'] ?? 0)),
+                                    digits() { return Number(String(this.raw).replace(/[^0-9.]/g, '')) || 0 },
+                                    money(n) { return 'TZS ' + Math.round(n).toLocaleString('en-US') }
+                                 }">
+                                <input type="hidden" name="{{ $fieldBase }}[statement_months]" value="6">
+                                <label class="block">
+                                    <span class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Total deposits for the 6-month statement period</span>
+                                    <input type="text" inputmode="decimal" autocomplete="off" x-model="raw"
+                                           name="{{ $fieldBase }}[statement_deposits_total]"
+                                           data-money-input="0"
+                                           placeholder="TZS"
+                                           class="mt-1 w-full rounded-xl border-slate-300 text-sm">
                                 </label>
-                            @endforeach
-                        </div>
-                        <input type="hidden" name="{{ $fieldBase }}[fail_reason_code]" :value="verdict === 'fail' ? reason : ''">
-                        <div x-show="verdict === 'fail'" x-cloak class="space-y-2">
-                            <label class="text-xs font-bold text-slate-600">What is the concern?</label>
-                            <select x-model="reason" :required="verdict === 'fail'" class="w-full rounded-xl border-slate-300 text-sm">
-                                <option value="">Select a reason</option>
-                                @foreach ($failReasons as $code => $label)
-                                    <option value="{{ $code }}">{{ is_string($label) ? $label : $code }}</option>
+                                <dl class="grid sm:grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                        <dt class="text-[10px] uppercase tracking-widest text-slate-500">6-month total deposits</dt>
+                                        <dd class="font-semibold" x-text="money(digits())"></dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-[10px] uppercase tracking-widest text-slate-500">Average monthly deposits</dt>
+                                        <dd class="font-semibold" x-text="money(digits() / 6)"></dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-[10px] uppercase tracking-widest text-slate-500">Declared monthly income</dt>
+                                        <dd class="font-semibold">{{ format_money((float) ($step['declared_monthly_income'] ?? 0)) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-[10px] uppercase tracking-widest text-slate-500">Affordability uses</dt>
+                                        <dd class="font-semibold">{{ ($step['income_basis'] ?? '') === 'statement' ? 'Statement average' : 'Declared income' }} · {{ format_money((float) ($step['affordability_income'] ?? $step['declared_monthly_income'] ?? 0)) }}</dd>
+                                    </div>
+                                </dl>
+                                @include('admin.loan-applications.review._gate2_finding', [
+                                    'panel' => $step['gate2_panel'] ?? null,
+                                    'comparison' => $step['statement_comparison'] ?? null,
+                                    'capacity' => $step['capacity'] ?? null,
+                                    'declaredIncomeLabel' => $step['declared_income_label'] ?? null,
+                                    'statementTotal' => $step['statement_deposits_total'] ?? 0,
+                                ])
+                                <div data-statement-comparison-live x-show="digits() > 0 && declared > 0 && Math.abs((digits() / 6) - storedMonthly) > 1" x-cloak class="rounded-lg bg-white px-3 py-2 ring-1 ring-brand/10 space-y-2">
+                                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Evidence consistency</p>
+                                    <dl class="grid sm:grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <dt class="text-[10px] uppercase tracking-widest text-slate-500">Statement average</dt>
+                                            <dd class="font-semibold" x-text="money(digits() / 6)"></dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[10px] uppercase tracking-widest text-slate-500">Income being assessed</dt>
+                                            <dd class="font-semibold">{{ format_money((float) ($step['declared_monthly_income'] ?? 0)) }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[10px] uppercase tracking-widest text-slate-500">Difference</dt>
+                                            <dd class="font-semibold" x-text="(digits() / 6 - declared) < 0 ? '-' + money(declared - digits() / 6) : money(digits() / 6 - declared)"></dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[10px] uppercase tracking-widest text-slate-500">Statement coverage</dt>
+                                            <dd class="font-semibold" x-text="((digits() / 6) / declared * 100).toFixed(1) + '%'"></dd>
+                                        </div>
+                                    </dl>
+                                    <p class="text-sm text-slate-800" x-text="(digits() / 6) < declared ? 'Statement activity is below the declared monthly income. Review the evidence before confirming this check.' : 'Statement activity covers the declared monthly income. Review the evidence before confirming this check.'"></p>
+                                </div>
+                                <p class="text-[11px] text-slate-600">Kopafasta records the totals and applies the existing Screening policy. You do not choose Pass or Concern for this calculation.</p>
+                            </div>
+                        @endif
+                        @if ($requiresVerdict)
+                            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Observation</p>
+                            <div class="grid grid-cols-1 gap-2">
+                                @foreach ($outcomes as $outcome)
+                                    <label class="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 px-4 py-3">
+                                        <input type="radio" name="{{ $fieldBase }}[verdict]" value="{{ $outcome['value'] }}"
+                                               x-model="verdict"
+                                               required
+                                               @change="missing = false; @if (! empty($outcome['fail_reason_code'])) reason = '{{ $outcome['fail_reason_code'] }}'; @endif"
+                                               class="text-brand">
+                                        <span class="text-sm font-bold text-slate-900">{{ $outcome['label'] }}</span>
+                                    </label>
                                 @endforeach
-                            </select>
-                            <textarea x-show="reason === 'custom'" x-cloak
-                                      name="{{ $fieldBase }}[fail_reason_custom]" rows="2"
-                                      :required="verdict === 'fail' && reason === 'custom'"
-                                      placeholder="Describe the concern"
-                                      class="w-full rounded-xl border-slate-300 text-sm"></textarea>
-                            <p class="text-xs text-slate-500">After you save, the Review Checklist decides whether to continue, request evidence, or pause.</p>
-                        </div>
-                        <textarea name="{{ $fieldBase }}[notes]" rows="2" placeholder="Optional note"
-                                  class="w-full rounded-xl border-slate-300 text-sm"></textarea>
+                            </div>
+                            <input type="hidden" name="{{ $fieldBase }}[fail_reason_code]" :value="verdict === 'fail' ? reason : ''">
+                            <div x-show="verdict === 'fail'" x-cloak class="space-y-2">
+                                <label class="text-xs font-bold text-slate-600">{{ $noteLabel }}</label>
+                                <select x-model="reason" :required="verdict === 'fail'" class="w-full rounded-xl border-slate-300 text-sm">
+                                    <option value="">Select a reason</option>
+                                    @foreach ($failReasons as $code => $label)
+                                        <option value="{{ $code }}">{{ is_string($label) ? $label : $code }}</option>
+                                    @endforeach
+                                </select>
+                                <textarea x-show="reason === 'custom'" x-cloak
+                                          name="{{ $fieldBase }}[fail_reason_custom]" rows="2"
+                                          :required="verdict === 'fail' && reason === 'custom'"
+                                          placeholder="Describe the concern"
+                                          class="w-full rounded-xl border-slate-300 text-sm"></textarea>
+                                <textarea name="{{ $fieldBase }}[notes]" rows="2"
+                                          placeholder="{{ $noteLabel }}"
+                                          class="w-full rounded-xl border-slate-300 text-sm">{{ $step['notes'] ?? '' }}</textarea>
+                            </div>
+                        @endif
                     </form>
                 @endif
             </div>
@@ -458,10 +583,10 @@
                 </button>
             @else
                 <div class="flex-[2] min-w-0">
-                    <p x-show="missing && !verdict" x-cloak class="text-[11px] font-semibold text-rose-700 mb-1 text-center">Select Pass, Concern, or N/A</p>
+                    <p x-show="missing && !verdict" x-cloak class="text-[11px] font-semibold text-rose-700 mb-1 text-center">Select an observation</p>
                     <button type="submit" form="guided-screening-form" data-loading-label="Saving…"
                             class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3 px-2 leading-snug whitespace-normal">
-                        Save & Next
+                        {{ $step['primary'] ?? 'Save & Next' }}
                     </button>
                 </div>
             @endif

@@ -151,6 +151,14 @@
                                         @if (! empty($returnUrl))
                                             <input type="hidden" name="return" value="{{ $returnUrl }}">
                                         @endif
+                                        <input type="hidden" name="focus" value="verification">
+                                        <input type="hidden" name="region" value="{{ $customer->region }}">
+                                        <input type="hidden" name="district" value="{{ $customer->district }}">
+                                        <input type="hidden" name="ward" value="{{ $customer->ward }}">
+                                        <input type="hidden" name="street" value="{{ $customer->street ?? $customer->address }}">
+                                        <input type="hidden" name="lga_officer_name" value="{{ $customer->lga_officer_name }}">
+                                        <input type="hidden" name="lga_officer_position" value="{{ $customer->lga_officer_position }}">
+                                        <input type="hidden" name="lga_officer_phone" value="{{ $customer->lga_officer_phone }}">
                                         <x-site.profile-document-field
                                             :document="$residenceLetter"
                                             field-name="residence_letter"
@@ -165,8 +173,32 @@
                             </div>
                             <div data-kf-live-docs class="space-y-4 hidden"></div>
                             <div data-kf-doc-empty @class(['hidden' => (bool) ($residenceLetter ?? null)])>
-                                <p class="text-sm font-semibold text-amber-700">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.missing') }}</p>
+                                <form method="POST"
+                                      action="{{ route('site.borrower.profile.update', ['section' => 'residence']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}"
+                                      enctype="multipart/form-data"
+                                      data-inline-document-progress
+                                      data-saving-message="{{ __('borrower.profile.uploading_documents') }}">
+                                    @csrf @method('PUT')
+                                    <input type="hidden" name="focus" value="verification">
+                                    <input type="hidden" name="region" value="{{ $customer->region }}">
+                                    <input type="hidden" name="district" value="{{ $customer->district }}">
+                                    <input type="hidden" name="ward" value="{{ $customer->ward }}">
+                                    <input type="hidden" name="street" value="{{ $customer->street ?? $customer->address }}">
+                                    <input type="hidden" name="lga_officer_name" value="{{ $customer->lga_officer_name }}">
+                                    <input type="hidden" name="lga_officer_position" value="{{ $customer->lga_officer_position }}">
+                                    <input type="hidden" name="lga_officer_phone" value="{{ $customer->lga_officer_phone }}">
+                                    <x-site.profile-document-field
+                                        :document="null"
+                                        field-name="residence_letter"
+                                        pages-field-name="residence_letter_pages"
+                                        mode="multi"
+                                        :label="__('borrower.profile.residence_letter')"
+                                        input-host-id="residence-letter-empty"
+                                    />
+                                </form>
                             </div>
+                        @else
+                            <p class="text-sm text-gray-600">{{ __('borrower.profile.residence_letter') }} — {{ __('borrower.profile.requirement_not_required') }}</p>
                         @endif
 
                         <div class="mt-4 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-4 py-4">

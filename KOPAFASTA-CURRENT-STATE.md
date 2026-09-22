@@ -8,13 +8,11 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production baseline** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | Operational production baseline until live production is re-verified. Do not casually overwrite. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | `6719c43c1b48a659e84025ed9d46d8626355feb5` | Economic pass: scoped multi-cap staff nav + shared Profile autosave/auth View sync. **Do not promote wholesale.** |
-| **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
-| **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
+| **Current staging / development baseline** | `91c8ec0e198b114474f826a1ff5de08fea3032c7` | Steward released to Screening after KYC flags were aligned with production. John and Abdulatif still awaiting a guarantor. Document cosmetics unfinished. **Do not promote.** |
+| **Clean production candidate** | **none** | Accepted Member 360/Legal IA is mixed with unfinished signature transparency and PDF cosmetics in `75eff6eb`, `eeb553e5`, and `ceb37ac8`. Do not promote those SHAs. `6cb7798c` is an older diverged candidate and is **not** an ancestor of the accepted Member 360 work. |
+| **GitHub `origin/main`** | behind local tip | Do not force-catch-up with mixed WIP. |
 
-**Typo note:** `73fbbfbe` does not exist — use `73fbbbfe`.
-
-**Rule:** Staging only until owner UAT. Production requires `CONFIRM_PRODUCTION=1` + `APPROVED_COMMIT=<staging sha>`. Never push mixed staging tip to `origin/main` merely to sync GitHub. **Do not promote staging HEAD wholesale.**
+**Production cut (2026-09-20):** SAFE TO PROMOTE **NO**. Current production baseline remains `8bb9bf5e`. Creating a file-level extract onto that baseline breaks signatory upload (methods added in the same mixed commits) and would omit or drag 94 commits of Profile, Support, Screening, Plus, and affordability that this cut did not approve.
 
 ## Frozen
 

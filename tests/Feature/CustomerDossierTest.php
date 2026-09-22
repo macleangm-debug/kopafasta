@@ -29,6 +29,8 @@ class CustomerDossierTest extends TestCase
             'first_name'      => 'Jane',
             'last_name'       => 'Borrower',
             'phone'           => '255712345678',
+            'region'          => 'Dar es Salaam',
+            'district'        => 'Ilala',
         ]);
 
         $admin = User::factory()->create([
@@ -39,7 +41,47 @@ class CustomerDossierTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.customers.show', $customer))
             ->assertOk()
-            ->assertSee('Jane Borrower');
+            ->assertSee('Jane Borrower')
+            ->assertSee('About you')
+            ->assertSee('Where you live')
+            ->assertSee('Eligibility to apply');
+    }
+
+    public function test_member_360_profile_tabs_expose_actual_categories(): void
+    {
+        $customer = Customer::create([
+            'customer_number' => 'CU-TEST-003',
+            'type'            => 'individual',
+            'status'          => 'active',
+            'first_name'      => 'Amina',
+            'last_name'       => 'Hassan',
+            'phone'           => '255700000003',
+            'region'          => 'Arusha',
+            'district'        => 'Arusha',
+            'street'          => 'Sokoine Road 12',
+        ]);
+
+        $admin = User::factory()->create([
+            'role'  => 'super_admin',
+            'email' => 'dossier-tabs@example.com',
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.customers.show', ['customer' => $customer, 'tab' => 'about']))
+            ->assertOk()
+            ->assertSee('Amina Hassan')
+            ->assertSee('Next of kin / family');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.customers.show', ['customer' => $customer, 'tab' => 'residence']))
+            ->assertOk()
+            ->assertSee('Sokoine Road 12')
+            ->assertSee('Residence proof');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.customers.show', ['customer' => $customer, 'tab' => 'payment']))
+            ->assertOk()
+            ->assertSee('Payment account');
     }
 
     public function test_customer_dossier_service_builds_without_error(): void
@@ -58,5 +100,8 @@ class CustomerDossierTest extends TestCase
         $this->assertSame($customer->id, $dossier['customer']->id);
         $this->assertArrayHasKey('profile', $dossier);
         $this->assertArrayHasKey('checklist', $dossier);
+        $this->assertArrayHasKey('documents_by_context', $dossier);
+        $this->assertArrayHasKey('by_category', $dossier['eligibility']);
+        $this->assertArrayHasKey('payment_accounts', $dossier);
     }
 }

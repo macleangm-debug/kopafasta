@@ -59,7 +59,8 @@ class CustomerController extends ResourceController
     public function show($id): View
     {
         $record = Customer::findOrFail($id);
-        $dossierData = app(CustomerDossierService::class)->dossier($record);
+        $paymentsQuery = request()->string('payments_q')->toString() ?: null;
+        $dossierData = app(CustomerDossierService::class)->dossier($record, $paymentsQuery);
 
         return view('admin.customers.show', [
             'record'  => $record,

@@ -114,7 +114,8 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $this->assertStringContainsString('12 Uhuru Street, Kisutu, Ilala, Dar es Salaam', $html);
         $this->assertStringContainsString('unpaid remainder of the first overdue instalment', $html);
         $this->assertStringContainsString('Call centre', $html);
-        $this->assertStringContainsString('Finance manager', $html);
+        $this->assertStringContainsString('Chief Executive Officer', $html);
+        $this->assertStringNotContainsString('Finance manager', $html);
         $this->assertStringContainsString('English version prevails', $html);
         $this->assertStringContainsString('kopafasta', $html);
         $this->assertStringContainsString('Asha Mushi', $html);
@@ -179,7 +180,9 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $this->assertStringContainsString('Jamhuri ya Muungano wa Tanzania', $html);
         $this->assertStringContainsString('Kituo cha simu', $html);
         $this->assertStringContainsString('Mshirika wa kisheria', $html);
-        $this->assertStringContainsString('Ada ya TZS 100,000', $html);
+        $this->assertStringContainsString('TZS 100,000', $html);
+        $this->assertStringNotContainsString('ada ya mshirika', $html);
+        $this->assertStringNotContainsString('jukwaa la Kopafasta', $html);
         $this->assertStringContainsString('29. Sheria inayotumika', $html);
         $this->assertStringNotContainsString('PLEASE READ THIS AGREEMENT CAREFULLY BEFORE SIGNING.', $html);
         $this->assertStringNotContainsString('Loan facility', $html);
@@ -299,10 +302,12 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $callCentre = collect($schedule['stages'])->firstWhere('type', 'call_center');
 
         $this->assertSame('principal', $schedule['fee_base']);
-        $this->assertStringContainsString('10%', $callCentre['display_en']);
-        $this->assertStringContainsString('3%', $callCentre['display_en']);
+        $this->assertStringContainsString('13%', $callCentre['display_en']);
+        $this->assertStringNotContainsString('10%', $callCentre['display_en']);
+        $this->assertStringNotContainsString('platform fee', $callCentre['display_en']);
+        $this->assertStringNotContainsString('recovery-partner', $callCentre['display_en']);
         $this->assertStringContainsString('principal amount', $callCentre['display_en']);
-        $this->assertStringContainsString('Posted only when this stage is actually assigned', $callCentre['display_en']);
+        $this->assertStringContainsString('only if this stage is actually assigned', $callCentre['display_en']);
         $this->assertNull(collect($schedule['stages'])->firstWhere('type', 'gps_partner'));
     }
 
@@ -782,10 +787,10 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $this->assertStringContainsString('Strong affordability / repayment capacity', $html);
         $this->assertStringContainsString('Capacity supports the instalment.', $html);
         $this->assertStringContainsString('Mtaji wa kufanya kazi', $html);
-        $this->assertStringContainsString('GPS (baada ya kuidhinishwa)', $html);
+        $this->assertStringContainsString('Usakinishaji wa GPS', $html);
         $this->assertStringContainsString(format_money(170_000), $html);
         $this->assertStringContainsString('100,000', $html);
-        $this->assertStringContainsString('Muda wa msamaha', $html);
+        $this->assertStringContainsString('Kipindi cha utaratibu', $html);
     }
 
     public function test_rejection_letter_lists_catalog_reasons_in_borrower_language_and_keeps_capacity_figures(): void

@@ -359,7 +359,7 @@ class ApplicationRequirementsService
         $faceRevision = $faceStatus === 'revision_required'
             || app(ProfileRevisionService::class)->hasOpenRevision($customer, 'face');
         $activityComplete = $profile->isActivityComplete($customer);
-        $residenceComplete = $profile->isResidenceComplete($customer);
+        $residenceComplete = $profile->residenceSectionComplete($customer);
         $kinComplete = $validation->isKinComplete($customer);
         $documentsComplete = $profile->isDocumentsComplete($customer);
         $staleKeys = $freshness->sectionsDueForRefresh($customer);

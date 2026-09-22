@@ -11,20 +11,6 @@
     $preferredLocale = data_get($user?->preferences, 'preferred_locale', $user?->locale ?? app()->getLocale());
 @endphp
 
-@if (session('status'))
-    <div
-        x-data
-        x-init="
-            $nextTick(() => window.showBorrowerFeedback && window.showBorrowerFeedback({
-                title: @js(__('borrower.feedback.saved_title')),
-                message: @js(session('status')),
-                tone: 'success',
-            }));
-        "
-        class="sr-only"
-        aria-hidden="true"
-    ></div>
-@endif
 @if ($errors->any())
     <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
 @endif

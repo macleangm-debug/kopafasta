@@ -4,6 +4,7 @@
         action="{{ route('admin.settings.underwriting.save') }}"
         submit-label="Save underwriting settings"
         :tabs="[
+            'affordability' => 'Affordability',
             'guarantors' => 'Guarantors',
             'documents' => 'Documents',
             'interest' => 'Interest',
@@ -14,6 +15,51 @@
             'disbursement' => 'Disbursement',
         ]"
     >
+        <x-admin.settings-panel id="affordability">
+            @php
+                $policy = app(\App\Services\AffordabilityPolicyService::class);
+                $policy->ensureDefaultsSeeded();
+                $ratioPct = old('repayment_ratio_pct', $values['repayment_ratio_pct'] ?? $policy->repaymentRatioPct());
+            @endphp
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900 mb-1">Affordability policy</h3>
+                    <p class="text-xs text-gray-500">
+                        Maximum repayment-to-income ratio used for declared and verified capacity. Changing this bumps the policy version.
+                        Historical decisions keep the ratio snapshotted at assessment time.
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <x-admin.input name="repayment_ratio_pct" label="Maximum repayment-to-income ratio (%)" type="number" step="0.01" min="1" max="100"
+                                   :value="$ratioPct" required />
+                    <label class="flex items-center gap-2 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-2 self-end">
+                        <input type="hidden" name="hard_affordability_gate" value="0">
+                        <input type="checkbox" name="hard_affordability_gate" value="1"
+                               @checked(old('hard_affordability_gate', $values['hard_affordability_gate'] ?? true))
+                               class="size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                        <span class="text-gray-800">Hard affordability gate (ON)</span>
+                    </label>
+                </div>
+                <dl class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600">
+                    <div class="rounded-lg bg-slate-50 ring-1 ring-slate-100 px-3 py-2">
+                        <dt class="font-semibold text-slate-500 uppercase tracking-wide">Income basis</dt>
+                        <dd class="mt-1 text-slate-900">Declared profile income (Gate 1) · Verified statement income (Gate 2)</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-50 ring-1 ring-slate-100 px-3 py-2">
+                        <dt class="font-semibold text-slate-500 uppercase tracking-wide">Effective from</dt>
+                        <dd class="mt-1 text-slate-900">{{ $policy->effectiveFrom() ?: '—' }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-50 ring-1 ring-slate-100 px-3 py-2">
+                        <dt class="font-semibold text-slate-500 uppercase tracking-wide">Policy version</dt>
+                        <dd class="mt-1 text-slate-900">v{{ $policy->policyVersion() }}</dd>
+                    </div>
+                </dl>
+                <p class="text-xs text-amber-900/90 rounded-lg bg-amber-50 ring-1 ring-amber-100 px-3 py-2">
+                    This is Kopafasta’s configured repayment-capacity policy — not a fixed statutory “one-third” rule. Current default remains {{ number_format((float) $ratioPct, 2) }}% unless you change it.
+                </p>
+            </div>
+        </x-admin.settings-panel>
+
         <x-admin.settings-panel id="guarantors">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
                 <h3 class="text-sm font-semibold text-gray-700 mb-1">Guarantor workflow</h3>

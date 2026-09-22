@@ -14,13 +14,13 @@
     >
         <x-admin.settings-panel id="grace">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-                <h3 class="text-sm font-semibold text-gray-700 mb-4">Grace & penalty (global defaults)</h3>
+                <h3 class="text-sm font-semibold text-gray-700 mb-4">Repayment & arrears</h3>
                 <p class="text-xs text-gray-500 mb-4">
-                    Applied to new loan products and loans unless overridden per product. Aligns with Tanzania microfinance practice:
-                    grace after a missed instalment, then daily penalty on overdue balance. Bank of Tanzania rules cap cumulative penalties at 30% of the amount owed.
+                    General operational grace before configured escalation. The contractual due date does not move: an unpaid instalment is past due from the next calendar day. This window is not extra days to pay, and it does not by itself assign an external collector. Products may use this general period or set their own.
+                    Recommended general default: <strong>3 days</strong>. Penalty still follows the existing loan rules. Bank of Tanzania rules cap cumulative penalties at 30% of the amount owed.
                 </p>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <x-admin.input  name="default_grace_days"   label="Default grace after default (days)" type="number" :value="$values['default_grace_days'] ?? '7'" required />
+                    <x-admin.input  name="default_grace_days"   label="General operational grace (days)" type="number" :value="$values['default_grace_days'] ?? '3'" required help="Before configured escalation. Does not move the due date." />
                     <x-admin.input  name="default_penalty_rate" label="Penalty rate (% of amount owed)" type="number" step="0.01" :value="$values['default_penalty_rate'] ?? '1'" required />
                     <x-admin.select name="penalty_basis" label="Penalty basis" :options="['per_day'=>'Per day','per_month'=>'Per month','one_time'=>'One time']" :value="$values['penalty_basis'] ?? 'per_day'" required />
                     <x-admin.input  name="penalty_cap_percent" label="BOT max cumulative penalty (%)" type="number" step="0.01" :value="$values['penalty_cap_percent'] ?? '30'" required />

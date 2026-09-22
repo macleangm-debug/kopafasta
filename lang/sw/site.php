@@ -985,6 +985,7 @@ return [
         'penalty_basis_one_time' => 'mara moja juu ya kiasi kilichochelewa',
         'grace_days' => 'siku :days',
         'audience' => ['default' => 'Imeundwa kwa wakopaji wa :type wanaohitaji ufadhili rahisi na wazi kupitia simu.'],
+        'overview_heading' => 'Muhtasari',
         'overview' => [
             'default' => ':name inaonyesha vikomo wazi, viwango vilivyofichuliwa, na ombi kupitia simu — kulingana na sheria za bidhaa zilizowekwa.',
             'IL' => 'Mtaji wa haraka wa kibinafsi kwa watu waliothibitishwa. Viwango vidogo vinaweza kuhitaji dhamana kidogo au bila dhamana.',

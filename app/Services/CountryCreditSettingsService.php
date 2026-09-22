@@ -9,6 +9,7 @@ class CountryCreditSettingsService
 {
     public function __construct(
         private readonly CountrySettingsService $countries,
+        private readonly AffordabilityPolicyService $affordabilityPolicy,
     ) {}
 
     public function defaultCountryCode(): string
@@ -23,7 +24,7 @@ class CountryCreditSettingsService
 
     public function repaymentRatio(?string $countryCode = null): float
     {
-        return $this->countries->repaymentRatio($countryCode);
+        return $this->affordabilityPolicy->repaymentRatio($countryCode);
     }
 
     public function crbFreshnessDays(?string $countryCode = null): int

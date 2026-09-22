@@ -1733,6 +1733,11 @@ class BorrowerController extends Controller
             ->latestByCodes($customer, ['employment_contract'])
             ->get('employment_contract');
 
+        $businessDocuments = app(ProfileDocumentService::class)
+            ->latestByCodes($customer, ['tin_certificate', 'business_license']);
+        $tinCertificate = $businessDocuments->get('tin_certificate');
+        $businessLicense = $businessDocuments->get('business_license');
+
         $residenceLetter = app(ProfileDocumentService::class)
             ->latestByCodes($customer, ['residence_letter'])
             ->get('residence_letter');
@@ -1774,7 +1779,7 @@ class BorrowerController extends Controller
             $faceSteps = $faces->wizardSteps($customer);
         }
 
-        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'residenceLetter', 'marriageCertificate', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey', 'faceSteps', 'faceUploadUrls', 'faceDeleteUrls', 'faceWizard', 'facePhotos', 'faceAngles'))
+        return view($view, compact('customer', 'kyc', 'trustedDevices', 'nidaDocuments', 'employmentContract', 'tinCertificate', 'businessLicense', 'residenceLetter', 'marriageCertificate', 'incomeProofChecklist', 'incomeProofEmployed', 'incomeProofMethod', 'incomePrimaryOptions', 'completionSummary', 'returnUrl', 'wizardMode', 'wizardKey', 'faceSteps', 'faceUploadUrls', 'faceDeleteUrls', 'faceWizard', 'facePhotos', 'faceAngles'))
             ->with('editing', $wizardMode || $request->boolean('edit'))
             ->with('crbUsesStub', app(CrbService::class)->usesStub())
             ->with('crbSamples', config('crb_samples.scenarios', []))
@@ -2162,6 +2167,12 @@ class BorrowerController extends Controller
                 ],
                 'employment_contract_pages' => ['nullable', 'array'],
                 'employment_contract_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'tin_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'tin_certificate_pages' => ['nullable', 'array'],
+                'tin_certificate_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'business_license' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+                'business_license_pages' => ['nullable', 'array'],
+                'business_license_pages.*' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             ]);
 
             $fill = [];
@@ -2192,15 +2203,47 @@ class BorrowerController extends Controller
                 $request->file('employment_contract'),
                 $request->file('employment_contract_pages', []) ?? []
             );
+            $this->persistProfileDocumentUpload(
+                $customer,
+                'tin_certificate',
+                $request->file('tin_certificate'),
+                $request->file('tin_certificate_pages', []) ?? []
+            );
+            $this->persistProfileDocumentUpload(
+                $customer,
+                'business_license',
+                $request->file('business_license'),
+                $request->file('business_license_pages', []) ?? []
+            );
 
-            if ($employed && ! $validation->employmentContractComplete($customer->fresh())) {
+            $freshCustomer = $customer->fresh();
+            if ($employed && ! $validation->employmentContractComplete($freshCustomer)) {
                 return redirect()
                     ->route('site.borrower.profile', ['section' => 'activity'])
                     ->withErrors(['employment_contract' => __('borrower.profile.employment_contract_required')])
                     ->withInput();
             }
 
-            app(KycFreshnessService::class)->markSectionConfirmed($customer->fresh(), 'activity');
+            if (! $isAutosave && ! $validation->businessVerificationComplete($freshCustomer)) {
+                $gap = collect(app(ProfileCompletionService::class)->activityGaps($freshCustomer))
+                    ->first(fn (array $item) => in_array($item['key'] ?? '', [
+                        'tin_number',
+                        'tin_certificate',
+                        'licence_number',
+                        'licence_authority',
+                        'licence_issued_on',
+                        'business_license',
+                    ], true));
+
+                return redirect()
+                    ->route('site.borrower.profile', ['section' => 'activity'])
+                    ->withErrors([
+                        (string) ($gap['key'] ?? 'activity_details') => (string) ($gap['label'] ?? __('borrower.profile.business_verification')),
+                    ])
+                    ->withInput();
+            }
+
+            app(KycFreshnessService::class)->markSectionConfirmed($freshCustomer, 'activity');
         }
 
         if ($section === 'residence') {
@@ -2944,11 +2987,9 @@ class BorrowerController extends Controller
             ->checklistForApply($fresh, $return);
 
         if ($checklist['can_apply'] ?? false) {
-            Celebration::flashOne('profile_complete');
-
             return redirect($return)
-                ->with('status', __('borrower.profile.ready_to_submit_message'))
-                ->with('profile_ready_to_submit', 1);
+                ->with('status', __('borrower.document_upload.saved'))
+                ->with('kf_status_inline', true);
         }
 
         $next = $checklist['first_action_url'] ?? null;
