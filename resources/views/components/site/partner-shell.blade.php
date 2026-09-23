@@ -51,7 +51,7 @@
     $overflowNav = array_values(array_filter($nav, fn (array $item) => ! in_array($item['key'], $mobileNavKeys, true)));
 @endphp
 <!doctype html>
-<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full">
+<html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">

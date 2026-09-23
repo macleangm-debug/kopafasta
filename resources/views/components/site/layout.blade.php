@@ -31,10 +31,10 @@
     $registrationIncomplete = \App\Support\BorrowerRegistrationGate::isIncomplete(auth()->user());
 @endphp
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full scroll-smooth {{ $auth ? 'overflow-hidden' : '' }}">
+<html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full scroll-smooth {{ $auth ? 'kf-auth-lock overflow-hidden' : '' }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
     <meta name="app-currency" content="{{ currency_code() }}">
@@ -46,7 +46,7 @@
 </head>
 <body @class([
     'bg-white text-gray-900 antialiased flex flex-col',
-    'h-[100svh] max-h-[100svh] overflow-hidden' => $auth,
+    'h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none' => $auth,
     'min-h-full' => ! $auth,
 ])>
     <x-site.environment-banner />

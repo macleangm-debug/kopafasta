@@ -86,7 +86,7 @@
     $plusMoreItems = $plusWorkspace ? $mobileNavService->plusMoreItems() : [];
 @endphp
 <!doctype html>
-<html lang="{{ str_replace('_', '-', $siteLocale) }}" class="h-full"
+<html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full"
       data-kf-draft-owner="{{ $borrowerCustomer?->id ? 'customer:'.$borrowerCustomer->id : (auth()->id() ? 'user:'.auth()->id() : 'guest') }}">
 <head>
     <meta charset="UTF-8">

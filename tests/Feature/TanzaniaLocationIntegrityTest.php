@@ -189,5 +189,24 @@ class TanzaniaLocationIntegrityTest extends TestCase
         $this->assertStringNotContainsString("config('tanzania_locations')", $activity);
         $this->assertStringContainsString('retryDistricts', $address);
         $this->assertStringContainsString('retryDistricts', $activity);
+        $this->assertStringContainsString('openDistrictPicker()', $address);
+        $this->assertStringNotContainsString(':disabled="!details.region', $activity);
+        $this->assertStringNotContainsString(':disabled="!region || districtStatus === \'loading\'"', $address);
+
+        $sheet = file_get_contents(resource_path('views/components/site/bottom-sheet.blade.php'));
+        $this->assertStringNotContainsString('max-width: 1023px', $sheet);
+    }
+
+    public function test_login_locks_viewport_and_refuses_browser_translate(): void
+    {
+        $html = $this->get(route('site.login'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('translate="no"', $html);
+        $this->assertStringContainsString('notranslate', $html);
+        $this->assertStringContainsString('name="google" content="notranslate"', $html);
+        $this->assertStringContainsString('kf-auth-lock', $html);
+        $this->assertStringContainsString('100dvh', $html);
     }
 }

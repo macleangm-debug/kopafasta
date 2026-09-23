@@ -16,6 +16,8 @@ class QuietBrowserNotificationsTest extends TestCase
         $policy = (string) $response->headers->get('Permissions-Policy');
         $this->assertStringContainsString('notifications=()', $policy);
         $this->assertStringContainsString('push=()', $policy);
+        $response->assertSee('translate="no"', false);
+        $response->assertSee('name="google" content="notranslate"', false);
     }
 
     public function test_app_js_blocks_automatic_browser_permission_requests(): void

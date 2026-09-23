@@ -79,6 +79,10 @@ export function tzAddress(locations, initialRegion, initialDistrict, labels) {
         retryDistricts() {
             this.refreshDistricts({ preserveSaved: true });
         },
+        openDistrictPicker() {
+            this.refreshDistricts({ preserveSaved: true });
+            this.districtPickerOpen = true;
+        },
         syncDistrictSelection() {
             this.$nextTick(() => {
                 if (this.savedDistrict && this.districtOptions.includes(this.savedDistrict)) {

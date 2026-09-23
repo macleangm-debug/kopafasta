@@ -19,6 +19,14 @@
     display: none !important;
 }
 
+html.kf-auth-lock,
+html.kf-auth-lock body {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
 @layer components {
     /* Visible form controls — borders must read as fields, not plain text */
     .kf-field {

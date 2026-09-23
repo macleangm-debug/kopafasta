@@ -2237,6 +2237,7 @@ return [
         'loading_districts' => 'Inapakia wilaya…',
         'districts_unavailable' => 'Imeshindwa kupakia wilaya. Jaribu tena.',
         'retry_districts' => 'Jaribu tena',
+        'select_region_first' => 'Chagua mkoa kwanza',
         'select_activity' => 'Chagua shughuli',
         'select_option' => 'Chagua chaguo',
         'select_income' => 'Chagua kiwango cha mapato',

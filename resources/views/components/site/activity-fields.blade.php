@@ -27,6 +27,7 @@
     'loadingDistricts' => __('borrower.profile.loading_districts'),
     'districtsUnavailable' => __('borrower.profile.districts_unavailable'),
     'retryDistricts' => __('borrower.profile.retry_districts'),
+    'selectRegionFirst' => __('borrower.profile.select_region_first'),
 ]), @js($groupedSections), @js($types))">
 
     @if ($groupedSections)
@@ -111,15 +112,14 @@
                             <template x-if="field.type === 'district'">
                                 <div>
                                     <div class="lg:hidden">
-                                        <button type="button" @click="openDetailPicker(field)" :disabled="!details.region || districtStatus === 'loading'"
-                                                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition disabled:opacity-50">
+                                        <button type="button" @click="openDetailPicker(field)"
+                                                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
                                             <span class="flex-1 text-left truncate" x-text="detailFieldLabel(field)"></span>
                                             <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                         </button>
                                     </div>
                                     <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
                                             :key="'district-' + (details.region || '')"
-                                            :disabled="!details.region || districtStatus === 'loading'"
                                             @change="$dispatch('profile-select', { name: 'activity_details[' + field.key + ']', value: details[field.key] })"
                                             class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
                                         <option value="" x-text="districtPlaceholder()"></option>
@@ -327,15 +327,14 @@
                     <template x-if="field.type === 'district'">
                         <div>
                             <div class="lg:hidden">
-                                <button type="button" @click="openDetailPicker(field)" :disabled="!details.region || districtStatus === 'loading'"
-                                        class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition disabled:opacity-50">
+                                <button type="button" @click="openDetailPicker(field)"
+                                        class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
                                     <span class="flex-1 text-left truncate" x-text="detailFieldLabel(field)"></span>
                                     <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                 </button>
                             </div>
                             <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
                                     :key="'district-' + (details.region || '')"
-                                    :disabled="!details.region || districtStatus === 'loading'"
                                     class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
                                 <option value="" x-text="districtPlaceholder()"></option>
                                 <template x-for="district in districtOptions" :key="district">
@@ -390,6 +389,7 @@
     <x-site.bottom-sheet :title="__('borrower.profile.select_option')" open="detailPickerOpen">
         <div class="space-y-1 max-h-[60vh] overflow-y-auto">
             <p class="px-1 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-400" x-text="detailPickerTitle()"></p>
+            <p x-show="detailPickerField?.type === 'district' && !details.region" class="px-1 py-3 text-sm text-gray-500" x-text="labels.selectRegionFirst"></p>
             <p x-show="detailPickerField?.type === 'district' && districtStatus === 'loading'" class="px-1 py-3 text-sm text-gray-500" x-text="labels.loadingDistricts"></p>
             <div x-show="detailPickerField?.type === 'district' && details.region && (districtStatus === 'empty' || districtStatus === 'error')" class="px-1 py-3 space-y-2">
                 <p class="text-sm text-rose-600" x-text="labels.districtsUnavailable"></p>
@@ -450,6 +450,9 @@
                 },
                 openDetailPicker(field) {
                     this.detailPickerField = field;
+                    if (field && field.type === 'district') {
+                        this.refreshDistricts({ preserveSaved: true });
+                    }
                     this.refreshPickerOptions();
                     this.detailPickerOpen = true;
                 },

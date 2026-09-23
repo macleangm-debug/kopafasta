@@ -273,8 +273,8 @@
                     }">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }} <span class="text-rose-500">*</span></label>
                         <div class="lg:hidden">
-                            <button type="button" @click="pickerOpen = true" :disabled="!form.external_region || externalDistrictStatus === 'loading'"
-                                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 disabled:opacity-50"
+                            <button type="button" @click="refreshExternalDistricts(true); pickerOpen = true"
+                                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800"
                                     :class="guarantorErrors.external_district ? 'border-rose-400' : ''">
                                 <span class="flex-1 text-left truncate" x-text="form.external_district || (externalDistrictStatus === 'loading' ? @js(__('borrower.profile.loading_districts')) : @js(__('borrower.profile.select_district')))"></span>
                                 <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
@@ -297,7 +297,6 @@
                         </div>
                         <select name="external_district" x-model="form.external_district"
                                 :key="'external-district-' + (form.external_region || '')"
-                                :disabled="!form.external_region || externalDistrictStatus === 'loading'"
                                 @change="delete guarantorErrors.external_district; invalidateExternalInvite()"
                                 :class="guarantorErrors.external_district ? 'ring-rose-400' : 'ring-gray-200'"
                                 class="w-full rounded-xl border-gray-300 ring-1 px-3 py-2.5 text-sm bg-white max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden">

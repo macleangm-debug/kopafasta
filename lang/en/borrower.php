@@ -2248,6 +2248,7 @@ return [
         'loading_districts' => 'Loading districts…',
         'districts_unavailable' => 'Unable to load districts. Try again.',
         'retry_districts' => 'Try again',
+        'select_region_first' => 'Select a region first',
         'select_activity' => 'Select activity',
         'select_option' => 'Select option',
         'select_income' => 'Select income range',

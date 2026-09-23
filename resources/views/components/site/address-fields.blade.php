@@ -49,6 +49,7 @@
         'loadingDistricts' => __('borrower.profile.loading_districts'),
         'districtsUnavailable' => __('borrower.profile.districts_unavailable'),
         'retryDistricts' => __('borrower.profile.retry_districts'),
+        'selectRegionFirst' => __('borrower.profile.select_region_first'),
     ])),
     regionPickerOpen: false,
     districtPickerOpen: false,
@@ -106,13 +107,14 @@
         <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ __('borrower.profile.fields.district') }} @if($required)<span class="text-red-500">*</span>@endif</label>
 
         <div class="{{ $sheetClass }}">
-            <button type="button" @click="districtPickerOpen = true" :disabled="!region || districtStatus === 'loading'"
-                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition disabled:opacity-50">
+            <button type="button" @click="openDistrictPicker()"
+                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
                 <span class="flex-1 text-left truncate" x-text="district || districtPlaceholder()"></span>
                 <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
             <x-site.bottom-sheet :title="__('borrower.profile.fields.district')" open="districtPickerOpen">
                 <div class="space-y-1 max-h-[60vh] overflow-y-auto">
+                    <p x-show="!region" class="px-1 py-3 text-sm text-gray-500" x-text="labels.selectRegionFirst"></p>
                     <p x-show="districtStatus === 'loading'" class="px-1 py-3 text-sm text-gray-500" x-text="labels.loadingDistricts"></p>
                     <div x-show="region && (districtStatus === 'empty' || districtStatus === 'error')" class="px-1 py-3 space-y-2">
                         <p class="text-sm text-rose-600" x-text="labels.districtsUnavailable"></p>
@@ -130,9 +132,9 @@
 
         <input type="hidden" name="{{ $districtName }}" :value="district" x-ref="districtHidden" @if($required) required @endif>
         <select x-model="district"
+                x-ref="districtSelect"
                 :key="'district-' + (region || '')"
                 class="{{ $selectClass }}"
-                :disabled="!region || districtStatus === 'loading'"
                 @change="
                     district = $event.target.value;
                     $nextTick(() => {

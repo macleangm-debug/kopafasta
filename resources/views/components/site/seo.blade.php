@@ -5,6 +5,7 @@
     /** @var \App\Support\SeoDocument $document */
 @endphp
 <title>{{ $document->title }}</title>
+<x-site.notranslate />
 <meta name="description" content="{{ $document->description }}">
 <meta name="robots" content="{{ $document->robots }}">
 <link rel="canonical" href="{{ $document->canonical }}">

@@ -5,7 +5,7 @@
         $questions = $questions ?? [];
         $phase = $phase ?? ($needsPin ? 'pin' : 'questions');
     @endphp
-    <section class="min-h-full grid lg:grid-cols-2 premium-gradient">
+    <section class="h-full min-h-0 grid lg:grid-cols-2 premium-gradient overflow-hidden">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
             <a href="{{ route('site.home') }}" class="relative"><x-site.brand-mark variant="light" /></a>
@@ -17,7 +17,7 @@
             <p class="relative text-xs text-white/50">© {{ date('Y') }} {{ brand_name() }}</p>
         </aside>
 
-        <div class="flex items-center justify-center px-4 py-10 sm:px-12">
+        <div class="h-full min-h-0 overflow-y-auto overscroll-y-contain flex items-center justify-center px-4 py-10 sm:px-12">
             <div class="w-full max-w-md">
                 <a href="{{ route('site.home') }}" class="lg:hidden inline-block mb-6"><x-site.brand-mark size="md" /></a>
                 <div class="glass-card p-8 sm:p-10">
