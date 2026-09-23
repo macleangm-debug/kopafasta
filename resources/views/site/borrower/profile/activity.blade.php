@@ -163,6 +163,10 @@
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route('site.borrower.profile.update', ['section' => 'activity']) }}{{ ($wizardMode ?? false) ? '?wizard=1' : '' }}{{ ! empty($returnUrl) ? (($wizardMode ?? false) ? '&' : '?').'return='.urlencode($returnUrl) : '' }}" enctype="multipart/form-data"
+                      autocomplete="off"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      data-form-type="other"
                       @unless ($wizardMode ?? false)
                           data-kf-autosave
                           data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"

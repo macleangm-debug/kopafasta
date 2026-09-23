@@ -27,6 +27,8 @@ class QuietBrowserNotificationsTest extends TestCase
         $this->assertStringContainsString('Notification.requestPermission = () => Promise.resolve(\'denied\')', $appJs);
         $this->assertStringContainsString('PushManager.prototype.subscribe', $appJs);
         $this->assertStringContainsString('quietBrowserPermissionPrompts', $appJs);
+        $this->assertStringContainsString('quietBrowserPasswordSave', $appJs);
+        $this->assertStringContainsString('preventSilentAccess', $appJs);
     }
 
     public function test_no_frontend_source_requests_browser_notification_permission(): void

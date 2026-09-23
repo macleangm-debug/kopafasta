@@ -5,19 +5,34 @@
 ])
 
 {{-- Teleport to body so sticky/backdrop-blur ancestors cannot trap position:fixed.
-     Mobile only: never show bottom sheets on desktop/web breakpoints. --}}
+     Hosts wrap this in lg:hidden when the desktop control is a native/profile-select. --}}
 <template x-teleport="body">
     <div x-show="{{ $open }}"
          x-cloak
+         data-kf-bottom-sheet
          class="fixed inset-0 {{ $layer }}"
+         :class="{{ $open }} ? '' : 'pointer-events-none'"
          role="dialog"
          aria-modal="true"
+         @keydown.escape.window="if ({{ $open }}) {{ $open }} = false"
          x-effect="
             if (typeof document === 'undefined') return;
             const lock = !!{{ $open }};
-            document.documentElement.classList.toggle('overflow-hidden', lock);
-            document.body.classList.toggle('overflow-hidden', lock);
-            document.body.classList.toggle('overscroll-none', lock);
+            if (lock && ! $el.dataset.kfSheetLocked) {
+                window.__kfSheetLock = (window.__kfSheetLock || 0) + 1;
+                $el.dataset.kfSheetLocked = '1';
+            } else if (! lock && $el.dataset.kfSheetLocked) {
+                window.__kfSheetLock = Math.max(0, (window.__kfSheetLock || 1) - 1);
+                delete $el.dataset.kfSheetLocked;
+            }
+            const any = (window.__kfSheetLock || 0) > 0;
+            document.documentElement.classList.toggle('overflow-hidden', any);
+            document.body.classList.toggle('overflow-hidden', any);
+            document.body.classList.toggle('overscroll-none', any);
+            if (! any) {
+                document.documentElement.classList.remove('overflow-hidden');
+                document.body.classList.remove('overflow-hidden', 'overscroll-none');
+            }
          ">
         <div class="absolute inset-0 bg-black/40" @click="{{ $open }} = false" x-transition.opacity></div>
         <div class="absolute inset-x-0 bottom-0 max-h-[min(90dvh,640px)] flex flex-col rounded-t-2xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)]"

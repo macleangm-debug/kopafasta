@@ -40,3 +40,20 @@ function quietBrowserPermissionPrompts() {
 }
 
 quietBrowserPermissionPrompts();
+
+// Profile autosave is not a login — do not let the browser treat it as a password save.
+function quietBrowserPasswordSave() {
+    const ignore = (form) => form instanceof HTMLFormElement
+        && form.matches('[data-kf-autosave], [data-form-type="other"]');
+
+    document.addEventListener('submit', (event) => {
+        if (! ignore(event.target)) return;
+        try {
+            navigator.credentials?.preventSilentAccess?.();
+        } catch (e) {
+            // Ignore — Credential Management API is optional.
+        }
+    }, true);
+}
+
+quietBrowserPasswordSave();

@@ -120,6 +120,14 @@ class TanzaniaLocationIntegrityTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('function activityForm', $html);
+        $this->assertStringContainsString('data-kf-activity-fields', $html);
+        $this->assertStringContainsString('autocomplete="off"', $html);
+        $this->assertStringContainsString('name="activity_type"', $html);
+        $this->assertStringContainsString('name="activity_details[trade_type]"', $html);
+        $this->assertStringContainsString('Food', $html);
+        $this->assertStringNotContainsString('openDetailPicker', $html);
+        $this->assertStringNotContainsString('detailPickerOpen', $html);
+        $this->assertStringNotContainsString('type="password"', $html);
         $this->assertStringContainsString('data-kf-address-fields', $html);
         $this->assertStringContainsString('data-kf-activity-location', $html);
         $this->assertStringContainsString('data-kf-mwanza-district-count="6"', $html);
@@ -206,6 +214,9 @@ class TanzaniaLocationIntegrityTest extends TestCase
         $this->assertStringNotContainsString('districtsForRegion', $activity);
         $this->assertStringContainsString('retryDistricts', $address);
         $this->assertStringContainsString('openDistrictPicker()', $address);
+        $this->assertStringContainsString('x-site.profile-select', $activity);
+        $this->assertStringNotContainsString('openDetailPicker', $activity);
+        $this->assertStringNotContainsString('detailPickerOpen', $activity);
         $this->assertStringNotContainsString(':disabled="!details.region', $activity);
         $this->assertStringNotContainsString(':disabled="!region || districtStatus === \'loading\'"', $address);
 
