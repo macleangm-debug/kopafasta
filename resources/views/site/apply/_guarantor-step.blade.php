@@ -224,7 +224,7 @@
                 <div class="sm:col-span-2 grid sm:grid-cols-2 gap-3">
                     <div x-data="{
                         pickerOpen: false,
-                        options: @js(array_keys(config('tanzania_locations'))),
+                        options: @js(array_keys(location_tree('TZ'))),
                         pick(val) {
                             form.external_region = val;
                             onExternalRegionChange();
@@ -256,7 +256,7 @@
                                 :class="guarantorErrors.external_region ? 'ring-rose-400' : 'ring-gray-200'"
                                 class="w-full rounded-xl border-gray-300 ring-1 px-3 py-2.5 text-sm bg-white max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden">
                             <option value="">{{ __('borrower.profile.select_region') }}</option>
-                            @foreach (config('tanzania_locations') as $regionName => $districts)
+                            @foreach (location_tree('TZ') as $regionName => $districts)
                                 <option value="{{ $regionName }}">{{ $regionName }}</option>
                             @endforeach
                         </select>
@@ -273,15 +273,20 @@
                     }">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.district') }} <span class="text-rose-500">*</span></label>
                         <div class="lg:hidden">
-                            <button type="button" @click="pickerOpen = true"
-                                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800"
+                            <button type="button" @click="pickerOpen = true" :disabled="!form.external_region || externalDistrictStatus === 'loading'"
+                                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 disabled:opacity-50"
                                     :class="guarantorErrors.external_district ? 'border-rose-400' : ''">
-                                <span class="flex-1 text-left truncate" x-text="form.external_district || @js(__('borrower.profile.select_district'))"></span>
+                                <span class="flex-1 text-left truncate" x-text="form.external_district || (externalDistrictStatus === 'loading' ? @js(__('borrower.profile.loading_districts')) : @js(__('borrower.profile.select_district')))"></span>
                                 <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                             </button>
                             <x-site.bottom-sheet :title="__('borrower.profile.fields.district')" open="pickerOpen">
                                 <div class="space-y-1 max-h-[60vh] overflow-y-auto">
-                                    <template x-for="d in districtsForRegion()" :key="d">
+                                    <p x-show="externalDistrictStatus === 'loading'" class="px-1 py-3 text-sm text-gray-500">{{ __('borrower.profile.loading_districts') }}</p>
+                                    <div x-show="form.external_region && (externalDistrictStatus === 'empty' || externalDistrictStatus === 'error')" class="px-1 py-3 space-y-2">
+                                        <p class="text-sm text-rose-600">{{ __('borrower.profile.districts_unavailable') }}</p>
+                                        <button type="button" class="text-sm font-semibold text-brand underline" @click="refreshExternalDistricts(true)">{{ __('borrower.profile.retry_districts') }}</button>
+                                    </div>
+                                    <template x-for="d in externalDistrictOptions" :key="d">
                                         <button type="button" @click="pick(d)"
                                                 class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
                                                 :class="form.external_district === d ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
@@ -290,11 +295,14 @@
                                 </div>
                             </x-site.bottom-sheet>
                         </div>
-                        <select name="external_district" x-model="form.external_district" @change="delete guarantorErrors.external_district; invalidateExternalInvite()"
+                        <select name="external_district" x-model="form.external_district"
+                                :key="'external-district-' + (form.external_region || '')"
+                                :disabled="!form.external_region || externalDistrictStatus === 'loading'"
+                                @change="delete guarantorErrors.external_district; invalidateExternalInvite()"
                                 :class="guarantorErrors.external_district ? 'ring-rose-400' : 'ring-gray-200'"
                                 class="w-full rounded-xl border-gray-300 ring-1 px-3 py-2.5 text-sm bg-white max-lg:absolute max-lg:opacity-0 max-lg:pointer-events-none max-lg:h-0 max-lg:overflow-hidden">
-                            <option value="">{{ __('borrower.profile.select_district') }}</option>
-                            <template x-for="d in districtsForRegion()" :key="d">
+                            <option value="" x-text="externalDistrictStatus === 'loading' ? @js(__('borrower.profile.loading_districts')) : @js(__('borrower.profile.select_district'))"></option>
+                            <template x-for="d in externalDistrictOptions" :key="d">
                                 <option :value="d" x-text="d"></option>
                             </template>
                         </select>

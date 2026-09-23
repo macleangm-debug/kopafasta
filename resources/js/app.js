@@ -20,10 +20,23 @@ bindScreeningChecklistSave();
 bindPaymentContinuation();
 
 // Never prompt for browser Notification / Push permission (mobile web stays app-clean).
-try {
-    if (typeof Notification !== 'undefined' && Notification.requestPermission) {
-        Notification.requestPermission = () => Promise.resolve('denied');
+// In-app / SMS / email / Settings Hub notifications are unchanged.
+function quietBrowserPermissionPrompts() {
+    try {
+        if (typeof Notification !== 'undefined' && Notification.requestPermission) {
+            Notification.requestPermission = () => Promise.resolve('denied');
+        }
+    } catch (e) {
+        // Ignore — older browsers may freeze Notification.
     }
-} catch (e) {
-    // Ignore — older browsers may freeze Notification.
+
+    try {
+        if (typeof PushManager !== 'undefined' && PushManager.prototype && PushManager.prototype.subscribe) {
+            PushManager.prototype.subscribe = () => Promise.reject(new DOMException('Browser push is disabled', 'NotAllowedError'));
+        }
+    } catch (e) {
+        // Ignore — Push API is optional.
+    }
 }
+
+quietBrowserPermissionPrompts();

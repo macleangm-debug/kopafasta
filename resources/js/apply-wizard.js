@@ -1,3 +1,4 @@
+import { districtsForRegion as lookupDistricts } from './tz-address';
 
 function showWizardFeedback(message, detail = {}) {
     const payload = typeof message === 'string'
@@ -119,6 +120,8 @@ export function applyWizard(config) {
                 incomeRangeLabels: config.incomeRangeLabels || {},
                 activityTypeLabels: config.activityTypeLabels || {},
                 tanzaniaLocations: config.tanzaniaLocations || {},
+                externalDistrictOptions: [],
+                externalDistrictStatus: 'idle',
                 draftSaveUrl: config.draftSaveUrl || '',
                 reservationId: config.reservationId
                     || config.savedDraft?.asset_reservation_id
@@ -406,11 +409,34 @@ export function applyWizard(config) {
                 },
 
                 districtsForRegion() {
-                    const r = this.form.external_region;
-                    return r && this.tanzaniaLocations[r] ? this.tanzaniaLocations[r] : [];
+                    return lookupDistricts(this.tanzaniaLocations, this.form.external_region);
+                },
+
+                refreshExternalDistricts(preserveSaved = false) {
+                    this.externalDistrictStatus = 'loading';
+                    const region = this.form.external_region;
+                    if (! region) {
+                        this.externalDistrictOptions = [];
+                        this.externalDistrictStatus = 'idle';
+                        return;
+                    }
+                    try {
+                        const districts = lookupDistricts(this.tanzaniaLocations, region);
+                        const preserve = preserveSaved ? (this.form.external_district || '') : '';
+                        if (preserve && !districts.includes(preserve)) {
+                            districts.unshift(preserve);
+                        }
+                        this.externalDistrictOptions = districts;
+                        this.externalDistrictStatus = districts.length ? 'ready' : 'empty';
+                    } catch (e) {
+                        this.externalDistrictOptions = [];
+                        this.externalDistrictStatus = 'error';
+                    }
                 },
 
                 init() {
+                    this.refreshExternalDistricts(true);
+                    this.$watch('form.external_region', () => this.refreshExternalDistricts(true));
                     this.syncFeePaidState();
                     this.syncValuationFeePaidState();
                     window.applyWizardSaveDraft = () => this.persistDraft(true);
@@ -3986,6 +4012,7 @@ export function applyWizard(config) {
 
                 onExternalRegionChange() {
                     this.form.external_district = '';
+                    this.refreshExternalDistricts();
                 },
 
                 readFormField(name) {

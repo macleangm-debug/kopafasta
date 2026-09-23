@@ -17,3 +17,11 @@ if (! function_exists('partner_region_options')) {
         return app(LocationLookupService::class)->regionNames('TZ');
     }
 }
+
+if (! function_exists('location_districts')) {
+    /** @return list<string> */
+    function location_districts(?string $regionName, string $countryCode = 'TZ'): array
+    {
+        return app(LocationLookupService::class)->districtsForRegion($regionName, $countryCode);
+    }
+}

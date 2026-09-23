@@ -83,7 +83,7 @@
                   borrowerSnapshot: @js($borrowerSnapshot),
                   incomeRangeLabels: @js($incomeRangeLabels),
                   activityTypeLabels: @js($activityLabels),
-                  tanzaniaLocations: @js(config('tanzania_locations')),
+                  tanzaniaLocations: @js(location_tree('TZ')),
                   draftSaveUrl: @js(route('site.borrower.apply.draft.save')),
                   applicationFeePayUrl: @js(route('site.borrower.apply.application-fee.pay')),
                   applicationFeeQuoteUrl: @js(route('site.borrower.apply.application-fee.quote')),
