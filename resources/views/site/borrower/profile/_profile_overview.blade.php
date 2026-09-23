@@ -19,13 +19,17 @@
                 }
                 $isComplete = ($section['status'] ?? '') === 'complete';
                 $isAssets = $key === 'assets';
-                $isPayment = $key === 'payment';
                 $progress = $section['progress'] ?? null;
                 $remaining = (int) ($progress['remaining'] ?? count($section['missing'] ?? []));
+                $done = (int) ($progress['done'] ?? 0);
+                $isEmpty = $done === 0 && ! $isComplete;
 
                 if ($isAssets) {
                     $progressLabel = __('borrower.profile.status.optional');
-                    $cta = __('borrower.profile.hub.add_optional');
+                    $cta = empty($section['count'])
+                        ? __('borrower.profile.hub.add')
+                        : __('borrower.profile.hub.add_optional');
+                    $ctaTone = 'add';
                     $showTick = false;
                 } elseif ($isComplete) {
                     $progressLabel = ! empty($progress['total'])
@@ -35,64 +39,64 @@
                         ])
                         : __('borrower.profile.status.complete');
                     $cta = __('borrower.profile.status.complete');
+                    $ctaTone = 'done';
                     $showTick = true;
                 } elseif ($progress && (int) ($progress['total'] ?? 0) > 0) {
                     $progressLabel = __('borrower.profile.hub.of_complete', [
                         'done' => $progress['done'],
                         'total' => $progress['total'],
                     ]);
-                    $cta = $isPayment && (int) ($progress['done'] ?? 0) === 0
-                        ? __('borrower.profile.hub.add_account')
+                    $cta = $isEmpty
+                        ? __('borrower.profile.hub.add')
                         : __('borrower.profile.hub.continue');
+                    $ctaTone = $isEmpty ? 'add' : 'continue';
                     $showTick = false;
                 } else {
                     $progressLabel = __('borrower.profile.hub.of_complete', ['done' => 0, 'total' => 1]);
-                    $cta = __('borrower.profile.hub.continue');
+                    $cta = __('borrower.profile.hub.add');
+                    $ctaTone = 'add';
                     $showTick = false;
                 }
             @endphp
             <a href="{{ $section['url'] }}"
                data-kf-share="kf-prof-{{ $key }}"
-               class="group rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white px-3.5 py-3 transition hover:shadow-md">
-                <div class="flex items-start gap-3">
-                    <span class="text-2xl leading-none shrink-0 mt-0.5" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-start justify-between gap-2">
-                            <h3 class="font-bold text-gray-900 group-hover:text-brand transition leading-snug">{{ $section['label'] }}</h3>
-                            @if ($showTick)
-                                <span class="size-6 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm ring-2 ring-brand-gold/40 shrink-0"
-                                      title="{{ __('borrower.profile.section_complete') }}"
-                                      aria-label="{{ __('borrower.profile.section_complete') }}">
-                                    <svg class="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-                                    </svg>
-                                </span>
-                            @endif
-                        </div>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $progressLabel }}</p>
-                        @if (! $isAssets && ! $isComplete && $remaining > 0)
-                            <p class="mt-0.5 text-xs font-semibold text-amber-800">
-                                {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
-                            </p>
-                        @endif
-                        @if ($isAssets)
-                            <p class="mt-0.5 text-xs text-gray-500">
-                                @if (empty($section['count']))
-                                    {{ __('borrower.profile.hub.optional_none_added') }}
-                                @else
-                                    {{ __('borrower.profile.hub.optional_for_apply') }}
-                                @endif
-                            </p>
-                        @endif
-                    </div>
-                </div>
-                <p class="mt-2.5 text-xs font-semibold {{ $showTick ? 'text-emerald-700' : 'text-brand' }}">
-                    @if ($showTick)
-                        ✓ {{ $cta }}
-                    @else
-                        {{ $cta }} →
+               class="group rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white px-3.5 py-3 transition hover:shadow-md flex items-center gap-3">
+                <span class="text-2xl leading-none shrink-0" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
+                <div class="min-w-0 flex-1">
+                    <h3 class="font-bold text-gray-900 group-hover:text-brand transition leading-snug">{{ $section['label'] }}</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ $progressLabel }}</p>
+                    @if (! $isAssets && ! $isComplete && $remaining > 0)
+                        <p class="mt-0.5 text-xs font-semibold text-amber-800">
+                            {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
+                        </p>
                     @endif
-                </p>
+                    @if ($isAssets)
+                        <p class="mt-0.5 text-xs text-gray-500">
+                            @if (empty($section['count']))
+                                {{ __('borrower.profile.hub.optional_none_added') }}
+                            @else
+                                {{ __('borrower.profile.hub.optional_for_apply') }}
+                            @endif
+                        </p>
+                    @endif
+                </div>
+                @if ($showTick)
+                    <span class="size-6 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm ring-2 ring-brand-gold/40 shrink-0"
+                          title="{{ __('borrower.profile.section_complete') }}"
+                          aria-label="{{ __('borrower.profile.section_complete') }}">
+                        <svg class="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                        </svg>
+                    </span>
+                @else
+                    <span @class([
+                        'shrink-0 inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-bold',
+                        'bg-brand text-white shadow-sm' => $ctaTone === 'add',
+                        'bg-white text-brand ring-1 ring-brand/25' => $ctaTone !== 'add',
+                    ])>
+                        {{ $cta }}
+                    </span>
+                @endif
             </a>
         @endforeach
     </div>

@@ -53,10 +53,10 @@
                         <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ $updated }}</td>
                         <td class="px-4 py-3 text-right space-x-2" onclick="event.stopPropagation()">
                             @if ($row['is_draft'] ?? false)
-                                <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
                                 @if (! empty($row['preview_url']))
                                     <a href="{{ $row['preview_url'] }}" data-kf-motion="push" class="text-gray-600 font-semibold hover:underline text-xs">{{ $row['preview_label'] ?? __('borrower.applications_list.view') }}</a>
                                 @endif
+                                <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
                             @else
                                 <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ __('borrower.applications_list.view') }}</a>
                             @endif

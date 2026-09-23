@@ -68,7 +68,7 @@ class PrematureApplicationReconciliationFeatureTest extends TestCase
         $this->assertTrue($rows[0]['is_draft']);
         $this->assertSame('APP-IL-TEST1', $rows[0]['application_number']);
         $this->assertSame(['Residence verification letter'], $rows[0]['missing_profile_items']);
-        $this->assertStringContainsString('/borrower/profile/residence', $rows[0]['action_url']);
+        $this->assertStringContainsString('/borrower/apply', $rows[0]['action_url']);
         $this->assertFalse($rows[0]['profile_complete']);
     }
 

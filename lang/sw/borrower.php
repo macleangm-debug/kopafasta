@@ -2705,6 +2705,7 @@ return [
         'draft_saved' => 'Imehifadhiwa mwisho :time',
         'complete_profile' => 'Kamilisha wasifu',
         'continue_application' => 'Endelea na ombi',
+        'continue' => 'Endelea',
         'view_application' => 'Angalia ombi',
         'resume' => 'Endelea',
         'view' => 'Angalia',

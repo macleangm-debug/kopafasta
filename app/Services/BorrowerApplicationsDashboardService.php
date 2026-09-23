@@ -103,7 +103,6 @@ class BorrowerApplicationsDashboardService
         $profileSummary = app(ProfileCompletionService::class)->completionSummary($customer);
         $profilePercent = (int) ($profileSummary['percent'] ?? $profileProgress['percent'] ?? 0);
         $profileComplete = $profilePercent >= 100;
-        $firstGap = collect($profileSummary['actionable'] ?? [])->first();
         $missingLabels = collect($profileSummary['actionable'] ?? [])
             ->pluck('label')
             ->filter(fn ($label) => filled($label))
@@ -114,19 +113,7 @@ class BorrowerApplicationsDashboardService
             ? __('borrower.applications_list.draft_fee_pending')
             : __('borrower.applications_list.draft_in_progress');
         $actionUrl = $wizardUrl;
-        $actionLabel = __('borrower.applications_list.continue_application');
-
-        if (! $profileComplete) {
-            $count = max(1, count($missingLabels));
-            $detail = $missingLabels !== []
-                ? __('borrower.applications_list.complete_profile_to_continue_items', [
-                    'count' => $count,
-                    'items' => implode('; ', $missingLabels),
-                ])
-                : __('borrower.applications_list.complete_profile_to_continue');
-            $actionUrl = (string) ($firstGap['url'] ?? route('site.borrower.profile'));
-            $actionLabel = __('borrower.applications_list.complete_profile');
-        }
+        $actionLabel = __('borrower.applications_list.continue');
 
         return [
             'is_draft'           => true,
@@ -158,7 +145,7 @@ class BorrowerApplicationsDashboardService
             'continue_url'       => $actionUrl,
             'continue_label'     => $actionLabel,
             'preview_url'        => $this->drafts->resumeUrl($customer, $draft),
-            'preview_label'      => __('borrower.applications_list.view_application'),
+            'preview_label'      => __('borrower.applications_list.view'),
             'saved_at_human'     => optional($draft->saved_at)->diffForHumans(),
             'last_updated_human' => optional($draft->saved_at ?? $draft->updated_at)->diffForHumans(),
         ];

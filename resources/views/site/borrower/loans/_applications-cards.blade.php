@@ -69,14 +69,14 @@
 
             <div class="flex items-center gap-2 text-xs flex-wrap">
                 @if ($row['is_draft'] ?? false)
-                    <a href="{{ $row['action_url'] }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
-                        {{ $row['action_label'] }}
-                    </a>
                     @if (! empty($row['preview_url']))
                         <a href="{{ $row['preview_url'] }}" class="inline-flex bg-white hover:bg-brand-muted/30 text-gray-800 font-semibold px-4 py-2 rounded-xl text-sm ring-1 ring-gray-200/80">
                             {{ $row['preview_label'] ?? __('borrower.applications_list.view') }}
                         </a>
                     @endif
+                    <a href="{{ $row['action_url'] }}" class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2 rounded-xl text-sm">
+                        {{ $row['action_label'] }}
+                    </a>
                 @else
                     {{-- Submitted applications: view / next-action only — never "Continue application". --}}
                     <a href="{{ $row['action_url'] }}" @class([
