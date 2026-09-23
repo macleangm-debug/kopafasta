@@ -15,19 +15,12 @@
     $types = activity_type_options();
     $incomeOptions = income_range_select_options();
     $fields = activity_fields_localized();
-    $locations = location_tree('TZ');
     $details = old('activity_details', $activityDetails ?? []);
 @endphp
 
-<div x-data="activityForm(@js($fields), @js($details), @js(old('activity_type', $activityType)), @js($locations), @js([
+<div x-data="activityForm(@js($fields), @js($details), @js(old('activity_type', $activityType)), @js([
     'selectOption' => __('borrower.profile.select_option'),
-    'selectRegion' => __('borrower.profile.select_region'),
-    'selectDistrict' => __('borrower.profile.select_district'),
     'selectActivity' => __('borrower.profile.select_activity'),
-    'loadingDistricts' => __('borrower.profile.loading_districts'),
-    'districtsUnavailable' => __('borrower.profile.districts_unavailable'),
-    'retryDistricts' => __('borrower.profile.retry_districts'),
-    'selectRegionFirst' => __('borrower.profile.select_region_first'),
 ]), @js($groupedSections), @js($types))">
 
     @if ($groupedSections)
@@ -66,7 +59,7 @@
                     </div>
                     {{-- Must bind on parent activityForm scope — nested x-data broke activityFields and left only Type + Income. --}}
                     <template x-for="field in activityFields" :key="activityType + '-' + field.key">
-                        <div :class="(field.type === 'select' || field.type === 'region' || field.type === 'district') ? '' : 'sm:col-span-2'">
+                        <div :class="field.type === 'select' ? '' : 'sm:col-span-2'">
                             <label class="block text-xs font-medium text-gray-600 mb-1">
                                 <span x-text="field.label"></span>
                                 <span x-show="field.required" class="text-red-500">*</span>
@@ -90,51 +83,7 @@
                                     </select>
                                 </div>
                             </template>
-                            <template x-if="field.type === 'region'">
-                                <div>
-                                    <div class="lg:hidden">
-                                        <button type="button" @click="openDetailPicker(field)"
-                                                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
-                                            <span class="flex-1 text-left truncate" x-text="detailFieldLabel(field)"></span>
-                                            <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                                        </button>
-                                    </div>
-                                    <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                            @change="onRegionChange(); $dispatch('profile-select', { name: 'activity_details[' + field.key + ']', value: details[field.key] })"
-                                            class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                                        <option value="" x-text="labels.selectRegion"></option>
-                                        <template x-for="region in regionOptions" :key="region">
-                                            <option :value="region" x-text="region"></option>
-                                        </template>
-                                    </select>
-                                </div>
-                            </template>
-                            <template x-if="field.type === 'district'">
-                                <div>
-                                    <div class="lg:hidden">
-                                        <button type="button" @click="openDetailPicker(field)"
-                                                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
-                                            <span class="flex-1 text-left truncate" x-text="detailFieldLabel(field)"></span>
-                                            <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                                        </button>
-                                    </div>
-                                    <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                            :key="'district-' + (details.region || '')"
-                                            @change="$dispatch('profile-select', { name: 'activity_details[' + field.key + ']', value: details[field.key] })"
-                                            class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                                        <option value="" x-text="districtPlaceholder()"></option>
-                                        <template x-for="district in districtOptions" :key="district">
-                                            <option :value="district" x-text="district"></option>
-                                        </template>
-                                    </select>
-                                    <p x-show="districtStatus === 'loading'" class="mt-1 text-xs text-gray-500" x-text="labels.loadingDistricts"></p>
-                                    <div x-show="details.region && (districtStatus === 'empty' || districtStatus === 'error')" class="mt-1 flex flex-wrap items-center gap-2">
-                                        <p class="text-xs text-rose-600" x-text="labels.districtsUnavailable"></p>
-                                        <button type="button" class="text-xs font-semibold text-brand underline" @click="retryDistricts()" x-text="labels.retryDistricts"></button>
-                                    </div>
-                                </div>
-                            </template>
-                            <template x-if="field.type !== 'select' && field.type !== 'region' && field.type !== 'district' && field.type !== 'document'">
+                            <template x-if="field.type !== 'select' && field.type !== 'document'">
                                 <input type="text"
                                        :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
                                        class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
@@ -143,6 +92,7 @@
                             </template>
                         </div>
                     </template>
+                    @include('components.site._activity-location-fields', ['details' => $details])
                     <div class="sm:col-span-2">
                         <x-site.profile-select
                             name="income_range"
@@ -281,7 +231,7 @@
             </div>
 
             <template x-for="field in activeFields" :key="activityType + '-' + field.key">
-                <div :class="(field.type === 'select' || field.type === 'region' || field.type === 'district') ? '' : 'sm:col-span-2'">
+                <div :class="field.type === 'select' ? '' : 'sm:col-span-2'">
                     <label class="block text-xs font-medium text-gray-600 mb-1">
                         <span x-text="field.label"></span>
                         <span x-show="field.required" class="text-red-500">*</span>
@@ -305,57 +255,12 @@
                             </select>
                         </div>
                     </template>
-                    <template x-if="field.type === 'region'">
-                        <div>
-                            <div class="lg:hidden">
-                                <button type="button" @click="openDetailPicker(field)"
-                                        class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
-                                    <span class="flex-1 text-left truncate" x-text="detailFieldLabel(field)"></span>
-                                    <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                                </button>
-                            </div>
-                            <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                    @change="onRegionChange()"
-                                    class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                                <option value="" x-text="labels.selectRegion"></option>
-                                <template x-for="region in regionOptions" :key="region">
-                                    <option :value="region" x-text="region"></option>
-                                </template>
-                            </select>
-                        </div>
-                    </template>
-                    <template x-if="field.type === 'district'">
-                        <div>
-                            <div class="lg:hidden">
-                                <button type="button" @click="openDetailPicker(field)"
-                                        class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
-                                    <span class="flex-1 text-left truncate" x-text="detailFieldLabel(field)"></span>
-                                    <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                                </button>
-                            </div>
-                            <select :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
-                                    :key="'district-' + (details.region || '')"
-                                    class="hidden lg:block w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="field.required">
-                                <option value="" x-text="districtPlaceholder()"></option>
-                                <template x-for="district in districtOptions" :key="district">
-                                    <option :value="district" x-text="district"></option>
-                                </template>
-                            </select>
-                            <p x-show="districtStatus === 'loading'" class="mt-1 text-xs text-gray-500" x-text="labels.loadingDistricts"></p>
-                            <div x-show="details.region && (districtStatus === 'empty' || districtStatus === 'error')" class="mt-1 flex flex-wrap items-center gap-2">
-                                <p class="text-xs text-rose-600" x-text="labels.districtsUnavailable"></p>
-                                <button type="button" class="text-xs font-semibold text-brand underline" @click="retryDistricts()" x-text="labels.retryDistricts"></button>
-                            </div>
-                        </div>
-                    </template>
-
                     <template x-if="field.type === 'document'">
                         <div class="sm:col-span-2 space-y-2">
                             <p class="text-xs text-gray-500" x-text="field.hint || ''"></p>
                         </div>
                     </template>
-
-                    <template x-if="field.type !== 'select' && field.type !== 'region' && field.type !== 'district' && field.type !== 'document'">
+                    <template x-if="field.type !== 'select' && field.type !== 'document'">
                         <input type="text"
                                :name="'activity_details[' + field.key + ']'" x-model="details[field.key]"
                                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
@@ -364,6 +269,7 @@
                     </template>
                 </div>
             </template>
+            @include('components.site._activity-location-fields', ['details' => $details])
 
             <div class="sm:col-span-2" x-show="activityType === 'employed'" x-cloak>
                 <p class="text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.employment_contract') }} <span class="text-red-500">*</span></p>
@@ -389,12 +295,6 @@
     <x-site.bottom-sheet :title="__('borrower.profile.select_option')" open="detailPickerOpen">
         <div class="space-y-1 max-h-[60vh] overflow-y-auto">
             <p class="px-1 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-400" x-text="detailPickerTitle()"></p>
-            <p x-show="detailPickerField?.type === 'district' && !details.region" class="px-1 py-3 text-sm text-gray-500" x-text="labels.selectRegionFirst"></p>
-            <p x-show="detailPickerField?.type === 'district' && districtStatus === 'loading'" class="px-1 py-3 text-sm text-gray-500" x-text="labels.loadingDistricts"></p>
-            <div x-show="detailPickerField?.type === 'district' && details.region && (districtStatus === 'empty' || districtStatus === 'error')" class="px-1 py-3 space-y-2">
-                <p class="text-sm text-rose-600" x-text="labels.districtsUnavailable"></p>
-                <button type="button" class="text-sm font-semibold text-brand underline" @click="retryDistricts()" x-text="labels.retryDistricts"></button>
-            </div>
             <template x-for="option in pickerOptions" :key="option.value">
                 <button type="button" @click="pickDetail(option.value)"
                         class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
@@ -408,10 +308,9 @@
 @once
     @push('scripts')
     <script>
-        function activityForm(fieldMap, initialDetails, initialType, locations, labels, groupedSections, typeOptions) {
+        function activityForm(fieldMap, initialDetails, initialType, labels, groupedSections, typeOptions) {
             return {
                 fieldMap,
-                locations,
                 labels: labels || {},
                 typeOptions: typeOptions || {},
                 details: Object.assign({}, initialDetails || {}),
@@ -420,16 +319,32 @@
                 detailPickerOpen: false,
                 detailPickerField: null,
                 pickerOptions: [],
-                regionOptions: Object.keys(locations || {}),
-                districtOptions: [],
-                districtStatus: 'idle',
                 activeFields: [],
                 activityFields: [],
                 employmentFields: [],
                 groupedSections: !!groupedSections,
                 init() {
                     this.refreshFields();
-                    this.refreshDistricts({ preserveSaved: true });
+                    this.syncLocationEnabled();
+                },
+                hasLocationFields() {
+                    return (this.fieldMap[this.activityType] || []).some((f) => f.type === 'region' || f.type === 'district');
+                },
+                locationKeysForType() {
+                    return (this.fieldMap[this.activityType] || [])
+                        .filter((f) => f.type === 'region' || f.type === 'district')
+                        .map((f) => f.key);
+                },
+                syncLocationEnabled() {
+                    const on = this.hasLocationFields();
+                    const root = this.$root && this.$root.querySelector
+                        ? this.$root.querySelector('[data-kf-activity-location]')
+                        : null;
+                    if (! root) return;
+                    root.querySelectorAll('[name="activity_details[region]"], [name="activity_details[district]"]').forEach((el) => {
+                        el.disabled = ! on;
+                        el.required = on;
+                    });
                 },
                 activityTypeLabel() {
                     return this.typeOptions[this.activityType] || this.labels.selectActivity || '';
@@ -437,7 +352,6 @@
                 pickActivity(key) {
                     this.activityType = key;
                     this.activityPickerOpen = false;
-                    // Redraw fields immediately — do not wait for autosave/reload.
                     this.onTypeChange();
                     this.$nextTick(() => {
                         const sel = this.$root.querySelector('select[name="activity_type"]');
@@ -450,9 +364,6 @@
                 },
                 openDetailPicker(field) {
                     this.detailPickerField = field;
-                    if (field && field.type === 'district') {
-                        this.refreshDistricts({ preserveSaved: true });
-                    }
                     this.refreshPickerOptions();
                     this.detailPickerOpen = true;
                 },
@@ -461,33 +372,15 @@
                 },
                 refreshPickerOptions() {
                     const field = this.detailPickerField;
-                    if (! field) {
+                    if (! field || field.type !== 'select') {
                         this.pickerOptions = [];
                         return;
                     }
-                    if (field.type === 'select') {
-                        this.pickerOptions = Object.entries(field.options || {}).map(([value, label]) => ({ value, label }));
-                        return;
-                    }
-                    if (field.type === 'region') {
-                        this.pickerOptions = this.regionOptions.map((region) => ({ value: region, label: region }));
-                        return;
-                    }
-                    if (field.type === 'district') {
-                        this.pickerOptions = this.districtOptions.map((district) => ({ value: district, label: district }));
-                        return;
-                    }
-                    this.pickerOptions = [];
-                },
-                districtPlaceholder() {
-                    if (this.districtStatus === 'loading') return this.labels.loadingDistricts || '';
-                    return this.labels.selectDistrict || '';
+                    this.pickerOptions = Object.entries(field.options || {}).map(([value, label]) => ({ value, label }));
                 },
                 detailFieldLabel(field) {
                     const value = this.details[field.key];
                     if (! value) {
-                        if (field.type === 'region') return this.labels.selectRegion || '';
-                        if (field.type === 'district') return this.districtPlaceholder();
                         return this.labels.selectOption || '';
                     }
                     if (field.type === 'select') {
@@ -498,11 +391,7 @@
                 pickDetail(value) {
                     if (! this.detailPickerField) return;
                     const key = this.detailPickerField.key;
-                    const fieldType = this.detailPickerField.type;
                     this.details = Object.assign({}, this.details, { [key]: value });
-                    if (fieldType === 'region') {
-                        this.onRegionChange();
-                    }
                     this.detailPickerOpen = false;
                     this.detailPickerField = null;
                     this.pickerOptions = [];
@@ -515,56 +404,20 @@
                     });
                 },
                 onTypeChange() {
-                    // Keep unrelated saved details; clear only keys that belong to no current field
-                    // after the new field set is applied — UI must redraw in this same tick.
                     this.refreshFields();
                     const allowed = new Set((this.activeFields || []).map((f) => f.key));
+                    this.locationKeysForType().forEach((k) => allowed.add(k));
                     const next = {};
                     Object.keys(this.details || {}).forEach((k) => {
                         if (allowed.has(k)) next[k] = this.details[k];
                     });
                     this.details = next;
-                    this.refreshDistricts({ preserveSaved: true });
-                },
-                onRegionChange() {
-                    this.details = Object.assign({}, this.details, { district: '' });
-                    this.refreshDistricts();
-                },
-                districtsForRegion(region) {
-                    if (typeof window.kfDistrictsForRegion === 'function') {
-                        return window.kfDistrictsForRegion(this.locations, region);
-                    }
-                    return region && this.locations[region] ? this.locations[region] : [];
-                },
-                refreshDistricts(opts = {}) {
-                    const preserveSaved = !!opts.preserveSaved;
-                    this.districtStatus = 'loading';
-                    const region = this.details.region || '';
-                    if (! region) {
-                        this.districtOptions = [];
-                        this.districtStatus = 'idle';
-                        this.refreshPickerOptions();
-                        return;
-                    }
-                    try {
-                        const districts = this.districtsForRegion(region).slice();
-                        const preserve = preserveSaved ? (this.details.district || '') : '';
-                        if (preserve && districts.indexOf(preserve) === -1) {
-                            districts.unshift(preserve);
-                        }
-                        this.districtOptions = districts;
-                        this.districtStatus = districts.length ? 'ready' : 'empty';
-                    } catch (e) {
-                        this.districtOptions = [];
-                        this.districtStatus = 'error';
-                    }
-                    this.refreshPickerOptions();
-                },
-                retryDistricts() {
-                    this.refreshDistricts({ preserveSaved: true });
+                    this.$nextTick(() => this.syncLocationEnabled());
                 },
                 refreshFields() {
-                    const all = (this.fieldMap[this.activityType] || []).filter(f => f.type !== 'document');
+                    const all = (this.fieldMap[this.activityType] || []).filter((f) => (
+                        f.type !== 'document' && f.type !== 'region' && f.type !== 'district'
+                    ));
                     this.activeFields = all;
                     if (this.activityType === 'employed') {
                         this.employmentFields = all;

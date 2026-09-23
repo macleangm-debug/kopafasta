@@ -9,6 +9,8 @@
     'requireStreet' => null,
     'showWard' => true,
     'showStreet' => true,
+    /** When false, unshown ward/street are omitted so a host form can own those keys. */
+    'emitHidden' => true,
     /** When true, always show native selects (no mobile-only sheet). Use on wizard Overview where fields must never disappear. */
     'forceNative' => false,
     'locations' => location_tree('TZ'),
@@ -35,6 +37,7 @@
     $streetRequired = ($showStreet && ($requireStreet ?? $required));
     $showWard = (bool) $showWard;
     $showStreet = (bool) $showStreet;
+    $emitHidden = (bool) $emitHidden;
     $forceNative = (bool) $forceNative;
     $sheetClass = $forceNative ? 'hidden' : 'lg:hidden';
     $selectClass = $forceNative
@@ -160,7 +163,7 @@
                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
                placeholder="{{ __('borrower.profile.ward_placeholder') }}">
     </div>
-    @else
+    @elseif ($emitHidden)
         <input type="hidden" name="{{ $wardName }}" value="{{ old($oldKey('ward'), $ward) }}">
     @endif
     @if ($showStreet)
@@ -170,7 +173,7 @@
                class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
                placeholder="{{ __('borrower.profile.street_placeholder') }}">
     </div>
-    @else
+    @elseif ($emitHidden)
         <input type="hidden" name="{{ $streetName }}" value="{{ old($oldKey('street'), $street) }}">
     @endif
 </div>

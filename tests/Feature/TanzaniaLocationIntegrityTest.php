@@ -120,8 +120,19 @@ class TanzaniaLocationIntegrityTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('function activityForm', $html);
-        $this->assertStringContainsString('refreshDistricts', $html);
+        $this->assertStringContainsString('data-kf-address-fields', $html);
+        $this->assertStringContainsString('data-kf-activity-location', $html);
+        $this->assertStringContainsString('data-kf-mwanza-district-count="6"', $html);
+        $this->assertStringContainsString('data-kf-dsm-district-count="5"', $html);
+        $this->assertStringContainsString('name="activity_details[region]"', $html);
+        $this->assertStringContainsString('name="activity_details[district]"', $html);
+        $this->assertStringContainsString('tzAddress(', $html);
+        $this->assertStringContainsString('openDistrictPicker()', $html);
+        $this->assertStringContainsString('onRegionChange()', $html);
         $this->assertStringContainsString('districtOptions', $html);
+        $tzAddress = file_get_contents(resource_path('js/tz-address.js'));
+        $this->assertStringContainsString('function districtsForRegion', $tzAddress);
+        $this->assertStringContainsString('refreshDistricts', $tzAddress);
         $this->assertStringContainsString('Mwanza', $html);
         $this->assertStringContainsString('Ilemela', $html);
         $this->assertStringContainsString('Nyamagana', $html);
@@ -160,6 +171,7 @@ class TanzaniaLocationIntegrityTest extends TestCase
             ->assertOk()
             ->getContent();
 
+        $this->assertStringContainsString('data-kf-address-fields', $activity);
         $this->assertStringContainsString('Chagua wilaya', $activity);
         $this->assertStringContainsString('Imeshindwa kupakia wilaya. Jaribu tena.', $activity);
         $this->assertStringContainsString('Inapakia wilaya', $activity);
@@ -181,14 +193,18 @@ class TanzaniaLocationIntegrityTest extends TestCase
     {
         $address = file_get_contents(resource_path('views/components/site/address-fields.blade.php'));
         $activity = file_get_contents(resource_path('views/components/site/activity-fields.blade.php'));
+        $activityLocation = file_get_contents(resource_path('views/components/site/_activity-location-fields.blade.php'));
         $wizard = file_get_contents(resource_path('views/site/apply/wizard.blade.php'));
 
         $this->assertStringContainsString("location_tree('TZ')", $address);
-        $this->assertStringContainsString("location_tree('TZ')", $activity);
+        $this->assertStringContainsString('x-site.address-fields', $activityLocation);
+        $this->assertStringContainsString("form-key=\"activity_details\"", $activityLocation);
+        $this->assertStringContainsString('_activity-location-fields', $activity);
         $this->assertStringContainsString("location_tree('TZ')", $wizard);
         $this->assertStringNotContainsString("config('tanzania_locations')", $activity);
+        $this->assertStringNotContainsString('regionOptions', $activity);
+        $this->assertStringNotContainsString('districtsForRegion', $activity);
         $this->assertStringContainsString('retryDistricts', $address);
-        $this->assertStringContainsString('retryDistricts', $activity);
         $this->assertStringContainsString('openDistrictPicker()', $address);
         $this->assertStringNotContainsString(':disabled="!details.region', $activity);
         $this->assertStringNotContainsString(':disabled="!region || districtStatus === \'loading\'"', $address);
