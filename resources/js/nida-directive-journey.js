@@ -10,7 +10,7 @@ export function registerNidaDirectiveJourney(Alpine) {
         nationalId: config.nationalId || '',
         returnUrl: config.returnUrl || '',
         stepIndex: 0,
-        phase: 'journey', // journey | complete
+        phase: 'start', // start | journey | complete
         saving: false,
         notice: null,
         replaceSide: null,
@@ -27,6 +27,9 @@ export function registerNidaDirectiveJourney(Alpine) {
             const firstMissing = this.steps.findIndex((s) => !s.done);
             if (firstMissing < 0) {
                 this.phase = 'complete';
+                this.stepIndex = 0;
+            } else if (this.steps.every((s) => !s.done)) {
+                this.phase = 'start';
                 this.stepIndex = 0;
             } else {
                 this.phase = 'journey';
@@ -63,6 +66,13 @@ export function registerNidaDirectiveJourney(Alpine) {
             if (this._onFile) window.removeEventListener('kf-document-file', this._onFile);
             if (this._onReplace) window.removeEventListener('nida-holder-replace', this._onReplace);
             if (this._onOpenSource) window.removeEventListener('nida-open-source', this._onOpenSource);
+        },
+
+        startJourney() {
+            const firstMissing = this.steps.findIndex((s) => !s.done);
+            this.stepIndex = firstMissing >= 0 ? firstMissing : 0;
+            this.phase = 'journey';
+            this.notice = null;
         },
 
         beginReplace(side) {

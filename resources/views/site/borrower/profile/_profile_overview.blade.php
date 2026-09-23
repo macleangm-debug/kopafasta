@@ -3,55 +3,14 @@
 @php
     $builder = app(\App\Services\ProfileSectionBuilderService::class);
     $sectionsByKey = collect($builder->hubCards($customer))->keyBy('key');
-    $summary = app(\App\Services\ProfileCompletionService::class)->completionSummary($customer);
-    $percent = (int) ($summary['percent'] ?? 0);
-    $remainingCount = (int) ($summary['remaining_count'] ?? count($summary['actionable'] ?? []));
-    $continueItem = collect($summary['actionable'] ?? [])->first(fn ($item) => ! empty($item['url']));
-    $continueUrl = $continueItem['url'] ?? route('site.borrower.profile', ['section' => 'personal']);
 
     // Five layperson categories only — no workflow status badges on the landing.
     $order = ['personal', 'activity', 'residence', 'payment', 'assets'];
 @endphp
 
-<section class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white p-5 sm:p-6"
-         data-kf-completion-hero
-         data-kf-completion-done="{{ $percent >= 100 ? '1' : '0' }}">
-    <p class="text-[10px] uppercase tracking-widest font-bold text-brand">{{ __('borrower.profile.hub.sections_title') }}</p>
-    @if ($percent >= 100)
-        <p class="mt-3 inline-flex items-center gap-2 rounded-full bg-brand text-brand-gold px-4 py-2 text-sm sm:text-base font-extrabold shadow-sm ring-1 ring-brand-gold/40"
-           data-kf-completion-percent
-           data-percent-template="{{ __('borrower.profile.completion_summary_percent', ['percent' => ':percent']) }}"
-           data-kf-completion-done-label="{{ __('borrower.profile.hero_completion_done') }}">
-            {{ __('borrower.profile.hero_completion_done') }}
-        </p>
-        <div class="mt-3 h-3.5 bg-white/80 ring-1 ring-brand/10 rounded-full overflow-hidden" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
-            <div class="h-full bg-brand transition-all" data-kf-completion-bar style="width: 100%"></div>
-        </div>
-        <p class="mt-4 text-sm text-gray-600">{{ __('borrower.profile.hub.all_set_hint') }}</p>
-    @else
-        <p class="mt-2 text-2xl font-extrabold text-gray-900 tracking-tight"
-           data-kf-completion-percent
-           data-percent-template="{{ __('borrower.profile.completion_summary_percent', ['percent' => ':percent']) }}"
-           data-kf-completion-done-label="{{ __('borrower.profile.hero_completion_done') }}">
-            {{ __('borrower.profile.completion_summary_percent', ['percent' => $percent]) }}
-        </p>
-        <div class="mt-3 h-2.5 bg-white/80 ring-1 ring-brand/10 rounded-full overflow-hidden" role="progressbar" aria-valuenow="{{ $percent }}" aria-valuemin="0" aria-valuemax="100">
-            <div class="h-full bg-brand transition-all" data-kf-completion-bar style="width: {{ min(100, max(0, $percent)) }}%"></div>
-        </div>
-        <p class="mt-4 text-sm font-semibold text-gray-800">
-            {{ trans_choice('borrower.profile.hub.things_remaining', $remainingCount, ['count' => $remainingCount]) }}
-        </p>
-        <a href="{{ $continueUrl }}"
-           data-kf-completion-cta
-           class="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-brand hover:underline">
-            {{ __('borrower.profile.hub.continue_completing') }}
-            <span aria-hidden="true">→</span>
-        </a>
-    @endif
-</section>
-
 <section class="mb-6">
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ __('borrower.profile.hub.sections_title') }}</p>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
         @foreach ($order as $key)
             @php
                 $section = $sectionsByKey->get($key);
@@ -94,36 +53,40 @@
             @endphp
             <a href="{{ $section['url'] }}"
                data-kf-share="kf-prof-{{ $key }}"
-               class="group rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white p-5 transition hover:shadow-md">
-                <div class="flex items-start justify-between gap-3">
-                    <span class="text-4xl leading-none" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
-                    @if ($showTick)
-                        <span class="size-7 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm ring-2 ring-brand-gold/40"
-                              title="{{ __('borrower.profile.section_complete') }}"
-                              aria-label="{{ __('borrower.profile.section_complete') }}">
-                            <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-                            </svg>
-                        </span>
-                    @endif
-                </div>
-                <h3 class="mt-4 font-bold text-gray-900 group-hover:text-brand transition">{{ $section['label'] }}</h3>
-                <p class="text-xs text-gray-500 mt-1">{{ $progressLabel }}</p>
-                @if (! $isAssets && ! $isComplete && $remaining > 0)
-                    <p class="mt-1 text-xs font-semibold text-amber-800">
-                        {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
-                    </p>
-                @endif
-                @if ($isAssets)
-                    <p class="mt-3 text-xs text-gray-500">
-                        @if (empty($section['count']))
-                            {{ __('borrower.profile.hub.optional_none_added') }}
-                        @else
-                            {{ __('borrower.profile.hub.optional_for_apply') }}
+               class="group rounded-2xl ring-1 ring-gray-200/80 hover:ring-brand/30 bg-white px-3.5 py-3 transition hover:shadow-md">
+                <div class="flex items-start gap-3">
+                    <span class="text-2xl leading-none shrink-0 mt-0.5" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start justify-between gap-2">
+                            <h3 class="font-bold text-gray-900 group-hover:text-brand transition leading-snug">{{ $section['label'] }}</h3>
+                            @if ($showTick)
+                                <span class="size-6 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm ring-2 ring-brand-gold/40 shrink-0"
+                                      title="{{ __('borrower.profile.section_complete') }}"
+                                      aria-label="{{ __('borrower.profile.section_complete') }}">
+                                    <svg class="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
+                                    </svg>
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $progressLabel }}</p>
+                        @if (! $isAssets && ! $isComplete && $remaining > 0)
+                            <p class="mt-0.5 text-xs font-semibold text-amber-800">
+                                {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
+                            </p>
                         @endif
-                    </p>
-                @endif
-                <p class="mt-4 text-xs font-semibold {{ $showTick ? 'text-emerald-700' : 'text-brand' }}">
+                        @if ($isAssets)
+                            <p class="mt-0.5 text-xs text-gray-500">
+                                @if (empty($section['count']))
+                                    {{ __('borrower.profile.hub.optional_none_added') }}
+                                @else
+                                    {{ __('borrower.profile.hub.optional_for_apply') }}
+                                @endif
+                            </p>
+                        @endif
+                    </div>
+                </div>
+                <p class="mt-2.5 text-xs font-semibold {{ $showTick ? 'text-emerald-700' : 'text-brand' }}">
                     @if ($showTick)
                         ✓ {{ $cta }}
                     @else
@@ -163,22 +126,15 @@
     @foreach ($menuGroups as $group)
         <div>
             <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ $group['title'] }}</p>
-            {{-- Mobile: peek-carousel within the group. Desktop: compact responsive row. --}}
-            <div class="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory sm:overflow-visible sm:flex-wrap sm:pb-0"
-                 style="-webkit-overflow-scrolling: touch;">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 @foreach ($group['items'] as $item)
                     <a href="{{ $item['href'] }}"
-                       class="snap-start shrink-0 w-[42%] max-w-[10.25rem] min-h-[9.75rem] aspect-square rounded-2xl ring-1 ring-gray-200/80 bg-white p-4 hover:ring-brand/30 hover:shadow-sm transition flex flex-col items-stretch justify-between gap-3 sm:w-[10.25rem]">
-                        <span class="text-5xl leading-none select-none" aria-hidden="true">{{ $item['icon'] }}</span>
-                        <span class="w-full flex items-end justify-between gap-2">
-                            <span class="min-w-0 font-semibold text-sm text-gray-900 leading-snug">{{ $item['label'] }}</span>
-                            <span class="text-brand shrink-0 text-base font-bold" aria-hidden="true">→</span>
-                        </span>
+                       class="rounded-2xl ring-1 ring-gray-200/80 bg-white px-3.5 py-3 hover:ring-brand/30 hover:shadow-sm transition flex items-center gap-3">
+                        <span class="text-2xl leading-none select-none shrink-0" aria-hidden="true">{{ $item['icon'] }}</span>
+                        <span class="min-w-0 flex-1 font-semibold text-sm text-gray-900 leading-snug">{{ $item['label'] }}</span>
+                        <span class="text-brand shrink-0 text-base font-bold" aria-hidden="true">→</span>
                     </a>
                 @endforeach
-                @if (count($group['items']) === 1)
-                    <div class="snap-start shrink-0 w-[40%] max-w-[9rem] aspect-square sm:hidden rounded-2xl ring-1 ring-dashed ring-gray-200/70 bg-transparent" aria-hidden="true"></div>
-                @endif
             </div>
         </div>
     @endforeach

@@ -205,7 +205,8 @@ class Phase31FeatureTest extends TestCase
             $response->assertSee(__('borrower.profile.hero_completion_done'), false);
         } else {
             $response->assertSee(__('borrower.profile.hero_completion_percent', ['percent' => $percent]), false)
-                ->assertSee(__('borrower.profile.hero_completion_cta'), false);
+                ->assertSee(__('borrower.membership.my_card'), false)
+                ->assertDontSee(__('borrower.profile.hero_completion_cta'), false);
         }
     }
 }

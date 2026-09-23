@@ -266,15 +266,14 @@ class MicroPassAgAbDocProfileFeatureTest extends TestCase
             );
         }
         $this->assertTrue(
-            str_contains($html, 'thing remaining')
-            || str_contains($html, 'things remaining')
+            str_contains($html, __('borrower.profile.hero_completion_percent', ['percent' => (int) ($summary['percent'] ?? 0)]))
             || str_contains($html, __('borrower.profile.hero_completion_done')),
-            'Profile home should show remaining count or all-set state'
+            'Profile home should show hero completion percent or all-set state'
         );
         $this->assertTrue(
-            str_contains($html, __('borrower.profile.hub.continue_completing'))
+            str_contains($html, __('borrower.membership.my_card'))
             || str_contains($html, __('borrower.profile.hero_completion_done')),
-            'Profile home should offer Continue completing or all-set state'
+            'Profile home should offer Kopafasta Card or all-set state'
         );
         $this->assertStringNotContainsString(__('borrower.profile.status.in_progress'), $html);
         $this->assertStringNotContainsString(__('borrower.profile.status.not_started'), $html);

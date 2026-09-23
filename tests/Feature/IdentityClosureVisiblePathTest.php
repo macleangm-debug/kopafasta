@@ -59,6 +59,8 @@ class IdentityClosureVisiblePathTest extends TestCase
 
         $holder = file_get_contents(resource_path('views/site/borrower/profile/_national_id_holder.blade.php'));
         $this->assertStringContainsString(':camera-only="true"', $holder);
+        $this->assertStringContainsString('national_id_add_cta', $holder);
+        $this->assertStringContainsString("phase === 'start'", $holder);
         $this->assertStringNotContainsString("document_upload.use_photo", $holder);
 
         $single = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));

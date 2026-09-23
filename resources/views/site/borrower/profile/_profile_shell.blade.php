@@ -53,9 +53,8 @@
 @if (! $wizardMode && ! request()->boolean('solo'))
     @include('site.borrower.profile._member_card', [
         'customer' => $customer,
-        'cta' => ($accountPanel ?? 'profile') === 'membership' ? 'profile' : 'card',
-        // Hub landing: progress lives in the overview card. Inner pages keep hero completion.
-        'showCompletion' => ($active ?? '') !== 'hub',
+        'cta' => 'card',
+        'showCompletion' => true,
     ])
 @endif
 

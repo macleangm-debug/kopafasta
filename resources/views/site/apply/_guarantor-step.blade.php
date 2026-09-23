@@ -6,7 +6,7 @@
 
     <div x-show="requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5">
         <button type="button"
-                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none' || form.guarantor_mode === 'previous') form.guarantor_mode = 'internal'"
+                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none' || form.guarantor_mode === 'previous') form.guarantor_mode = ''"
                 class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
             <span class="text-lg leading-none">+</span>
             {{ __('borrower.apply.guarantor_fields.add_cta') }}
@@ -15,7 +15,7 @@
 
     <div x-show="!requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5">
         <button type="button"
-                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none' || form.guarantor_mode === 'previous') form.guarantor_mode = 'internal'"
+                @click="addGuarantorOpen = true; if (!form.guarantor_mode || form.guarantor_mode === 'none' || form.guarantor_mode === 'previous') form.guarantor_mode = ''"
                 class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-6 py-3.5 text-sm shadow-sm">
             <span class="text-lg leading-none">+</span>
             {{ __('borrower.apply.guarantor_fields.add_cta') }}
@@ -96,26 +96,29 @@
                 <button type="button" @click="addGuarantorOpen = false" class="text-gray-400 hover:text-gray-700 text-2xl leading-none px-1" aria-label="{{ __('borrower.profile.cancel') }}">×</button>
             </div>
 
-            <div class="rounded-2xl ring-1 ring-gray-200 p-1.5 flex flex-wrap gap-1 bg-gray-50">
-                <button type="button"
-                        @click="form.guarantor_mode = 'internal'"
-                        class="flex-1 min-w-[9rem] text-center text-sm font-semibold px-3 py-2.5 rounded-xl transition"
-                        :class="form.guarantor_mode === 'internal' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-white'">
-                    {{ __('borrower.apply.group_members.mode_internal') }}
-                </button>
-                <button type="button"
-                        @click="form.guarantor_mode = 'external'"
-                        class="flex-1 min-w-[9rem] text-center text-sm font-semibold px-3 py-2.5 rounded-xl transition"
-                        :class="form.guarantor_mode === 'external' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-white'">
-                    {{ __('borrower.apply.group_members.mode_external') }}
-                </button>
+            <div>
+                <p class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.guarantor_fields.choose_type_title') }}</p>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                    <button type="button"
+                            @click="form.guarantor_mode = 'internal'"
+                            class="text-center text-sm font-semibold px-3 py-2.5 rounded-xl ring-1 transition"
+                            :class="form.guarantor_mode === 'internal' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'">
+                        {{ __('borrower.apply.guarantor_fields.choose_yes') }}
+                    </button>
+                    <button type="button"
+                            @click="form.guarantor_mode = 'external'"
+                            class="text-center text-sm font-semibold px-3 py-2.5 rounded-xl ring-1 transition"
+                            :class="form.guarantor_mode === 'external' ? 'bg-brand text-white ring-brand' : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'">
+                        {{ __('borrower.apply.guarantor_fields.choose_no') }}
+                    </button>
+                </div>
             </div>
 
-            <div x-show="form.guarantor_mode === 'internal'" class="space-y-4">
+            <div x-show="form.guarantor_mode === 'internal'" x-cloak class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">{{ __('borrower.apply.guarantor_fields.membership_no') }}</label>
-                    <div class="flex rounded-xl ring-1 overflow-hidden bg-white" :class="guarantorErrors.internal_member_no ? 'ring-rose-400' : 'ring-gray-200'">
-                        <span class="inline-flex items-center px-3 bg-gray-100 text-sm font-mono text-gray-600 border-r border-gray-200">KPF-TZ-</span>
+                    <div class="flex flex-nowrap rounded-xl ring-1 overflow-hidden bg-white" :class="guarantorErrors.internal_member_no ? 'ring-rose-400' : 'ring-gray-200'">
+                        <span class="inline-flex items-center px-2.5 sm:px-3 bg-gray-100 text-xs sm:text-sm font-mono text-gray-600 border-r border-gray-200 whitespace-nowrap shrink-0">KPF-TZ-</span>
                         <input name="internal_member_no" x-model="form.internal_member_no" @input="delete guarantorErrors.internal_member_no; guarantorLookup.ok = false" placeholder="{{ __('borrower.apply.guarantor_fields.membership_placeholder') }}" autocomplete="off" class="flex-1 border-0 px-3 py-2.5 text-sm font-mono focus:ring-0">
                     </div>
                     <p x-show="guarantorErrors.internal_member_no" class="mt-1 text-xs text-rose-600" x-text="guarantorErrors.internal_member_no"></p>

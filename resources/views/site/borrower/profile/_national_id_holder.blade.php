@@ -82,8 +82,18 @@
         </div>
     </div>
 
+    {{-- Empty: add card first; Front → Back starts after they tap. --}}
+    <div x-show="phase === 'start'" x-cloak class="space-y-3">
+        <button type="button"
+                @click="startJourney()"
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3 text-sm shadow-sm">
+            <span class="text-lg leading-none" aria-hidden="true">+</span>
+            {{ __('borrower.profile.national_id_add_cta') }}
+        </button>
+    </div>
+
     {{-- Journey: sequential Front → Back (face-style stepper) --}}
-    <div x-show="phase === 'journey'" class="space-y-4">
+    <div x-show="phase === 'journey'" x-cloak class="space-y-4">
         <nav aria-label="{{ __('borrower.profile.id_images_title') }}">
             <ol class="flex items-center gap-0">
                 <template x-for="(step, i) in steps" :key="'rail-' + step.key">

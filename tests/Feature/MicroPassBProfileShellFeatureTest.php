@@ -72,7 +72,7 @@ class MicroPassBProfileShellFeatureTest extends TestCase
             ->get(route('site.borrower.profile', ['section' => 'membership']))
             ->assertOk()
             ->assertSee('Kopafasta Card', false)
-            ->assertSee('Profile', false)
+            ->assertDontSee(__('borrower.profile.hero_completion_cta'), false)
             ->assertSee('memberCardActions', false)
             ->getContent();
 
@@ -170,7 +170,6 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         $this->assertStringContainsString('ProfileCompletionService', $card);
         $this->assertStringContainsString('completion-percent', $card);
         $this->assertStringContainsString('completion-cta-url', $card);
-        $this->assertStringContainsString('hero_completion_cta', $card);
         $this->assertStringContainsString('hero_completion_percent', $hero);
         $this->assertStringContainsString('hero_completion_done', $hero);
         $this->assertStringContainsString('completionCtaLabel', $hero);
@@ -202,7 +201,8 @@ class MicroPassBProfileShellFeatureTest extends TestCase
         } else {
             $this->assertStringContainsString(__('borrower.profile.hero_completion_percent', ['percent' => $percent]), $html);
             $this->assertStringContainsString('role="progressbar"', $html);
-            $this->assertStringContainsString(__('borrower.profile.hero_completion_cta'), $html);
+            $this->assertStringContainsString(__('borrower.membership.my_card'), $html);
+            $this->assertStringNotContainsString(__('borrower.profile.hero_completion_cta'), $html);
         }
     }
 

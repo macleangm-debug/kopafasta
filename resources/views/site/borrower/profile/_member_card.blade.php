@@ -1,7 +1,7 @@
 @props([
     'customer',
     'cta' => 'card', // card | profile | none
-    'showCompletion' => true, // hub landing: false — progress lives in overview / inner pages
+    'showCompletion' => true,
 ])
 
 @php
@@ -16,14 +16,10 @@
     $plusActive = app(\App\Services\Plus\PlusService::class)->isActive($customer);
     $grade = $customer->grade ?? 'bronze';
     $completionPercent = (int) (app(\App\Services\ProfileCompletionService::class)->calculate($customer)['percent'] ?? 0);
-    $nextIncomplete = collect(app(\App\Services\ProfileCompletionService::class)->displaySections($customer, true))->first();
     $showCompletion = (bool) $showCompletion;
-    $completionCtaUrl = $showCompletion && $completionPercent < 100
-        ? (string) ($nextIncomplete['action_url'] ?? route('site.borrower.profile', ['section' => 'personal']))
-        : null;
-    $completionCtaLabel = $showCompletion && $completionPercent < 100
-        ? __('borrower.profile.hero_completion_cta')
-        : null;
+    // Already on Profile — percent stays on the hero; CTA is Kopafasta Card only.
+    $completionCtaUrl = null;
+    $completionCtaLabel = null;
     $myCardUrl = route('site.borrower.profile', ['section' => 'membership']);
     $profileUrl = route('site.borrower.profile');
 @endphp
