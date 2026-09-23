@@ -41,6 +41,14 @@ class ProfileUxFinalizationTest extends TestCase
         }
     }
 
+    public function test_autosave_does_not_snap_edit_form_closed(): void
+    {
+        $js = file_get_contents(resource_path('js/profile-autosave-view.js'));
+        $this->assertStringContainsString('Do NOT collapse cards on ordinary field saves', $js);
+        $this->assertStringContainsString('Never snap Edit → View on autosave', $js);
+        $this->assertStringNotContainsString('data.open = false', $js);
+    }
+
     public function test_profile_card_is_collapsed_view_then_edit(): void
     {
         $js = file_get_contents(resource_path('js/profile-section-card.js'));

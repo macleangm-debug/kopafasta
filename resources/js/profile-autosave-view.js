@@ -332,13 +332,8 @@ function applyCardCompleteStates(completion) {
             }
             const nowComplete = !! complete;
             data.complete = nowComplete;
-            // Final required field saved while editing: leave Edit → View with Complete tick.
-            // Do not fully collapse the card (multi-field editing stays open until complete).
-            if (nowComplete && data.open) {
-                data.open = false;
-                data.expanded = true;
-                data.showEditAction = false;
-            }
+            // Tick / empty flags only. Never snap Edit → View on autosave — the member
+            // stays on the form (business name, employees, etc.) until they close it.
             if (nowComplete) {
                 data.empty = false;
             }
