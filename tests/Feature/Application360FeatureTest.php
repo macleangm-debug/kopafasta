@@ -109,6 +109,11 @@ class Application360FeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('What is missing?', $html);
+        $this->assertStringContainsString('aria-label="Profile sections"', $html);
+        $this->assertStringContainsString('Personal', $html);
+        $this->assertStringContainsString('Employment', $html);
+        $this->assertStringContainsString('Residence', $html);
+        $this->assertStringNotContainsString('Personal information', $html);
         preg_match('/id="application-360".*?<\/section>/s', $html, $panelMatch);
         $panelHtml = $panelMatch[0] ?? '';
         $this->assertNotSame('', $panelHtml);
@@ -164,6 +169,74 @@ class Application360FeatureTest extends TestCase
             ->getContent();
         $this->assertStringContainsString('document-holder', $html);
         $this->assertStringContainsString('Identity', $html);
+    }
+
+    public function test_application_360_does_not_copy_borrower_onto_guarantor(): void
+    {
+        [$admin, $app] = $this->screeningFile();
+        $app->update([
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+        ]);
+
+        $gUser = User::factory()->create(['role' => 'borrower']);
+        $guarantorCustomer = Customer::create([
+            'user_id' => $gUser->id,
+            'customer_number' => 'CU-G-'.random_int(100, 999),
+            'member_no' => 'M-G-'.random_int(100, 999),
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Paul',
+            'last_name' => 'Albert Mtawa',
+            'phone' => '25568'.random_int(1000000, 9999999),
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+        $record = \App\Models\Guarantor::create([
+            'first_name' => 'Paul',
+            'last_name' => 'Albert Mtawa',
+            'phone' => $guarantorCustomer->phone,
+            'relationship' => 'member',
+        ]);
+        $link = \App\Models\CustomerGuarantor::create([
+            'customer_id' => $app->customer_id,
+            'guarantor_id' => $record->id,
+            'loan_application_id' => $app->id,
+            'status' => 'pending',
+        ]);
+        \App\Models\GuarantorInvitation::create([
+            'customer_id' => $app->customer_id,
+            'loan_application_id' => $app->id,
+            'loan_product_id' => $app->loan_product_id,
+            'customer_guarantor_id' => $link->id,
+            'guarantor_customer_id' => $guarantorCustomer->id,
+            'type' => 'internal',
+            'channel' => 'in_app',
+            'invitee_name' => 'Paul Albert Mtawa',
+            'token' => 'g360-'.random_int(1000, 9999),
+            'short_code' => 'G360'.random_int(100, 999),
+            'contact' => $guarantorCustomer->phone,
+            'status' => 'pending',
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $panel = app(Application360Presenter::class)->forApplication($app->fresh(), $admin);
+        $guarantors = collect($panel['people'])->where('role', 'Guarantor')->values();
+        $this->assertCount(1, $guarantors);
+        $this->assertSame('Paul Albert Mtawa', $guarantors[0]['name'] ?? null);
+        $this->assertSame((int) $guarantorCustomer->id, (int) ($guarantors[0]['customer_id'] ?? 0));
+        $this->assertNotSame((int) $app->customer_id, (int) ($guarantors[0]['customer_id'] ?? 0));
+        $this->assertSame('Waiting for guarantor', $panel['next']['missing'] ?? null);
+        $this->assertSame('Guarantor', $panel['next']['who'] ?? null);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->getContent();
+        preg_match('/id="application-360".*?<\/section>/s', $html, $panelMatch);
+        $panelHtml = $panelMatch[0] ?? '';
+        $this->assertStringContainsString('Paul Albert Mtawa', $panelHtml);
+        $this->assertStringContainsString('Waiting for guarantor', $panelHtml);
     }
 
     /** @return array{0: User, 1: LoanApplication} */

@@ -40,7 +40,9 @@ class Application360Presenter
         $actor = $actor ?? auth()->user();
         $application->loadMissing([
             'customer', 'product', 'loan', 'loanGroup.members.customer', 'loanGroup.leader',
-            'customerGuarantors.invitation', 'collateralAssets', 'assignedAnalyst',
+            'customerGuarantors.invitation.guarantorCustomer',
+            'customerGuarantors.guarantor',
+            'collateralAssets', 'assignedAnalyst',
         ]);
 
         $stage = (string) ($application->current_stage ?? 'submitted');
@@ -221,6 +223,28 @@ class Application360Presenter
             'awaiting_management', 'approval', 'post_approval_fees',
             'awaiting_disbursement_details', 'contract_generation', 'disbursement',
         ];
+
+        if ((string) $application->status === 'awaiting_guarantor'
+            || $stage === 'awaiting_guarantor') {
+            $href = $application->customer
+                ? route('admin.customers.show', ['customer' => $application->customer, 'tab' => 'applications']).'#member-file'
+                : route('admin.loan-applications.show', $application);
+
+            return [
+                'source' => 'guarantor',
+                'headline' => 'Waiting for guarantor',
+                'missing' => 'Waiting for guarantor',
+                'who' => 'Guarantor',
+                'deadline' => null,
+                'cta' => 'View guarantor',
+                'href' => $href,
+                'cta_kind' => 'waiting',
+                'gate_label' => null,
+                'percent' => null,
+                'bucket' => 'waiting',
+                'subjects' => [],
+            ];
+        }
 
         if (in_array($stage, $screeningStages, true)
             || in_array((string) $application->status, ['pending_documents', 'under_review'], true)) {
@@ -672,10 +696,15 @@ class Application360Presenter
     private function people(LoanApplication $application, ?User $actor, array $next): array
     {
         $subjects = is_array($next['subjects'] ?? null) ? $next['subjects'] : [];
+        $borrowerId = (int) ($application->customer_id ?? 0);
         if ($subjects !== []) {
             $cards = [];
             foreach ($subjects as $subject) {
+                $role = (string) ($subject['role'] ?? ucfirst((string) ($subject['person'] ?? 'participant')));
                 $customerId = $subject['customer_id'] ?? null;
+                if (strcasecmp($role, 'Guarantor') === 0 && (int) $customerId === $borrowerId) {
+                    $customerId = null;
+                }
                 $customer = $customerId
                     ? \App\Models\Customer::query()->find($customerId)
                     : null;
@@ -707,6 +736,8 @@ class Application360Presenter
                 $cards[] = $card;
             }
 
+            $this->appendGuarantors($application, $cards);
+
             return $cards;
         }
 
@@ -731,56 +762,98 @@ class Application360Presenter
             $cards[] = $this->customerCard($application->customer, 'Borrower');
         }
 
-        foreach ($application->customerGuarantors ?? [] as $link) {
-            $customer = $link->customer ?? $link->guarantorCustomer ?? null;
-            if (! $customer && method_exists($link, 'guarantor')) {
-                $customer = $link->guarantor;
-            }
-            // Common relation shapes
-            if (! $customer) {
-                $customer = $link->relationLoaded('customer') ? $link->customer : null;
-            }
-            if (! $customer && isset($link->guarantor_customer_id)) {
-                $customer = \App\Models\Customer::query()->find($link->guarantor_customer_id);
-            }
-            if (! $customer && isset($link->customer_id) && $application->customer_id != $link->customer_id) {
-                $customer = \App\Models\Customer::query()->find($link->customer_id);
-            }
-            if (! $customer) {
-                $name = $link->invitation?->full_name
-                    ?? $link->name
-                    ?? 'Guarantor';
-                $cards[] = [
-                    'key' => 'guarantor-pending-'.($link->id ?? 'x'),
-                    'kind' => 'person',
-                    'customer_id' => null,
-                    'name' => (string) $name,
-                    'role' => 'Guarantor',
-                    'kyc' => '0%',
-                    'completion_percent' => 0,
-                    'completed_areas' => [],
-                    'missing_areas' => ['Guarantor profile incomplete'],
-                    'completion_cards' => [[
-                        'key' => 'profile',
-                        'label' => 'Profile',
-                        'complete' => false,
-                    ]],
-                    'crb' => '—',
-                    'readiness' => 'Awaiting profile',
-                    'issue' => 'Guarantor profile incomplete',
-                    'href' => route('admin.loan-applications.show', [
-                        'loan_application' => $application,
-                        'workspace' => 'profiles',
-                    ]),
-                    'tone' => 'attention',
-                    'documents' => [],
-                ];
-                continue;
-            }
-            $cards[] = $this->customerCard($customer, 'Guarantor');
-        }
+        $this->appendGuarantors($application, $cards);
 
         return $cards;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $cards
+     */
+    private function appendGuarantors(LoanApplication $application, array &$cards): void
+    {
+        $existing = collect($cards)
+            ->filter(fn ($card) => strcasecmp((string) ($card['role'] ?? ''), 'Guarantor') === 0)
+            ->pluck('customer_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        foreach ($application->customerGuarantors ?? [] as $link) {
+            $card = $this->guarantorCard($application, $link);
+            $id = (int) ($card['customer_id'] ?? 0);
+            if ($id > 0 && in_array($id, $existing, true)) {
+                continue;
+            }
+            if ($id === 0 && collect($cards)->contains(fn ($row) => strcasecmp((string) ($row['name'] ?? ''), (string) ($card['name'] ?? '')) === 0
+                && strcasecmp((string) ($row['role'] ?? ''), 'Guarantor') === 0)) {
+                continue;
+            }
+            $cards[] = $card;
+            if ($id > 0) {
+                $existing[] = $id;
+            }
+        }
+    }
+
+    /**
+     * Same identity resolution as Member 360 applications: invitation invitee / guarantor customer.
+     * CustomerGuarantor.customer is the borrower — never treat that as the guarantor.
+     *
+     * @return array<string, mixed>
+     */
+    private function guarantorCard(LoanApplication $application, \App\Models\CustomerGuarantor $link): array
+    {
+        $invite = $link->invitation;
+        $gCustomer = $invite?->guarantorCustomer;
+        $borrowerId = (int) ($application->customer_id ?? 0);
+        if ($gCustomer && (int) $gCustomer->id === $borrowerId) {
+            $gCustomer = null;
+        }
+
+        $name = trim((string) (
+            $invite?->invitee_name
+            ?? $gCustomer?->full_name
+            ?? $link->displayName()
+            ?? 'Guarantor'
+        ));
+        if ($name === '' || strcasecmp($name, 'Guarantor') === 0) {
+            $name = 'Guarantor';
+        }
+
+        if ($gCustomer) {
+            $card = $this->customerCard($gCustomer, 'Guarantor');
+            if ($name !== 'Guarantor') {
+                $card['name'] = $name;
+            }
+
+            return $card;
+        }
+
+        return [
+            'key' => 'guarantor-'.($link->id ?? 'pending'),
+            'kind' => 'person',
+            'customer_id' => null,
+            'name' => $name,
+            'role' => 'Guarantor',
+            'kyc' => '0%',
+            'completion_percent' => 0,
+            'completed_areas' => [],
+            'missing_areas' => ['Waiting for guarantor'],
+            'completion_cards' => [[
+                'key' => 'profile',
+                'label' => 'Profile',
+                'complete' => false,
+            ]],
+            'crb' => '—',
+            'readiness' => 'Waiting',
+            'issue' => 'Waiting for guarantor',
+            'href' => $application->customer
+                ? route('admin.customers.show', ['customer' => $application->customer, 'tab' => 'applications']).'#member-file'
+                : route('admin.loan-applications.show', $application),
+            'tone' => 'attention',
+            'documents' => [],
+        ];
     }
 
     /**
@@ -905,6 +978,9 @@ class Application360Presenter
         $gCustomerId = $snapshot['guarantor']['customer_id'] ?? $snapshot['guarantor']['id'] ?? null;
         if (filled($gName) || ($guarantorStatus !== '' && strtolower($guarantorStatus) !== 'not required')) {
             $gCustomer = is_numeric($gCustomerId) ? \App\Models\Customer::query()->find((int) $gCustomerId) : null;
+            if ($gCustomer && $customer && (int) $gCustomer->id === (int) $customer->id) {
+                $gCustomer = null;
+            }
             if ($gCustomer) {
                 $people[] = $this->customerCard($gCustomer, 'Guarantor');
             } else {

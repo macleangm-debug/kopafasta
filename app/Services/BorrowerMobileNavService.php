@@ -54,6 +54,11 @@ class BorrowerMobileNavService
         return is_string($routeName) && str_starts_with($routeName, 'site.borrower.plus.');
     }
 
+    public function showsPlusWorkspaceNav(bool $plusActive, ?string $routeName): bool
+    {
+        return $plusActive && $this->isPlusWorkspace($routeName);
+    }
+
     public function rememberPlusRoom(?string $routeName): void
     {
         $remember = [

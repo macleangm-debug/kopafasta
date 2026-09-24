@@ -43,4 +43,15 @@ class BorrowerMobileNavParityTest extends TestCase
         $this->assertFalse($nav->hidesMobileNav('site.borrower.dashboard'));
         $this->assertFalse($nav->hidesMobileNav('site.borrower.loans'));
     }
+
+    public function test_plus_workspace_nav_requires_verified_membership(): void
+    {
+        $nav = app(BorrowerMobileNavService::class);
+
+        $this->assertFalse($nav->showsPlusWorkspaceNav(false, 'site.borrower.plus.home'));
+        $this->assertFalse($nav->showsPlusWorkspaceNav(false, 'site.borrower.plus.money'));
+        $this->assertFalse($nav->showsPlusWorkspaceNav(true, 'site.borrower.dashboard'));
+        $this->assertTrue($nav->showsPlusWorkspaceNav(true, 'site.borrower.plus.home'));
+        $this->assertTrue($nav->showsPlusWorkspaceNav(true, 'site.borrower.plus.money'));
+    }
 }

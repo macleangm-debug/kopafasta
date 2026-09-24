@@ -69,30 +69,41 @@
                 </dl>
             </div>
 
-            <div class="grid md:grid-cols-2 gap-4">
-                @foreach ([
-                    ['title' => 'Personal information', 'data' => $snapshot['personal'] ?? [], 'fields' => ['name' => 'Name', 'phone' => 'Phone', 'email' => 'Email', 'nida' => 'NIDA']],
-                    ['title' => 'KYC', 'data' => $snapshot['kyc'] ?? [], 'fields' => ['nida' => 'NIDA status', 'face' => 'Face verification']],
-                    ['title' => 'Employment', 'data' => $snapshot['employment'] ?? [], 'fields' => ['type' => 'Activity', 'income' => 'Income range', 'employer' => 'Employer / business']],
-                    ['title' => 'Residence', 'data' => $snapshot['residence'] ?? [], 'fields' => ['region' => 'Region', 'district' => 'District', 'street' => 'Street']],
-                ] as $section)
-                    <div class="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-                        <div class="flex items-center justify-between gap-2 mb-3">
-                            <h3 class="text-sm font-semibold text-gray-900">{{ $section['title'] }}</h3>
-                            <span class="text-xs font-semibold {{ ! empty($section['data']['complete']) ? 'text-emerald-700' : 'text-amber-700' }}">
-                                {{ ! empty($section['data']['complete']) ? 'Complete' : 'Incomplete' }}
+            @php
+                $memberFileUrl = $draft->customer
+                    ? fn (string $tab) => route('admin.customers.show', ['customer' => $draft->customer, 'tab' => $tab]).'#member-file'
+                    : null;
+                $profileChips = [
+                    ['key' => 'personal', 'label' => 'Personal', 'tab' => 'about', 'complete' => ! empty($snapshot['personal']['complete'])],
+                    ['key' => 'kyc', 'label' => 'KYC', 'tab' => 'about', 'complete' => ! empty($snapshot['kyc']['complete'])],
+                    ['key' => 'employment', 'label' => 'Employment', 'tab' => 'activity', 'complete' => ! empty($snapshot['employment']['complete'])],
+                    ['key' => 'residence', 'label' => 'Residence', 'tab' => 'residence', 'complete' => ! empty($snapshot['residence']['complete'])],
+                ];
+            @endphp
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">Profile</p>
+                <div class="flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Profile sections">
+                    @foreach ($profileChips as $chip)
+                        @php
+                            $chipClass = $chip['complete']
+                                ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+                                : 'bg-amber-50 text-amber-950 ring-amber-200';
+                            $mark = $chip['complete'] ? '✓' : '!';
+                        @endphp
+                        @if ($memberFileUrl)
+                            <a href="{{ $memberFileUrl($chip['tab']) }}"
+                               class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg ring-1 {{ $chipClass }}">
+                                <span aria-hidden="true">{{ $mark }}</span>
+                                {{ $chip['label'] }}
+                            </a>
+                        @else
+                            <span class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg ring-1 {{ $chipClass }}">
+                                <span aria-hidden="true">{{ $mark }}</span>
+                                {{ $chip['label'] }}
                             </span>
-                        </div>
-                        <dl class="space-y-2 text-sm">
-                            @foreach ($section['fields'] as $key => $label)
-                                <div>
-                                    <dt class="text-xs text-gray-500">{{ $label }}</dt>
-                                    <dd class="font-medium text-gray-900">{{ $section['data'][$key] ?? '—' }}</dd>
-                                </div>
-                            @endforeach
-                        </dl>
-                    </div>
-                @endforeach
+                        @endif
+                    @endforeach
+                </div>
             </div>
 
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">

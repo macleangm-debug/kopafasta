@@ -77,12 +77,15 @@
     $routeName = \Illuminate\Support\Facades\Route::currentRouteName();
     $mobileNavService = app(\App\Services\BorrowerMobileNavService::class);
     $mobileNavService->rememberPlusRoom($routeName);
-    $plusWorkspace = $portalMode !== 'guarantor' && $mobileNavService->isPlusWorkspace($routeName);
+    $plusWorkspace = $portalMode !== 'guarantor'
+        && $mobileNavService->showsPlusWorkspaceNav($plusActive, $routeName);
     $hideMobileNav = $portalMode !== 'guarantor' && $mobileNavService->hidesMobileNav($routeName);
     $mobileNav = $portalMode === 'guarantor'
         ? array_slice($nav, 0, 5)
         : ($plusWorkspace ? $mobileNavService->plusWorkspaceNav() : $mobileNavService->mobilePrimaryNav());
-    $mobileActive = $plusWorkspace ? $mobileNavService->plusActiveKey($routeName) : $active;
+    $mobileActive = $plusWorkspace
+        ? $mobileNavService->plusActiveKey($routeName)
+        : ($mobileNavService->isPlusWorkspace($routeName) ? 'plus' : $active);
     $plusMoreItems = $plusWorkspace ? $mobileNavService->plusMoreItems() : [];
 @endphp
 <!doctype html>
