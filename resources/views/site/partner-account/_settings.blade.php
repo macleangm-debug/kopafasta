@@ -9,6 +9,8 @@
     $user = auth()->user();
     $hasPin = (bool) ($user?->pin_set_at);
     $preferredLocale = data_get($user?->preferences, 'preferred_locale', $user?->locale ?? app()->getLocale());
+    $recovery = app(\App\Services\PinRecoveryChallengeService::class);
+    $hasRecovery = $user ? $recovery->hasEnrolledAnswers($user) : false;
 @endphp
 
 @if ($errors->any())
@@ -16,6 +18,26 @@
 @endif
 
 <div class="max-w-2xl space-y-6">
+    @if ($user && in_array($user->role, ['vendor', 'investor'], true))
+        <div class="rounded-2xl bg-white ring-1 {{ $hasRecovery ? 'ring-gray-200' : 'ring-amber-200' }} p-5 sm:p-6 space-y-4">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">{{ __('site.auth.partner_recovery_setup_title') }}</h2>
+                <p class="text-sm text-gray-600 mt-1">
+                    {{ $hasRecovery ? __('site.auth.partner_recovery_ready') : __('site.auth.partner_recovery_prompt') }}
+                </p>
+            </div>
+            @if (! $hasRecovery)
+                <form method="POST" action="{{ route('site.partner.account.recovery') }}" class="space-y-4" autocomplete="off" data-no-draft>
+                    @csrf
+                    @include('site.partner._recovery-questions', ['questions' => $recovery->bank()])
+                    <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
+                        {{ __('site.auth.partner_recovery_setup_cta') }}
+                    </button>
+                </form>
+            @endif
+        </div>
+    @endif
+
     @if ($pinUpdateRoute)
         <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-5 sm:p-6 space-y-4">
             <div>

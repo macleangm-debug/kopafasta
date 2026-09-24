@@ -21,7 +21,13 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertSee('Create this partner?', false)
             ->assertSee('partnerCreateConfirm', false)
             ->assertSee('id="admin-create-form"', false)
+            ->assertSee('data-partner-confirm-create', false)
+            ->assertSee('data-loading-label="'.__('site.auth.creating').'"', false)
             ->assertDontSee('querySelector(`[name=', false);
+
+        $confirmJs = (string) file_get_contents(resource_path('js/partner-create-confirm.js'));
+        $this->assertStringContainsString('kfMarkBusy', $confirmJs);
+        $this->assertStringContainsString("dataset.kfBusy === '1'", $confirmJs);
     }
 
     public function test_admin_can_create_insurance_partner_and_activate_now(): void
@@ -129,7 +135,8 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.show', $partner))
             ->assertOk()
-            ->assertSee('Portal PIN', false)
+            ->assertSee('Set new PIN', false)
+            ->assertSee('Save PIN', false)
             ->assertSee('Resend activation', false);
 
         $this->actingAs($admin, 'admin')
@@ -257,11 +264,17 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->withSession(['partner_invite_ready' => true])
             ->get(route('admin.partners.show', $partner));
         $show->assertOk()
-            ->assertSee('Share activation', false)
+            ->assertSee('Awaiting activation', false)
+            ->assertSee('Activation', false)
+            ->assertSee(__('site.auth.or_activate_here'), false)
+            ->assertSee('Activate &amp; set PIN', false)
             ->assertSee($partner->partner_number, false)
             ->assertSee('Send activation via WhatsApp', false)
             ->assertSee('Copy activation link', false)
             ->assertSee('Copy message', false)
+            ->assertSee(__('site.auth.copied_feedback'), false)
+            ->assertSee(__('site.auth.activating'), false)
+            ->assertSee('Resend activation', false)
             ->assertSee('wa.me/', false);
     }
 

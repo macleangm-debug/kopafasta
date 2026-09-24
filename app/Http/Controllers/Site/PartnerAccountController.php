@@ -52,4 +52,21 @@ class PartnerAccountController extends Controller
 
         return back()->with('status', __('site.partner_account.preferences_updated'));
     }
+
+    public function storeRecovery(Request $request, \App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user && in_array($user->role, ['vendor', 'investor'], true), 403);
+
+        $data = $request->validate([
+            'question_keys' => ['required', 'array', 'size:2'],
+            'question_keys.*' => ['required', 'string'],
+            'answers' => ['required', 'array'],
+            'answers.*' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $recovery->enrollSelected($user, $data['question_keys'], $data['answers']);
+
+        return back()->with('status', __('site.auth.partner_recovery_saved'));
+    }
 }

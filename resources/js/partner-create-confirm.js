@@ -161,8 +161,11 @@ export function registerPartnerCreateConfirm(Alpine) {
 
             const form = this.form;
             const confirmBtn = this.$el?.querySelector?.('[data-partner-confirm-create]');
+            if (confirmBtn?.dataset.kfBusy === '1') {
+                return;
+            }
             if (confirmBtn && typeof window.kfMarkBusy === 'function') {
-                window.kfMarkBusy(confirmBtn);
+                window.kfMarkBusy(confirmBtn, confirmBtn.dataset.loadingLabel || 'Creating…');
             }
             // Native requestSubmit() also validates hidden required fields in
             // display:none wizard steps and fails silently after the modal closes.

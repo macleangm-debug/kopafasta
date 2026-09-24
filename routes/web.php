@@ -261,6 +261,10 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
         Route::post('/partner/activate/{vendor}', [PartnerActivationController::class, 'store'])->name('partner.activate.post');
         Route::get('/partner/start', [PartnerPortalController::class, 'start'])->name('partner.start');
         Route::post('/partner/start', [PartnerPortalController::class, 'lookup'])->name('partner.start.lookup');
+        Route::get('/partner/forgot-pin', [PartnerPortalController::class, 'showForgotPin'])->name('partner.forgot-pin');
+        Route::post('/partner/forgot-pin/start', [PartnerPortalController::class, 'startForgotPin'])->middleware('throttle:6,1')->name('partner.forgot-pin.start');
+        Route::post('/partner/forgot-pin/verify', [PartnerPortalController::class, 'verifyForgotPin'])->middleware('throttle:8,1')->name('partner.forgot-pin.verify');
+        Route::post('/partner/forgot-pin/reset', [PartnerPortalController::class, 'resetForgotPin'])->middleware('throttle:6,1')->name('partner.forgot-pin.reset');
 
         Route::redirect('/partner/login', '/login/partner');
         Route::redirect('/partners/login', '/login/partner');
@@ -292,6 +296,9 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
 
         Route::get('/partner/setup-pin', [PartnerPortalController::class, 'showSetupPin'])->name('partner.setup-pin');
         Route::post('/partner/setup-pin', [PartnerPortalController::class, 'storeSetupPin'])->name('partner.setup-pin.post');
+        Route::get('/partner/setup-recovery', [PartnerPortalController::class, 'showSetupRecovery'])->name('partner.setup-recovery');
+        Route::post('/partner/setup-recovery', [PartnerPortalController::class, 'storeSetupRecovery'])->name('partner.setup-recovery.post');
+        Route::post('/partner/account/recovery', [PartnerAccountController::class, 'storeRecovery'])->name('partner.account.recovery');
 
         Route::middleware('borrower.pin')->group(function () {
             // Browse products without membership; pay / renew when starting apply.

@@ -110,11 +110,20 @@ class PinRecoveryChallengeService
         return $out;
     }
 
+    public function requiredQuestionCount(?User $user = null): int
+    {
+        if ($user && in_array($user->role, ['vendor', 'investor'], true)) {
+            return 2;
+        }
+
+        return (int) config('pin_recovery.questions_to_ask', 3);
+    }
+
     public function hasEnrolledAnswers(User $user): bool
     {
         return PinRecoveryAnswer::query()
             ->where('user_id', $user->id)
-            ->count() >= (int) config('pin_recovery.questions_to_ask', 3);
+            ->count() >= $this->requiredQuestionCount($user);
     }
 
     /**
@@ -236,8 +245,27 @@ class PinRecoveryChallengeService
     }
 
     /**
-     * @param  array<string, string>  $answers
+     * @param  list<string>  $keys
+     * @param  array<string, string>  $rawAnswers
      */
+    public function enrollSelected(User $user, array $keys, array $rawAnswers): void
+    {
+        $keys = array_values(array_unique($keys));
+        $needed = $this->requiredQuestionCount($user);
+        if (count($keys) !== $needed) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'question_keys' => __('site.auth.partner_duplicate_question'),
+            ]);
+        }
+
+        $answers = [];
+        foreach ($keys as $key) {
+            $answers[$key] = (string) ($rawAnswers[$key] ?? '');
+        }
+
+        $this->enroll($user, $answers);
+    }
+
     public function enroll(User $user, array $answers): void
     {
         $normalized = [];
@@ -254,7 +282,7 @@ class PinRecoveryChallengeService
             $normalized[$key] = $value;
         }
 
-        $needed = (int) config('pin_recovery.questions_to_ask', 3);
+        $needed = $this->requiredQuestionCount($user);
         if (count($normalized) < $needed) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'answers' => __('site.auth.pin_recovery.answer_all_required'),
@@ -316,7 +344,7 @@ class PinRecoveryChallengeService
             'token' => $token,
             'mode' => 'enrolled',
             'questions' => $questions,
-            'required_correct' => (int) config('pin_recovery.required_correct', 2),
+            'required_correct' => min((int) config('pin_recovery.required_correct', 2), max(1, count($questions))),
             'expires_at' => $expiresAt,
         ];
     }

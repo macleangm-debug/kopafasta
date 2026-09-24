@@ -195,7 +195,7 @@
                             <div class="mt-4">
                                 <div class="flex flex-col gap-1 mb-1.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-3">
                                     <label class="block text-sm font-medium text-gray-700">{{ __('site.auth.pin_label') }}</label>
-                                    <a href="{{ route('site.forgot-pin', array_filter(['phone' => $prefillPhone])) }}" class="text-xs text-brand font-medium hover:underline">{{ __('site.auth.forgot_pin') }}</a>
+                                    <a href="{{ route('site.partner.forgot-pin', array_filter(['phone' => $prefillPhone])) }}" class="text-xs text-brand font-medium hover:underline">{{ __('site.auth.forgot_pin') }}</a>
                                 </div>
                                 <input type="password" name="pin" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="off"
                                        placeholder="••••"

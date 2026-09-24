@@ -136,5 +136,12 @@ class TurnstileAuthPagesFeatureTest extends TestCase
                 'phone' => '255712345678',
             ])
             ->assertSessionHasErrors('cf-turnstile-response');
+
+        $this->from(route('site.partner.forgot-pin'))
+            ->post(route('site.partner.forgot-pin.start'), [
+                'partner_code' => 'PT-XX-TZ-0001',
+                'phone' => '255712345678',
+            ])
+            ->assertSessionHasErrors('cf-turnstile-response');
     }
 }

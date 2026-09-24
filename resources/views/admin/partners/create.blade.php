@@ -109,6 +109,7 @@
                     </button>
                     <button type="button"
                             data-partner-confirm-create
+                            data-loading-label="{{ __('site.auth.creating') }}"
                             @click="syncAndSubmit()"
                             :disabled="(mode === 'invite' || mode === 'activate_now') && (summary.phone === '—' || ! summary.phone)"
                             class="inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-brand bg-brand-gold hover:brightness-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
