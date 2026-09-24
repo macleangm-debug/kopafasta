@@ -804,6 +804,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('loan-applications.screening-exceptions.clarify');
         Route::post('loan-applications/{loan_application}/guarantors/{customerGuarantor}/change', [LoanApplicationController::class, 'requestGuarantorChange'])
             ->name('loan-applications.guarantor-change');
+        Route::post('loan-applications/{loan_application}/notify-replace-guarantor', [LoanApplicationController::class, 'notifyReplaceGuarantor'])
+            ->name('loan-applications.notify-replace-guarantor');
         Route::post('loan-applications/{loan_application}/workflow', [LoanApplicationController::class, 'runWorkflow'])
             ->name('loan-applications.workflow');
         Route::post('loan-applications/{loan_application}/capacity-auto-reject/fire', [LoanApplicationController::class, 'fireCapacityAutoReject'])

@@ -52,8 +52,38 @@
                     </div>
                 </div>
             </div>
-            <div class="shrink-0 flex lg:items-center">
-                @if (! empty($next['href']) && ($next['cta_kind'] ?? '') !== 'waiting')
+            <div class="shrink-0 flex lg:items-center" x-data="{ notifyOpen: false }">
+                @if (($next['cta_kind'] ?? '') === 'confirm_notify' && ! empty($next['href']))
+                    <button type="button" @click="notifyOpen = true"
+                            class="w-full lg:w-auto inline-flex justify-center items-center px-5 py-3 rounded-xl bg-brand text-white text-sm font-bold shadow-sm hover:bg-brand-light">
+                        {{ $next['cta'] }}
+                    </button>
+                    <x-site.action-panel title="Notify borrower to replace guarantor" open="notifyOpen">
+                        <form method="POST" action="{{ $next['href'] }}" class="space-y-4" data-no-draft>
+                            @csrf
+                            <input type="hidden" name="confirmed" value="1">
+                            <p class="text-sm text-slate-700">
+                                {{ __('borrower.guarantor_supplement.notify_replace_confirm') }}
+                            </p>
+                            <p class="text-sm text-slate-600">
+                                The borrower will receive the existing in-app notification
+                                @if (filled($next['who'] ?? null))
+                                    and any SMS/email already configured for this event
+                                @endif.
+                                They choose the replacement on the guarantor step.
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="submit" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-bold">
+                                    Send reminder
+                                </button>
+                                <button type="button" @click="notifyOpen = false"
+                                        class="inline-flex items-center px-4 py-2.5 rounded-xl bg-white ring-1 ring-slate-200 text-sm font-semibold text-slate-700">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </x-site.action-panel>
+                @elseif (! empty($next['href']) && ($next['cta_kind'] ?? '') !== 'waiting')
                     <a href="{{ $next['href'] }}"
                        class="w-full lg:w-auto inline-flex justify-center items-center px-5 py-3 rounded-xl bg-brand text-white text-sm font-bold shadow-sm hover:bg-brand-light">
                         {{ $next['cta'] ?? ($isDraft ? 'Continue application' : 'Continue') }}
@@ -106,53 +136,62 @@
                             <p class="text-sm text-slate-700 mt-1">{{ $person['aggregate_label'] ?? '' }}</p>
                         </div>
                     @else
-                        <div>
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ $person['role'] ?? 'Participant' }}</p>
-                                    <p class="text-sm font-bold text-slate-900">{{ $person['name'] ?? '—' }}</p>
-                                </div>
-                                @if (! empty($person['is_member']) && ! empty($person['href']))
-                                    <a href="{{ $person['href'] }}" class="shrink-0 text-[11px] font-bold text-brand hover:underline">Open Member / Profile 360 →</a>
+                        <div class="grid lg:grid-cols-[minmax(0,1fr)_13.5rem] gap-4 items-start">
+                            <div class="min-w-0">
+                                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ $person['role'] ?? 'Participant' }}</p>
+                                <p class="text-sm font-bold text-slate-900">{{ $person['name'] ?? '—' }}</p>
+                                @if (! empty($person['is_member']))
+                                    <p class="text-sm text-slate-700 mt-2">
+                                        KYC / Profile —
+                                        <span class="font-semibold">{{ ! empty($person['kyc_ready']) || (int) ($person['completion_percent'] ?? 0) >= 100 ? 'Complete' : 'In progress' }}</span>
+                                    </p>
+                                    @if (! empty($person['income_proof']))
+                                        <p class="text-sm text-slate-700 mt-1">
+                                            Proof of Income —
+                                            <span class="font-semibold">{{ $person['income_proof']['status_label'] ?? 'Missing' }}</span>
+                                        </p>
+                                    @endif
+                                    <div class="mt-3 flex gap-1.5 overflow-x-auto pb-1" aria-label="Profile sections" style="-webkit-overflow-scrolling: touch;">
+                                        @forelse ($person['completion_cards'] ?? [] as $card)
+                                            @php
+                                                $done = ! empty($card['complete']);
+                                                $tone = $done
+                                                    ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+                                                    : 'bg-amber-50 text-amber-950 ring-amber-200';
+                                            @endphp
+                                            <span class="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold ring-1 {{ $tone }}">
+                                                <span aria-hidden="true">{{ $done ? '✓' : '!' }}</span>
+                                                {{ $card['label'] }}
+                                            </span>
+                                        @empty
+                                            <span class="text-[11px] text-slate-500">No profile sections yet</span>
+                                        @endforelse
+                                    </div>
+                                @else
+                                    <p class="text-sm font-semibold text-slate-800 mt-2">
+                                        {{ $person['invitation_status'] ?? $person['readiness'] ?? 'Invited' }}
+                                    </p>
+                                    @if (! empty($person['contact']))
+                                        <p class="text-sm text-slate-600 mt-1">{{ $person['contact'] }}</p>
+                                    @endif
+                                    <p class="text-sm text-slate-600 mt-1">{{ $person['member_note'] ?? 'Invited as guarantor — not a member yet.' }}</p>
                                 @endif
                             </div>
                             @if (! empty($person['is_member']))
-                            <p class="text-sm font-semibold text-slate-800 mt-2">
-                                KYC / Profile — {{ (int) ($person['completion_percent'] ?? 0) }}% complete
-                            </p>
-                            @if (! empty($person['income_proof']))
-                            <p class="text-sm text-slate-700 mt-1">
-                                Proof of Income —
-                                <span class="font-semibold">{{ $person['income_proof']['status_label'] ?? 'Missing' }}</span>
-                            </p>
-                            @endif
-                            <div class="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                <div class="h-full rounded-full bg-brand" style="width: {{ max(0, min(100, (int) ($person['completion_percent'] ?? 0))) }}%"></div>
-                            </div>
-                            <div class="mt-3 flex flex-wrap gap-1.5">
-                                @forelse ($person['completion_cards'] ?? [] as $card)
-                                    @php
-                                        $done = ! empty($card['complete']);
-                                        $tone = $done
-                                            ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
-                                            : 'bg-amber-50 text-amber-950 ring-amber-200';
-                                    @endphp
-                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold ring-1 {{ $tone }}">
-                                        <span aria-hidden="true">{{ $done ? '✓' : '!' }}</span>
-                                        {{ $card['label'] }}
-                                    </span>
-                                @empty
-                                    <span class="text-[11px] text-slate-500">No profile sections yet</span>
-                                @endforelse
-                            </div>
-                            @else
-                            <p class="text-sm font-semibold text-slate-800 mt-2">
-                                {{ $person['invitation_status'] ?? $person['readiness'] ?? 'Invited' }}
-                            </p>
-                            @if (! empty($person['contact']))
-                                <p class="text-sm text-slate-600 mt-1">{{ $person['contact'] }}</p>
-                            @endif
-                            <p class="text-sm text-slate-600 mt-1">{{ $person['member_note'] ?? 'Invited as guarantor — not a member yet.' }}</p>
+                                <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-3">
+                                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Profile completion</p>
+                                    <p class="text-lg font-bold text-slate-900 tabular-nums mt-1">{{ (int) ($person['completion_percent'] ?? 0) }}%</p>
+                                    <div class="mt-2 h-1.5 max-w-[7rem] rounded-full bg-slate-200 overflow-hidden">
+                                        <div class="h-full rounded-full bg-brand" style="width: {{ max(0, min(100, (int) ($person['completion_percent'] ?? 0))) }}%"></div>
+                                    </div>
+                                    <p class="text-xs font-semibold text-slate-700 mt-2">{{ $person['readiness'] ?? 'Ready' }}</p>
+                                    @if (! empty($person['href']))
+                                        <a href="{{ $person['href'] }}"
+                                           class="mt-3 inline-flex w-full justify-center items-center px-3 py-2 rounded-lg bg-brand text-white text-[11px] font-bold hover:bg-brand-light">
+                                            Open Member 360
+                                        </a>
+                                    @endif
+                                </div>
                             @endif
                         </div>
                     @endif
@@ -213,22 +252,23 @@
                     @endif
                 </div>
             @endforeach
-        </div>
-    @endif
 
-    @if (count($previousGuarantors) > 0)
-        <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 sm:px-5 py-3">
-            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Previous / Rejected</p>
-            <ul class="mt-2 space-y-1">
-                @foreach ($previousGuarantors as $row)
-                    <li class="text-sm text-slate-700">
-                        <span class="font-semibold">{{ $row['label'] ?? (($row['name'] ?? 'Guarantor').' — '.($row['status'] ?? 'Rejected')) }}</span>
-                        @if (! empty($row['at']))
-                            <span class="text-slate-500"> · {{ $row['at'] }}</span>
-                        @endif
-                    </li>
-                @endforeach
-            </ul>
+            @if (count($previousGuarantors) > 0)
+                <div class="mt-4 pt-3 border-t border-slate-100">
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Previous guarantor</p>
+                    <ul class="mt-2 space-y-1.5">
+                        @foreach ($previousGuarantors as $row)
+                            <li class="flex flex-wrap items-center gap-2 text-sm">
+                                <span class="font-semibold text-slate-900">{{ $row['name'] ?? 'Guarantor' }}</span>
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-800 ring-1 ring-rose-200">{{ $row['status'] ?? 'Rejected' }}</span>
+                                @if (! empty($row['at']))
+                                    <span class="text-xs text-slate-500">{{ $row['at'] }}</span>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
         </div>
     @endif
 

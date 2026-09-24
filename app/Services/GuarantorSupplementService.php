@@ -229,4 +229,71 @@ class GuarantorSupplementService
             'step_key'             => 'guarantor',
         ]);
     }
+
+    /**
+     * Staff reminder only — borrower chooses the replacement. Does not pick or invite a guarantor.
+     */
+    public function notifyBorrowerToReplaceGuarantor(LoanApplication $application, User $admin): void
+    {
+        if ((string) $application->status !== 'awaiting_guarantor'
+            && (string) $application->current_stage !== 'awaiting_guarantor') {
+            throw new \InvalidArgumentException('A replacement reminder can only be sent while waiting for a guarantor.');
+        }
+
+        $application->loadMissing(['customer', 'customerGuarantors.invitation']);
+        $customer = $application->customer;
+        if (! $customer instanceof Customer) {
+            throw new \InvalidArgumentException('This application has no borrower to notify.');
+        }
+
+        $url = $this->borrowerWizardUrl($application);
+        $reference = $application->reference_no ?? $application->application_number ?? $application->id;
+        $previous = collect($application->customerGuarantors ?? [])
+            ->first(fn ($link) => in_array((string) $link->status, ['rejected', 'replaced', 'expired'], true));
+        $guarantorName = trim((string) (
+            $previous?->invitation?->invitee_name
+            ?? $previous?->displayName()
+            ?? 'the previous guarantor'
+        ));
+
+        $notifications = app(NotificationService::class);
+        $notifications->notifyInApp(
+            $customer,
+            __('borrower.guarantor_supplement.change_notify_body', [
+                'reference' => $reference,
+                'guarantor' => $guarantorName,
+            ]),
+            category: 'loan_application',
+            template: 'guarantor_change_request',
+            title: __('borrower.guarantor_supplement.change_notify_title'),
+            actionUrl: $url,
+            actionLabel: __('borrower.guarantor_supplement.change_cta'),
+            i18n: [
+                'title_key' => 'borrower.guarantor_supplement.change_notify_title',
+                'body_key' => 'borrower.guarantor_supplement.change_notify_body',
+                'params' => [
+                    'reference' => $reference,
+                    'guarantor' => $guarantorName,
+                ],
+            ],
+        );
+        $notifications->notifyCustomer($customer, 'guarantor_change_request', [
+            'reference' => $reference,
+            'guarantor' => $guarantorName,
+            '_action_url' => $url,
+            '_fallback_subject' => __('borrower.guarantor_supplement.change_notify_title'),
+            '_fallback_body' => __('borrower.guarantor_supplement.change_notify_body', [
+                'reference' => $reference,
+                'guarantor' => $guarantorName,
+            ]),
+        ]);
+
+        app(AuditService::class)->log(
+            $admin,
+            'application.guarantor.replace_reminder',
+            $application,
+            [],
+            ['deep_link' => $url],
+        );
+    }
 }
