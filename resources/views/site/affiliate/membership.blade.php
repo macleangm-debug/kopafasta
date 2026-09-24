@@ -1,10 +1,4 @@
-<x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.membership_title'))" active="profile">
-
-    <x-site.borrower-page-header
-        :eyebrow="$eyebrow ?? __('site.affiliate_portal.title')"
-        :title="__('site.affiliate_portal.membership_title')"
-        :subtitle="__('site.affiliate_portal.membership_subtitle')"
-    />
+<x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.membership_title'))" active="profile" :hero="false">
 
     @if (! empty($accountTabs))
         <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />

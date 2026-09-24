@@ -1,11 +1,5 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.share_title'))" active="share">
 
-    <x-site.borrower-page-header
-        :eyebrow="__('site.affiliate_portal.nav_share')"
-        :title="__('site.affiliate_portal.share_title')"
-        :subtitle="__('site.affiliate_portal.share_subtitle')"
-    />
-
     @unless ($eligibility['can_share'] ?? false)
         <div class="glass-card p-5 mb-6 text-sm text-gray-700">{{ __('site.affiliate_portal.eligibility_blocked') }}</div>
     @endunless

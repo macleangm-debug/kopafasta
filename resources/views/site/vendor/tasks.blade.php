@@ -23,22 +23,6 @@
         };
     @endphp
 
-    <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
-        <div>
-            <h1 class="text-2xl font-extrabold mb-1">
-                {{ $isInsurance ? __('site.partner_portal.cover_jobs_title') : __('site.partner_portal.jobs_title') }}
-            </h1>
-            <p class="text-sm text-gray-500">
-                {{ $isInsurance ? __('site.partner_portal.cover_jobs_subtitle') : __('site.partner_portal.jobs_subtitle') }}
-            </p>
-        </div>
-        @unless ($isInsurance)
-            <a href="{{ route('site.partner.calendar') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:underline">
-                {{ __('site.partner_portal.nav_calendar') }} →
-            </a>
-        @endunless
-    </div>
-
     {{-- Filter pills --}}
     <div class="flex flex-wrap gap-2 mb-5">
         @foreach ($tabs as $k => $label)

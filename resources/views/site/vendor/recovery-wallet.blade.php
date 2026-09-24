@@ -1,9 +1,6 @@
 <x-site.vendor-layout title="Recovery commission wallet" active="recovery_wallet">
     @include('site.vendor._recovery-kpi', ['kpi' => $recoveryKpi, 'wallet' => $summary, 'compact' => true])
 
-    <h1 class="text-2xl font-extrabold mb-1">Commission wallet</h1>
-    <p class="text-sm text-gray-500 mb-5">Recovery commissions accrue when you complete a case. Dispute any incorrect entry before payout.</p>
-
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5">
             <p class="text-xs text-gray-500 uppercase">Pending</p>

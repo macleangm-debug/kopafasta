@@ -1,4 +1,4 @@
-@props(['title' => null, 'active' => 'dashboard', 'contentWidth' => 'wide'])
+@props(['title' => null, 'active' => 'dashboard', 'contentWidth' => 'wide', 'hero' => null, 'heroKey' => null])
 
 @php
     $vendor = auth()->user()
@@ -8,6 +8,7 @@
     $nav = $navService->serviceNav($vendor);
     $portalLabel = $navService->portalSubtitle($vendor);
     $displayName = $vendor?->name ?? auth()->user()?->name ?? 'Partner';
+    $resolvedHero = $hero === false ? null : ($hero ?? $navService->contextualHero('service', $heroKey ?? $active, $vendor));
     $profileLinks = [
         ['label' => __('site.partner_portal.nav_profile'), 'route' => 'site.partner.profile'],
         ['label' => __('site.partner_portal.nav_documents'), 'route' => 'site.partner.documents'],
@@ -31,6 +32,7 @@
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
     :banner="$navService->roleBanner($vendor)"
+    :hero="$resolvedHero"
     :profile-links="$profileLinks"
 >
     {{ $slot }}

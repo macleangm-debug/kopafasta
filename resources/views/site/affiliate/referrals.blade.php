@@ -1,11 +1,5 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.referrals_title'))" active="referrals">
 
-    <x-site.borrower-page-header
-        :eyebrow="__('site.affiliate_portal.nav_referrals')"
-        :title="__('site.affiliate_portal.referrals_title')"
-        :subtitle="__('site.affiliate_portal.referrals_pipeline_subtitle')"
-    />
-
     <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         @foreach ([
             'visited' => __('site.affiliate_portal.funnel_visited'),

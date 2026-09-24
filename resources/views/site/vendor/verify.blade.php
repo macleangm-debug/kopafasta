@@ -1,10 +1,4 @@
-<x-site.vendor-layout :title="brand_title(__('site.card_verify.page_title'))" active="dashboard">
-    <x-site.borrower-page-header
-        :eyebrow="__('site.partner_portal.cta_verify_member')"
-        :title="__('site.card_verify.heading')"
-        :subtitle="__('site.card_verify.subtitle')"
-    />
-
+<x-site.vendor-layout :title="brand_title(__('site.card_verify.page_title'))" active="dashboard" hero-key="verify">
     @include('site.public._card-verify-body', [
         'types' => $types,
         'result' => $result,

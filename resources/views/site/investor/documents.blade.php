@@ -1,10 +1,4 @@
 <x-site.investor-layout title="Reports — Capital partner" active="documents">
-    <x-site.borrower-page-header
-        eyebrow="Capital partner"
-        title="Reports & statements"
-        subtitle="Download agreements, year-to-date statements and tax summaries."
-    />
-
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         @foreach ([
             ['Investor agreement', 'Master capital partner agreement', 'Download agreement', 'agreement'],

@@ -1,10 +1,4 @@
-<x-site.vendor-layout :title="brand_title(__('site.partner_portal.membership_pay'))" active="dashboard">
-    <x-site.borrower-page-header
-        :eyebrow="__('site.partner_portal.membership_pay')"
-        :title="__('site.partner_portal.membership_pay')"
-        :subtitle="__('site.partner_portal.membership_pay_subtitle')"
-    />
-
+<x-site.vendor-layout :title="brand_title(__('site.partner_portal.membership_pay'))" active="dashboard" :hero="false">
     <div class="max-w-xl mx-auto">
         @include('site.borrower.payments._show_body', [
             'payment' => $payment,

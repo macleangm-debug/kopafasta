@@ -5,13 +5,7 @@
     ];
 @endphp
 
-<x-site.affiliate-layout :title="brand_title(__('site.partner_account.settings_title'))" active="profile">
-
-    <x-site.borrower-page-header
-        :eyebrow="__('site.affiliate_portal.title')"
-        :title="__('site.partner_account.settings_title')"
-        :subtitle="__('site.partner_account.settings_subtitle')"
-    />
+<x-site.affiliate-layout :title="brand_title(__('site.partner_account.settings_title'))" active="profile" hero-key="settings">
 
     <x-site.partner-account-tabs active="settings" :tabs="$accountTabs" />
 

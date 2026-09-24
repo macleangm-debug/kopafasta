@@ -1,6 +1,4 @@
 <x-site.investor-layout title="Notifications — Investor" active="notifications">
-    <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
-
     <div class="glass-card rounded-2xl ring-1 ring-brand/10 divide-y divide-slate-100">
         @forelse ($notifications as $n)
             <div class="p-4 flex items-start gap-3">

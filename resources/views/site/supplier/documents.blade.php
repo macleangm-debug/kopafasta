@@ -10,13 +10,7 @@
         ->all();
 @endphp
 
-<x-site.supplier-layout :title="__('site.supplier_portal.documents_title')" active="profile">
-    <x-site.borrower-page-header
-        :eyebrow="__('site.supplier_portal.title')"
-        :title="__('site.supplier_portal.documents_title')"
-        :subtitle="__('site.supplier_portal.documents_subtitle')"
-    />
-
+<x-site.supplier-layout :title="__('site.supplier_portal.documents_title')" active="profile" hero-key="documents">
     @include('site.partner-account._tabs', [
         'active' => 'documents',
         'partner' => $partner,

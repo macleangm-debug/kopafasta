@@ -1,7 +1,4 @@
 <x-site.vendor-layout title="Calendar" active="calendar">
-    <h1 class="text-2xl font-extrabold mb-1">Schedule</h1>
-    <p class="text-sm text-gray-500 mb-5">Today, upcoming and overdue tasks.</p>
-
     @php
         $row = function ($t) {
             $badge = $t->status === 'assigned' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-brand';

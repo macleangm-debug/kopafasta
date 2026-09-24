@@ -2,24 +2,27 @@
     $showShell = isset($partner, $profileRoute);
 @endphp
 
-<x-site.affiliate-layout :title="brand_title($title ?? __('site.affiliate_portal.agreement_title'))" active="profile">
-
-    <x-site.borrower-page-header
-        :eyebrow="$eyebrow ?? __('site.affiliate_portal.agreement_title')"
-        :title="$commercial['premium'] ?? false ? __('site.affiliate_portal.premium_agreement') : __('site.affiliate_portal.membership_title')"
-        :subtitle="__('site.affiliate_portal.agreement_subtitle')"
-    />
+<x-site.affiliate-layout
+    :title="brand_title($title ?? __('site.affiliate_portal.agreement_title'))"
+    active="profile"
+    :hero="[
+        'title' => ($commercial['premium'] ?? false)
+            ? __('site.affiliate_portal.premium_agreement')
+            : __('site.affiliate_portal.membership_title'),
+        'body' => __('site.affiliate_portal.agreement_subtitle'),
+    ]"
+>
 
     @if (! empty($accountTabs))
         <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
     @endif
 
     @if ($showShell)
-        @include('site.partner-account._shell', [
-            'partner' => $partner,
-            'portal' => $portal ?? 'affiliate',
+        @include('site.partner-account._tabs', [
             'active' => ($commercial['premium'] ?? false) ? 'agreement' : 'membership',
+            'partner' => $partner,
             'profileRoute' => $profileRoute,
+            'portal' => $portal ?? 'affiliate',
         ])
     @endif
 

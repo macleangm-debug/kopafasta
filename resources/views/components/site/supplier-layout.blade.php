@@ -1,4 +1,4 @@
-@props(['title' => 'Supplier portal — Kopafasta', 'active' => 'dashboard', 'contentWidth' => 'wide'])
+@props(['title' => 'Supplier portal — Kopafasta', 'active' => 'dashboard', 'contentWidth' => 'wide', 'hero' => null, 'heroKey' => null])
 
 @php
     $vendor = auth()->user()
@@ -7,6 +7,7 @@
     $navService = app(\App\Services\PartnerPortalNavService::class);
     $nav = $navService->supplierNav();
     $displayName = $vendor?->name ?? auth()->user()?->name ?? 'Supplier';
+    $resolvedHero = $hero === false ? null : ($hero ?? $navService->contextualHero('supplier', $heroKey ?? $active, $vendor));
 @endphp
 
 <x-site.partner-shell
@@ -20,6 +21,7 @@
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
     :banner="null"
+    :hero="$resolvedHero"
     :profile-links="[
         ['label' => __('site.supplier_portal.nav_card'), 'route' => 'site.supplier.profile', 'params' => ['section' => 'card']],
         ['label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile'],

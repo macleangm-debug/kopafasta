@@ -7,12 +7,6 @@
 @endphp
 
 <x-site.vendor-layout :title="__('site.partner_account.documents_title')" active="documents">
-    <x-site.borrower-page-header
-        :eyebrow="ucfirst(str_replace('_', ' ', $vendor->category ?? 'partner'))"
-        :title="__('site.partner_account.documents_title')"
-        :subtitle="__('site.partner_account.documents_subtitle')"
-    />
-
     <x-site.partner-account-tabs active="documents" :tabs="$accountTabs" />
 
     @include('site.partner-account._documents', [

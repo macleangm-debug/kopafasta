@@ -1,7 +1,4 @@
 <x-site.investor-layout title="Wallet — Investor" active="wallet">
-    <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-1">Wallet</h1>
-    <p class="text-gray-500 text-sm mb-6">Deposit funds to invest, or withdraw your earnings.</p>
-
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <div class="rounded-2xl kf-premium-panel p-6">

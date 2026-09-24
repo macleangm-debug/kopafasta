@@ -1,11 +1,5 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.wallet_title'))" active="wallet">
 
-    <x-site.borrower-page-header
-        :eyebrow="__('site.affiliate_portal.nav_wallet')"
-        :title="__('site.affiliate_portal.wallet_title')"
-        :subtitle="__('site.affiliate_portal.wallet_subtitle')"
-    />
-
     <section class="mb-6 kf-premium-panel rounded-2xl p-6 sm:p-8 relative" x-data="{ withdrawing: {{ $errors->has('amount') || $errors->has('notes') ? 'true' : 'false' }} }">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
         <div class="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">

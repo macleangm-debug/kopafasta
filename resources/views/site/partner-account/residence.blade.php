@@ -19,7 +19,7 @@
         : __('site.partner_account.residence_section');
 @endphp
 
-<x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile">
+<x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile" :hero="false">
 
     <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
 

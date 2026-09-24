@@ -1,12 +1,6 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.performance_title'))" active="performance">
 
     @if ($premium)
-        <x-site.borrower-page-header
-            :eyebrow="__('site.affiliate_portal.premium_badge')"
-            :title="__('site.affiliate_portal.impact_title')"
-            :subtitle="__('site.affiliate_portal.impact_subtitle')"
-        />
-
         <section class="kf-premium-panel rounded-2xl p-6 sm:p-8 mb-6 relative overflow-hidden">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
             <div class="relative">
@@ -39,12 +33,6 @@
             </section>
         @endif
     @else
-        <x-site.borrower-page-header
-            :eyebrow="__('site.affiliate_portal.nav_performance')"
-            :title="__('site.affiliate_portal.performance_rules_title')"
-            :subtitle="__('site.affiliate_portal.performance_rules_subtitle')"
-        />
-
         <section class="glass-card p-6 mb-6 grid md:grid-cols-3 gap-4 text-sm">
             <div>
                 <p class="text-xs uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.assessment_period') }}</p>

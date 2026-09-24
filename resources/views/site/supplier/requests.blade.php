@@ -4,12 +4,6 @@
         $deals = $deals ?? collect();
     @endphp
 
-    <x-site.borrower-page-header
-        :eyebrow="__('site.supplier_portal.title')"
-        :title="__('site.supplier_portal.requests_title')"
-        :subtitle="__('site.supplier_portal.requests_subtitle')"
-    />
-
     @if ($deals->isEmpty())
         <x-site.empty-state
             icon="👥"

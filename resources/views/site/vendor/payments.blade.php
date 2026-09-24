@@ -1,8 +1,5 @@
 <x-site.vendor-layout :title="__('site.partner_portal.nav_payments')" active="payments">
 
-    <h1 class="text-2xl font-extrabold mb-1">{{ __('site.partner_portal.payments_title') }}</h1>
-    <p class="text-sm text-gray-500 mb-5">{{ __('site.partner_portal.payments_subtitle') }}</p>
-
     @if (session('status'))
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
     @endif

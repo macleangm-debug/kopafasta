@@ -214,6 +214,231 @@ class PartnerPortalNavService
         return null;
     }
 
+    /**
+     * Contextual account-shell hero for partner inner pages (borrower loans/settings language).
+     * Dashboard and profile hub keep their own identity heroes.
+     *
+     * @return array{title: string, body?: string|null, ctaUrl?: string|null, ctaLabel?: string|null}|null
+     */
+    public function contextualHero(string $family, string $active, ?Vendor $vendor = null): ?array
+    {
+        if (in_array($active, ['dashboard', 'profile'], true)) {
+            return null;
+        }
+
+        $catalog = match ($family) {
+            'supplier' => [
+                'assets' => [
+                    'title' => __('site.supplier_portal.nav_assets'),
+                    'body' => __('site.supplier_portal.assets_hero_body'),
+                    'ctaUrl' => route('site.supplier.assets.create'),
+                    'ctaLabel' => __('site.supplier_portal.cta_upload'),
+                ],
+                'requests' => [
+                    'title' => __('site.supplier_portal.requests_title'),
+                    'body' => __('site.supplier_portal.requests_subtitle'),
+                ],
+                'settlements' => [
+                    'title' => __('site.supplier_portal.money_title'),
+                    'body' => __('site.supplier_portal.money_subtitle'),
+                ],
+                'applications' => [
+                    'title' => __('site.supplier_portal.money_title'),
+                    'body' => __('site.supplier_portal.money_subtitle'),
+                ],
+                'reservations' => [
+                    'title' => __('site.supplier_portal.requests_title'),
+                    'body' => __('site.supplier_portal.requests_subtitle'),
+                ],
+                'notifications' => [
+                    'title' => __('site.partner_portal.nav_notifications'),
+                    'body' => __('site.partner_portal.notifications_subtitle'),
+                ],
+                'settings' => [
+                    'title' => __('site.supplier_portal.settings_title'),
+                    'body' => __('site.supplier_portal.settings_subtitle'),
+                ],
+                'documents' => [
+                    'title' => __('site.supplier_portal.documents_title'),
+                    'body' => __('site.supplier_portal.documents_subtitle'),
+                ],
+                'card' => [
+                    'title' => __('site.supplier_portal.card_title'),
+                    'body' => __('site.supplier_portal.card_subtitle'),
+                    'ctaUrl' => route('site.supplier.profile'),
+                    'ctaLabel' => __('site.supplier_portal.nav_profile'),
+                ],
+            ],
+            'affiliate' => [
+                'referrals' => [
+                    'title' => __('site.affiliate_portal.referrals_title'),
+                    'body' => __('site.affiliate_portal.referrals_pipeline_subtitle'),
+                ],
+                'share' => [
+                    'title' => __('site.affiliate_portal.share_title'),
+                    'body' => __('site.affiliate_portal.share_subtitle'),
+                ],
+                'wallet' => [
+                    'title' => __('site.affiliate_portal.wallet_title'),
+                    'body' => __('site.affiliate_portal.wallet_subtitle'),
+                ],
+                'performance' => [
+                    'title' => __('site.affiliate_portal.performance_title'),
+                    'body' => __('site.affiliate_portal.impact_subtitle'),
+                ],
+                'notifications' => [
+                    'title' => __('site.partner_portal.nav_notifications'),
+                    'body' => __('site.partner_portal.notifications_subtitle'),
+                ],
+                'settings' => [
+                    'title' => __('site.partner_account.settings_title'),
+                    'body' => __('site.partner_account.settings_subtitle'),
+                ],
+                'membership' => [
+                    'title' => __('site.affiliate_portal.membership_title'),
+                    'body' => __('site.affiliate_portal.membership_subtitle'),
+                ],
+                'terms' => [
+                    'title' => __('affiliate_terms.title'),
+                ],
+                'agreement' => [
+                    'title' => __('site.affiliate_portal.agreement_title'),
+                ],
+            ],
+            'capital' => [
+                'funded' => [
+                    'title' => __('site.capital_portal.funded_title'),
+                    'body' => __('site.capital_portal.funded_body'),
+                ],
+                'returns' => [
+                    'title' => __('site.capital_portal.returns_title'),
+                    'body' => __('site.capital_portal.returns_body'),
+                ],
+                'wallet' => [
+                    'title' => __('site.capital_portal.wallet_title'),
+                    'body' => __('site.capital_portal.wallet_body'),
+                ],
+                'documents' => [
+                    'title' => __('site.capital_portal.reports_title'),
+                    'body' => __('site.capital_portal.reports_body'),
+                ],
+                'notifications' => [
+                    'title' => __('site.partner_portal.nav_notifications'),
+                    'body' => __('site.partner_portal.notifications_subtitle'),
+                ],
+                'support' => [
+                    'title' => __('site.capital_portal.support_title'),
+                    'body' => __('site.capital_portal.support_body'),
+                ],
+                'settings' => [
+                    'title' => __('site.partner_account.settings_title'),
+                    'body' => __('site.partner_account.settings_subtitle'),
+                ],
+                'investments' => [
+                    'title' => __('site.capital_portal.investments_title'),
+                    'body' => __('site.capital_portal.investments_body'),
+                ],
+                'pools' => [
+                    'title' => __('site.capital_portal.pools_title'),
+                    'body' => __('site.capital_portal.pools_body'),
+                ],
+                'transactions' => [
+                    'title' => __('site.capital_portal.transactions_title'),
+                    'body' => __('site.capital_portal.transactions_body'),
+                ],
+                'analytics' => [
+                    'title' => __('site.capital_portal.analytics_title'),
+                    'body' => __('site.capital_portal.analytics_body'),
+                ],
+            ],
+            default => $this->serviceContextualHeroes($vendor),
+        };
+
+        if (isset($catalog[$active])) {
+            return $catalog[$active];
+        }
+
+        $nav = match ($family) {
+            'supplier' => $this->supplierNav(),
+            'affiliate' => $this->affiliateNav(),
+            'capital' => $this->capitalNav(),
+            default => $this->serviceNav($vendor),
+        };
+        $item = collect($nav)->firstWhere('key', $active);
+
+        return $item ? ['title' => $item['label']] : null;
+    }
+
+    /**
+     * @return array<string, array{title: string, body?: string|null, ctaUrl?: string|null, ctaLabel?: string|null}>
+     */
+    private function serviceContextualHeroes(?Vendor $vendor): array
+    {
+        $jobsTitle = $vendor?->isInsurance()
+            ? __('site.partner_portal.cover_jobs_title')
+            : ($vendor?->isValuer()
+                ? __('site.partner_portal.nav_valuation_jobs')
+                : ($vendor?->isGpsInstaller()
+                    ? __('site.partner_portal.nav_gps_jobs')
+                    : __('site.partner_portal.jobs_title')));
+        $jobsBody = $vendor?->isInsurance()
+            ? __('site.partner_portal.cover_jobs_subtitle')
+            : __('site.partner_portal.jobs_subtitle');
+
+        $heroes = [
+            'tasks' => [
+                'title' => $jobsTitle,
+                'body' => $jobsBody,
+            ],
+            'payments' => [
+                'title' => __('site.partner_portal.payments_title'),
+                'body' => __('site.partner_portal.payments_subtitle'),
+            ],
+            'calendar' => [
+                'title' => __('site.partner_portal.nav_calendar'),
+                'body' => __('site.partner_portal.calendar_subtitle'),
+            ],
+            'notifications' => [
+                'title' => __('site.partner_portal.nav_notifications'),
+                'body' => __('site.partner_portal.notifications_subtitle'),
+            ],
+            'support' => [
+                'title' => __('site.partner_portal.support_title'),
+                'body' => __('site.partner_portal.support_subtitle'),
+            ],
+            'recovery' => [
+                'title' => __('site.partner_portal.nav_recovery'),
+                'body' => __('site.partner_portal.recovery_subtitle'),
+            ],
+            'recovery_wallet' => [
+                'title' => __('site.partner_portal.nav_commission'),
+                'body' => __('site.partner_portal.recovery_wallet_subtitle'),
+            ],
+            'settings' => [
+                'title' => __('site.partner_account.settings_title'),
+                'body' => __('site.partner_account.settings_subtitle'),
+            ],
+            'documents' => [
+                'title' => __('site.partner_account.documents_title'),
+                'body' => __('site.partner_account.documents_subtitle'),
+            ],
+            'verify' => [
+                'title' => __('site.card_verify.page_title'),
+            ],
+            'terms' => [
+                'title' => __('site.partner_portal.nav_terms'),
+                'body' => __('partner_terms.required'),
+            ],
+        ];
+
+        if ($vendor && ! $vendor->isInsurance() && \Illuminate\Support\Facades\Route::has('site.partner.calendar')) {
+            $heroes['tasks']['ctaUrl'] = route('site.partner.calendar');
+            $heroes['tasks']['ctaLabel'] = __('site.partner_portal.nav_calendar');
+        }
+
+        return $heroes;
+    }
+
     public function iconSvg(string $name): string
     {
         return match ($name) {

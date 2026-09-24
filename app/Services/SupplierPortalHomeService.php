@@ -50,7 +50,7 @@ class SupplierPortalHomeService
             ])
             ->orderByDesc('request_count')
             ->orderByDesc('active_count')
-            ->limit(3)
+            ->limit(5)
             ->get();
 
         return [

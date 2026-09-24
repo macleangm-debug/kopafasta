@@ -1,7 +1,4 @@
 <x-site.investor-layout title="Support — Investor" active="support">
-    <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-1">Investor support</h1>
-    <p class="text-gray-500 text-sm mb-6">Your dedicated relationship team is one tap away.</p>
-
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-6">
             <div class="size-12 grid place-items-center rounded-xl bg-emerald-100 text-brand font-bold">AM</div>

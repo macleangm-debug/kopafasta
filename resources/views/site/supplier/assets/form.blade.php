@@ -1,4 +1,4 @@
-<x-site.supplier-layout :title="$asset ? __('site.supplier_portal.wizard_save') : __('site.supplier_portal.cta_upload')" active="assets">
+<x-site.supplier-layout :title="$asset ? __('site.supplier_portal.wizard_save') : __('site.supplier_portal.cta_upload')" active="assets" :hero="false">
     @php
         $maxPhotos = $maxAssetPhotos ?? 7;
         $quote = $quote ?? ['deposit_percent' => 0, 'deposit_amount' => 0, 'deposit_markup_percent' => 10, 'deposit_markup_amount' => 0, 'customer_deposit_due' => 0, 'financed_amount' => 0, 'pre_financing_total' => 0];

@@ -1,4 +1,4 @@
-@props(['title' => null, 'active' => 'dashboard', 'contentWidth' => 'wide'])
+@props(['title' => null, 'active' => 'dashboard', 'contentWidth' => 'wide', 'hero' => null, 'heroKey' => null])
 
 @php
     $vendor = auth()->user()
@@ -8,6 +8,7 @@
     $nav = $navService->affiliateNav();
     $displayName = $vendor?->name ?? auth()->user()?->name ?? 'Partner';
     $kycOk = in_array($vendor?->affiliate_kyc_status, ['verified', 'approved'], true);
+    $resolvedHero = $hero === false ? null : ($hero ?? $navService->contextualHero('affiliate', $heroKey ?? $active, $vendor));
 @endphp
 
 <x-site.partner-shell
@@ -21,6 +22,7 @@
     :display-name="$displayName"
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
     :banner="null"
+    :hero="$resolvedHero"
     :profile-links="[
         ['label' => __('site.affiliate_portal.nav_dashboard'), 'route' => 'site.affiliate.dashboard'],
         ['label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet'],

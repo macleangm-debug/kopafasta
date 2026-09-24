@@ -1,10 +1,4 @@
-<x-site.affiliate-layout :title="brand_title(__('affiliate_terms.title'))" active="profile">
-    <x-site.borrower-page-header
-        :eyebrow="brand_name()"
-        :title="__('affiliate_terms.title')"
-        :subtitle="$accepted ? __('affiliate_terms.already_accepted') : __('affiliate_terms.required')"
-    />
-
+<x-site.affiliate-layout :title="brand_title(__('affiliate_terms.title'))" active="profile" hero-key="terms">
     <div class="max-w-3xl space-y-5">
         @if ($accepted)
             <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">

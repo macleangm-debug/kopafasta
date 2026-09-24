@@ -6,12 +6,7 @@
     ];
 @endphp
 
-<x-site.investor-layout title="Settings — Capital partner" active="profile">
-    <x-site.borrower-page-header
-        eyebrow="Capital partner"
-        title="Settings"
-        subtitle="Security and account preferences for your capital portal."
-    />
+<x-site.investor-layout title="Settings — Capital partner" active="profile" hero-key="settings">
 
     <x-site.partner-account-tabs active="settings" :tabs="$accountTabs" />
 

@@ -1,4 +1,4 @@
-@props(['title' => 'Capital partner portal — Kopafasta', 'active' => 'dashboard', 'contentWidth' => 'wide'])
+@props(['title' => 'Capital partner portal — Kopafasta', 'active' => 'dashboard', 'contentWidth' => 'wide', 'hero' => null, 'heroKey' => null])
 
 @php
     $navService = app(\App\Services\PartnerPortalNavService::class);
@@ -7,6 +7,7 @@
     $lender = auth()->user()
         ? \App\Models\Lender::query()->where('user_id', auth()->id())->first()
         : null;
+    $resolvedHero = $hero === false ? null : ($hero ?? $navService->contextualHero('capital', $heroKey ?? $active));
 @endphp
 
 <x-site.partner-shell
@@ -20,6 +21,7 @@
     :display-name="$displayName"
     :subtitle="$lender?->code ?? auth()->user()?->email"
     :banner="null"
+    :hero="$resolvedHero"
     :profile-links="[
         ['label' => 'Dashboard', 'route' => 'site.investor.dashboard'],
         ['label' => 'Profile', 'route' => 'site.investor.profile'],

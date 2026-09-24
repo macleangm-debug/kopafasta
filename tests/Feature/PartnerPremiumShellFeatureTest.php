@@ -86,7 +86,30 @@ class PartnerPremiumShellFeatureTest extends TestCase
             ->get(route('site.partner.payments'))
             ->assertOk()
             ->assertSee(__('site.partner_portal.payments_empty_title'), false)
+            ->assertSee(__('site.partner_portal.payments_title'), false)
+            ->assertSee('kf-premium-panel', false)
             ->assertDontSee('<thead', false);
+    }
+
+    public function test_partner_inner_pages_use_account_shell_hero(): void
+    {
+        $this->seed(PartnerDemoAccountsSeeder::class);
+
+        $valuer = User::query()->where('email', 'valuer@kopafasta.local')->firstOrFail();
+        $this->actingAs($valuer)
+            ->get(route('site.partner.tasks'))
+            ->assertOk()
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee(__('site.partner_portal.nav_valuation_jobs'), false)
+            ->assertSee(__('site.partner_portal.jobs_subtitle'), false);
+
+        $affiliate = User::query()->where('email', 'affiliate@kopafasta.local')->firstOrFail();
+        $this->actingAs($affiliate)
+            ->get(route('site.affiliate.wallet'))
+            ->assertOk()
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee(__('site.affiliate_portal.wallet_title'), false)
+            ->assertSee(__('site.affiliate_portal.wallet_subtitle'), false);
     }
 
     public function test_footer_includes_service_partners_link(): void

@@ -119,6 +119,10 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.supplier_portal.nav_buyers'), false)
             ->assertSee(__('site.supplier_portal.recent_payments_title'), false)
             ->assertSee(__('site.supplier_portal.asset_activity_title'), false)
+            ->assertSee(__('site.supplier_portal.see_all'), false)
+            ->assertSee('data-kf-supplier-home-rail', false)
+            ->assertSee('snap-x snap-mandatory', false)
+            ->assertSee('lg:grid-cols-2', false)
             ->assertSee(__('site.supplier_portal.nav_home'), false)
             ->assertSee(__('site.supplier_portal.nav_card'), false)
             ->assertSee(__('site.supplier_portal.nav_money'), false)
@@ -149,7 +153,42 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertOk()
             ->assertSee(__('site.supplier_portal.money_available'), false)
             ->assertSee(__('site.supplier_portal.money_pending'), false)
+            ->assertSee(__('site.supplier_portal.money_title'), false)
+            ->assertSee(__('site.supplier_portal.money_subtitle'), false)
+            ->assertSee('kf-premium-panel', false)
             ->assertDontSee('not the full underwriting', false);
+    }
+
+    public function test_inner_pages_use_account_shell_hero(): void
+    {
+        [$user] = $this->supplier();
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.assets'))
+            ->assertOk()
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee(__('site.supplier_portal.nav_assets'), false)
+            ->assertSee(__('site.supplier_portal.assets_hero_body'), false)
+            ->assertSee(__('site.supplier_portal.cta_upload'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.requests'))
+            ->assertOk()
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee(__('site.supplier_portal.requests_title'), false)
+            ->assertSee(__('site.supplier_portal.requests_subtitle'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.profile'))
+            ->assertOk()
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee('MacLeans Autotraders', false);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.assets.create'))
+            ->assertOk()
+            ->assertSee('admin-wizard', false)
+            ->assertDontSee(__('site.supplier_portal.assets_hero_body'), false);
     }
 
     public function test_profile_uses_chips_and_card_shows_active_account(): void

@@ -1,7 +1,4 @@
 <x-site.vendor-layout :title="__('site.partner_portal.nav_notifications')" active="notifications">
-    <h1 class="text-2xl font-extrabold mb-1">{{ __('site.partner_portal.notifications') }}</h1>
-    <p class="text-sm text-gray-500 mb-5">{{ __('site.partner_portal.notifications_subtitle') }}</p>
-
     @if ($notifications->isEmpty())
         <x-site.empty-state
             icon="🔔"

@@ -1,16 +1,4 @@
 <x-site.supplier-layout title="Supplier assets" active="assets">
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-            <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">{{ __('site.supplier_portal.nav_assets') }}</h1>
-            <p class="text-sm text-gray-500 mt-1">{{ __('site.supplier_portal.hero_blurb') }}</p>
-        </div>
-        <a href="{{ route('site.supplier.assets.create') }}"
-           data-kf-motion="push"
-           class="inline-flex bg-brand-gold hover:brightness-95 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-            {{ __('site.supplier_portal.cta_upload') }}
-        </a>
-    </div>
-
     @if ($assets->isEmpty())
         <x-site.empty-state
             icon="📦"

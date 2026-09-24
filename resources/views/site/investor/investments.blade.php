@@ -1,11 +1,4 @@
 <x-site.investor-layout title="My investments — Investor" active="investments">
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">My investments</h1>
-            <p class="text-gray-500 text-sm mt-1">All your capital placements across pools and direct loans.</p>
-        </div>
-    </div>
-
     <div class="flex flex-wrap gap-2 mb-4">
         @foreach (['' => 'All', 'active' => 'Active', 'matured' => 'Matured', 'closed' => 'Closed', 'defaulted' => 'Defaulted', 'pending' => 'Pending'] as $k => $label)
             <a href="?status={{ $k }}" class="rounded-full px-3 py-1.5 text-xs font-semibold border

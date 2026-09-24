@@ -1,16 +1,4 @@
 <x-site.supplier-layout title="Delivered assets" active="assets">
-    <x-site.borrower-page-header
-        eyebrow="Supplier"
-        title="Delivered assets"
-        subtitle="Assets handed over to borrowers under managed-loan arrangements."
-    >
-        <x-slot:actions>
-            <a href="{{ route('site.supplier.assets') }}" data-kf-motion="tab" class="inline-flex bg-white ring-1 ring-gray-200 hover:ring-brand/30 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm">
-                ← Back to assets
-            </a>
-        </x-slot:actions>
-    </x-site.borrower-page-header>
-
     @if ($reservations->isEmpty())
         <x-site.empty-state
             icon="📦"

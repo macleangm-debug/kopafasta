@@ -1,10 +1,4 @@
 <x-site.supplier-layout :title="brand_title(__('site.partner_portal.nav_notifications'))" active="notifications">
-    <x-site.borrower-page-header
-        :eyebrow="__('site.supplier_portal.title')"
-        :title="__('site.partner_portal.nav_notifications')"
-        :subtitle="__('site.partner_portal.no_notifications')"
-    />
-
     <div class="glass-card rounded-2xl ring-1 ring-brand/10">
         @if ($notifications->isEmpty())
             <x-site.empty-state

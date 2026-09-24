@@ -1,10 +1,4 @@
 <x-site.supplier-layout :title="__('site.supplier_portal.money_title')" active="settlements">
-    <x-site.borrower-page-header
-        :eyebrow="__('site.supplier_portal.money_eyebrow')"
-        :title="__('site.supplier_portal.money_title')"
-        :subtitle="__('site.supplier_portal.money_subtitle')"
-    />
-
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         @foreach ([
             [__('site.supplier_portal.money_available'), format_money($money['available'] ?? 0)],

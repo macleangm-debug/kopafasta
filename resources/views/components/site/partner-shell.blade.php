@@ -10,6 +10,7 @@
     'banner' => null,
     'profileLinks' => [],
     'notificationsRoute' => 'site.partner.notifications',
+    'hero' => null,
 ])
 
 @php
@@ -268,6 +269,15 @@
 
         <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-28 lg:pb-8 overflow-x-clip" data-kf-busy-scope>
             <div class="{{ $contentMax }} w-full mx-auto min-w-0">
+                @if (is_array($hero) && filled($hero['title'] ?? null))
+                    <x-site.account-shell-hero
+                        mode="contextual"
+                        :title="$hero['title']"
+                        :body="$hero['body'] ?? null"
+                        :cta-url="$hero['ctaUrl'] ?? null"
+                        :cta-label="$hero['ctaLabel'] ?? null"
+                    />
+                @endif
                 {{ $slot }}
             </div>
         </main>

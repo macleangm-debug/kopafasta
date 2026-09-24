@@ -91,69 +91,79 @@
         @endif
     </section>
 
-    <section class="mb-6 glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
-        <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-4">
-            <h2 class="font-bold text-gray-900">{{ __('site.supplier_portal.recent_payments_title') }}</h2>
-            <a href="{{ route('site.supplier.settlements') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.supplier_portal.recent_payments_view_all') }}</a>
-        </div>
-        @if ($recentPayments->isEmpty())
-            <p class="px-4 sm:px-5 pb-5 text-sm text-gray-500">{{ __('site.supplier_portal.recent_payments_empty') }}</p>
-        @else
-            <div class="hidden sm:block overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-brand-muted/30 text-left text-xs uppercase tracking-widest text-brand">
-                        <tr>
-                            <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_date') }}</th>
-                            <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_asset') }}</th>
-                            <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_reference') }}</th>
-                            <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_principal') }}</th>
-                            <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_status') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 bg-white">
-                        @foreach ($recentPayments as $payment)
+    @php
+        $recentPayments = $recentPayments->take(5);
+        $assetActivity = $assetActivity->take(5);
+    @endphp
+    <div class="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1 scrollbar-none lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0"
+         data-kf-supplier-home-rail>
+        <section class="mb-2 min-w-[85%] snap-center shrink-0 lg:min-w-0 lg:mb-0 glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
+            <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-4">
+                <h2 class="font-bold text-gray-900">{{ __('site.supplier_portal.recent_payments_title') }}</h2>
+                <a href="{{ route('site.supplier.settlements') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.supplier_portal.see_all') }}</a>
+            </div>
+            @if ($recentPayments->isEmpty())
+                <p class="px-4 sm:px-5 pb-5 text-sm text-gray-500">{{ __('site.supplier_portal.recent_payments_empty') }}</p>
+            @else
+                <div class="hidden sm:block overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-brand-muted/30 text-left text-xs uppercase tracking-widest text-brand">
                             <tr>
-                                <td class="px-5 py-3 tabular-nums">{{ optional($payment->created_at)->format('d M Y') }}</td>
-                                <td class="px-5 py-3">{{ $payment->description ?: '—' }}</td>
-                                <td class="px-5 py-3 font-mono text-xs">{{ $payment->invoice_number }}</td>
-                                <td class="px-5 py-3 font-semibold tabular-nums">{{ format_money($payment->amount) }}</td>
-                                <td class="px-5 py-3">{{ ucfirst($payment->status) }}</td>
+                                <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_date') }}</th>
+                                <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_asset') }}</th>
+                                <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_reference') }}</th>
+                                <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_principal') }}</th>
+                                <th class="px-5 py-3 font-semibold">{{ __('site.supplier_portal.recent_col_status') }}</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            <div class="sm:hidden divide-y divide-gray-100">
-                @foreach ($recentPayments as $payment)
-                    <div class="px-4 py-3">
-                        <p class="text-sm font-semibold text-gray-900">{{ format_money($payment->amount) }}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ optional($payment->created_at)->format('d M Y') }} · {{ ucfirst($payment->status) }}</p>
-                        <p class="text-xs text-gray-600 mt-1">{{ $payment->description ?: $payment->invoice_number }}</p>
-                    </div>
-                @endforeach
-            </div>
-        @endif
-    </section>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 bg-white">
+                            @foreach ($recentPayments as $payment)
+                                <tr>
+                                    <td class="px-5 py-3 tabular-nums">{{ optional($payment->created_at)->format('d M Y') }}</td>
+                                    <td class="px-5 py-3">{{ $payment->description ?: '—' }}</td>
+                                    <td class="px-5 py-3 font-mono text-xs">{{ $payment->invoice_number }}</td>
+                                    <td class="px-5 py-3 font-semibold tabular-nums">{{ format_money($payment->amount) }}</td>
+                                    <td class="px-5 py-3">{{ ucfirst($payment->status) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="sm:hidden divide-y divide-gray-100">
+                    @foreach ($recentPayments as $payment)
+                        <div class="px-4 py-3">
+                            <p class="text-sm font-semibold text-gray-900">{{ format_money($payment->amount) }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ optional($payment->created_at)->format('d M Y') }} · {{ ucfirst($payment->status) }}</p>
+                            <p class="text-xs text-gray-600 mt-1">{{ $payment->description ?: $payment->invoice_number }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </section>
 
-    <section class="mb-2">
-        <h2 class="font-bold text-gray-900 mb-3">{{ __('site.supplier_portal.asset_activity_title') }}</h2>
-        @if ($assetActivity->isEmpty())
-            <p class="text-sm text-gray-500">{{ __('site.supplier_portal.asset_activity_empty') }}</p>
-        @else
-            <div class="space-y-2">
-                @foreach ($assetActivity as $asset)
-                    <a href="{{ route('site.supplier.assets.edit', $asset) }}"
-                       class="flex items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3 hover:ring-brand/30">
-                        <p class="font-semibold text-sm text-gray-900 truncate">{{ $asset->title }}</p>
-                        <p class="text-xs text-gray-500 shrink-0">
-                            {{ __('site.supplier_portal.asset_activity_meta', [
-                                'requests' => (int) ($asset->request_count ?? 0),
-                                'active' => (int) ($asset->active_count ?? 0),
-                            ]) }}
-                        </p>
-                    </a>
-                @endforeach
+        <section class="mb-2 min-w-[85%] snap-center shrink-0 lg:min-w-0 lg:mb-0 glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
+            <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-4">
+                <h2 class="font-bold text-gray-900">{{ __('site.supplier_portal.asset_activity_title') }}</h2>
+                <a href="{{ route('site.supplier.assets') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.supplier_portal.see_all') }}</a>
             </div>
-        @endif
-    </section>
+            @if ($assetActivity->isEmpty())
+                <p class="px-4 sm:px-5 pb-5 text-sm text-gray-500">{{ __('site.supplier_portal.asset_activity_empty') }}</p>
+            @else
+                <div class="divide-y divide-gray-100">
+                    @foreach ($assetActivity as $asset)
+                        <a href="{{ route('site.supplier.assets.edit', $asset) }}"
+                           class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 hover:bg-brand-muted/20">
+                            <p class="font-semibold text-sm text-gray-900 truncate">{{ $asset->title }}</p>
+                            <p class="text-xs text-gray-500 shrink-0">
+                                {{ __('site.supplier_portal.asset_activity_meta', [
+                                    'requests' => (int) ($asset->request_count ?? 0),
+                                    'active' => (int) ($asset->active_count ?? 0),
+                                ]) }}
+                            </p>
+                        </a>
+                    @endforeach
+                </div>
+            @endif
+        </section>
+    </div>
 </x-site.supplier-layout>

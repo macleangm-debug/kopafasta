@@ -1,7 +1,4 @@
 <x-site.vendor-layout :title="__('site.partner_portal.nav_support')" active="support">
-    <h1 class="text-2xl font-extrabold mb-1">{{ __('site.partner_portal.support_title') }}</h1>
-    <p class="text-sm text-gray-500 mb-5">{{ __('site.partner_portal.support_subtitle') }}</p>
-
     @php
         $wa = preg_replace('/\D+/', '', (string) $supportWhatsapp) ?: '255700000000';
         $tel = preg_replace('/\s+/', '', (string) $supportPhone);

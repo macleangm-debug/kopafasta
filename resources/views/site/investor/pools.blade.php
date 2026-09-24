@@ -1,10 +1,4 @@
 <x-site.investor-layout title="Funding pools — Investor" active="pools">
-    <div class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-1">Capital deployment</p>
-        <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">Funding pools</h1>
-        <p class="text-gray-500 text-sm mt-1">Pick a pool that matches your risk appetite and target return.</p>
-    </div>
-
     @php
         $activeFilters = collect([$risk ?? '', $type ?? ''])->filter(fn ($v) => filled($v))->count();
     @endphp

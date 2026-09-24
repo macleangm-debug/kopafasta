@@ -9,13 +9,7 @@
     'accountTabs' => [],
 ])
 
-<x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile" content-width="wide">
-
-    <x-site.borrower-page-header
-        :eyebrow="$eyebrow"
-        :title="$title"
-        :subtitle="$subtitle"
-    />
+<x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile" content-width="wide" :hero="false">
 
     <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
 

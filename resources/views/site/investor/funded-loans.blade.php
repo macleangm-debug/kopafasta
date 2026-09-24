@@ -1,9 +1,4 @@
 <x-site.investor-layout title="Funded loans — Investor" active="funded">
-    <div class="mb-6">
-        <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">Funded loans</h1>
-        <p class="text-gray-500 text-sm mt-1">Capital deployed into live loans, outstanding exposure, and interest earned.</p>
-    </div>
-
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="glass-card rounded-xl ring-1 ring-brand/10 p-4 shadow-sm">
             <p class="text-xs uppercase tracking-wider text-gray-500 font-semibold">Capital invested</p>

@@ -3,9 +3,6 @@
     $pending = max(0, (float) $stats['returnsExpect'] - (float) $stats['returnsPaid']);
 @endphp
 <x-site.investor-layout title="Earnings — Capital partner" active="returns">
-    <h1 class="text-2xl lg:text-3xl font-bold tracking-tight mb-1">Earnings</h1>
-    <p class="text-gray-500 text-sm mb-6">Partner interest earned from funded loans (60% share of interest by default).</p>
-
     <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-bold">Monthly earnings (last 12 months)</h2>

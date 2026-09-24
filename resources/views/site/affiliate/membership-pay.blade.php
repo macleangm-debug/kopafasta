@@ -1,10 +1,4 @@
-<x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.membership_pay'))" active="profile">
-    <x-site.borrower-page-header
-        :eyebrow="__('site.affiliate_portal.membership_title')"
-        :title="__('site.affiliate_portal.membership_pay')"
-        :subtitle="__('site.affiliate_portal.membership_subtitle')"
-    />
-
+<x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.membership_pay'))" active="profile" :hero="false">
     <div class="max-w-xl mx-auto">
         @include('site.borrower.payments._show_body', [
             'payment' => $payment,
