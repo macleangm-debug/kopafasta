@@ -44,6 +44,10 @@ class LoanProductController extends ResourceController
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name', 'code']),
+            'documentTypes' => \App\Models\DocumentType::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'category']),
             'postApprovalFeeCatalog' => app(FeeCatalogService::class)->postApprovalFees(),
             'cloneSources' => LoanProduct::query()
                 ->when($record, fn ($q) => $q->whereKeyNot($record->id))

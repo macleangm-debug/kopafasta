@@ -2,7 +2,7 @@
     $r = $record ?? null;
     $isAssetLending = $isAssetLending ?? false;
     $templates = $documentTemplates ?? collect();
-    $templateOptions = ['' => 'Use system default'] + $templates->mapWithKeys(fn ($t) => [(string) $t->id => $t->name.' ('.$t->code.')'])->all();
+    $templateOptions = ['' => 'System default'] + $templates->mapWithKeys(fn ($t) => [(string) $t->id => $t->name.' ('.$t->code.')'])->all();
 @endphp
 
 <x-admin.step title="Agreement template">
@@ -13,6 +13,11 @@
     </p>
     @if ($isAssetLending)
         <x-admin.select name="asset_lending_agreement_template_id" label="Agreement template" :options="$templateOptions" :value="(string) ($r?->asset_lending_agreement_template_id ?? '')" help="Leave blank to use the default Asset Lending agreement." />
+        @if ($r)
+            <p class="md:col-span-2 text-xs">
+                <a href="{{ route('admin.document-templates.index', ['product' => $r->id]) }}" class="font-semibold text-amber-700 hover:underline">Manage document templates →</a>
+            </p>
+        @endif
         <input type="hidden" name="offer_letter_template_id" value="{{ $r?->offer_letter_template_id }}">
         <input type="hidden" name="loan_contract_template_id" value="{{ $r?->loan_contract_template_id }}">
         <input type="hidden" name="guarantor_agreement_template_id" value="{{ $r?->guarantor_agreement_template_id }}">

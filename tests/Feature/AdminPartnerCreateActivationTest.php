@@ -74,6 +74,39 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->assertNull($partner->activation_token);
     }
 
+    public function test_admin_can_activate_invited_supplier_by_setting_pin(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.store'), [
+                'name' => 'UAT Supplier',
+                'category' => 'supplier',
+                'status' => 'inactive',
+                'phone' => '255712345910',
+                'email' => 'supplier-uat@example.com',
+                'coverage_type' => 'nationwide',
+                'activation_mode' => 'invite',
+                'supplier_type' => 'managed_loan',
+            ])
+            ->assertRedirect();
+
+        $partner = Vendor::query()->where('name', 'UAT Supplier')->firstOrFail();
+        $this->assertSame('inactive', $partner->status);
+        $this->assertNull($partner->user_id);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.reset-pin', $partner), ['pin' => '2468'])
+            ->assertRedirect(route('admin.partners.show', $partner));
+
+        $partner->refresh();
+        $this->assertSame('active', $partner->status);
+        $this->assertNotNull($partner->activated_at);
+        $this->assertNotNull($partner->user_id);
+        $this->assertSame('vendor', $partner->user->role);
+        $this->assertTrue(app(\App\Services\PinService::class)->verify('2468', $partner->user->pin_hash));
+    }
+
     public function test_admin_can_reset_partner_pin_from_partner_show(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -97,7 +130,7 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->get(route('admin.partners.show', $partner))
             ->assertOk()
             ->assertSee('Portal PIN', false)
-            ->assertSee('Re-issue activation link', false);
+            ->assertSee('Resend activation', false);
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.partners.reset-pin', $partner), ['pin' => '9999'])

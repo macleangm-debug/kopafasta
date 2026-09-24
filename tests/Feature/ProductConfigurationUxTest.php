@@ -31,12 +31,13 @@ class ProductConfigurationUxTest extends TestCase
         $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-products.edit', $product))
             ->assertOk()
-            ->assertSee('The percentage the customer must pay before the financed amount is calculated.', false)
-            ->assertSee('The longest repayment period available for this product.', false)
+            ->assertSee('Required customer deposit before the financed amount is calculated.', false)
+            ->assertSee('Longest repayment period.', false)
             ->assertSee('Charged before the borrower can proceed beyond the application-fee gate.', false)
             ->assertSee('Deposit tiers', false)
             ->assertSee('Financing tiers', false)
-            ->assertSee('Funding / supplier arrangement', false)
+            ->assertSee('Asset Lending commercial model', false)
+            ->assertSee('Capital Partner required: No', false)
             ->assertSee('Search and sharing', false)
             ->getContent();
 

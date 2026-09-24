@@ -21,8 +21,13 @@
         'Requires collateral' => $record->requires_collateral ? 'Yes' : 'No',
         'Requires guarantor'  => $record->requires_guarantor ? 'Yes' : 'No',
         'Uses capital partner' => ($record->uses_capital_partner ?? true) ? 'Yes' : 'No',
+        'Search visibility' => ($record->seo_indexable ?? true) ? 'On' : 'Off',
+        'SEO title' => filled($record->seo_title) ? $record->seo_title.' (override)' : (($record->name ?? '').' (inherited)'),
+        'SEO description' => filled($record->seo_description)
+            ? \Illuminate\Support\Str::limit($record->seo_description, 80).' (override)'
+            : (\Illuminate\Support\Str::limit((string) ($record->short_description ?: $record->description), 80).' (inherited)'),
         'Supplier arrangement (default)' => app(\App\Services\AssetLendingService::class)->isAssetLendingProduct($record)
-            ? 'Service / Collection — valuation not applicable for Marketplace assets'
+            ? 'Service / Collection — Capital Partner required: No'
             : '—',
         'Offer letter template' => $record->offerLetterTemplate?->name ?? 'System default',
         'Loan contract template' => $record->loanContractTemplate?->name ?? 'System default',
@@ -88,7 +93,13 @@
             <h2 class="text-sm font-semibold text-gray-900 mb-3">Post-approval fees</h2>
             <p class="text-xs text-gray-500 mb-3">Pulled from <a href="{{ route('admin.charges-fees.index') }}" class="text-amber-700 font-semibold">fee management</a> and attached to this product.</p>
             <ul class="divide-y divide-gray-100 text-sm">
-                @foreach ($record->postApprovalFees as $fee)
+                @foreach ($record->postApprovalFees->filter(function ($fee) use ($isAssetLending) {
+                if (! $isAssetLending) {
+                    return true;
+                }
+
+                return in_array(strtoupper((string) $fee->code), ['GPS_FEE', 'INS_FEE', 'REG_POST_FEE'], true);
+            }) as $fee)
                     <li class="py-2 flex justify-between gap-3">
                         <span>{{ $fee->name }} <span class="text-xs text-gray-500">({{ $fee->code }})</span></span>
                         <span class="font-semibold text-gray-800">

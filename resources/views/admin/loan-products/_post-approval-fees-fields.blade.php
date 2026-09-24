@@ -22,7 +22,7 @@
                 return true;
             }
 
-            return $existing->contains(fn ($row) => (int) ($row['charges_fee_id'] ?? 0) === (int) $fee->id);
+            return false;
         })->values();
     }
     $catalogById = $catalog->keyBy('id');
@@ -86,7 +86,7 @@
             @foreach ($existing as $i => $row)
                 @php
                     $rowCode = strtoupper((string) ($row['code'] ?? ''));
-                    if ($assetLendingCompact && in_array($rowCode, $alHidden, true)) {
+                    if ($assetLendingCompact && ! in_array($rowCode, $alPreferred, true)) {
                         continue;
                     }
                     $linked = $row['charges_fee_id'] ? $catalogById->get((int) $row['charges_fee_id']) : null;

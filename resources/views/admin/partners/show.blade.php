@@ -67,7 +67,7 @@
     $requestedTab = (string) request('tab', '');
         $startTab = in_array($requestedTab, array_keys($profileTabs), true)
             ? $requestedTab
-            : ((session('partner_invite_ready') || session('partner_activation_url')) ? 'portal' : 'profile');
+            : ((session('partner_invite_ready') || session('partner_activation_url') || ! ($record->activated_at && $record->user_id)) ? 'portal' : 'profile');
 @endphp
 
 <div class="mt-6 space-y-4"
@@ -716,7 +716,8 @@
 @if (! $portalReady)
 <div class="bg-white rounded-xl shadow-sm ring-1 {{ session('partner_invite_ready') ? 'ring-brand' : 'ring-gray-200' }} p-6"
      x-data="{ copied: false }">
-    <h3 class="text-sm font-semibold text-gray-900">Share activation</h3>
+    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-bold">Awaiting activation</p>
+    <h3 class="text-sm font-semibold text-gray-900 mt-1">Share activation</h3>
     <p class="text-xs text-gray-500 mt-1">
         Send the partner code and link. They open it, confirm this phone, then create a 4-digit PIN. No need to type the code by hand if they use the link.
     </p>
@@ -755,22 +756,22 @@
     <div class="grid sm:grid-cols-2 gap-4">
         <form method="POST" action="{{ route('admin.partners.reset-pin', $record) }}" class="space-y-2">
             @csrf
-            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">Set new PIN</label>
+            <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500">{{ $portalReady ? 'Set new PIN' : 'Activate with PIN' }}</label>
             <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required
                    class="w-full rounded-xl border-gray-300 text-sm" placeholder="4 digits" autocomplete="off">
             <button type="submit" class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
-                Save PIN
+                {{ $portalReady ? 'Save PIN' : 'Activate & set PIN' }}
             </button>
         </form>
         <form method="POST" action="{{ route('admin.partners.reissue-activation', $record) }}" class="space-y-2">
             @csrf
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Re-activation</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Resend activation</p>
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" name="notify_partner" value="1" class="rounded border-gray-300 text-brand">
                 Also SMS / email the link
             </label>
             <button type="submit" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl">
-                Re-issue activation link
+                Resend activation
             </button>
         </form>
     </div>

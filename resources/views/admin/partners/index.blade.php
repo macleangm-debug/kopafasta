@@ -30,48 +30,30 @@
         @endcan
     </div>
 
-    <div class="mb-6 grid sm:grid-cols-2 gap-3">
+    <div class="mb-6 grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <a href="{{ route('admin.partner-applications.index') }}"
-           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Applications to screen</p>
-                <p class="text-2xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($screeningCount) }}</p>
-                <p class="text-xs text-gray-500 mt-1">Approve to move them onto this hub.</p>
-            </div>
-            <span class="text-sm font-semibold text-brand">Open →</span>
+           class="rounded-xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-3 hover:ring-brand/30 transition">
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Applications to screen</p>
+            <p class="text-xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($screeningCount) }}</p>
         </a>
         <a href="{{ route('admin.partners.onboarding') }}"
-           class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Awaiting activation</p>
-                <p class="text-2xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($awaitingCount) }}</p>
-                <p class="text-xs text-gray-500 mt-1">Approved partners who have not set a PIN yet.</p>
-            </div>
-            <span class="text-sm font-semibold text-brand">Open →</span>
+           class="rounded-xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-3 hover:ring-brand/30 transition">
+            <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Awaiting activation</p>
+            <p class="text-xl font-bold text-gray-900 tabular-nums mt-1">{{ number_format($awaitingCount) }}</p>
         </a>
+        <a href="{{ route('admin.partners.efficiency') }}"
+           class="rounded-xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-3 hover:ring-brand/30 transition">
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Partner efficiency</p>
+            <p class="text-sm font-semibold text-gray-900 mt-1">Open board →</p>
+        </a>
+        @if (auth()->user()?->hasPermission('settings.manage'))
+            <a href="{{ route('admin.partners.origination-auto-assign') }}"
+               class="rounded-xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-3 hover:ring-brand/30 transition">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Auto-assignment</p>
+                <p class="text-sm font-semibold text-gray-900 mt-1">Valuer / GPS / insurance →</p>
+            </a>
+        @endif
     </div>
-
-    <a href="{{ route('admin.partners.efficiency') }}"
-       class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
-        <div>
-            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Performance</p>
-            <p class="text-sm font-bold text-gray-900 mt-0.5">Partner efficiency</p>
-            <p class="text-xs text-gray-500 mt-1">Field partners on jobs. Affiliates on monthly new users. Open the board to see who is on each track.</p>
-        </div>
-        <span class="text-sm font-semibold text-brand">Open →</span>
-    </a>
-
-    @if (auth()->user()?->hasPermission('settings.manage'))
-        <a href="{{ route('admin.partners.origination-auto-assign') }}"
-           class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4 hover:ring-brand/30 transition">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Origination</p>
-                <p class="text-sm font-bold text-gray-900 mt-0.5">Partner auto-assignment</p>
-                <p class="text-xs text-gray-500 mt-1">Valuer, GPS, and insurance — region match after the borrower pays.</p>
-            </div>
-            <span class="text-sm font-semibold text-brand">Open →</span>
-        </a>
-    @endif
 
     <div class="mb-4 flex flex-wrap gap-2">
         <a href="{{ route('admin.partners.index') }}"

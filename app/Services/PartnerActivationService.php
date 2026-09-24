@@ -224,9 +224,14 @@ class PartnerActivationService
     {
         $user = $vendor->user_id ? User::query()->find($vendor->user_id) : null;
         if (! $user) {
-            throw ValidationException::withMessages([
-                'pin' => 'This partner has no portal login yet. Re-issue activation so they can create a PIN.',
-            ]);
+            if (! filled($vendor->phone)) {
+                throw ValidationException::withMessages([
+                    'pin' => 'Add a phone number first, then activate with a PIN or send the partner the activation link.',
+                ]);
+            }
+            $this->activateWithPartnerCode($vendor->fresh(), (string) $vendor->phone, $pin);
+
+            return;
         }
 
         app(PinService::class)->setPin($user, $pin);

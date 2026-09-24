@@ -123,13 +123,17 @@ class AssetMarketplaceController extends Controller
         return view('site.borrower.marketplace.show', compact('asset', 'reservation', 'applyUrl', 'relatedAssets'));
     }
 
-    public function startApply(string $assetId): RedirectResponse
+    public function startApply(Request $request, string $assetId): RedirectResponse
     {
         $customer = auth()->user()?->customer;
         abort_unless($customer, 403);
 
         $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
+
+        $data = $request->validate([
+            'tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
+        ]);
 
         try {
             $reservation = app(AssetReservationService::class)->startApplication($customer, $model);
@@ -142,10 +146,11 @@ class AssetMarketplaceController extends Controller
         $productCode = config('asset_marketplace.asset_loan_product_code', 'AL');
 
         return redirect()
-            ->route('site.borrower.apply', [
+            ->route('site.borrower.apply', array_filter([
                 'product' => $productCode,
                 'reservation' => $reservation->id,
-            ]);
+                'tenure' => $data['tenure_months'] ?? null,
+            ]));
     }
 
     public function reserve(Request $request, string $assetId): RedirectResponse

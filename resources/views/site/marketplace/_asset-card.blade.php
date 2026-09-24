@@ -91,8 +91,8 @@
                 <p class="font-bold text-brand tabular-nums mt-0.5 break-words leading-snug">{{ format_money($asset['deposit'], false, 0) }}</p>
             </div>
             <div class="rounded-xl bg-gray-50 px-3 py-2.5 ring-1 ring-gray-100 min-h-[4.25rem] flex flex-col justify-center">
-                <p class="text-[10px] uppercase tracking-wide text-gray-500">{{ __('borrower.marketplace.weekly_installment') }}</p>
-                <p class="font-bold text-gray-900 tabular-nums mt-0.5 break-words leading-snug">{{ format_money($asset['weekly_installment'], false, 0) }}</p>
+                <p class="text-[10px] uppercase tracking-wide text-gray-500">{{ __('borrower.marketplace.loan_amount') }}</p>
+                <p class="font-bold text-gray-900 tabular-nums mt-0.5 break-words leading-snug">{{ format_money($asset['remaining_loan'] ?? 0, false, 0) }}</p>
             </div>
         </div>
 

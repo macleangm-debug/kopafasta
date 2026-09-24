@@ -22,8 +22,10 @@
     <p class="md:col-span-2 text-xs text-gray-500" x-show="usesCapitalPartner === '1'" x-cloak>
         Capital Partner funding applies after approval. Do not also send customer principal to the supplier once the supplier has been settled.
     </p>
-    <x-admin.input name="tenure_min_months" label="Min tenure (months)" type="number" :value="$r?->tenure_min_months" required help="The shortest repayment period available for this product." />
-    <x-admin.input name="tenure_max_months" label="Max tenure (months)" type="number" :value="$r?->tenure_max_months" required help="The longest repayment period available for this product." />
+    <div class="md:col-span-2 grid sm:grid-cols-2 gap-4">
+        <x-admin.input name="tenure_min_months" label="Minimum tenure (months)" type="number" :value="$r?->tenure_min_months" required help="Shortest repayment period." />
+        <x-admin.input name="tenure_max_months" label="Maximum tenure (months)" type="number" :value="$r?->tenure_max_months" required help="Longest repayment period." />
+    </div>
     <x-admin.select name="repayment_cadence" label="Repayment cadence"
                     :options="['weekly' => 'Weekly (tenure × 4 instalments)', 'monthly' => 'Monthly']"
                     :value="$r?->repayment_cadence ?? 'weekly'" required />
@@ -40,8 +42,10 @@
                         :value="old('hides_interest', ($r?->hides_interest ?? false) ? '1' : '0')"
                         help="When Yes, borrower-facing screens and letters avoid the word interest; pricing still uses the same rate engine as Individual Loan." />
     @endif
-    <x-admin.money-input name="min_amount" label="Min amount (TZS)" :value="$r?->min_amount" required />
-    <x-admin.money-input name="max_amount" label="Max amount (TZS)" :value="$r?->max_amount" required />
+    <div class="md:col-span-2 grid sm:grid-cols-2 gap-4">
+        <x-admin.money-input name="min_amount" label="Minimum amount (TZS)" :value="$r?->min_amount" required />
+        <x-admin.money-input name="max_amount" label="Maximum amount (TZS)" :value="$r?->max_amount" required />
+    </div>
     <input type="hidden" name="interest_rate" value="{{ old('interest_rate', $r?->interest_rate ?? 0) }}">
 
     <div class="md:col-span-2 mt-2 pt-4 border-t border-gray-100">

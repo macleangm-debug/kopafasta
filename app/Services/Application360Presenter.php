@@ -239,15 +239,15 @@ class Application360Presenter
             if ($queue['needs_replacement']) {
                 return [
                     'source' => 'guarantor',
-                    'headline' => 'Borrower invites a replacement guarantor',
+                    'headline' => 'Borrower needs to choose a replacement guarantor',
                     'missing' => 'Previous invitation declined',
                     'reason' => 'Previous invitation declined',
                     'primary_status' => 'Awaiting new guarantor',
                     'who' => 'Borrower',
                     'deadline' => null,
-                    'cta' => 'Invite replacement guarantor',
-                    'href' => $href,
-                    'cta_kind' => 'continue',
+                    'cta' => 'Notify borrower to replace guarantor',
+                    'href' => route('admin.loan-applications.notify-replace-guarantor', $application),
+                    'cta_kind' => 'confirm_notify',
                     'gate_label' => null,
                     'percent' => null,
                     'bucket' => 'do_now',
@@ -454,6 +454,7 @@ class Application360Presenter
         }
 
         $attentionKeys = $this->lifecycleAttentionKeys($application, $stage);
+        $guarantorHold = $this->isGuarantorHold($application, $stage);
         $rows = [];
         foreach ($order as $key => $label) {
             $index = array_search($key, $keys, true);
@@ -464,11 +465,12 @@ class Application360Presenter
                 $index === $currentIndex => 'current',
                 default => 'upcoming',
             };
+            $href = $this->lifecycleHref($application, $key, $state, $guarantorHold);
             $rows[] = [
                 'key' => $key,
                 'label' => $label,
                 'state' => $state,
-                'href' => $this->lifecycleHref($application, $key),
+                'href' => $href,
             ];
         }
 
@@ -495,8 +497,25 @@ class Application360Presenter
         return array_values(array_unique($keys));
     }
 
-    private function lifecycleHref(LoanApplication $application, string $key): ?string
+    private function isGuarantorHold(LoanApplication $application, string $stage): bool
     {
+        return (string) $application->status === 'awaiting_guarantor'
+            || $stage === 'awaiting_guarantor';
+    }
+
+    private function lifecycleHref(
+        LoanApplication $application,
+        string $key,
+        string $state,
+        bool $guarantorHold,
+    ): ?string {
+        if ($guarantorHold && $key !== 'application') {
+            return null;
+        }
+        if (! in_array($state, ['complete', 'current', 'attention'], true)) {
+            return null;
+        }
+
         return match ($key) {
             'screening' => route('admin.loan-applications.guided-screening', $application),
             'decision', 'committee' => route('admin.loan-applications.show', [
@@ -1279,6 +1298,7 @@ class Application360Presenter
             default => 'attention',
         };
 
+        $guarantorHold = ($next['source'] ?? '') === 'guarantor';
         $rows = [
             [
                 'key' => 'application',
@@ -1292,18 +1312,20 @@ class Application360Presenter
             [
                 'key' => 'screening',
                 'label' => 'Screening & CRB',
-                'state' => $byKey->get('screening')['state'] ?? 'upcoming',
-                'detail' => $next['gate_label'] ?? null,
-                'href' => $byKey->get('screening')['href'] ?? null,
+                'state' => $guarantorHold ? 'upcoming' : ($byKey->get('screening')['state'] ?? 'upcoming'),
+                'detail' => $guarantorHold ? null : ($next['gate_label'] ?? null),
+                'href' => $guarantorHold ? null : ($byKey->get('screening')['href'] ?? null),
             ],
             [
                 'key' => 'documents',
                 'label' => 'Documents',
-                'state' => $openDocs->isNotEmpty() ? 'attention' : 'complete',
-                'detail' => $openDocs->isNotEmpty()
-                    ? ($openDocs->count().' outstanding')
-                    : 'Complete',
-                'href' => route('admin.loan-applications.show', [
+                'state' => $guarantorHold ? 'upcoming' : ($openDocs->isNotEmpty() ? 'attention' : 'complete'),
+                'detail' => $guarantorHold
+                    ? null
+                    : ($openDocs->isNotEmpty()
+                        ? ($openDocs->count().' outstanding')
+                        : 'Complete'),
+                'href' => $guarantorHold ? null : route('admin.loan-applications.show', [
                     'loan_application' => $application,
                     'workspace' => 'checklist',
                 ]),
@@ -1311,9 +1333,9 @@ class Application360Presenter
             [
                 'key' => 'collateral',
                 'label' => 'Collateral / security',
-                'state' => $collateralState,
-                'detail' => $collateralDetail,
-                'href' => $collateralState === 'na' ? null : route('admin.loan-applications.show', [
+                'state' => $guarantorHold ? 'na' : $collateralState,
+                'detail' => $guarantorHold ? null : $collateralDetail,
+                'href' => ($guarantorHold || $collateralState === 'na') ? null : route('admin.loan-applications.show', [
                     'loan_application' => $application,
                     'workspace' => 'profiles',
                 ]),
@@ -1328,9 +1350,9 @@ class Application360Presenter
                     'post_approval' => 'Post-Approval',
                     default => ucfirst(str_replace('_', '-', $key)),
                 },
-                'state' => $step['state'] ?? 'upcoming',
+                'state' => $guarantorHold ? 'upcoming' : ($step['state'] ?? 'upcoming'),
                 'detail' => null,
-                'href' => $step['href'] ?? null,
+                'href' => $guarantorHold ? null : ($step['href'] ?? null),
             ];
         }
 

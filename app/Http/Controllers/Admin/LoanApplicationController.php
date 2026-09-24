@@ -971,6 +971,27 @@ class LoanApplicationController extends ResourceController
         return redirect()->route('admin.loan-applications.guided-committee', $loan_application);
     }
 
+    public function notifyReplaceGuarantor(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+        $this->assertApplicationMutable($loan_application);
+
+        $request->validate([
+            'confirmed' => ['accepted'],
+        ]);
+
+        try {
+            app(GuarantorSupplementService::class)->notifyBorrowerToReplaceGuarantor(
+                $loan_application,
+                $request->user(),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', __('borrower.guarantor_supplement.notify_replace_admin_success'));
+    }
+
     public function requestGuarantorChange(
         Request $request,
         LoanApplication $loan_application,

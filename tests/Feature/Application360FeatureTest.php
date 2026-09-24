@@ -288,9 +288,12 @@ class Application360FeatureTest extends TestCase
         $this->assertSame('Rejected', $previous[0]['status'] ?? null);
         $this->assertStringContainsString('Paulo Albert Mtawa — Rejected', (string) ($previous[0]['label'] ?? ''));
         $this->assertSame('Awaiting new guarantor', $panel['status_label'] ?? null);
-        $this->assertSame('Invite replacement guarantor', $panel['next']['cta'] ?? null);
+        $this->assertSame('Notify borrower to replace guarantor', $panel['next']['cta'] ?? null);
+        $this->assertSame('confirm_notify', $panel['next']['cta_kind'] ?? null);
         $this->assertSame('Borrower', $panel['next']['who'] ?? null);
         $this->assertSame('Previous invitation declined', $panel['next']['reason'] ?? $panel['next']['missing'] ?? null);
+        $this->assertSame('current', data_get(collect($panel['lifecycle'] ?? [])->firstWhere('key', 'application'), 'state'));
+        $this->assertNull(data_get(collect($panel['lifecycle'] ?? [])->firstWhere('key', 'screening'), 'href'));
 
         $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $app))
@@ -298,11 +301,21 @@ class Application360FeatureTest extends TestCase
             ->getContent();
         preg_match('/id="application-360".*?<\/section>/s', $html, $panelMatch);
         $panelHtml = $panelMatch[0] ?? '';
-        $this->assertStringContainsString('Paulo Albert Mtawa — Rejected', $panelHtml);
-        $this->assertStringContainsString('Previous / Rejected', $panelHtml);
-        $this->assertStringContainsString('Invite replacement guarantor', $html);
+        $this->assertStringContainsString('Paulo Albert Mtawa', $panelHtml);
+        $this->assertStringContainsString('Previous guarantor', $panelHtml);
+        $this->assertStringContainsString('Rejected', $panelHtml);
+        $this->assertStringContainsString('Notify borrower to replace guarantor', $html);
+        $this->assertStringNotContainsString('Invite replacement guarantor', $html);
         $this->assertStringNotContainsString('not a Kopafasta member', $panelHtml);
-        $this->assertSame(1, substr_count($html, 'Open Member 360'));
+        $this->assertStringContainsString('Open Member 360', $panelHtml);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.notify-replace-guarantor', $app), ['confirmed' => '1'])
+            ->assertRedirect();
+        $this->assertDatabaseHas('notification_logs', [
+            'customer_id' => $app->customer_id,
+            'template' => 'guarantor_change_request',
+        ]);
     }
 
     /** @return array{0: User, 1: LoanApplication} */

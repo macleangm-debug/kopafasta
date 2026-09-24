@@ -108,8 +108,12 @@
         @include('admin.loan-products._document-templates-fields', ['isAssetLending' => $isAssetLending])
 
         <x-admin.step title="Requirements">
-            <x-admin.select name="requires_collateral" label="Requires collateral" x-model="requiresCollateral" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_collateral ?? '0')" help="Member-owned security only. Marketplace / supplier assets do not use this valuation path." />
-            <x-admin.select name="requires_guarantor"  label="Requires guarantor" x-model="requiresGuarantor" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" help="The application cannot proceed until an eligible guarantor completes their profile." />
+            <p class="md:col-span-2 text-sm font-semibold text-gray-800">Application requirements</p>
+            <div class="md:col-span-2 grid sm:grid-cols-2 gap-4">
+                <x-admin.select name="requires_collateral" label="Requires collateral" x-model="requiresCollateral" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_collateral ?? '0')" help="Member-owned security only." />
+                <x-admin.select name="requires_guarantor"  label="Requires guarantor" x-model="requiresGuarantor" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" help="Application waits until an eligible guarantor completes their profile." />
+            </div>
+            <p class="md:col-span-2 text-sm font-semibold text-gray-800" x-show="requiresGuarantor === '1'" x-cloak>Guarantor / affordability gates</p>
             <div class="md:col-span-2 space-y-3" x-show="requiresGuarantor === '1'" x-cloak>
                 <label class="flex items-start gap-3 text-sm text-gray-800">
                     <input type="hidden" name="guarantor_gate_1_required" value="0">
@@ -133,7 +137,7 @@
                 </label>
             </div>
             <div class="md:col-span-2">
-                <p class="text-sm font-medium text-gray-700 mb-2">Eligible grades</p>
+                <p class="text-sm font-semibold text-gray-800 mb-2">Eligible grades</p>
                 <p class="text-xs text-gray-500 mb-2">Leave all unchecked to keep the product open to every grade.</p>
                 <div class="flex flex-wrap gap-4 text-sm">
                     @foreach (['bronze','silver','gold','platinum'] as $grade)
@@ -213,8 +217,8 @@
                        class="rounded border-gray-300 text-brand focus:ring-brand/30">
                 Search visibility on
             </label>
-            <x-admin.input name="seo_title" label="SEO title (optional override)" :value="$r?->seo_title" />
-            <x-admin.textarea name="seo_description" label="SEO description (optional override)" :value="$r?->seo_description" rows="2" maxlength="320" />
+            <x-admin.input name="seo_title" label="SEO title (optional override)" :value="$r?->seo_title" :placeholder="$r?->name" help="Blank inherits the product name." />
+            <x-admin.textarea name="seo_description" label="SEO description (optional override)" :value="$r?->seo_description" rows="2" maxlength="320" :placeholder="\Illuminate\Support\Str::limit((string) ($r?->short_description ?: $r?->description), 160)" help="Blank inherits the public description." />
             <input type="hidden" name="seo_title_sw" value="{{ old('seo_title_sw', $r?->seo_title_sw) }}">
             <input type="hidden" name="seo_description_sw" value="{{ old('seo_description_sw', $r?->seo_description_sw) }}">
         </x-admin.step>

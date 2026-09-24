@@ -4027,6 +4027,8 @@ return [
         'change_admin_button' => 'Ask borrower to change guarantor',
         'change_admin_notes' => 'Reason shown to the borrower (optional)',
         'change_admin_success' => 'This guarantor was declined for this application. The borrower has been asked to choose someone else.',
+        'notify_replace_admin_success' => 'Borrower has been notified to choose a replacement guarantor.',
+        'notify_replace_confirm' => 'This sends the existing borrower notification and opens the guarantor step for them. Staff will not choose the replacement.',
         'change_borrower_banner' => 'Underwriting asked you to choose a different guarantor for this application.',
         'borrower_change_hint' => 'If nothing is happening, you can replace this guarantor before the deadline.',
         'borrower_change_started' => 'Choose a new guarantor. Screening still waits until they accept and finish their profile.',
