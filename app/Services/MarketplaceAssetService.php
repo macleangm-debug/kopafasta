@@ -92,7 +92,14 @@ class MarketplaceAssetService
         $data['supplier_deposit'] = (float) $quote['deposit_amount'];
         $data['deposit_markup_percent'] = (float) $quote['deposit_markup_percent'];
         $data['customer_deposit'] = (float) $quote['customer_deposit_due'];
-        $data['max_tenure_months'] = (int) $quote['max_tenure_months'];
+        $lending = app(AssetLendingService::class);
+        if (isset($data['max_tenure_months']) && $data['max_tenure_months'] !== '' && $data['max_tenure_months'] !== null) {
+            $data['max_tenure_months'] = $lending->clampAssetTenure((int) $data['max_tenure_months']);
+        } elseif ($existing?->max_tenure_months) {
+            unset($data['max_tenure_months']);
+        } else {
+            $data['max_tenure_months'] = $lending->productMaxTenureMonths();
+        }
         unset($data['deposit_percent']);
 
         $specs = is_array($existing?->specs) ? $existing->specs : [];
@@ -367,7 +374,7 @@ class MarketplaceAssetService
             'insurance_expires_at' => ['nullable', 'date'],
             'asset_value' => ['required', 'numeric', 'min:0'],
             'deposit_percent' => ['nullable', 'numeric', 'min:0.01', 'max:100'],
-            'max_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
+            'max_tenure_months' => ['required', 'integer', 'min:1', 'max:'.app(AssetLendingService::class)->productMaxTenureMonths()],
             'is_active' => ['nullable', 'boolean'],
             'photos' => [$existing ? 'nullable' : 'required', 'array', 'min:'.($existing ? 0 : 1), 'max:'.$maxPhotos],
             'photos.*' => ['nullable', 'image', 'max:5120'],
@@ -375,6 +382,16 @@ class MarketplaceAssetService
             'remove_photos.*' => ['string', 'max:2048'],
             'cover_path' => ['nullable', 'string', 'max:2048'],
             'vendor_id' => [$requireSupplier ? 'required' : 'nullable', 'exists:partners,id'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function validationMessages(): array
+    {
+        $max = app(AssetLendingService::class)->productMaxTenureMonths();
+
+        return [
+            'max_tenure_months.max' => __('site.supplier_portal.wizard_max_tenure_error', ['max' => $max]),
         ];
     }
 }

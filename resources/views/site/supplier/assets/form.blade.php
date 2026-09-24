@@ -4,6 +4,8 @@
         $quote = $quote ?? ['deposit_percent' => 0, 'deposit_amount' => 0, 'deposit_markup_percent' => 10, 'deposit_markup_amount' => 0, 'customer_deposit_due' => 0, 'financed_amount' => 0, 'pre_financing_total' => 0];
         $specs = is_array($asset?->specs) ? $asset->specs : [];
         $assetValue = old('asset_value', $asset?->asset_value ?? 0);
+        $productMaxTenure = (int) ($productMaxTenureMonths ?? app(\App\Services\AssetLendingService::class)->productMaxTenureMonths());
+        $maxTenure = (int) old('max_tenure_months', $asset?->max_tenure_months ?? $productMaxTenure);
         $vehicleLike = ['vehicle', 'motorcycle', 'truck'];
         $selectedCategory = old('category', $asset?->category);
         $cover = marketplace_photo_urls($asset?->photos ?? [])[0] ?? null;
@@ -24,6 +26,8 @@
                   'year' => old('year', $specs['year'] ?? ''),
                   'serial' => old('serial_number', $asset?->serial_number ?? ''),
                   'assetValue' => \App\Support\MoneyFormat::toNumber($assetValue),
+                  'maxTenure' => $maxTenure,
+                  'productMax' => $productMaxTenure,
                   'isActive' => (bool) old('is_active', $asset?->is_active ?? true),
                   'cover' => $cover,
                   'supplier' => $vendor->name,
@@ -108,12 +112,26 @@
                                    required class="w-full rounded-xl border-gray-300 text-sm">
                         </div>
                         <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-sm space-y-1.5">
+                            <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_deposit_rate') }}</span><strong class="tabular-nums" x-text="(quote.percent || 0) + '%'"></strong></div>
                             <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_base_deposit') }}</span><strong class="tabular-nums" x-text="money(quote.base)"></strong></div>
                             <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_deposit_markup') }}</span><strong class="tabular-nums" x-text="money(quote.markup)"></strong></div>
                             <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_deposit_due') }}</span><strong class="tabular-nums text-brand" x-text="money(quote.due)"></strong></div>
                             <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_financed') }}</span><strong class="tabular-nums" x-text="money(quote.financed)"></strong></div>
                             <div class="flex justify-between gap-3 pt-1 border-t border-brand/10"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_pre_financing') }}</span><strong class="tabular-nums" x-text="money(quote.pre)"></strong></div>
-                            <p class="text-xs text-gray-500 pt-1">{{ __('site.supplier_portal.wizard_tenure_later') }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_max_tenure') }}</label>
+                            <div class="flex items-center gap-2">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" name="max_tenure_months"
+                                       x-model="maxTenure"
+                                       class="w-16 rounded-xl border-gray-300 text-sm text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                                <span class="text-sm text-gray-600">{{ __('site.supplier_portal.wizard_max_tenure_months') }}</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1.5">{{ __('site.supplier_portal.wizard_max_tenure_helper', ['months' => $productMaxTenure]) }}</p>
+                            @error('max_tenure_months')
+                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
+                            <p class="text-xs text-gray-500 mt-2">{{ __('site.supplier_portal.wizard_tenure_later') }}</p>
                         </div>
                         @if ($asset)
                             <label class="inline-flex items-center gap-2 text-sm">
@@ -156,6 +174,7 @@
                                         <p>{{ __('site.supplier_portal.wizard_selling_price') }}: <strong class="tabular-nums" x-text="money(assetValue)"></strong></p>
                                         <p>{{ __('site.supplier_portal.wizard_deposit_due') }}: <strong class="tabular-nums" x-text="money(quote.due)"></strong></p>
                                         <p>{{ __('site.supplier_portal.wizard_financed') }}: <strong class="tabular-nums" x-text="money(quote.financed)"></strong></p>
+                                        <p>{{ __('site.supplier_portal.wizard_max_tenure') }}: <strong class="tabular-nums" x-text="maxTenure + ' {{ __('site.supplier_portal.wizard_max_tenure_months') }}'"></strong></p>
                                     @elseif ($key === 'photos')
                                         <p class="text-xs text-gray-500">{{ $maxPhotos }} photos maximum · 1 cover + 6 additional</p>
                                     @else
@@ -174,6 +193,7 @@
                                                     <div><p class="text-gray-500">{{ __('borrower.marketplace.deposit') }}</p><p class="font-bold tabular-nums text-brand" x-text="money(quote.due)"></p></div>
                                                     <div><p class="text-gray-500">{{ __('borrower.marketplace.loan_amount') }}</p><p class="font-bold tabular-nums" x-text="money(quote.financed)"></p></div>
                                                 </div>
+                                                <p class="text-[11px] text-gray-500 pt-1" x-text="'{{ __('borrower.marketplace.up_to_months', ['months' => ':months']) }}'.replace(':months', maxTenure)"></p>
                                             </div>
                                         </article>
                                     @endif
@@ -203,6 +223,8 @@
                 serial: seed.serial || '',
                 assetValue: Number(seed.assetValue || 0),
                 assetValueInput: '',
+                maxTenure: Number(seed.maxTenure || seed.productMax || 6),
+                productMax: Number(seed.productMax || 6),
                 isActive: !!seed.isActive,
                 cover: seed.cover || '',
                 supplier: seed.supplier || '',
@@ -220,6 +242,7 @@
                         ? Math.round(price * (this.markupPercent / 100))
                         : Math.round(base * (this.markupPercent / 100));
                     return {
+                        percent,
                         base,
                         markup,
                         due: base + markup,

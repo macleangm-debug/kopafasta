@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\MarketplaceAsset;
 use App\Models\Vendor;
+use App\Services\AssetLendingService;
+use App\Services\AuditService;
 use App\Services\MarketplaceAssetService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -12,8 +14,11 @@ use Illuminate\View\View;
 class MarketplaceAssetController extends ResourceController
 {
     protected string $model = MarketplaceAsset::class;
+
     protected string $routePrefix = 'admin.marketplace-assets';
+
     protected string $viewFolder = 'marketplace-assets';
+
     protected string $singular = 'marketplace asset';
 
     public function index(): View
@@ -25,8 +30,8 @@ class MarketplaceAssetController extends ResourceController
             ->get();
 
         $counts = [
-            'total'     => MarketplaceAsset::query()->count(),
-            'active'    => MarketplaceAsset::query()->where('is_active', true)->count(),
+            'total' => MarketplaceAsset::query()->count(),
+            'active' => MarketplaceAsset::query()->where('is_active', true)->count(),
             'available' => MarketplaceAsset::query()->where('availability_status', 'available')->count(),
         ];
 
@@ -52,20 +57,21 @@ class MarketplaceAssetController extends ResourceController
 
     protected function formData(?Model $record = null): array
     {
-        $lending = app(\App\Services\AssetLendingService::class);
+        $lending = app(AssetLendingService::class);
         $assetService = app(MarketplaceAssetService::class);
         $asset = $record instanceof MarketplaceAsset ? $record : null;
 
         return [
-            'suppliers'                   => Vendor::query()->where('category', 'supplier')->orderBy('name')->pluck('name', 'id'),
-            'categories'                  => $this->categoryOptions($asset),
+            'suppliers' => Vendor::query()->where('category', 'supplier')->orderBy('name')->pluck('name', 'id'),
+            'categories' => $this->categoryOptions($asset),
             'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
-            'maxAssetPhotos'              => $assetService->maxPhotos(),
-            'prefill'                     => [
-                'title'             => request()->query('title'),
-                'asset_value'       => request()->query('asset_value'),
+            'productMaxTenureMonths' => $lending->productMaxTenureMonths(),
+            'maxAssetPhotos' => $assetService->maxPhotos(),
+            'prefill' => [
+                'title' => request()->query('title'),
+                'asset_value' => request()->query('asset_value'),
                 'max_tenure_months' => request()->query('max_tenure_months'),
-                'vendor_id'         => request()->query('vendor_id'),
+                'vendor_id' => request()->query('vendor_id'),
             ],
         ];
     }
@@ -128,7 +134,7 @@ class MarketplaceAssetController extends ResourceController
     {
         $service = app(MarketplaceAssetService::class);
         $service->normalizeRequest($request);
-        $validated = $request->validate($this->rules());
+        $validated = $request->validate($this->rules(), $service->validationMessages());
         $data = $this->transform($validated);
         $record = MarketplaceAsset::create($data);
         $service->syncPhotos(
@@ -150,8 +156,8 @@ class MarketplaceAssetController extends ResourceController
         $record = $this->findRecord($id);
         $service->normalizeRequest($request);
         $service->validateMinimumPhotos($record, $request->file('photos', []), $request->input('remove_photos', []));
-        $before = app(\App\Services\AuditService::class)->snapshot($record);
-        $validated = $request->validate($this->rules($record));
+        $before = app(AuditService::class)->snapshot($record);
+        $validated = $request->validate($this->rules($record), $service->validationMessages());
         $data = $this->transform($validated, $record);
         $record->update($data);
         $service->syncPhotos(

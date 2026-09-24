@@ -67,8 +67,8 @@
                     </div>
                     @if (! empty($asset['max_tenure_months']))
                         <div class="col-span-2">
-                            <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.marketplace.duration_range_label') }}</dt>
-                            <dd class="font-semibold text-gray-900 mt-0.5">{{ __('borrower.marketplace.duration_range', ['min' => 1, 'max' => (int) $asset['max_tenure_months']]) }}</dd>
+                            <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('site.supplier_portal.wizard_max_tenure') }}</dt>
+                            <dd class="font-semibold text-gray-900 mt-0.5">{{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}</dd>
                         </div>
                     @endif
                 </dl>

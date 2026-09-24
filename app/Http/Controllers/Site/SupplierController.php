@@ -58,6 +58,7 @@ class SupplierController extends Controller
             'depositTiers' => $lending->depositTiers(),
             'markupPercent' => $lending->defaultDepositMarkupPercent(),
             'markupBase' => $lending->markupBase(),
+            'productMaxTenureMonths' => $lending->productMaxTenureMonths(),
             'maxAssetPhotos' => app(MarketplaceAssetService::class)->maxPhotos(),
             'submitToken' => (string) Str::uuid(),
         ];
@@ -110,7 +111,7 @@ class SupplierController extends Controller
             return redirect()->route('site.supplier.assets');
         }
         $assets->normalizeRequest($request);
-        $validated = $request->validate($assets->validationRules());
+        $validated = $request->validate($assets->validationRules(), $assets->validationMessages());
         unset($validated['photos'], $validated['remove_photos'], $validated['cover_path']);
 
         $data = $assets->prepareForSave(array_merge($validated, [
@@ -149,7 +150,7 @@ class SupplierController extends Controller
 
         $assets->normalizeRequest($request);
         $assets->validateMinimumPhotos($asset, $request->file('photos', []), $request->input('remove_photos', []));
-        $validated = $request->validate($assets->validationRules($asset));
+        $validated = $request->validate($assets->validationRules($asset), $assets->validationMessages());
         unset($validated['photos'], $validated['remove_photos'], $validated['cover_path']);
         $data = $assets->prepareForSave(array_merge($validated, [
             'is_active' => $request->boolean('is_active', true),

@@ -1488,6 +1488,7 @@ return [
         'max_tenure' => 'Muda wa juu',
         'duration_range_label' => 'Muda',
         'duration_range' => 'Miezi :min hadi :max',
+        'up_to_months' => 'Hadi miezi :months',
         'duration_choose_in_wizard' => 'Chagua muda hasa kwenye fomu ya ombi (ndani ya kiwango hiki).',
         'tenure_adjust_hint' => 'Chagua muda mfupi hadi kiwango cha juu cha muuzaji — malipo ya kila wiki yanasasishwa moja kwa moja.',
         'deposit_first_hint' => 'Hatua zifuatazo: lipa ada ya maombi kwenye fomu ya ombi, kisha mdhamini → kagua → wasilisha. Malipo ya awali hulipwa baada ya idhini tu.',

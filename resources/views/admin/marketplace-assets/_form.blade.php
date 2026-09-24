@@ -7,6 +7,8 @@
     $markupPercent = (float) ($defaultDepositMarkupPercent ?? 10);
     $depositPercent = old('deposit_percent', $r?->depositPercent() ?? 20);
     $assetValue = old('asset_value', $r?->asset_value ?? ($prefill['asset_value'] ?? 0));
+    $productMaxTenure = (int) ($productMaxTenureMonths ?? app(\App\Services\AssetLendingService::class)->productMaxTenureMonths());
+    $maxTenure = old('max_tenure_months', $r?->max_tenure_months ?? ($prefill['max_tenure_months'] ?? $productMaxTenure));
 @endphp
 <x-admin.step title="Asset details">
     <div class="md:col-span-2 flex flex-col sm:flex-row sm:items-end gap-3">
@@ -57,7 +59,19 @@
         (<strong>{{ rtrim(rtrim(number_format($markupPercent, 2), '0'), '.') }}%</strong>)
         is added on top of the supplier deposit. Weekly installment is calculated during loan processing.
     </p>
-    <x-admin.input name="max_tenure_months" label="Max tenure (months)" type="number" :value="$r?->max_tenure_months ?? ($prefill['max_tenure_months'] ?? 12)" required />
+    <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_max_tenure') }}</label>
+        <div class="flex items-center gap-2">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" name="max_tenure_months" required
+                   value="{{ $maxTenure }}"
+                   class="w-16 rounded-xl border-gray-300 text-sm text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+            <span class="text-sm text-gray-600">{{ __('site.supplier_portal.wizard_max_tenure_months') }}</span>
+        </div>
+        <p class="text-xs text-gray-500 mt-1.5">{{ __('site.supplier_portal.wizard_max_tenure_helper', ['months' => $productMaxTenure]) }}</p>
+        @error('max_tenure_months')
+            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+        @enderror
+    </div>
     <x-admin.select name="is_active" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" :value="($r?->is_active ?? true) ? '1' : '0'" />
     <div class="md:col-span-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
         Customer deposit preview:

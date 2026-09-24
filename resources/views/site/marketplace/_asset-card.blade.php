@@ -96,7 +96,9 @@
             </div>
         </div>
 
-        <p class="text-[11px] text-transparent min-h-[1.25rem]" aria-hidden="true">—</p>
+        @if (! empty($asset['max_tenure_months']))
+            <p class="text-[11px] text-gray-500">{{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}</p>
+        @endif
 
         <a href="{{ $showUrl }}" class="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-4 py-2.5 transition-all">
             {{ __('borrower.marketplace.view_details') }}

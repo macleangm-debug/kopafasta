@@ -32,6 +32,45 @@ class AssetLendingService
         return (float) ($this->settings()['default_deposit_markup_percent'] ?? 10);
     }
 
+    /**
+     * Absolute Asset Lending tenure ceiling from Product Configuration.
+     * One policy: the highest active financing-tier max, then the AL product, then loan Settings.
+     */
+    public function productMaxTenureMonths(): int
+    {
+        $fromTiers = collect($this->financingTiers())
+            ->filter(fn (array $tier) => (bool) ($tier['active'] ?? true))
+            ->map(fn (array $tier) => (int) ($tier['max_tenure_months'] ?? 0))
+            ->filter(fn (int $months) => $months > 0)
+            ->max();
+        if ($fromTiers) {
+            return (int) $fromTiers;
+        }
+
+        $product = LoanProduct::query()
+            ->where('code', config('asset_marketplace.asset_loan_product_code', 'AL'))
+            ->first();
+        $fromProduct = (int) ($product?->tenure_max_months ?? 0);
+        if ($fromProduct > 0) {
+            return $fromProduct;
+        }
+
+        return max(1, (int) (Setting::group('loan')['max_tenure_months'] ?? 24));
+    }
+
+    public function clampAssetTenure(int $requested): int
+    {
+        return max(1, min($this->productMaxTenureMonths(), $requested));
+    }
+
+    public function effectiveAssetTenure(?int $assetTenureMonths): int
+    {
+        $productMax = $this->productMaxTenureMonths();
+        $assetTenure = (int) ($assetTenureMonths ?? 0);
+
+        return $assetTenure > 0 ? min($assetTenure, $productMax) : $productMax;
+    }
+
     public function defaultWaitingPeriodDays(): int
     {
         return max(0, (int) ($this->settings()['default_waiting_period_days'] ?? 7));
@@ -295,7 +334,7 @@ class AssetLendingService
         $financingTier = $this->matchTier($this->financingTiers(), $financed);
         $monthlyRatePercent = (float) ($financingTier['monthly_rate_percent'] ?? 0);
         $method = (string) ($financingTier['method'] ?? 'reducing_balance');
-        $maxTenure = (int) ($financingTier['max_tenure_months'] ?? 6);
+        $maxTenure = $this->productMaxTenureMonths();
         $tenure = $tenureMonths !== null ? max(1, min($maxTenure, $tenureMonths)) : $maxTenure;
         $monthlyRate = max(0, $monthlyRatePercent / 100);
         $schedule = $this->reducingBalanceSchedule($financed, $monthlyRate, $tenure);
@@ -345,7 +384,7 @@ class AssetLendingService
     public function quotesByTenure(float $assetPrice, int $maxTenure): array
     {
         $quotes = [];
-        $maxTenure = max(1, min(24, $maxTenure));
+        $maxTenure = max(1, min($this->productMaxTenureMonths(), $maxTenure));
         for ($months = 1; $months <= $maxTenure; $months++) {
             $quote = $this->pricingQuoteFromAssetPrice($assetPrice, $months);
             $quotes[$months] = [

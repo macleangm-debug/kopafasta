@@ -38,4 +38,7 @@
             </div>
         @endforeach
     </div>
+    @if (! empty($asset['max_tenure_months']))
+        <p class="px-4 py-2.5 text-xs text-gray-600 border-t border-gray-200">{{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}</p>
+    @endif
 </div>

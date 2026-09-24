@@ -281,12 +281,18 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             ->assertSee('whitespace-nowrap', false)
             ->assertDontSee('Choose duration', false)
             ->assertDontSee('name="tenure_months"', false)
-            ->assertDontSee(__('borrower.marketplace.weekly_installment'), false);
+            ->assertDontSee(__('borrower.marketplace.weekly_installment'), false)
+            ->assertSee(__('borrower.marketplace.up_to_months', [
+                'months' => effective_marketplace_asset_max_tenure($asset),
+            ]), false);
 
         $this->get(route('site.marketplace.show', $asset->slug))
             ->assertOk()
             ->assertDontSee(__('borrower.marketplace.weekly_installment'), false)
-            ->assertDontSee(__('borrower.marketplace.duration_range_label'), false);
+            ->assertDontSee(__('borrower.marketplace.duration_range_label'), false)
+            ->assertSee(__('borrower.marketplace.up_to_months', [
+                'months' => effective_marketplace_asset_max_tenure($asset),
+            ]), false);
     }
 
     public function test_request_asset_opens_application_overview_with_duration_quotes(): void

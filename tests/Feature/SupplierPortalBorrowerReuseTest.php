@@ -195,7 +195,8 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.supplier_portal.wizard_selling_price'), false)
             ->assertDontSee('Insurance available', false)
             ->assertDontSee('Deposit (% of asset value)', false)
-            ->assertDontSee('Max tenure (months)', false);
+            ->assertSee(__('site.supplier_portal.wizard_max_tenure'), false)
+            ->assertSee(__('site.supplier_portal.wizard_max_tenure_months'), false);
     }
 
     public function test_duplicate_submit_token_creates_one_asset(): void
@@ -208,6 +209,7 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             'category' => 'vehicle',
             'title' => 'Bajaj Boxer',
             'asset_value' => '10000000',
+            'max_tenure_months' => 6,
             'photos' => [$photo],
         ];
 

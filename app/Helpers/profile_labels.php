@@ -1,5 +1,10 @@
 <?php
 
+use App\Models\LoanProduct;
+use App\Models\MarketplaceAsset;
+use App\Services\AssetLendingService;
+use Illuminate\Support\Collection;
+
 if (! function_exists('activity_type_label')) {
     function activity_type_label(?string $key): ?string
     {
@@ -196,17 +201,17 @@ if (! function_exists('loan_purpose_options')) {
 
 if (! function_exists('sort_loan_products_by_display_order')) {
     /**
-     * @param  \Illuminate\Support\Collection<int, \App\Models\LoanProduct>  $products
-     * @return \Illuminate\Support\Collection<int, \App\Models\LoanProduct>
+     * @param  Collection<int, LoanProduct>  $products
+     * @return Collection<int, LoanProduct>
      */
-    function sort_loan_products_by_display_order(\Illuminate\Support\Collection $products): \Illuminate\Support\Collection
+    function sort_loan_products_by_display_order(Collection $products): Collection
     {
         $order = config('loan_products.display_order', [
             'IL', 'FC', 'WL', 'AL', 'AB', 'EM', 'KB', 'EL', 'GL', 'BP', 'SAL-12',
         ]);
 
         return $products
-            ->sortBy(function (\App\Models\LoanProduct $p) use ($order) {
+            ->sortBy(function (LoanProduct $p) use ($order) {
                 $i = array_search($p->code, $order, true);
 
                 return $i === false ? (1000 + (int) $p->id) : $i;
@@ -216,11 +221,11 @@ if (! function_exists('sort_loan_products_by_display_order')) {
 }
 
 if (! function_exists('borrower_catalogue_products')) {
-    /** @return \Illuminate\Support\Collection<int, \App\Models\LoanProduct> */
-    function borrower_catalogue_products(): \Illuminate\Support\Collection
+    /** @return Collection<int, LoanProduct> */
+    function borrower_catalogue_products(): Collection
     {
         return sort_loan_products_by_display_order(
-            \App\Models\LoanProduct::with('rateTiers')->where('is_active', true)->get()
+            LoanProduct::with('rateTiers')->where('is_active', true)->get()
         );
     }
 }
@@ -229,12 +234,12 @@ if (! function_exists('public_catalogue_products')) {
     /**
      * Public / nav product list — active + coming_soon, same display_order as borrower catalogue.
      *
-     * @return \Illuminate\Support\Collection<int, \App\Models\LoanProduct>
+     * @return Collection<int, LoanProduct>
      */
-    function public_catalogue_products(): \Illuminate\Support\Collection
+    function public_catalogue_products(): Collection
     {
         return sort_loan_products_by_display_order(
-            \App\Models\LoanProduct::with('rateTiers')
+            LoanProduct::with('rateTiers')
                 ->whereIn('status', ['active', 'coming_soon'])
                 ->get()
         );
@@ -244,7 +249,7 @@ if (! function_exists('public_catalogue_products')) {
 if (! function_exists('active_loan_product_count')) {
     function active_loan_product_count(): int
     {
-        return (int) \App\Models\LoanProduct::where('is_active', true)->count();
+        return (int) LoanProduct::where('is_active', true)->count();
     }
 }
 
@@ -265,19 +270,9 @@ if (! function_exists('is_marketplace_loan_product')) {
 
 if (! function_exists('effective_marketplace_asset_max_tenure')) {
     /** Max loan tenure months for a marketplace asset (asset cap × platform loan cap). */
-    function effective_marketplace_asset_max_tenure(\App\Models\MarketplaceAsset $asset): int
+    function effective_marketplace_asset_max_tenure(MarketplaceAsset $asset): int
     {
-        $assetTenure = (int) $asset->max_tenure_months;
-        $loanCap = (int) (\App\Models\Setting::group('loan')['max_tenure_months'] ?? 6);
-
-        if ($assetTenure <= 0) {
-            return max(1, $loanCap);
-        }
-
-        if ($loanCap <= 0) {
-            return $assetTenure;
-        }
-
-        return min($assetTenure, $loanCap);
+        return app(AssetLendingService::class)
+            ->effectiveAssetTenure((int) $asset->max_tenure_months);
     }
 }

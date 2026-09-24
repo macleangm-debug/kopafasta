@@ -31,6 +31,7 @@ use App\Services\CrbCreditCheckService;
 use App\Services\CustomerAssetService;
 use App\Services\CustomerPaymentService;
 use App\Services\DisplayedRateService;
+use App\Services\DocumentPageMerger;
 use App\Services\FaceVerificationService;
 use App\Services\Grades\GradeBenefitService;
 use App\Services\GroupApplicationStatusService;
@@ -66,6 +67,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -279,10 +281,7 @@ class ApplyController extends Controller
             $quote = $lending->pricingQuoteFromAssetPrice($assetValue);
             $deposit = (float) ($quote['deposit_amount'] ?? ($asset->customer_deposit ?: $asset->computeCustomerDeposit()));
             $remainingLoan = (float) ($quote['financed_amount'] ?? max(0, round($assetValue - $deposit, 2)));
-            $tenure = min(
-                (int) ($quote['max_tenure_months'] ?? 12),
-                effective_marketplace_asset_max_tenure($asset)
-            );
+            $tenure = effective_marketplace_asset_max_tenure($asset);
             $photoUrls = marketplace_photo_urls($asset->photos ?? []);
 
             $assetApplication = [
@@ -1516,10 +1515,10 @@ class ApplyController extends Controller
 
         $pageFiles = array_values(array_filter(
             $request->file('pages', []) ?: [],
-            fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
+            fn ($file) => $file instanceof UploadedFile && $file->isValid()
         ));
         $single = $request->file('file');
-        if ($pageFiles === [] && ! ($single instanceof \Illuminate\Http\UploadedFile && $single->isValid())) {
+        if ($pageFiles === [] && ! ($single instanceof UploadedFile && $single->isValid())) {
             return response()->json([
                 'ok' => false,
                 'message' => __('validation.required', ['attribute' => 'file']),
@@ -1542,7 +1541,7 @@ class ApplyController extends Controller
         $label = ! empty($field['label_key'])
             ? __($field['label_key'])
             : (string) ($field['label'] ?? __('borrower.profile.view_document'));
-        $docType = \App\Models\DocumentType::firstOrCreate(
+        $docType = DocumentType::firstOrCreate(
             ['code' => $code],
             [
                 'name' => $label,
@@ -1560,7 +1559,7 @@ class ApplyController extends Controller
         $imagePaths = [];
         if ($pageFiles !== []) {
             if ($asImages) {
-                $stored = app(\App\Services\DocumentPageMerger::class)->storeImages(
+                $stored = app(DocumentPageMerger::class)->storeImages(
                     $pageFiles,
                     $directory,
                     $code
@@ -1568,7 +1567,7 @@ class ApplyController extends Controller
                 $path = $stored['primary'];
                 $imagePaths = $stored['paths'];
             } else {
-                $path = app(\App\Services\DocumentPageMerger::class)->mergeTo(
+                $path = app(DocumentPageMerger::class)->mergeTo(
                     $pageFiles,
                     $directory,
                     $code
@@ -2411,39 +2410,39 @@ class ApplyController extends Controller
             $applicationNumber = $referenceService->resolveApplicationReference($loanProduct, $draftReference);
 
             $app = LoanApplication::create([
-            'customer_id' => $customer->id,
-            'loan_product_id' => $data['loan_product_id'],
-            'application_number' => $applicationNumber,
-            'requested_amount' => $data['requested_amount'],
-            'requested_tenure_months' => $data['requested_tenure_months'],
-            'status' => $status,
-            'current_stage' => 'screening',
-            'purpose' => $purposeStored,
-            'screening_payload' => [
-                'product_code' => $loanProduct->code,
-                'product_questions' => array_filter($data['product_question'] ?? []),
-                'education_documents' => array_values($draftPayload['education_documents'] ?? []),
-                'institution_payment' => array_merge(
-                    is_array($draftPayload['institution_payment'] ?? null) ? $draftPayload['institution_payment'] : [],
-                    ['verified' => false],
-                ),
-                'engagement' => $engagementBoosts,
-                'purpose_key' => $purposeKey !== '' ? $purposeKey : null,
-                'purpose_other' => (is_loan_purpose_other($purposeKey) && $purposeOther !== '') ? $purposeOther : null,
-            ],
-            'engagement_priority' => (int) ($engagementBoosts['processing_priority'] ?? 0),
-            'registration_fee_amount' => 0,
-            'registration_fee_status' => 'waived',
-            'registration_fee_channel' => null,
-            'registration_fee_reference' => null,
-            'registration_fee_paid_at' => null,
-            'application_fee_amount' => $appFee,
-            'application_fee_status' => $feeStatus === 'pending' ? 'pending' : ($feeStatus === 'paid' || $feeStatus === 'waived' ? 'paid' : 'unpaid'),
-            'application_fee_reference' => $feeReference,
-            'application_fee_channel' => $feeChannel,
-            'application_fee_paid_at' => $feePaidAt,
-            'submitted_at' => $submittedAt,
-        ]);
+                'customer_id' => $customer->id,
+                'loan_product_id' => $data['loan_product_id'],
+                'application_number' => $applicationNumber,
+                'requested_amount' => $data['requested_amount'],
+                'requested_tenure_months' => $data['requested_tenure_months'],
+                'status' => $status,
+                'current_stage' => 'screening',
+                'purpose' => $purposeStored,
+                'screening_payload' => [
+                    'product_code' => $loanProduct->code,
+                    'product_questions' => array_filter($data['product_question'] ?? []),
+                    'education_documents' => array_values($draftPayload['education_documents'] ?? []),
+                    'institution_payment' => array_merge(
+                        is_array($draftPayload['institution_payment'] ?? null) ? $draftPayload['institution_payment'] : [],
+                        ['verified' => false],
+                    ),
+                    'engagement' => $engagementBoosts,
+                    'purpose_key' => $purposeKey !== '' ? $purposeKey : null,
+                    'purpose_other' => (is_loan_purpose_other($purposeKey) && $purposeOther !== '') ? $purposeOther : null,
+                ],
+                'engagement_priority' => (int) ($engagementBoosts['processing_priority'] ?? 0),
+                'registration_fee_amount' => 0,
+                'registration_fee_status' => 'waived',
+                'registration_fee_channel' => null,
+                'registration_fee_reference' => null,
+                'registration_fee_paid_at' => null,
+                'application_fee_amount' => $appFee,
+                'application_fee_status' => $feeStatus === 'pending' ? 'pending' : ($feeStatus === 'paid' || $feeStatus === 'waived' ? 'paid' : 'unpaid'),
+                'application_fee_reference' => $feeReference,
+                'application_fee_channel' => $feeChannel,
+                'application_fee_paid_at' => $feePaidAt,
+                'submitted_at' => $submittedAt,
+            ]);
         }
 
         if ($request->filled('asset_reservation_id')) {
