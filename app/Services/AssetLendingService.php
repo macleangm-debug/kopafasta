@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\MarketplaceAsset;
+use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\Vendor;
+use Illuminate\Support\Carbon;
 
 class AssetLendingService
 {
@@ -14,12 +16,12 @@ class AssetLendingService
     {
         return array_merge(
             [
-                'markup_base'                    => config('asset_lending.markup_base', 'deposit'),
+                'markup_base' => config('asset_lending.markup_base', 'deposit'),
                 'default_deposit_markup_percent' => 10,
-                'default_waiting_period_days'    => 7,
-                'deposit_deadline_working_days'  => 2,
-                'insurance_expiry_warning_days'  => 30,
-                'default_monthly_rate_percent'   => 12,
+                'default_waiting_period_days' => 7,
+                'deposit_deadline_working_days' => 2,
+                'insurance_expiry_warning_days' => 30,
+                'default_monthly_rate_percent' => 12,
             ],
             Setting::group('asset_lending'),
         );
@@ -73,7 +75,7 @@ class AssetLendingService
      *   snapshotted_at: string
      * }
      */
-    public function comprehensiveInsuranceQuote(MarketplaceAsset $asset, ?\App\Models\Partner $partner = null): array
+    public function comprehensiveInsuranceQuote(MarketplaceAsset $asset, ?Partner $partner = null): array
     {
         $insured = $this->insuredValueForMarketplaceAsset($asset);
         $quote = app(CollateralInsurancePartnerService::class)->quote($insured, $partner);
@@ -103,21 +105,21 @@ class AssetLendingService
         if (! $expiresAt) {
             return [
                 'status' => 'missing',
-                'label'  => 'Insurance expiry not recorded',
-                'tone'   => 'amber',
+                'label' => 'Insurance expiry not recorded',
+                'tone' => 'amber',
                 'detail' => 'Arrange and verify comprehensive cover after approval, before asset handover.',
             ];
         }
 
-        $expiry = \Illuminate\Support\Carbon::parse($expiresAt)->startOfDay();
+        $expiry = Carbon::parse($expiresAt)->startOfDay();
         $today = now()->startOfDay();
         $warningDays = $this->insuranceExpiryWarningDays();
 
         if ($expiry->lt($today)) {
             return [
                 'status' => 'expired',
-                'label'  => 'Insurance expired',
-                'tone'   => 'red',
+                'label' => 'Insurance expired',
+                'tone' => 'red',
                 'detail' => 'Expired '.$expiry->format('d M Y').'. Request updated certificate from borrower.',
             ];
         }
@@ -125,16 +127,16 @@ class AssetLendingService
         if ($expiry->lte($today->copy()->addDays($warningDays))) {
             return [
                 'status' => 'expiring',
-                'label'  => 'Insurance expiring soon',
-                'tone'   => 'amber',
+                'label' => 'Insurance expiring soon',
+                'tone' => 'amber',
                 'detail' => 'Expires '.$expiry->format('d M Y').' ('.$today->diffInDays($expiry).' days).',
             ];
         }
 
         return [
             'status' => 'valid',
-            'label'  => 'Insurance valid',
-            'tone'   => 'emerald',
+            'label' => 'Insurance valid',
+            'tone' => 'emerald',
             'detail' => 'Expires '.$expiry->format('d M Y').'.',
         ];
     }
@@ -298,12 +300,24 @@ class AssetLendingService
         $monthlyRate = max(0, $monthlyRatePercent / 100);
         $schedule = $this->reducingBalanceSchedule($financed, $monthlyRate, $tenure);
         $installment = (float) ($schedule[0]['total_due'] ?? 0);
-        $totalPayable = round($depositAmount + array_sum(array_column($schedule, 'total_due')), 2);
+        $markupPercent = $this->defaultDepositMarkupPercent();
+        if ($this->markupBase() === 'asset_price') {
+            $markupAmount = round($assetPrice * ($markupPercent / 100), 2);
+        } else {
+            $markupAmount = round($depositAmount * ($markupPercent / 100), 2);
+        }
+        $customerDepositDue = round($depositAmount + $markupAmount, 2);
+        $preFinancingTotal = round($assetPrice + $markupAmount, 2);
+        $totalPayable = round($customerDepositDue + array_sum(array_column($schedule, 'total_due')), 2);
 
         return [
             'asset_price' => $assetPrice,
             'deposit_percent' => $depositPercent,
             'deposit_amount' => $depositAmount,
+            'deposit_markup_percent' => $markupPercent,
+            'deposit_markup_amount' => $markupAmount,
+            'customer_deposit_due' => $customerDepositDue,
+            'pre_financing_total' => $preFinancingTotal,
             'financed_amount' => $financed,
             'monthly_rate_percent' => $monthlyRatePercent,
             'rate_method' => $method,

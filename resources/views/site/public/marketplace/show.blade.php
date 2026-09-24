@@ -14,16 +14,18 @@
                 ])
             </div>
             <div class="lg:col-span-5">
-                <p class="text-xs uppercase tracking-widest text-brand font-bold">{{ config('asset_marketplace.categories.'.$asset['category']) }}</p>
-                <h1 class="text-3xl sm:text-4xl font-bold mt-2 text-gray-900 tracking-tight">{{ $asset['title'] }}</h1>
-                @if (! empty($asset['vendor']))
-                    <p class="text-sm text-gray-700 mt-3">
-                        {{ __('borrower.marketplace.supplier') }}: <span class="font-semibold text-gray-900">{{ $asset['vendor'] }}</span>
-                        @if (! empty($asset['supplier_region']))
-                            <span class="text-gray-600">· {{ $asset['supplier_region'] }}</span>
-                        @endif
-                    </p>
-                @endif
+                <div class="kf-premium-panel rounded-2xl p-4 sm:p-5 mb-5">
+                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ config('asset_marketplace.categories.'.$asset['category']) }}</p>
+                    <h1 class="text-2xl sm:text-3xl font-bold mt-1 tracking-tight">{{ $asset['title'] }}</h1>
+                    @if (! empty($asset['vendor']))
+                        <p class="text-sm text-white/80 mt-2">
+                            <span class="font-semibold text-white">{{ $asset['vendor'] }}</span>
+                            @if (! empty($asset['supplier_region']) || ! empty($asset['city']))
+                                <span> · {{ $asset['city'] ?? $asset['supplier_region'] }}</span>
+                            @endif
+                        </p>
+                    @endif
+                </div>
 
                 @if (! empty($asset['description']))
                     <div class="mt-6 glass-card p-5">

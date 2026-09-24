@@ -289,6 +289,39 @@
         </div>
     </x-admin.step>
 
+    @php
+        $payout = is_array($r?->metadata['payout_account'] ?? null) ? $r->metadata['payout_account'] : [];
+    @endphp
+    <x-admin.step title="Payment account">
+        <div class="md:col-span-2 space-y-4" x-data="{ payoutType: @js(old('payout_type', $payout['type'] ?? '')) }">
+            <p class="text-xs text-gray-500">Same destination later shown in Partner Profile. Optional now — the partner can finish it after sign-in.</p>
+            <div class="flex flex-wrap gap-4">
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="radio" name="payout_type" value="mobile_money" x-model="payoutType" class="text-brand focus:ring-brand">
+                    Mobile money
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="radio" name="payout_type" value="bank" x-model="payoutType" class="text-brand focus:ring-brand">
+                    Bank
+                </label>
+            </div>
+            <div x-show="payoutType === 'mobile_money'" x-cloak class="grid md:grid-cols-2 gap-4">
+                <x-admin.select
+                    name="payout_mobile_provider"
+                    label="Provider"
+                    :options="\App\Services\CustomerDisbursementDetailsService::MOBILE_PROVIDERS"
+                    :value="old('payout_mobile_provider', $payout['mobile_provider'] ?? '')"
+                />
+                <x-admin.phone-input name="payout_mobile_number" label="Registered account / phone" :value="old('payout_mobile_number', $payout['mobile_number'] ?? $r?->phone)" />
+            </div>
+            <div x-show="payoutType === 'bank'" x-cloak class="grid md:grid-cols-2 gap-4">
+                <x-admin.input name="payout_bank_name" label="Bank" :value="old('payout_bank_name', $payout['bank_name'] ?? '')" />
+                <x-admin.input name="payout_account_name" label="Account name" :value="old('payout_account_name', $payout['account_name'] ?? $r?->name)" />
+                <x-admin.input name="payout_account_number" label="Account number" :value="old('payout_account_number', $payout['account_number'] ?? '')" />
+            </div>
+        </div>
+    </x-admin.step>
+
     <template x-if="isCompany">
         <div data-step-gate data-company-docs-step>
             <x-admin.step title="Business documents">

@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\AssetReservation;
+use App\Models\Customer;
+use App\Models\MarketplaceAsset;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\AccountWelcomeService;
 use App\Services\KopafastaLaunchService;
 use App\Services\PartnerPortalNavService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SupplierPortalBorrowerReuseTest extends TestCase
@@ -113,6 +118,7 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.supplier_portal.recent_payments_title'), false)
             ->assertSee(__('site.supplier_portal.asset_activity_title'), false)
             ->assertSee(__('site.supplier_portal.nav_home'), false)
+            ->assertSee(__('site.supplier_portal.nav_card'), false)
             ->assertSee(__('site.supplier_portal.nav_money'), false)
             ->assertDontSee('Expected payouts', false)
             ->assertDontSee('What you can expect from loans', false)
@@ -185,14 +191,37 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee('admin-wizard', false)
             ->assertSee(__('site.supplier_portal.wizard_type'), false)
             ->assertSee(__('site.supplier_portal.wizard_review'), false)
-            ->assertSee(__('site.supplier_portal.wizard_publish'), false);
+            ->assertSee(__('site.supplier_portal.wizard_publish'), false)
+            ->assertSee(__('site.supplier_portal.wizard_selling_price'), false)
+            ->assertDontSee('Insurance available', false)
+            ->assertDontSee('Deposit (% of asset value)', false)
+            ->assertDontSee('Max tenure (months)', false);
+    }
+
+    public function test_duplicate_submit_token_creates_one_asset(): void
+    {
+        [$user, $vendor] = $this->supplier();
+        Storage::fake('public');
+        $photo = UploadedFile::fake()->image('cover.jpg', 400, 300);
+        $payload = [
+            '_submit_token' => 'same-token-once',
+            'category' => 'vehicle',
+            'title' => 'Bajaj Boxer',
+            'asset_value' => '10000000',
+            'photos' => [$photo],
+        ];
+
+        $this->actingAs($user)->post(route('site.supplier.assets.store'), $payload)->assertRedirect(route('site.supplier.assets'));
+        $this->actingAs($user)->post(route('site.supplier.assets.store'), $payload)->assertRedirect(route('site.supplier.assets'));
+
+        $this->assertSame(1, MarketplaceAsset::query()->where('partner_id', $vendor->id)->count());
     }
 
     public function test_buyers_page_shows_only_deposit_stage_deals(): void
     {
         [$user, $vendor] = $this->supplier();
 
-        $asset = \App\Models\MarketplaceAsset::create([
+        $asset = MarketplaceAsset::create([
             'slug' => 'supplier-buyer-bike-'.random_int(100, 999),
             'title' => 'Supplier Bajaj',
             'category' => 'motorbike',
@@ -207,7 +236,7 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             'is_active' => true,
         ]);
 
-        $early = \App\Models\Customer::create([
+        $early = Customer::create([
             'customer_number' => 'CU-SUP-EARLY',
             'type' => 'individual',
             'status' => 'active',
@@ -217,7 +246,7 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
-        $buyer = \App\Models\Customer::create([
+        $buyer = Customer::create([
             'customer_number' => 'CU-SUP-BUYER',
             'type' => 'individual',
             'status' => 'active',
@@ -228,12 +257,12 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             'membership_expires_at' => now()->addYear(),
         ]);
 
-        \App\Models\AssetReservation::create([
+        AssetReservation::create([
             'customer_id' => $early->id,
             'marketplace_asset_id' => $asset->id,
             'status' => 'viewing_scheduled',
         ]);
-        \App\Models\AssetReservation::create([
+        AssetReservation::create([
             'customer_id' => $buyer->id,
             'marketplace_asset_id' => $asset->id,
             'status' => 'approved',

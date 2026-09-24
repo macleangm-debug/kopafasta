@@ -74,15 +74,24 @@
             </template>
         </div>
 
-        {{-- Bottom thumbnails — click to change main preview --}}
+        <div class="sm:hidden flex items-center justify-center gap-1.5 pt-1" x-show="photos.length > 1">
+            <template x-for="(photo, i) in photos" :key="'dot-' + i">
+                <button type="button" @click="go(i)" class="size-2 rounded-full"
+                        :class="index === i ? 'bg-brand scale-125' : 'bg-gray-300'"
+                        :aria-label="'Photo ' + (i + 1)"></button>
+            </template>
+        </div>
+
+        {{-- Desktop: additional images fit the cover width. No empty slots. --}}
         @if ($count > 1)
-            <div class="flex gap-2 overflow-x-auto pb-0.5" role="tablist" aria-label="Asset photos">
+            <div class="hidden sm:grid gap-2" :style="`grid-template-columns: repeat(${Math.min(photos.length - 1, 6)}, minmax(0, 1fr))`" role="tablist" aria-label="Asset photos">
                 <template x-for="(photo, i) in photos" :key="'thumb-' + i + '-' + photo">
                     <button
                         type="button"
                         role="tab"
+                        x-show="i !== 0"
                         @click="go(i)"
-                        class="shrink-0 size-16 sm:size-20 lg:size-24 rounded-xl overflow-hidden ring-2 transition focus:outline-none focus-visible:ring-brand"
+                        class="aspect-[4/3] rounded-xl overflow-hidden ring-2 transition focus:outline-none focus-visible:ring-brand"
                         :class="index === i ? 'ring-brand opacity-100' : 'ring-gray-200 opacity-70 hover:opacity-100'"
                         :aria-selected="index === i"
                         :aria-label="'Photo ' + (i + 1)"
@@ -130,6 +139,7 @@
                         :src="photos[index]"
                         alt=""
                         class="max-h-[85vh] max-w-[92vw] object-contain rounded-xl shadow-2xl"
+                        style="touch-action: pinch-zoom"
                         referrerpolicy="no-referrer"
                         @click.stop
                     >

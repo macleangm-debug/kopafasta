@@ -20,9 +20,9 @@
                    class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold px-4 py-2.5 hover:bg-yellow-400 shadow-md text-sm">
                     {{ __('site.supplier_portal.cta_upload') }}
                 </a>
-                <a href="{{ route('site.supplier.assets') }}"
+                <a href="{{ route('site.supplier.profile', ['section' => 'card']) }}"
                    class="inline-flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 text-sm">
-                    {{ __('site.supplier_portal.cta_assets') }}
+                    {{ __('site.supplier_portal.nav_card') }}
                 </a>
                 <a href="{{ route('site.supplier.settlements') }}"
                    class="inline-flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 text-sm">

@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\AssetRequest;
 use App\Models\AssetReservation;
 use App\Models\MarketplaceAsset;
+use App\Models\NotificationLog;
 use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Models\VendorPayment;
+use App\Services\AssetLendingService;
 use App\Services\AssetReservationService;
 use App\Services\MarketplaceAssetService;
 use App\Services\PartnerPortalRedirectService;
@@ -18,7 +20,9 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SupplierController extends Controller
@@ -37,6 +41,36 @@ class SupplierController extends Controller
         }
 
         return $vendor;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function assetFormData(Vendor $vendor, ?MarketplaceAsset $asset, AssetLendingService $lending): array
+    {
+        $price = (float) old('asset_value', $asset?->asset_value ?? 0);
+
+        return [
+            'vendor' => $vendor,
+            'asset' => $asset,
+            'categories' => config('asset_marketplace.categories', []),
+            'quote' => $lending->pricingQuoteFromAssetPrice($price),
+            'depositTiers' => $lending->depositTiers(),
+            'markupPercent' => $lending->defaultDepositMarkupPercent(),
+            'markupBase' => $lending->markupBase(),
+            'maxAssetPhotos' => app(MarketplaceAssetService::class)->maxPhotos(),
+            'submitToken' => (string) Str::uuid(),
+        ];
+    }
+
+    private function isDuplicateAssetSubmit(Request $request): bool
+    {
+        $token = trim((string) $request->input('_submit_token'));
+        if ($token === '') {
+            return false;
+        }
+
+        return ! Cache::add('supplier-asset-submit:'.Auth::id().':'.$token, 1, now()->addMinutes(15));
     }
 
     public function dashboard(SupplierPortalHomeService $home): View
@@ -64,28 +98,25 @@ class SupplierController extends Controller
     public function createAsset(): View
     {
         $vendor = $this->supplier();
-        $lending = app(\App\Services\AssetLendingService::class);
+        $lending = app(AssetLendingService::class);
 
-        return view('site.supplier.assets.form', [
-            'vendor'                      => $vendor,
-            'asset'                       => null,
-            'categories'                  => config('asset_marketplace.categories', []),
-            'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
-            'maxAssetPhotos'              => app(MarketplaceAssetService::class)->maxPhotos(),
-        ]);
+        return view('site.supplier.assets.form', $this->assetFormData($vendor, null, $lending));
     }
 
     public function storeAsset(Request $request, MarketplaceAssetService $assets): RedirectResponse
     {
         $vendor = $this->supplier();
+        if ($this->isDuplicateAssetSubmit($request)) {
+            return redirect()->route('site.supplier.assets');
+        }
         $assets->normalizeRequest($request);
         $validated = $request->validate($assets->validationRules());
         unset($validated['photos'], $validated['remove_photos'], $validated['cover_path']);
 
         $data = $assets->prepareForSave(array_merge($validated, [
-            'vendor_id'     => $vendor->id,
+            'vendor_id' => $vendor->id,
             'supplier_name' => $vendor->name,
-            'is_active'     => true,
+            'is_active' => $request->boolean('is_active', true),
         ]));
 
         $record = MarketplaceAsset::create($data);
@@ -96,28 +127,25 @@ class SupplierController extends Controller
             $request->input('cover_path')
         );
 
-        return redirect()->route('site.supplier.assets')->with('status', 'Asset uploaded successfully.');
+        return redirect()->route('site.supplier.assets');
     }
 
     public function editAsset(MarketplaceAsset $asset): View
     {
         $vendor = $this->supplier();
         abort_unless($asset->vendor_id === $vendor->id, 404);
-        $lending = app(\App\Services\AssetLendingService::class);
+        $lending = app(AssetLendingService::class);
 
-        return view('site.supplier.assets.form', [
-            'vendor'                      => $vendor,
-            'asset'                       => $asset,
-            'categories'                  => config('asset_marketplace.categories', []),
-            'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
-            'maxAssetPhotos'              => app(MarketplaceAssetService::class)->maxPhotos(),
-        ]);
+        return view('site.supplier.assets.form', $this->assetFormData($vendor, $asset, $lending));
     }
 
     public function updateAsset(Request $request, MarketplaceAsset $asset, MarketplaceAssetService $assets): RedirectResponse
     {
         $vendor = $this->supplier();
         abort_unless($asset->vendor_id === $vendor->id, 404);
+        if ($this->isDuplicateAssetSubmit($request)) {
+            return redirect()->route('site.supplier.assets');
+        }
 
         $assets->normalizeRequest($request);
         $assets->validateMinimumPhotos($asset, $request->file('photos', []), $request->input('remove_photos', []));
@@ -135,7 +163,7 @@ class SupplierController extends Controller
             $request->input('cover_path')
         );
 
-        return redirect()->route('site.supplier.assets')->with('status', 'Asset updated.');
+        return redirect()->route('site.supplier.assets');
     }
 
     public function requests(SupplierPortalHomeService $home): View
@@ -246,13 +274,13 @@ class SupplierController extends Controller
         abort_unless($assetRequest->vendor_id === $vendor->id, 404);
 
         $data = $request->validate([
-            'action'       => ['required', 'in:accept,decline'],
+            'action' => ['required', 'in:accept,decline'],
             'vendor_notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         if ($data['action'] === 'accept') {
             $assetRequest->update([
-                'status'      => 'matched',
+                'status' => 'matched',
                 'admin_notes' => trim(($assetRequest->admin_notes ?? '')."\nSupplier accepted: ".($data['vendor_notes'] ?? '')),
             ]);
 
@@ -260,7 +288,7 @@ class SupplierController extends Controller
         }
 
         $assetRequest->update([
-            'status'      => 'closed',
+            'status' => 'closed',
             'admin_notes' => trim(($assetRequest->admin_notes ?? '')."\nSupplier declined: ".($data['vendor_notes'] ?? '')),
         ]);
 
@@ -280,18 +308,18 @@ class SupplierController extends Controller
         }
 
         $common = [
-            'partner'         => $vendor,
-            'portal'          => 'supplier',
-            'profileRoute'    => 'site.supplier.profile',
-            'updateRoute'     => 'site.supplier.profile.update',
+            'partner' => $vendor,
+            'portal' => 'supplier',
+            'profileRoute' => 'site.supplier.profile',
+            'updateRoute' => 'site.supplier.profile.update',
             'layoutComponent' => 'site.supplier-layout',
-            'eyebrow'         => __('site.supplier_portal.title'),
-            'accountTabs'     => [],
+            'eyebrow' => __('site.supplier_portal.title'),
+            'accountTabs' => [],
         ];
 
         if ($section === 'hub') {
             return view('site.partner-account.hub', $common + [
-                'title'    => __('site.supplier_portal.profile_title'),
+                'title' => __('site.supplier_portal.profile_title'),
                 'subtitle' => __('site.supplier_portal.profile_subtitle'),
             ]);
         }
@@ -332,16 +360,16 @@ class SupplierController extends Controller
         $vendor = $this->supplier();
         $data = $request->validate([
             'label' => ['required', 'string', 'max:80'],
-            'file'  => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         $path = $request->file('file')->store("vendor/{$vendor->id}/documents", 'public');
 
         VendorDocument::create([
-            'vendor_id'  => $vendor->id,
-            'label'      => $data['label'],
-            'file_path'  => $path,
-            'mime'       => $request->file('file')->getMimeType(),
+            'vendor_id' => $vendor->id,
+            'label' => $data['label'],
+            'file_path' => $path,
+            'mime' => $request->file('file')->getMimeType(),
             'size_bytes' => $request->file('file')->getSize(),
         ]);
 
@@ -358,7 +386,7 @@ class SupplierController extends Controller
     public function notifications(): View
     {
         $vendor = $this->supplier();
-        $notifications = \App\Models\NotificationLog::query()
+        $notifications = NotificationLog::query()
             ->when(
                 Schema::hasColumn('notification_logs', 'user_id'),
                 fn ($q) => $q->where('user_id', Auth::id()),

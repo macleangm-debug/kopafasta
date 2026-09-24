@@ -2,7 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\LoanProduct;
+use App\Models\MarketplaceAsset;
 use App\Services\AssetLendingService;
+use App\Services\DisplayedRateService;
+use App\Services\MarketplaceAssetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -42,8 +46,8 @@ class AssetLendingPricingTierTest extends TestCase
     public function test_member_quote_and_displayed_rate_use_the_same_financing_source(): void
     {
         $lending = app(AssetLendingService::class);
-        $product = \App\Models\LoanProduct::query()->where('code', 'AL')->first()
-            ?? \App\Models\LoanProduct::create([
+        $product = LoanProduct::query()->where('code', 'AL')->first()
+            ?? LoanProduct::create([
                 'code' => 'AL',
                 'name' => 'Asset Lending',
                 'category' => 'asset_finance',
@@ -56,17 +60,17 @@ class AssetLendingPricingTierTest extends TestCase
                 'status' => 'active',
             ]);
 
-        $range = app(\App\Services\DisplayedRateService::class)->borrowerRateRange($product);
+        $range = app(DisplayedRateService::class)->borrowerRateRange($product);
         $tiers = collect($lending->financingTiers())->pluck('monthly_rate_percent');
         $this->assertEqualsWithDelta(((float) $tiers->min()) / 100, $range['min'], 0.0001);
         $this->assertEqualsWithDelta(((float) $tiers->max()) / 100, $range['max'], 0.0001);
 
-        $asset = new \App\Models\MarketplaceAsset([
+        $asset = new MarketplaceAsset([
             'asset_value' => 20_000_000,
             'customer_deposit' => 1_200_000,
             'max_tenure_months' => 6,
         ]);
-        $weekly = app(\App\Services\MarketplaceAssetService::class)->suggestWeeklyInstallment($asset);
+        $weekly = app(MarketplaceAssetService::class)->suggestWeeklyInstallment($asset);
         $quote = $lending->pricingQuoteFromAssetPrice(20_000_000, 6);
         $this->assertGreaterThan(0, $weekly);
         $this->assertEqualsWithDelta(round(((float) $quote['installment']) / 4.33, 2), $weekly, 0.05);
@@ -83,6 +87,24 @@ class AssetLendingPricingTierTest extends TestCase
         $quote = $lending->pricingQuoteFromAssetPrice(20_000_000);
         $this->assertSame(12.0, $quote['deposit_percent']);
         $this->assertSame(4.0, $quote['monthly_rate_percent']);
+    }
+
+    public function test_ten_million_example_keeps_markup_off_supplier_principal(): void
+    {
+        $lending = app(AssetLendingService::class);
+        $lending->persistPricingTiers(
+            [['from' => 0, 'to' => null, 'percent' => 20, 'active' => true]],
+            $lending->financingTiers(),
+        );
+
+        $quote = $lending->pricingQuoteFromAssetPrice(10_000_000);
+
+        $this->assertSame(2_000_000.0, $quote['deposit_amount']);
+        $this->assertSame(200_000.0, $quote['deposit_markup_amount']);
+        $this->assertSame(2_200_000.0, $quote['customer_deposit_due']);
+        $this->assertSame(8_000_000.0, $quote['financed_amount']);
+        $this->assertSame(10_200_000.0, $quote['pre_financing_total']);
+        $this->assertGreaterThan($quote['pre_financing_total'], $quote['total_payable']);
     }
 
     public function test_marketplace_vehicle_valuation_is_not_applicable(): void

@@ -73,27 +73,23 @@ class SupplierPortalHomeService
     {
         $items = [];
 
-        if (! $profile->isComplete($vendor)) {
+        $paymentMissing = ! ($profile->sectionStatus($vendor, 'payment')['complete'] ?? false);
+        if (! $profile->isComplete($vendor) || $paymentMissing) {
             $next = collect($profile->sectionsFor($vendor))
                 ->first(fn (string $key) => ! ($profile->sectionStatus($vendor, $key)['complete'] ?? false));
+            $body = __('site.supplier_portal.attention_profile_body', [
+                'percent' => $profile->completionPercent($vendor),
+            ]);
+            if ($paymentMissing) {
+                $body .= ' '.__('site.supplier_portal.attention_payment_body');
+            }
             $items[] = [
                 'title' => __('site.supplier_portal.attention_profile_title'),
-                'body' => __('site.supplier_portal.attention_profile_body', [
-                    'percent' => $profile->completionPercent($vendor),
-                ]),
+                'body' => $body,
                 'url' => $next
                     ? route('site.supplier.profile', ['section' => $next])
                     : route('site.supplier.profile'),
                 'cta' => __('site.supplier_portal.attention_profile_cta'),
-            ];
-        }
-
-        if (! ($profile->sectionStatus($vendor, 'payment')['complete'] ?? false)) {
-            $items[] = [
-                'title' => __('site.supplier_portal.attention_payment_title'),
-                'body' => __('site.supplier_portal.attention_payment_body'),
-                'url' => route('site.supplier.profile', ['section' => 'payment']),
-                'cta' => __('site.supplier_portal.attention_payment_cta'),
             ];
         }
 

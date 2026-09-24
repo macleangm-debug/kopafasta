@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\PartnerActivationService;
+use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,6 +25,8 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertSee('id="admin-create-form"', false)
             ->assertSee('data-partner-confirm-create', false)
             ->assertSee('data-loading-label="'.__('site.auth.creating').'"', false)
+            ->assertSee('Payment account', false)
+            ->assertSee('Mobile money', false)
             ->assertDontSee('querySelector(`[name=', false);
 
         $confirmJs = (string) file_get_contents(resource_path('js/partner-create-confirm.js'));
@@ -54,8 +58,8 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->assertSame('active', $partner->status);
         $this->assertNotNull($partner->activated_at);
         $this->assertNotNull($partner->user_id);
-        $this->assertTrue(app(\App\Services\PinService::class)->verify('4321', $partner->user->pin_hash));
-        $this->assertTrue(app(\App\Services\PinService::class)->hasPin($partner->user));
+        $this->assertTrue(app(PinService::class)->verify('4321', $partner->user->pin_hash));
+        $this->assertTrue(app(PinService::class)->hasPin($partner->user));
     }
 
     public function test_admin_can_save_partner_as_draft_without_activation(): void
@@ -110,7 +114,7 @@ class AdminPartnerCreateActivationTest extends TestCase
         $this->assertNotNull($partner->activated_at);
         $this->assertNotNull($partner->user_id);
         $this->assertSame('vendor', $partner->user->role);
-        $this->assertTrue(app(\App\Services\PinService::class)->verify('2468', $partner->user->pin_hash));
+        $this->assertTrue(app(PinService::class)->verify('2468', $partner->user->pin_hash));
     }
 
     public function test_admin_can_reset_partner_pin_from_partner_show(): void
@@ -130,7 +134,7 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertRedirect();
 
         $partner = Vendor::query()->where('name', 'Reset PIN Valuer')->firstOrFail();
-        $this->assertTrue(app(\App\Services\PinService::class)->verify('1111', $partner->user->pin_hash));
+        $this->assertTrue(app(PinService::class)->verify('1111', $partner->user->pin_hash));
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.show', $partner))
@@ -143,7 +147,7 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->post(route('admin.partners.reset-pin', $partner), ['pin' => '9999'])
             ->assertRedirect(route('admin.partners.show', $partner));
 
-        $this->assertTrue(app(\App\Services\PinService::class)->verify('9999', $partner->user->fresh()->pin_hash));
+        $this->assertTrue(app(PinService::class)->verify('9999', $partner->user->fresh()->pin_hash));
     }
 
     public function test_screening_officer_cannot_open_the_add_partner_form(): void
@@ -321,7 +325,7 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertOk()
             ->assertSee("Macklin's Auto Traders");
 
-        $activation = app(\App\Services\PartnerActivationService::class);
+        $activation = app(PartnerActivationService::class);
         $start = $this->get($activation->publicActivateUrl($partner));
         $start->assertOk()
             ->assertSee("Macklin's Auto Traders")
@@ -429,7 +433,7 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertOk()
             ->assertSee('KF Staging Path Supplier', false);
 
-        $activation = app(\App\Services\PartnerActivationService::class);
+        $activation = app(PartnerActivationService::class);
         $message = $activation->shareMessage($partner);
         $this->assertStringContainsString('Thank you for registering as an Asset Supplier', $message);
         $this->assertStringContainsString('Use the secure link below', $message);
@@ -466,7 +470,7 @@ class AdminPartnerCreateActivationTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
-        $this->mock(\App\Services\PartnerActivationService::class, function ($mock) {
+        $this->mock(PartnerActivationService::class, function ($mock) {
             $mock->shouldReceive('requiresActivation')->andReturn(true);
             $mock->shouldReceive('sendActivationInvite')->andThrow(new \RuntimeException('activation failed'));
         });

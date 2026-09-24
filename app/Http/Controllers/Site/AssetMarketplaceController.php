@@ -5,18 +5,24 @@ namespace App\Http\Controllers\Site;
 use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
 use App\Models\AssetRequest;
-use App\Models\AssetReservation;
 use App\Models\Customer;
 use App\Models\MarketplaceAsset;
 use App\Services\ApplicationRequirementsService;
+use App\Services\AssetLendingService;
 use App\Services\AssetMarketplaceFeeService;
 use App\Services\AssetReservationPaymentService;
 use App\Services\AssetReservationService;
 use App\Services\CustomerPaymentService;
+use App\Services\MarketplaceAssetService;
 use App\Services\PaymentAccountService;
+use App\Services\ReferralService;
+use App\Support\MoneyFormat;
 use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AssetMarketplaceController extends Controller
@@ -85,20 +91,20 @@ class AssetMarketplaceController extends Controller
     {
         $category = $request->query('category');
         $filters = [
-            'q'         => trim((string) $request->query('q', '')),
-            'brand'     => trim((string) $request->query('brand', '')),
+            'q' => trim((string) $request->query('q', '')),
+            'brand' => trim((string) $request->query('brand', '')),
             'min_price' => $request->query('min_price'),
             'max_price' => $request->query('max_price'),
-            'tenure'    => $request->query('tenure'),
-            'sort'      => $request->query('sort', 'title'),
+            'tenure' => $request->query('tenure'),
+            'sort' => $request->query('sort', 'title'),
         ];
         $assets = $this->loadAssets($category, $filters);
 
         return view($view, [
-            'assets'     => $assets,
+            'assets' => $assets,
             'categories' => config('asset_marketplace.categories', []),
-            'category'   => $category,
-            'filters'    => $filters,
+            'category' => $category,
+            'filters' => $filters,
             'authenticated' => $authenticated,
         ]);
     }
@@ -207,7 +213,7 @@ class AssetMarketplaceController extends Controller
         $paymentService = app(AssetReservationPaymentService::class);
         $reservationFeeQuote = $paymentService->quote($customer, $reservation, AssetReservationPaymentService::STEP_RESERVATION_FEE);
         $depositQuote = $paymentService->quote($customer, $reservation, AssetReservationPaymentService::STEP_DEPOSIT);
-        $referralWallet = app(\App\Services\ReferralService::class)->wallet($customer);
+        $referralWallet = app(ReferralService::class)->wallet($customer);
 
         return view('site.borrower.marketplace.reserve', compact(
             'asset',
@@ -240,14 +246,14 @@ class AssetMarketplaceController extends Controller
         abort_unless($reservation, 404);
 
         $data = $request->validate([
-            'step'           => ['required', 'in:reservation_fee,deposit'],
+            'step' => ['required', 'in:reservation_fee,deposit'],
             'payment_method' => ['required', 'in:bank_transfer,mobile_money'],
-            'mobile_number'  => [payment_gateway_is_dummy() ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
+            'mobile_number' => [payment_gateway_is_dummy() ? 'nullable' : 'required_if:payment_method,mobile_money', 'nullable', 'string', 'max:20'],
             'mobile_number_local' => ['nullable', 'string', 'max:20'],
-            'payment_date'   => ['nullable', 'date'],
-            'proof'          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'use_wallet'     => ['nullable', 'boolean'],
-            'promo_code'     => ['nullable', 'string', 'max:40'],
+            'payment_date' => ['nullable', 'date'],
+            'proof' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'use_wallet' => ['nullable', 'boolean'],
+            'promo_code' => ['nullable', 'string', 'max:40'],
         ]);
 
         $mobileNumber = PhoneNumber::fromRequest($request, 'mobile_number', $customer->country_code ?? null);
@@ -263,14 +269,14 @@ class AssetMarketplaceController extends Controller
         try {
             $payment = $payments->submit($customer, $reservation, $data['step'], [
                 'payment_method' => $data['payment_method'],
-                'mobile_number'  => $mobileNumber,
-                'payment_date'   => $data['payment_date'] ?? null,
-                'proof'          => $request->file('proof'),
-                'reference'      => $payments->paymentReference($reservation, $data['step']),
-                'use_wallet'     => $request->boolean('use_wallet'),
-                'promo_code'     => $data['promo_code'] ?? null,
+                'mobile_number' => $mobileNumber,
+                'payment_date' => $data['payment_date'] ?? null,
+                'proof' => $request->file('proof'),
+                'reference' => $payments->paymentReference($reservation, $data['step']),
+                'use_wallet' => $request->boolean('use_wallet'),
+                'promo_code' => $data['promo_code'] ?? null,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         } catch (\Throwable $e) {
             report($e);
@@ -279,9 +285,9 @@ class AssetMarketplaceController extends Controller
         }
 
         $this->auditBorrower('marketplace.reservation_payment', $reservation, [
-            'step'      => $data['step'],
+            'step' => $data['step'],
             'reference' => $payment->reference,
-            'amount'    => $payment->amount,
+            'amount' => $payment->amount,
         ]);
 
         $message = $data['payment_method'] === 'bank_transfer' && ! $payment->isVerified()
@@ -316,12 +322,12 @@ class AssetMarketplaceController extends Controller
         $reservations->advance($reservation, $action);
 
         $message = match ($action) {
-            'skip_viewing'     => $feeAlreadyPaid
+            'skip_viewing' => $feeAlreadyPaid
                 ? __('borrower.marketplace.viewing_skipped_after_fee')
                 : __('borrower.marketplace.viewing_skipped'),
             'complete_viewing' => __('borrower.marketplace.viewing_completed'),
             'confirm_interest' => __('borrower.marketplace.interest_confirmed'),
-            default            => __('borrower.marketplace.progress_updated'),
+            default => __('borrower.marketplace.progress_updated'),
         };
 
         return back()->with('status', $message);
@@ -343,7 +349,7 @@ class AssetMarketplaceController extends Controller
     public function storePublicRequest(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'asset_name'  => ['required', 'string', 'max:150'],
+            'asset_name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -358,19 +364,19 @@ class AssetMarketplaceController extends Controller
     private function persistAssetRequest(Request $request, Customer $customer): RedirectResponse
     {
         $data = $request->validate([
-            'asset_name'  => ['required', 'string', 'max:150'],
+            'asset_name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
 
         AssetRequest::create([
-            'customer_id'             => $customer->id,
-            'asset_name'              => $data['asset_name'],
-            'description'             => $data['description'] ?? null,
-            'budget'                  => null,
+            'customer_id' => $customer->id,
+            'asset_name' => $data['asset_name'],
+            'description' => $data['description'] ?? null,
+            'budget' => null,
             'preferred_tenure_months' => null,
-            'photo_path'              => null,
-            'additional_photos'       => null,
-            'status'                  => 'sourcing',
+            'photo_path' => null,
+            'additional_photos' => null,
+            'status' => 'sourcing',
         ]);
 
         $request->session()->forget('pending_asset_request');
@@ -380,8 +386,8 @@ class AssetMarketplaceController extends Controller
             ->with('status', __('borrower.marketplace.request_submitted'));
     }
 
-    /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */
-    private function relatedAssets(array $asset, int $limit = 4): \Illuminate\Support\Collection
+    /** @return Collection<int, array<string, mixed>> */
+    private function relatedAssets(array $asset, int $limit = 4): Collection
     {
         $currentId = (string) ($asset['id'] ?? '');
         $category = $asset['category'] ?? null;
@@ -401,10 +407,10 @@ class AssetMarketplaceController extends Controller
         return $sameCategory->merge($others)->unique('id')->take($limit)->values();
     }
 
-    /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */
+    /** @return Collection<int, array<string, mixed>> */
     private function loadAssets(?string $category, array $filters = [])
     {
-        if (\Illuminate\Support\Facades\Schema::hasTable('marketplace_assets') && MarketplaceAsset::query()->exists()) {
+        if (Schema::hasTable('marketplace_assets') && MarketplaceAsset::query()->exists()) {
             $query = MarketplaceAsset::query()
                 ->where('is_active', true)
                 ->where(fn ($q) => $q->whereNull('availability_status')->orWhere('availability_status', 'available'))
@@ -424,16 +430,16 @@ class AssetMarketplaceController extends Controller
                             ->orWhere('description', 'like', $term);
                     });
                 })
-                ->when(filled($filters['min_price'] ?? null), fn ($q) => $q->where('asset_value', '>=', \App\Support\MoneyFormat::toNumber($filters['min_price'])))
-                ->when(filled($filters['max_price'] ?? null), fn ($q) => $q->where('asset_value', '<=', \App\Support\MoneyFormat::toNumber($filters['max_price'])))
+                ->when(filled($filters['min_price'] ?? null), fn ($q) => $q->where('asset_value', '>=', MoneyFormat::toNumber($filters['min_price'])))
+                ->when(filled($filters['max_price'] ?? null), fn ($q) => $q->where('asset_value', '<=', MoneyFormat::toNumber($filters['max_price'])))
                 ->when(filled($filters['tenure'] ?? null), fn ($q) => $q->where('max_tenure_months', '<=', (int) $filters['tenure']));
 
             $sort = $filters['sort'] ?? 'title';
             match ($sort) {
-                'price_asc'  => $query->orderBy('asset_value'),
+                'price_asc' => $query->orderBy('asset_value'),
                 'price_desc' => $query->orderByDesc('asset_value'),
-                'deposit_asc'=> $query->orderBy('customer_deposit'),
-                default      => $query->orderBy('title'),
+                'deposit_asc' => $query->orderBy('customer_deposit'),
+                default => $query->orderBy('title'),
             };
 
             return $query->with('vendor')->get()
@@ -455,7 +461,7 @@ class AssetMarketplaceController extends Controller
 
     private function findModel(string $assetId): ?MarketplaceAsset
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('marketplace_assets')) {
+        if (! Schema::hasTable('marketplace_assets')) {
             return null;
         }
 
@@ -473,11 +479,11 @@ class AssetMarketplaceController extends Controller
 
     private function resolveModel(string $assetId): ?MarketplaceAsset
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('marketplace_assets')) {
+        if (! Schema::hasTable('marketplace_assets')) {
             return null;
         }
 
-        $model = app(\App\Services\MarketplaceAssetService::class)->resolveOrMaterialize($assetId);
+        $model = app(MarketplaceAssetService::class)->resolveOrMaterialize($assetId);
         if ($model) {
             return $model;
         }
@@ -493,7 +499,7 @@ class AssetMarketplaceController extends Controller
             ->first();
     }
 
-    private function findAsset(string $assetId, ?\App\Models\Customer $customer = null): ?array
+    private function findAsset(string $assetId, ?Customer $customer = null): ?array
     {
         $model = null;
 
@@ -519,36 +525,41 @@ class AssetMarketplaceController extends Controller
     /** @return array<string, mixed> */
     private function normalizeAsset(MarketplaceAsset $asset): array
     {
-        $lending = app(\App\Services\AssetLendingService::class);
+        $lending = app(AssetLendingService::class);
         $assetValue = (float) ($asset->asset_value ?: 0);
         $quote = $lending->pricingQuoteFromAssetPrice($assetValue);
-        $deposit = (float) ($quote['deposit_amount'] ?? ($asset->customer_deposit ?: $asset->computeCustomerDeposit()));
-        $remainingLoan = (float) ($quote['financed_amount'] ?? max(0, round($assetValue - $deposit, 2)));
-        $supplierDeposit = (float) $asset->supplier_deposit;
+        $deposit = (float) ($quote['customer_deposit_due'] ?? ($asset->customer_deposit ?: $asset->computeCustomerDeposit()));
+        $remainingLoan = (float) ($quote['financed_amount'] ?? max(0, round($assetValue - (float) $quote['deposit_amount'], 2)));
+        $supplierDeposit = (float) ($quote['deposit_amount'] ?? $asset->supplier_deposit);
         $vendor = $asset->relationLoaded('vendor') ? $asset->vendor : $asset->vendor()->first();
+        $specs = is_array($asset->specs) ? $asset->specs : [];
 
         return [
-            'id'                     => $asset->slug ?: (string) $asset->id,
-            'asset_id'               => $asset->id,
-            'supplier_id'            => $vendor?->id,
-            'commercial_mode'        => $vendor?->supplier_type ?? config('asset_lending.default_supplier_type'),
-            'category'               => $asset->category,
-            'title'                  => $asset->title,
-            'vendor'                 => $vendor?->name ?: $asset->supplier_name,
-            'supplier'               => $vendor?->name ?: $asset->supplier_name,
-            'supplier_region'        => $vendor?->coverageLabel(),
-            'description'            => $asset->description,
-            'asset_value'            => $assetValue ?: (float) ($quote['asset_price'] ?? 0),
-            'deposit'                => $deposit,
-            'remaining_loan'         => $remainingLoan,
-            'supplier_deposit'       => $supplierDeposit,
+            'id' => $asset->slug ?: (string) $asset->id,
+            'asset_id' => $asset->id,
+            'supplier_id' => $vendor?->id,
+            'commercial_mode' => $vendor?->supplier_type ?? config('asset_lending.default_supplier_type'),
+            'category' => $asset->category,
+            'title' => $asset->title,
+            'vendor' => $vendor?->name ?: $asset->supplier_name,
+            'supplier' => $vendor?->name ?: $asset->supplier_name,
+            'supplier_region' => $specs['city'] ?? $vendor?->coverageLabel(),
+            'city' => $specs['city'] ?? $vendor?->coverageLabel(),
+            'condition' => $specs['condition'] ?? null,
+            'make' => $specs['make'] ?? null,
+            'model' => $specs['model'] ?? null,
+            'year' => $specs['year'] ?? null,
+            'description' => $asset->description,
+            'asset_value' => $assetValue ?: (float) ($quote['asset_price'] ?? 0),
+            'deposit' => $deposit,
+            'remaining_loan' => $remainingLoan,
+            'supplier_deposit' => $supplierDeposit,
             'deposit_markup_percent' => (float) ($asset->deposit_markup_percent ?? 0),
-            'deposit_markup_amount'  => $lending->depositMarkupAmount($asset),
-            'weekly_installment'     => (float) $asset->weekly_installment,
-            'max_tenure_months'      => effective_marketplace_asset_max_tenure($asset),
-            'waiting_period_days'    => $asset->waiting_period_days,
-            'photos'                 => $asset->photos ?? [],
+            'deposit_markup_amount' => $lending->depositMarkupAmount($asset),
+            'weekly_installment' => (float) $asset->weekly_installment,
+            'max_tenure_months' => effective_marketplace_asset_max_tenure($asset),
+            'waiting_period_days' => $asset->waiting_period_days,
+            'photos' => $asset->photos ?? [],
         ];
     }
-
 }

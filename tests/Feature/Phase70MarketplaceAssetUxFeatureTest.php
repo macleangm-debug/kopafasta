@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Http\Middleware\EnsureBorrowerPin;
 use App\Models\AssetReservation;
 use App\Models\Customer;
+use App\Models\LoanProduct;
 use App\Models\MarketplaceAsset;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\AssetLendingService;
 use App\Services\MarketplaceAssetService;
 use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,35 +25,43 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
         $this->withoutMiddleware(EnsureBorrowerPin::class);
     }
 
-    public function test_deposit_percent_is_derived_from_asset_value_on_save(): void
+    public function test_deposit_is_taken_from_product_configuration_not_the_form(): void
     {
+        $lending = app(AssetLendingService::class);
+        $lending->persistPricingTiers(
+            [['from' => 0, 'to' => null, 'percent' => 20, 'active' => true]],
+            $lending->financingTiers(),
+        );
+
         $prepared = app(MarketplaceAssetService::class)->prepareForSave([
-            'category'          => 'vehicle',
-            'title'             => 'Deposit Percent Truck',
-            'asset_value'       => 10_000_000,
-            'deposit_percent'   => 25,
+            'category' => 'vehicle',
+            'title' => 'Deposit Percent Truck',
+            'asset_value' => 10_000_000,
+            'deposit_percent' => 25,
             'max_tenure_months' => 12,
-            'is_active'         => true,
+            'is_active' => true,
         ]);
 
-        $this->assertSame(2_500_000.0, (float) $prepared['supplier_deposit']);
-        $this->assertSame(2_750_000.0, (float) $prepared['customer_deposit']);
+        $this->assertSame(2_000_000.0, (float) $prepared['supplier_deposit']);
+        $this->assertSame(2_200_000.0, (float) $prepared['customer_deposit']);
+        $this->assertSame(8_000_000.0, (float) $lending->pricingQuoteFromAssetPrice(10_000_000)['financed_amount']);
+        $this->assertSame(10_200_000.0, (float) $lending->pricingQuoteFromAssetPrice(10_000_000)['pre_financing_total']);
     }
 
     public function test_admin_can_edit_asset_by_slug(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $asset = MarketplaceAsset::create([
-            'slug'               => 'edit-by-slug-truck',
-            'title'              => 'Slug Truck',
-            'category'           => 'vehicle',
-            'supplier_name'      => 'Supplier',
-            'asset_value'        => 5_000_000,
-            'supplier_deposit'   => 1_000_000,
-            'customer_deposit'   => 1_100_000,
+            'slug' => 'edit-by-slug-truck',
+            'title' => 'Slug Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Supplier',
+            'asset_value' => 5_000_000,
+            'supplier_deposit' => 1_000_000,
+            'customer_deposit' => 1_100_000,
             'weekly_installment' => 120_000,
-            'max_tenure_months'  => 12,
-            'is_active'          => true,
+            'max_tenure_months' => 12,
+            'is_active' => true,
         ]);
 
         $this->actingAs($admin, 'admin')
@@ -65,29 +75,29 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
         Customer::create([
-            'user_id'               => $user->id,
-            'customer_number'       => 'CU-P70-002',
-            'type'                  => 'individual',
-            'status'                => 'active',
-            'first_name'            => 'Locked',
-            'last_name'             => 'Borrower',
-            'phone'                 => '255712340071',
-            'membership_status'     => 'active',
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P70-002',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Locked',
+            'last_name' => 'Borrower',
+            'phone' => '255712340071',
+            'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
 
         $asset = MarketplaceAsset::create([
-            'slug'               => 'locked-truck-001',
-            'title'              => 'Locked Truck',
-            'category'           => 'vehicle',
-            'supplier_name'      => 'Supplier',
-            'asset_value'        => 8_000_000,
-            'supplier_deposit'   => 1_600_000,
-            'customer_deposit'   => 1_760_000,
+            'slug' => 'locked-truck-001',
+            'title' => 'Locked Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Supplier',
+            'asset_value' => 8_000_000,
+            'supplier_deposit' => 1_600_000,
+            'customer_deposit' => 1_760_000,
             'weekly_installment' => 150_000,
-            'max_tenure_months'  => 18,
-            'is_active'          => true,
-            'availability_status'=> 'available',
+            'max_tenure_months' => 18,
+            'is_active' => true,
+            'availability_status' => 'available',
         ]);
 
         $response = $this->actingAs($user)
@@ -114,30 +124,30 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
         Customer::create([
-            'user_id'               => $user->id,
-            'customer_number'       => 'CU-P70-001',
-            'type'                  => 'individual',
-            'status'                => 'active',
-            'first_name'            => 'Apply',
-            'last_name'             => 'Borrower',
-            'phone'                 => '255712340070',
-            'membership_status'     => 'active',
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P70-001',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Apply',
+            'last_name' => 'Borrower',
+            'phone' => '255712340070',
+            'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
 
         $asset = MarketplaceAsset::create([
-            'slug'               => 'apply-truck-001',
-            'title'              => 'Apply Truck',
-            'category'           => 'vehicle',
-            'supplier_name'      => 'Supplier',
-            'asset_value'        => 8_000_000,
-            'supplier_deposit'   => 1_600_000,
-            'customer_deposit'   => 1_760_000,
+            'slug' => 'apply-truck-001',
+            'title' => 'Apply Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Supplier',
+            'asset_value' => 8_000_000,
+            'supplier_deposit' => 1_600_000,
+            'customer_deposit' => 1_760_000,
             'weekly_installment' => 150_000,
-            'max_tenure_months'  => 18,
-            'is_active'          => true,
-            'availability_status'=> 'available',
-            'photos'             => ['marketplace/test.jpg'],
+            'max_tenure_months' => 18,
+            'is_active' => true,
+            'availability_status' => 'available',
+            'photos' => ['marketplace/test.jpg'],
         ]);
 
         $response = $this->actingAs($user)
@@ -155,25 +165,25 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
     {
         $supplier = Vendor::create([
             'vendor_number' => 'SUP-P70',
-            'name'          => 'Dar Motors',
-            'category'      => 'supplier',
-            'status'        => 'active',
-            'phone'         => '255712340070',
+            'name' => 'Dar Motors',
+            'category' => 'supplier',
+            'status' => 'active',
+            'phone' => '255712340070',
             'coverage_type' => 'nationwide',
         ]);
 
         MarketplaceAsset::create([
-            'slug'               => 'card-truck',
-            'title'              => 'Card Truck',
-            'category'           => 'vehicle',
-            'supplier_name'      => 'Dar Motors',
-            'partner_id'         => $supplier->id,
-            'asset_value'        => 4_000_000,
-            'supplier_deposit'   => 800_000,
-            'customer_deposit'   => 880_000,
+            'slug' => 'card-truck',
+            'title' => 'Card Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Dar Motors',
+            'partner_id' => $supplier->id,
+            'asset_value' => 4_000_000,
+            'supplier_deposit' => 800_000,
+            'customer_deposit' => 880_000,
             'weekly_installment' => 90_000,
-            'max_tenure_months'  => 12,
-            'is_active'          => true,
+            'max_tenure_months' => 12,
+            'is_active' => true,
         ]);
 
         $this->get(route('site.marketplace'))
@@ -194,14 +204,14 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
         $user = User::factory()->create(['role' => 'borrower']);
         app(PinService::class)->setPin($user, '1234');
         Customer::create([
-            'user_id'               => $user->id,
-            'customer_number'       => 'CU-P70-REQ',
-            'type'                  => 'individual',
-            'status'                => 'active',
-            'first_name'            => 'Asha',
-            'last_name'             => 'Mushi',
-            'phone'                 => '255712340072',
-            'membership_status'     => 'active',
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P70-REQ',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Asha',
+            'last_name' => 'Mushi',
+            'phone' => '255712340072',
+            'membership_status' => 'active',
             'membership_expires_at' => now()->addYear(),
         ]);
 
@@ -295,7 +305,7 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             'membership_expires_at' => now()->addYear(),
         ]);
 
-        \App\Models\LoanProduct::query()->create([
+        LoanProduct::query()->create([
             'code' => 'AL',
             'name' => 'Asset Lending',
             'is_active' => true,

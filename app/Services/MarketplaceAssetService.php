@@ -8,14 +8,16 @@ use App\Models\Vendor;
 use App\Support\MoneyFormat;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class MarketplaceAssetService
 {
     public function maxPhotos(): int
     {
-        return max(1, (int) Setting::get('asset_lending.max_asset_photos', 4));
+        return max(1, min(7, (int) Setting::get('asset_lending.max_asset_photos', 7)));
     }
 
     /** Normalize formatted money strings and insurance toggle before validation. */
@@ -85,10 +87,28 @@ class MarketplaceAssetService
             }
         }
 
-        if (isset($data['deposit_percent'])) {
-            $assetValue = (float) ($data['asset_value'] ?? 0);
-            $data['supplier_deposit'] = round($assetValue * ((float) $data['deposit_percent'] / 100), 2);
-            unset($data['deposit_percent']);
+        $assetValue = (float) ($data['asset_value'] ?? 0);
+        $quote = app(AssetLendingService::class)->pricingQuoteFromAssetPrice($assetValue);
+        $data['supplier_deposit'] = (float) $quote['deposit_amount'];
+        $data['deposit_markup_percent'] = (float) $quote['deposit_markup_percent'];
+        $data['customer_deposit'] = (float) $quote['customer_deposit_due'];
+        $data['max_tenure_months'] = (int) $quote['max_tenure_months'];
+        unset($data['deposit_percent']);
+
+        $specs = is_array($existing?->specs) ? $existing->specs : [];
+        if (is_array($data['specs'] ?? null)) {
+            $specs = array_merge($specs, $data['specs']);
+        }
+        foreach (['condition', 'city', 'make', 'model', 'year'] as $specKey) {
+            if (array_key_exists($specKey, $data)) {
+                $specs[$specKey] = $data[$specKey];
+                unset($data[$specKey]);
+            }
+        }
+        if (Schema::hasColumn('marketplace_assets', 'specs')) {
+            $data['specs'] = array_filter($specs, fn ($value) => filled($value));
+        } else {
+            unset($data['specs']);
         }
 
         if (! empty($data['vendor_id'])) {
@@ -152,7 +172,6 @@ class MarketplaceAssetService
     /**
      * Normalize uploaded photo payloads from a single file or photos[] list.
      *
-     * @param  mixed  $files
      * @return list<UploadedFile>
      */
     public function normalizeUploadedPhotos(mixed $files): array
@@ -258,7 +277,7 @@ class MarketplaceAssetService
     }
 
     /** @param array<int, UploadedFile>|UploadedFile|null $newFiles
-     *  @param array<int, string> $removePaths
+     * @param  array<int, string>  $removePaths
      */
     public function validateMinimumPhotos(?MarketplaceAsset $existing, array|UploadedFile|null $newFiles = [], array $removePaths = []): void
     {
@@ -268,7 +287,7 @@ class MarketplaceAssetService
         $total = $remaining + count($this->normalizeUploadedPhotos($newFiles));
 
         if ($total < 1) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'photos' => 'At least one image is required.',
             ]);
         }
@@ -280,7 +299,7 @@ class MarketplaceAssetService
      */
     public function resolveOrMaterialize(string $assetId): ?MarketplaceAsset
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('marketplace_assets')) {
+        if (! Schema::hasTable('marketplace_assets')) {
             return null;
         }
 
@@ -307,17 +326,17 @@ class MarketplaceAssetService
         $depositPercent = $assetValue > 0 ? round(($supplierDeposit / $assetValue) * 100, 2) : 0;
 
         $prepared = $this->prepareForSave([
-            'slug'               => $config['id'],
-            'category'           => $config['category'] ?? 'other',
-            'title'              => $config['title'] ?? 'Marketplace asset',
-            'description'        => $config['description'] ?? null,
-            'supplier_name'      => $config['vendor'] ?? ($config['supplier'] ?? 'Demo supplier'),
-            'asset_value'        => $assetValue,
-            'deposit_percent'    => $depositPercent,
+            'slug' => $config['id'],
+            'category' => $config['category'] ?? 'other',
+            'title' => $config['title'] ?? 'Marketplace asset',
+            'description' => $config['description'] ?? null,
+            'supplier_name' => $config['vendor'] ?? ($config['supplier'] ?? 'Demo supplier'),
+            'asset_value' => $assetValue,
+            'deposit_percent' => $depositPercent,
             'weekly_installment' => (float) ($config['weekly_installment'] ?? 0),
-            'max_tenure_months'  => (int) ($config['max_tenure_months'] ?? 12),
-            'photos'             => $config['photos'] ?? [],
-            'is_active'          => true,
+            'max_tenure_months' => (int) ($config['max_tenure_months'] ?? 12),
+            'photos' => $config['photos'] ?? [],
+            'is_active' => true,
         ]);
 
         return MarketplaceAsset::updateOrCreate(
@@ -332,25 +351,30 @@ class MarketplaceAssetService
         $maxPhotos = $this->maxPhotos();
 
         return [
-            'insurance_available'    => ['nullable', 'in:0,1'],
-            'category'               => ['required', 'string', 'max:40'],
-            'title'                  => ['required', 'string', 'max:150'],
-            'description'            => ['nullable', 'string'],
-            'serial_number'          => ['nullable', 'string', 'max:80'],
-            'chassis_number'         => ['nullable', 'string', 'max:80'],
-            'engine_number'          => ['nullable', 'string', 'max:80'],
-            'insurance_policy_number'=> ['nullable', 'string', 'max:80'],
-            'insurance_expires_at'   => ['nullable', 'date'],
-            'asset_value'            => ['required', 'numeric', 'min:0'],
-            'deposit_percent'        => ['required', 'numeric', 'min:0.01', 'max:100'],
-            'max_tenure_months'      => ['required', 'integer', 'min:1', 'max:120'],
-            'is_active'              => ['nullable', 'boolean'],
-            'photos'                 => [$existing ? 'nullable' : 'required', 'array', 'min:'.($existing ? 0 : 1), 'max:'.$maxPhotos],
-            'photos.*'               => ['nullable', 'image', 'max:5120'],
-            'remove_photos'          => ['nullable', 'array'],
-            'remove_photos.*'        => ['string', 'max:2048'],
-            'cover_path'             => ['nullable', 'string', 'max:2048'],
-            'vendor_id'              => [$requireSupplier ? 'required' : 'nullable', 'exists:partners,id'],
+            'insurance_available' => ['nullable', 'in:0,1'],
+            'category' => ['required', 'string', 'max:40'],
+            'title' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string'],
+            'condition' => ['nullable', 'string', 'max:40'],
+            'city' => ['nullable', 'string', 'max:80'],
+            'make' => ['nullable', 'string', 'max:80'],
+            'model' => ['nullable', 'string', 'max:80'],
+            'year' => ['nullable', 'integer', 'min:1950', 'max:2100'],
+            'serial_number' => ['nullable', 'string', 'max:80'],
+            'chassis_number' => ['nullable', 'string', 'max:80'],
+            'engine_number' => ['nullable', 'string', 'max:80'],
+            'insurance_policy_number' => ['nullable', 'string', 'max:80'],
+            'insurance_expires_at' => ['nullable', 'date'],
+            'asset_value' => ['required', 'numeric', 'min:0'],
+            'deposit_percent' => ['nullable', 'numeric', 'min:0.01', 'max:100'],
+            'max_tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
+            'is_active' => ['nullable', 'boolean'],
+            'photos' => [$existing ? 'nullable' : 'required', 'array', 'min:'.($existing ? 0 : 1), 'max:'.$maxPhotos],
+            'photos.*' => ['nullable', 'image', 'max:5120'],
+            'remove_photos' => ['nullable', 'array'],
+            'remove_photos.*' => ['string', 'max:2048'],
+            'cover_path' => ['nullable', 'string', 'max:2048'],
+            'vendor_id' => [$requireSupplier ? 'required' : 'nullable', 'exists:partners,id'],
         ];
     }
 }
