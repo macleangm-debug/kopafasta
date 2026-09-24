@@ -169,7 +169,7 @@
                 <p class="text-sm font-mono text-gray-900">{{ $r->vendor_number }}</p>
             </div>
         @endif
-        <div>
+        <div class="md:col-span-2">
             <label for="name" class="block text-xs font-semibold text-gray-700 mb-1">
                 <span x-show="isIndividual" x-cloak>Full name</span>
                 <span x-show="isCompany" x-cloak>Trading / company name</span>
@@ -190,10 +190,12 @@
             @enderror
         </div>
 
-        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5" x-show="isCompany" x-cloak>
+        <div class="md:col-span-2" x-show="isCompany" x-cloak>
             <x-admin.input name="legal_name" label="Legal business name" :value="$r?->legal_name" x-bind:disabled="!isCompany" />
-            <x-admin.input name="registration_number" label="BRELA / registration no." :value="$r?->registration_number" x-bind:disabled="!isCompany" />
+        </div>
+        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5" x-show="isCompany" x-cloak>
             <x-admin.input name="tin" label="TIN" :value="$r?->tin" x-bind:disabled="!isCompany" />
+            <x-admin.input name="registration_number" label="BRELA / registration no." :value="$r?->registration_number" x-bind:disabled="!isCompany" />
         </div>
 
         @if ($creating)
@@ -246,8 +248,10 @@
                            help="Person who signs in / handles jobs — not the company trading name."
                            x-bind:disabled="!isCompany" />
         </div>
-        <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" :required="$creating" />
-        <x-admin.input name="email" label="Email" :value="$r?->email" type="email" />
+        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+            <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" :required="$creating" />
+            <x-admin.input name="email" label="Email" :value="$r?->email" type="email" />
+        </div>
         <div class="md:col-span-2">
             <x-admin.national-id-input name="national_id" :value="$nationalId" />
         </div>
@@ -255,8 +259,8 @@
             <p class="md:col-span-2 text-xs text-gray-500 -mt-2">Phone is required so the partner can activate and sign in to the portal. Payout details and ID photos are completed by the partner after they sign in — the verification card goes live when their profile is finished.</p>
         @endif
         <div class="md:col-span-2 space-y-2">
-            <p class="text-xs font-semibold text-gray-700">Address (region / district)</p>
-            <p class="text-xs text-gray-500">Same structured address used on the partner portal Address tab.</p>
+            <p class="text-xs font-semibold text-gray-700">Address</p>
+            <p class="text-xs text-gray-500">Region → district → city / area → street. Same Tanzania geography as the rest of the platform.</p>
             <x-site.address-fields
                 prefix="address"
                 :region="old('address_region', $residenceMeta['region'] ?? '')"
@@ -264,6 +268,7 @@
                 :ward="old('address_ward', $residenceMeta['ward'] ?? '')"
                 :street="old('address_street', $residenceMeta['street'] ?? '')"
                 :required="false"
+                :force-native="true"
             />
         </div>
     </x-admin.step>

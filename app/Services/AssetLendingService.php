@@ -324,6 +324,31 @@ class AssetLendingService
     }
 
     /**
+     * Tenure-keyed quotes from the same Product Configuration calculator.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function quotesByTenure(float $assetPrice, int $maxTenure): array
+    {
+        $quotes = [];
+        $maxTenure = max(1, min(24, $maxTenure));
+        for ($months = 1; $months <= $maxTenure; $months++) {
+            $quote = $this->pricingQuoteFromAssetPrice($assetPrice, $months);
+            $quotes[$months] = [
+                'installment' => $quote['installment'],
+                'total_payable' => $quote['total_payable'],
+                'total_interest' => $quote['total_interest'],
+                'deposit_amount' => $quote['deposit_amount'],
+                'financed_amount' => $quote['financed_amount'],
+                'repayment_frequency' => $quote['repayment_frequency'],
+                'tenure_months' => $quote['tenure_months'],
+            ];
+        }
+
+        return $quotes;
+    }
+
+    /**
      * Persist deposit / financing tiers. Product Configuration is the editor;
      * Settings storage remains the shared read source for quotes.
      *

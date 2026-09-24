@@ -273,25 +273,34 @@ class ApplyController extends Controller
             $preselect = $assetLoanProduct->id;
 
             $asset = $reservation->asset;
-            $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
-            $assetValue = (float) ($asset->asset_value ?: max($deposit * 1.4, $deposit));
-            $remainingLoan = max(0, round($assetValue - $deposit, 2));
-            $tenure = effective_marketplace_asset_max_tenure($asset);
+            $asset->loadMissing('vendor');
+            $lending = app(\App\Services\AssetLendingService::class);
+            $assetValue = (float) ($asset->asset_value ?: 0);
+            $quote = $lending->pricingQuoteFromAssetPrice($assetValue);
+            $deposit = (float) ($quote['deposit_amount'] ?? ($asset->customer_deposit ?: $asset->computeCustomerDeposit()));
+            $remainingLoan = (float) ($quote['financed_amount'] ?? max(0, round($assetValue - $deposit, 2)));
+            $tenure = min(
+                (int) ($quote['max_tenure_months'] ?? 12),
+                effective_marketplace_asset_max_tenure($asset)
+            );
             $photoUrls = marketplace_photo_urls($asset->photos ?? []);
 
             $assetApplication = [
+                'asset_id' => $asset->id,
+                'supplier_id' => $asset->partner_id,
                 'asset_title' => $asset->title,
-                'supplier' => $asset->supplier_name,
-                'asset_value' => $assetValue,
+                'supplier' => $asset->vendor?->name ?: $asset->supplier_name,
+                'asset_value' => $assetValue ?: (float) ($quote['asset_price'] ?? 0),
                 'deposit' => $deposit,
                 'remaining_loan' => $remainingLoan,
-                'weekly_installment' => (float) $asset->weekly_installment,
-                'max_tenure_months' => $tenure,
+                'commercial_mode' => $asset->vendor?->supplier_type ?? config('asset_lending.default_supplier_type'),
+                'max_tenure_months' => max(1, $tenure),
                 'min_tenure_months' => 1,
                 'purpose' => 'asset_financing',
                 'photo_url' => $photoUrls[0] ?? null,
                 'photos' => $photoUrls,
                 'category' => $asset->category,
+                'quotes' => $lending->quotesByTenure($assetValue, max(1, $tenure)),
             ];
         }
 
@@ -1731,6 +1740,7 @@ class ApplyController extends Controller
             'loan_product_id' => ['required', 'exists:loan_products,id'],
             'requested_amount' => ['required', 'numeric', 'min:1000'],
             'requested_tenure_months' => ['required', 'integer', 'min:1', 'max:60'],
+            'asset_price' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $product = LoanProduct::where('id', $data['loan_product_id'])
@@ -1739,6 +1749,41 @@ class ApplyController extends Controller
 
         $amount = (float) $data['requested_amount'];
         $tenure = (int) $data['requested_tenure_months'];
+        if (is_marketplace_loan_product($product->code) && $request->filled('asset_price')) {
+            $quote = app(\App\Services\AssetLendingService::class)
+                ->pricingQuoteFromAssetPrice((float) $data['asset_price'], $tenure);
+            $applicationFee = quoted_application_fee($customer, $product);
+            $boosts = app(MemberEngagementRewardService::class)->underwritingBoosts($customer);
+
+            return response()->json([
+                'ok' => true,
+                'dates_available' => false,
+                'schedule' => $quote['schedule'] ?? [],
+                'summary' => [
+                    'monthly_rate' => ((float) ($quote['monthly_rate_percent'] ?? 0)) / 100,
+                    'monthly_rate_pct' => (float) ($quote['monthly_rate_percent'] ?? 0),
+                    'standard_rate_pct' => (float) ($quote['monthly_rate_percent'] ?? 0),
+                    'application_fee' => $applicationFee,
+                    'monthly_installment' => $quote['installment'],
+                    'weekly_installment' => 0,
+                    'installment_amount' => $quote['installment'],
+                    'repayment_cadence' => $quote['repayment_frequency'] ?? 'monthly',
+                    'interest_method' => $quote['rate_method'] ?? 'reducing_balance',
+                    'interest_total' => $quote['total_interest'],
+                    'total_repayment' => $quote['total_payable'],
+                    'periods' => $quote['tenure_months'],
+                ],
+                'engagement' => [
+                    'limit_amount' => (int) app(BorrowerCreditLimitService::class)->availableAmount($customer),
+                    'limit_multiplier' => (float) ($boosts['limit_multiplier'] ?? 1),
+                    'rate_discount_pct' => round(((float) ($boosts['rate_discount_fraction'] ?? 0)) * 100, 2),
+                    'processing_sla' => app(UnderwritingSettingsService::class)->loanReviewSlaLabel($customer),
+                    'processing_priority' => (int) ($boosts['processing_priority'] ?? 0),
+                    'factors' => $boosts['factors'] ?? [],
+                ],
+            ]);
+        }
+
         $rate = app(LoanRateTierService::class)->resolveRate($product, $amount, $customer);
         $cadence = app(GroupLendingService::class)->effectiveRepaymentCadence($product);
         $method = in_array(($product->interest_method ?? 'reducing'), ['flat', 'reducing'], true)

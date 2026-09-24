@@ -212,12 +212,26 @@ class PartnerActivationService
     public function shareMessage(Vendor $vendor): string
     {
         $code = $vendor->vendor_number ?: $vendor->partner_number ?: '—';
+        $key = $vendor->isSupplier()
+            ? 'site.auth.partner_invite_share_supplier'
+            : 'site.auth.partner_invite_share';
 
-        return __('site.auth.partner_invite_share', [
+        return __($key, [
+            'name' => $vendor->name ?: $vendor->legal_name ?: 'partner',
             'brand' => brand_name(),
             'code' => $code,
             'url' => $this->publicActivateUrl($vendor),
         ]);
+    }
+
+    public function whatsappShareUrl(Vendor $vendor): string
+    {
+        $phone = PhoneNumber::digits((string) $vendor->phone);
+        $query = 'text='.rawurlencode($this->shareMessage($vendor));
+
+        return $phone !== ''
+            ? 'https://wa.me/'.$phone.'?'.$query
+            : 'https://wa.me/?'.$query;
     }
 
     public function setPortalPin(Vendor $vendor, string $pin): void

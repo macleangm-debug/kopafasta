@@ -223,4 +223,117 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             'status' => 'sourcing',
         ]);
     }
+
+    public function test_marketplace_detail_shows_price_deposit_financed_without_tenure(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        app(PinService::class)->setPin($user, '1234');
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P70-DETAIL',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Asha',
+            'last_name' => 'Mushi',
+            'phone' => '255712340073',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+
+        $asset = MarketplaceAsset::create([
+            'slug' => 'simple-detail-truck',
+            'title' => 'Simple Detail Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Dar Motors',
+            'asset_value' => 8_000_000,
+            'supplier_deposit' => 1_600_000,
+            'customer_deposit' => 1_760_000,
+            'weekly_installment' => 150_000,
+            'max_tenure_months' => 12,
+            'is_active' => true,
+            'availability_status' => 'available',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.marketplace.show', $asset->slug))
+            ->assertOk()
+            ->assertSee('Simple Detail Truck', false)
+            ->assertSee(__('borrower.marketplace.request_expand'), false)
+            ->assertSee(__('borrower.marketplace.asset_value'), false)
+            ->assertSee(__('borrower.marketplace.deposit'), false)
+            ->assertSee(__('borrower.marketplace.loan_amount'), false)
+            ->assertDontSee('Choose duration', false)
+            ->assertDontSee('name="tenure_months"', false)
+            ->assertDontSee(__('borrower.marketplace.weekly_installment'), false);
+
+        $this->get(route('site.marketplace.show', $asset->slug))
+            ->assertOk()
+            ->assertDontSee(__('borrower.marketplace.weekly_installment'), false)
+            ->assertDontSee(__('borrower.marketplace.duration_range_label'), false);
+    }
+
+    public function test_request_asset_opens_application_overview_with_duration_quotes(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        app(PinService::class)->setPin($user, '1234');
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-P70-QUOTE',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Asha',
+            'last_name' => 'Mushi',
+            'phone' => '255712340074',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+
+        \App\Models\LoanProduct::query()->create([
+            'code' => 'AL',
+            'name' => 'Asset Lending',
+            'is_active' => true,
+            'interest_rate' => 0.12,
+            'min_amount' => 100_000,
+            'max_amount' => 20_000_000,
+            'tenure_min_months' => 1,
+            'tenure_max_months' => 12,
+        ]);
+
+        $asset = MarketplaceAsset::create([
+            'slug' => 'quote-overview-truck',
+            'title' => 'Quote Overview Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Dar Motors',
+            'asset_value' => 8_000_000,
+            'supplier_deposit' => 1_600_000,
+            'customer_deposit' => 1_760_000,
+            'weekly_installment' => 150_000,
+            'max_tenure_months' => 12,
+            'is_active' => true,
+            'availability_status' => 'available',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->post(route('site.borrower.marketplace.apply', $asset->slug));
+
+        $reservation = AssetReservation::query()->where('marketplace_asset_id', $asset->id)->first();
+        $this->assertNotNull($reservation);
+        $response->assertRedirect(route('site.borrower.apply', [
+            'product' => config('asset_marketplace.asset_loan_product_code', 'AL'),
+            'reservation' => $reservation->id,
+        ]));
+        $this->assertStringNotContainsString('tenure=', parse_url($response->headers->get('Location'), PHP_URL_QUERY) ?? '');
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.apply', [
+                'product' => 'AL',
+                'reservation' => $reservation->id,
+            ]))
+            ->assertOk()
+            ->assertSee('Quote Overview Truck', false)
+            ->assertSee(__('borrower.apply.quote.tenure'), false)
+            ->assertSee(__('borrower.apply.asset_tenure.installment_preview'), false)
+            ->assertSee(__('borrower.apply.quote.total_repayment_tzs'), false)
+            ->assertSee('quotes');
+    }
 }

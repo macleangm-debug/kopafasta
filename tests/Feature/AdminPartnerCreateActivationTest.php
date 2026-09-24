@@ -191,7 +191,11 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->get(route('admin.partners.create', ['category' => 'insurance']))
             ->assertOk()
             ->assertSee('Trading / company name', false)
-            ->assertSee('Business documents', false);
+            ->assertSee('Business documents', false)
+            ->assertSee('name="tin"', false)
+            ->assertSee('name="registration_number"', false)
+            ->assertSee('data-kf-address-fields', false)
+            ->assertSee('Region → district', false);
     }
 
     public function test_admin_can_create_individual_valuer_without_company_fields(): void
@@ -253,8 +257,60 @@ class AdminPartnerCreateActivationTest extends TestCase
         $show->assertOk()
             ->assertSee('Share activation', false)
             ->assertSee($partner->partner_number, false)
+            ->assertSee('Send activation via WhatsApp', false)
+            ->assertSee('Copy activation link', false)
             ->assertSee('Copy message', false)
-            ->assertSee('WhatsApp', false);
+            ->assertSee('wa.me/', false);
+    }
+
+    public function test_creating_supplier_with_apostrophe_lands_on_profile_and_list(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.store'), [
+                'name' => "Macklin's Auto Traders",
+                'category' => 'supplier',
+                'status' => 'inactive',
+                'phone' => '255712345920',
+                'email' => 'macklin@example.com',
+                'coverage_type' => 'nationwide',
+                'activation_mode' => 'invite',
+                'supplier_type' => 'managed_loan',
+            ]);
+
+        $partner = Vendor::query()->where('name', "Macklin's Auto Traders")->first();
+        $this->assertNotNull($partner);
+        $response->assertRedirect(route('admin.partners.show', $partner->id));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.show', $partner->id))
+            ->assertOk()
+            ->assertSee("Macklin's Auto Traders")
+            ->assertSee('Awaiting activation', false)
+            ->assertSee('Send activation via WhatsApp', false);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.show', $partner->partner_number))
+            ->assertOk()
+            ->assertSee("Macklin's Auto Traders");
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.index'))
+            ->assertOk()
+            ->assertSee("Macklin's Auto Traders")
+            ->assertSee('Awaiting activation', false);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.onboarding'))
+            ->assertOk()
+            ->assertSee("Macklin's Auto Traders");
+
+        $activation = app(\App\Services\PartnerActivationService::class);
+        $start = $this->get($activation->publicActivateUrl($partner));
+        $start->assertOk()
+            ->assertSee("Macklin's Auto Traders")
+            ->assertSee(__('site.auth.partner_activate_named', ['name' => "Macklin's Auto Traders"]));
     }
 
     public function test_create_form_omits_payout_and_nida_images_and_locks_phone_prefix(): void

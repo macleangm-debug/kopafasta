@@ -1,3 +1,4 @@
+@php $partner = $partner ?? null; @endphp
 <x-site.layout :title="brand_title(__('site.auth.activate_account'))">
     <section class="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2 premium-gradient">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
@@ -17,8 +18,16 @@
                     <x-site.brand-mark size="md" />
                 </a>
 
-                <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ __('site.auth.activate_account') }}</h1>
-                <p class="mt-2 text-sm text-gray-600">{{ __('site.auth.partner_activate_form_hint') }}</p>
+                <h1 class="text-3xl font-bold tracking-tight text-gray-900">
+                    {{ $partner?->name
+                        ? __('site.auth.partner_activate_named', ['name' => $partner->name])
+                        : __('site.auth.activate_account') }}
+                </h1>
+                <p class="mt-2 text-sm text-gray-600">
+                    {{ $partner?->name
+                        ? __('site.auth.partner_activate_named_hint', ['name' => $partner->name])
+                        : __('site.auth.partner_activate_form_hint') }}
+                </p>
 
                 @if ($errors->any())
                     <div class="mt-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{{ $errors->first() }}</div>

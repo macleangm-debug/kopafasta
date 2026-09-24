@@ -2956,8 +2956,41 @@ export function applyWizard(config) {
                     );
                 },
 
+                applyAssetLendingQuote() {
+                    if (! this.assetApplication) return false;
+                    const months = Number(this.form.requested_tenure_months || 0);
+                    const quotes = this.assetApplication.quotes || {};
+                    const q = quotes[months] || quotes[String(months)];
+                    if (! q) return false;
+                    const installment = Number(q.installment || 0);
+                    const total = Number(q.total_payable || 0);
+                    this.quote = {
+                        monthly: installment,
+                        weekly: installment,
+                        primary: installment,
+                        frequency: q.repayment_frequency || 'monthly',
+                        interest: Number(q.total_interest || 0),
+                        fees: this.applicationFee,
+                        total,
+                    };
+                    this.reviewSummary = {
+                        ...this.reviewSummary,
+                        monthly_installment: installment,
+                        installment_amount: installment > 0 ? installment : (this.reviewSummary.installment_amount || null),
+                        repayment_cadence: q.repayment_frequency || 'monthly',
+                        total_repayment: total,
+                    };
+                    if (this.phase === 'application') {
+                        this.rebuildSteps();
+                    }
+                    return true;
+                },
+
                 updateQuote() {
                     if (! this.current) return;
+                    if (this.applyAssetLendingQuote()) {
+                        return;
+                    }
                     const rate = this.resolveMonthlyRate(this.current, this.form.requested_amount);
                     const months = this.form.requested_tenure_months;
                     // Group installments are quoted per member; total loan is shown separately.
@@ -3902,6 +3935,9 @@ export function applyWizard(config) {
                             requested_amount: String(previewAmount),
                             requested_tenure_months: String(this.form.requested_tenure_months),
                         });
+                        if (this.assetApplication?.asset_value) {
+                            params.set('asset_price', String(this.assetApplication.asset_value));
+                        }
                         const res = await fetch(`${this.repaymentPreviewUrl}?${params}`, {
                             headers: { Accept: 'application/json' },
                             credentials: 'same-origin',

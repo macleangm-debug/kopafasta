@@ -14,9 +14,17 @@ use Illuminate\View\View;
 
 class PartnerPortalController extends Controller
 {
-    public function start(): View
+    public function start(Request $request): View
     {
-        return view('site.partner.start');
+        $partner = null;
+        $code = strtoupper(trim((string) $request->query('partner_code', '')));
+        if ($code !== '') {
+            $partner = Vendor::query()
+                ->whereRaw('UPPER(partner_number) = ?', [$code])
+                ->first();
+        }
+
+        return view('site.partner.start', ['partner' => $partner]);
     }
 
     public function lookup(Request $request, PartnerActivationService $activation): RedirectResponse|View

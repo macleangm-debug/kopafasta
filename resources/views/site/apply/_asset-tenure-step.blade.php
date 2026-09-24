@@ -51,9 +51,9 @@
                 </div>
             </div>
 
-            {{-- Tenure + live installment --}}
+            {{-- Tenure + live installment from Product Configuration --}}
             <div class="grid sm:grid-cols-2 gap-4">
-                <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/15">
+                <div class="glass-card p-5 sm:p-6 ring-1 ring-brand/15 sm:col-span-2">
                     <div class="flex items-end justify-between gap-3 mb-3">
                         <label class="text-sm font-semibold text-gray-700">{{ __('borrower.apply.quote.tenure') }}</label>
                         <span class="text-lg font-extrabold text-brand tabular-nums">
@@ -65,7 +65,7 @@
                            :max="assetApplication.max_tenure_months"
                            step="1"
                            x-model.number="form.requested_tenure_months"
-                           @input="updateQuote()"
+                           @input="updateQuote(); loadRepaymentSchedule()"
                            class="w-full accent-brand h-2 rounded-full">
                     <p class="text-xs text-gray-500 mt-3">
                         {{ __('borrower.apply.asset_tenure.max_hint') }}
@@ -77,6 +77,11 @@
                     <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-bold">{{ __('borrower.apply.asset_tenure.installment_preview') }}</p>
                     <p class="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tabular-nums tracking-tight"
                        x-text="formatTzs(displayInstallmentAmount())"></p>
+                </div>
+                <div class="rounded-2xl bg-white ring-1 ring-gray-200 p-5 sm:p-6 flex flex-col justify-center">
+                    <p class="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-bold">{{ __('borrower.apply.quote.total_repayment_tzs') }}</p>
+                    <p class="mt-2 text-2xl sm:text-3xl font-extrabold text-gray-900 tabular-nums tracking-tight"
+                       x-text="formatTzs(quote.total || 0)"></p>
                 </div>
             </div>
         </div>

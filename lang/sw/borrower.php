@@ -1041,10 +1041,10 @@ return [
         ],
         'asset_tenure' => [
             'title' => 'Chagua muda wa malipo',
-            'subtitle' => 'Thamani ya mali, malipo ya awali na masharti ya muuzaji yamefungwa kwa mali hii.',
+            'subtitle' => 'Bei ya mali, kiwango cha awali, na kiasi kinachofadhiliwa vimefungwa. Chagua muda wa ufadhili.',
             'financed_amount' => 'Kiasi kinachofadhiliwa',
             'max_hint' => 'Kiwango cha juu',
-            'installment_preview' => 'Makadirio ya malipo ya kila wiki',
+            'installment_preview' => 'Makadirio ya malipo',
             'weekly_hint' => 'Malipo ya kila wiki (hubadilika na muda)',
             'monthly_hint' => 'Malipo ya kila mwezi (hubadilika na muda)',
             'installment_changes_hint' => 'Muda mfupi huongeza malipo; muda mrefu huyapunguza.',

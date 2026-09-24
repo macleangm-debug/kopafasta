@@ -131,10 +131,6 @@ class AssetMarketplaceController extends Controller
         $model = $this->resolveModel($assetId);
         abort_if(! $model, 404);
 
-        $data = $request->validate([
-            'tenure_months' => ['nullable', 'integer', 'min:1', 'max:120'],
-        ]);
-
         try {
             $reservation = app(AssetReservationService::class)->startApplication($customer, $model);
         } catch (\InvalidArgumentException $e) {
@@ -146,11 +142,10 @@ class AssetMarketplaceController extends Controller
         $productCode = config('asset_marketplace.asset_loan_product_code', 'AL');
 
         return redirect()
-            ->route('site.borrower.apply', array_filter([
+            ->route('site.borrower.apply', [
                 'product' => $productCode,
                 'reservation' => $reservation->id,
-                'tenure' => $data['tenure_months'] ?? null,
-            ]));
+            ]);
     }
 
     public function reserve(Request $request, string $assetId): RedirectResponse
@@ -525,21 +520,25 @@ class AssetMarketplaceController extends Controller
     private function normalizeAsset(MarketplaceAsset $asset): array
     {
         $lending = app(\App\Services\AssetLendingService::class);
-        $deposit = (float) ($asset->customer_deposit ?: $asset->computeCustomerDeposit());
-        $assetValue = (float) ($asset->asset_value ?: ($deposit * 1.4));
-        $remainingLoan = max(0, round($assetValue - $deposit, 2));
+        $assetValue = (float) ($asset->asset_value ?: 0);
+        $quote = $lending->pricingQuoteFromAssetPrice($assetValue);
+        $deposit = (float) ($quote['deposit_amount'] ?? ($asset->customer_deposit ?: $asset->computeCustomerDeposit()));
+        $remainingLoan = (float) ($quote['financed_amount'] ?? max(0, round($assetValue - $deposit, 2)));
         $supplierDeposit = (float) $asset->supplier_deposit;
         $vendor = $asset->relationLoaded('vendor') ? $asset->vendor : $asset->vendor()->first();
 
         return [
             'id'                     => $asset->slug ?: (string) $asset->id,
+            'asset_id'               => $asset->id,
+            'supplier_id'            => $vendor?->id,
+            'commercial_mode'        => $vendor?->supplier_type ?? config('asset_lending.default_supplier_type'),
             'category'               => $asset->category,
             'title'                  => $asset->title,
             'vendor'                 => $vendor?->name ?: $asset->supplier_name,
             'supplier'               => $vendor?->name ?: $asset->supplier_name,
             'supplier_region'        => $vendor?->coverageLabel(),
             'description'            => $asset->description,
-            'asset_value'            => $assetValue,
+            'asset_value'            => $assetValue ?: (float) ($quote['asset_price'] ?? 0),
             'deposit'                => $deposit,
             'remaining_loan'         => $remainingLoan,
             'supplier_deposit'       => $supplierDeposit,

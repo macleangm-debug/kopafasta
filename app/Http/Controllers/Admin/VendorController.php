@@ -220,7 +220,7 @@ class VendorController extends ResourceController
         $this->placeWaitingValuerJobs($record->fresh(), $request->user('admin'));
 
         return redirect()
-            ->route("{$this->routePrefix}.show", $record)
+            ->route("{$this->routePrefix}.show", $record->getKey())
             ->with('status', trim($statusMessage))
             ->with('partner_invite_ready', $shareInvite);
     }
@@ -511,10 +511,10 @@ class VendorController extends ResourceController
     public function show($id)
     {
         if (request()->routeIs('admin.vendors.show')) {
-            return redirect()->route('admin.partners.show', $id);
+            return redirect()->route('admin.partners.show', $this->partnerRouteKey($id));
         }
 
-        $record = Vendor::findOrFail($id);
+        $record = $this->resolvePartner($id);
         $tabs = app(PartnerProfileTabs::class);
         $canSeePayouts = (bool) auth()->user()?->hasPermission('finance.operations');
         $profileTabs = $tabs->tabs($record, $canSeePayouts);
@@ -714,10 +714,10 @@ class VendorController extends ResourceController
     public function edit($id)
     {
         if (request()->routeIs('admin.vendors.edit')) {
-            return redirect()->route('admin.partners.edit', $id);
+            return redirect()->route('admin.partners.edit', $this->partnerRouteKey($id));
         }
 
-        $record = Vendor::findOrFail($id);
+        $record = $this->resolvePartner($id);
 
         abort_unless(request()->user()?->can('update', $record), 403, app(\App\Services\PartnerStaffService::class)->policyMessage('edit partners'));
 
@@ -858,6 +858,33 @@ class VendorController extends ResourceController
         return redirect()
             ->route('admin.partners.all')
             ->with('status', $result['message'] ?? 'Partner deactivated.');
+    }
+
+    private function resolvePartner(mixed $id): Vendor
+    {
+        if ($id instanceof Vendor) {
+            return $id;
+        }
+
+        $key = is_object($id) && method_exists($id, 'getKey') ? $id->getKey() : $id;
+
+        return Vendor::query()
+            ->where('id', $key)
+            ->orWhere('partner_number', $key)
+            ->firstOrFail();
+    }
+
+    private function partnerRouteKey(mixed $id): int|string
+    {
+        if ($id instanceof Vendor) {
+            return $id->getKey();
+        }
+
+        if (is_object($id) && method_exists($id, 'getKey')) {
+            return $id->getKey();
+        }
+
+        return is_scalar($id) ? $id : (string) $id;
     }
 
     private function placeWaitingValuerJobs(Vendor $vendor, ?\App\Models\User $actor = null): int
