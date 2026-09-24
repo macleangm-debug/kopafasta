@@ -13,18 +13,28 @@ class LocaleController extends Controller
         $data = $request->validate([
             'locale'   => ['required', 'in:en,sw'],
             'redirect' => ['nullable', 'string', 'max:2048'],
+            'scope'    => ['nullable', 'in:site,admin'],
         ]);
-        $request->session()->put('locale', $data['locale']);
 
-        $user = $request->user();
+        $target = $this->safeRedirectTarget($request, $data['redirect'] ?? null);
+        $path = is_string($target) ? (parse_url($target, PHP_URL_PATH) ?: '') : '';
+        $adminScope = ($data['scope'] ?? '') === 'admin'
+            || str_starts_with($path, '/admin')
+            || str_starts_with($path, '/staff');
+
+        if ($adminScope) {
+            $request->session()->put('admin_locale', $data['locale']);
+        } else {
+            $request->session()->put('locale', $data['locale']);
+        }
+
+        $user = $request->user('admin') ?? $request->user();
         if ($user) {
-            $prefs = $user->preferences ?? [];
-            $prefs['preferred_locale'] = $data['locale'];
+            $prefs = is_array($user->preferences) ? $user->preferences : [];
+            $prefs[$adminScope ? 'admin_locale' : 'preferred_locale'] = $data['locale'];
             $user->preferences = $prefs;
             $user->save();
         }
-
-        $target = $this->safeRedirectTarget($request, $data['redirect'] ?? null);
 
         return $target ? redirect()->to($target) : back();
     }

@@ -58,23 +58,23 @@
                             class="w-full lg:w-auto inline-flex justify-center items-center px-5 py-3 rounded-xl bg-brand text-white text-sm font-bold shadow-sm hover:bg-brand-light">
                         {{ $next['cta'] }}
                     </button>
-                    <x-site.action-panel title="Notify borrower to replace guarantor" open="notifyOpen">
+                    <x-site.action-panel title="{{ __('admin.application_360.notify_replace_title') }}" open="notifyOpen">
                         <form method="POST" action="{{ $next['href'] }}" class="space-y-4" data-no-draft>
                             @csrf
                             <input type="hidden" name="confirmed" value="1">
                             <p class="text-sm text-slate-700">
-                                {{ __('borrower.guarantor_supplement.notify_replace_confirm') }}
+                                {{ __('admin.application_360.notify_replace_confirm') }}
                             </p>
                             <p class="text-sm text-slate-600">
-                                The borrower will receive the existing in-app notification
+                                {{ __('admin.application_360.notify_replace_body') }}
                                 @if (filled($next['who'] ?? null))
-                                    and any SMS/email already configured for this event
+                                    {{ __('admin.application_360.notify_replace_channels') }}
                                 @endif.
-                                They choose the replacement on the guarantor step.
+                                {{ __('admin.application_360.notify_replace_choice') }}
                             </p>
                             <div class="flex flex-wrap gap-2">
                                 <button type="submit" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-bold">
-                                    Send reminder
+                                    {{ __('admin.application_360.send_reminder') }}
                                 </button>
                                 <button type="button" @click="notifyOpen = false"
                                         class="inline-flex items-center px-4 py-2.5 rounded-xl bg-white ring-1 ring-slate-200 text-sm font-semibold text-slate-700">

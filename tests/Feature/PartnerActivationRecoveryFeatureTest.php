@@ -42,15 +42,15 @@ class PartnerActivationRecoveryFeatureTest extends TestCase
             ->get(route('admin.partners.show', $partner))
             ->assertOk()
             ->assertSee('Awaiting activation', false)
-            ->assertSee('Copy activation link', false)
-            ->assertSee('Copy message', false)
+            ->assertSee(__('admin.partners.copy_link'), false)
+            ->assertSee(__('admin.partners.copy_message'), false)
             ->assertSee('copiedLink', false)
             ->assertSee('copiedMessage', false)
-            ->assertSee(__('site.auth.copied_feedback'), false)
-            ->assertSee(__('site.auth.or_activate_here'), false)
+            ->assertSee(__('admin.partners.copied'), false)
+            ->assertSee(__('admin.partners.or_activate_here'), false)
             ->assertSee('Activate &amp; set PIN', false)
-            ->assertSee('data-loading-label="'.__('site.auth.activating').'"', false)
-            ->assertSee('Resend activation', false)
+            ->assertSee('data-loading-label="'.__('admin.partners.activating').'"', false)
+            ->assertSee(__('admin.partners.resend_activation'), false)
             ->getContent();
 
         $this->assertSame(1, substr_count($html, 'name="pin"'));

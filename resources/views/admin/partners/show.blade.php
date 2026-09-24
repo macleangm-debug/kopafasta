@@ -5,51 +5,51 @@
     :backUrl="route('admin.partners.index')"
     :editUrl="route('admin.partners.edit', $record)"
     :fields="array_filter([
-        'Partner #'  => $record->vendor_number,
-        'Category'  => ucfirst(str_replace('_', ' ', $record->category)),
-        'Status'    => ucfirst($record->status ?? ''),
-        'Performance' => isset($efficiency) && is_array($efficiency)
+        __('admin.partners.field_number')  => $record->vendor_number,
+        __('admin.partners.field_category')  => ucfirst(str_replace('_', ' ', $record->category)),
+        __('admin.partners.field_status')    => ucfirst($record->status ?? ''),
+        __('admin.partners.field_performance') => isset($efficiency) && is_array($efficiency)
             ? ($efficiency['status_label'] ?? $efficiency['band_label'] ?? null)
             : null,
-        'Can receive work' => isset($jobEligibility)
-            ? (($jobEligibility['can_receive'] ?? false) ? 'Yes' : ('No — '.$jobEligibility['reason_label']))
+        __('admin.partners.field_can_receive') => isset($jobEligibility)
+            ? (($jobEligibility['can_receive'] ?? false) ? __('admin.partners.yes') : (__('admin.partners.no').' — '.$jobEligibility['reason_label']))
             : null,
-        'Phone'     => ['value' => $record->phone, 'phone' => true],
-        'Membership' => isset($profileTabs['membership'])
+        __('admin.partners.field_phone')     => ['value' => $record->phone, 'phone' => true],
+        __('admin.partners.field_membership') => isset($profileTabs['membership'])
             ? (($membership ?? $fieldMembership ?? null)['label'] ?? null)
             : null,
-        'Open jobs' => isset($profileTabs['jobs'])
-            ? ((($openTasks ?? collect())->count() > 0) ? $openTasks->count().' ongoing' : 'None')
+        __('admin.partners.field_open_jobs') => isset($profileTabs['jobs'])
+            ? ((($openTasks ?? collect())->count() > 0) ? __('admin.partners.ongoing', ['count' => $openTasks->count()]) : __('admin.partners.none'))
             : null,
-        'Jobs completed' => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
+        __('admin.partners.field_jobs_completed') => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
             ? (string) ($efficiency['completed'] ?? 0)
             : null,
-        'On-time rate' => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
+        __('admin.partners.field_on_time') => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
             ? (($efficiency['on_time_rate'] ?? 0).'%')
             : null,
-        'SLA breaches' => is_array($efficiency ?? null) ? (string) ($efficiency['sla_breaches'] ?? 0) : null,
-        'Reassignments' => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
+        __('admin.partners.field_sla') => is_array($efficiency ?? null) ? (string) ($efficiency['sla_breaches'] ?? 0) : null,
+        __('admin.partners.field_reassignments') => isset($profileTabs['jobs']) && is_array($efficiency ?? null)
             ? (string) ($efficiency['reassignments'] ?? 0)
             : null,
-        'Avg turnaround' => isset($profileTabs['jobs']) && is_array($efficiency ?? null) && ($efficiency['avg_turnaround_hours'] ?? null) !== null
+        __('admin.partners.field_turnaround') => isset($profileTabs['jobs']) && is_array($efficiency ?? null) && ($efficiency['avg_turnaround_hours'] ?? null) !== null
             ? $efficiency['avg_turnaround_hours'].'h'
             : null,
-        'Open cases' => isset($profileTabs['cases']) && ($recoveryAssignments ?? collect())->filter(fn ($a) => $a->isOpen())->count() > 0
-            ? ($recoveryAssignments->filter(fn ($a) => $a->isOpen())->count()).' open'
-            : (isset($profileTabs['cases']) ? 'None' : null),
-        'Cases completed' => isset($profileTabs['cases']) && is_array($recoveryStats ?? null)
+        __('admin.partners.field_open_cases') => isset($profileTabs['cases']) && ($recoveryAssignments ?? collect())->filter(fn ($a) => $a->isOpen())->count() > 0
+            ? __('admin.partners.open_count', ['count' => $recoveryAssignments->filter(fn ($a) => $a->isOpen())->count()])
+            : (isset($profileTabs['cases']) ? __('admin.partners.none') : null),
+        __('admin.partners.field_cases_completed') => isset($profileTabs['cases']) && is_array($recoveryStats ?? null)
             ? (string) ($recoveryStats['completed_cases'] ?? 0)
             : null,
-        'Escalations' => isset($profileTabs['cases']) && is_array($efficiency ?? null)
+        __('admin.partners.field_escalations') => isset($profileTabs['cases']) && is_array($efficiency ?? null)
             ? (string) ($efficiency['escalated'] ?? 0)
             : null,
-        'Applications' => isset($profileTabs['pipeline'])
+        __('admin.partners.field_applications') => isset($profileTabs['pipeline'])
             ? (string) (int) (($affiliateStats ?? [])['applications'] ?? 0)
             : null,
-        'Listings' => isset($profileTabs['listings'])
-            ? (($listings ?? collect())->count().' assets')
+        __('admin.partners.field_listings') => isset($profileTabs['listings'])
+            ? __('admin.partners.assets_count', ['count' => ($listings ?? collect())->count()])
             : null,
-        'Active loans' => isset($profileTabs['capital']) && is_array($capitalMetrics ?? null)
+        __('admin.partners.field_active_loans') => isset($profileTabs['capital']) && is_array($capitalMetrics ?? null)
             ? (int) ($capitalMetrics['active_loans'] ?? 0)
             : null,
     ])">
@@ -63,7 +63,11 @@
     $listings = $listings ?? collect();
     $taskRows = $openTasks->isNotEmpty() ? $openTasks : $recentTasks;
     $enrollmentApplication = $enrollmentApplication ?? null;
-    $profileTabs = $profileTabs ?? ['profile' => 'Profile', 'portal' => 'Portal', 'account' => 'Account'];
+    $profileTabs = $profileTabs ?? [
+        'profile' => __('admin.partners.tab_overview'),
+        'portal' => __('admin.partners.tab_portal'),
+        'account' => __('admin.partners.tab_account'),
+    ];
     $requestedTab = (string) request('tab', '');
         $startTab = in_array($requestedTab, array_keys($profileTabs), true)
             ? $requestedTab
@@ -92,8 +96,8 @@
 
     <div x-show="tab === 'profile'" x-cloak class="space-y-6">
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-            <h3 class="text-sm font-semibold text-gray-900">Profile</h3>
-            <p class="text-xs text-gray-500 mt-1">View only. Use Edit to change name, coverage, rates, or contact details.</p>
+            <h3 class="text-sm font-semibold text-gray-900">{{ __('admin.partners.profile') }}</h3>
+            <p class="text-xs text-gray-500 mt-1">{{ __('admin.partners.profile_hint') }}</p>
             <dl class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
                 <div>
                     <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Email</dt>
@@ -726,21 +730,19 @@
         },
      }">
     @if (! $portalReady)
-        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-bold">Awaiting activation</p>
-        <h3 class="text-sm font-semibold text-gray-900 mt-1">Activation</h3>
-        <p class="text-xs text-gray-500 mt-1">
-            Send the activation link on WhatsApp. They open it, confirm this phone, then create a 4-digit PIN.
-        </p>
+        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-bold">{{ __('admin.partners.awaiting_activation') }}</p>
+        <h3 class="text-sm font-semibold text-gray-900 mt-1">{{ __('admin.partners.activation') }}</h3>
+        <p class="text-xs text-gray-500 mt-1">{{ __('admin.partners.activation_share_hint') }}</p>
     @else
-        <h3 class="text-sm font-semibold text-gray-900">Activation</h3>
-        <p class="text-xs text-gray-500 mt-1">Portal is active. Resend the link or set a new PIN here.</p>
+        <h3 class="text-sm font-semibold text-gray-900">{{ __('admin.partners.activation') }}</h3>
+        <p class="text-xs text-gray-500 mt-1">{{ __('admin.partners.activation_ready_hint') }}</p>
     @endif
-    <p class="mt-4 text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('site.auth.partner_account_number') }}</p>
+    <p class="mt-4 text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('admin.partners.account_number') }}</p>
     <p class="mt-1 text-2xl font-extrabold tracking-widest font-mono text-brand">{{ $record->vendor_number }}</p>
-    <p class="mt-2 text-sm text-gray-600">Registered phone: <span class="font-medium text-gray-900">{{ format_phone($record->phone) }}</span></p>
+    <p class="mt-2 text-sm text-gray-600">{{ __('admin.partners.registered_phone') }}: <span class="font-medium text-gray-900">{{ format_phone($record->phone) }}</span></p>
     @if (session('partner_activation_url'))
         <div class="mt-3 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950 break-all">
-            Activation link (valid 14 days): {{ session('partner_activation_url') }}
+            {{ __('admin.partners.activation_link_valid', ['url' => session('partner_activation_url')]) }}
         </div>
     @else
         <p class="mt-3 text-xs text-gray-500 break-all">{{ $inviteUrl }}</p>
@@ -748,46 +750,46 @@
     <div class="mt-4 flex flex-wrap gap-2">
         <a href="{{ $inviteWhatsApp }}" target="_blank" rel="noopener"
            class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
-            Send activation via WhatsApp
+            {{ __('admin.partners.send_whatsapp') }}
         </a>
         <button type="button"
                 @click="copyText(@js($inviteUrl), 'copiedLink')"
                 class="inline-flex text-sm font-semibold text-white bg-brand hover:bg-brand-light px-4 py-2 rounded-xl"
-                x-text="copiedLink ? @js(__('site.auth.copied_feedback')) : 'Copy activation link'">
-            Copy activation link
+                x-text="copiedLink ? @js(__('admin.partners.copied')) : @js(__('admin.partners.copy_link'))">
+            {{ __('admin.partners.copy_link') }}
         </button>
         <button type="button"
                 @click="copyText(@js($inviteText), 'copiedMessage')"
                 class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl"
-                x-text="copiedMessage ? @js(__('site.auth.copied_feedback')) : 'Copy message'">
-            Copy message
+                x-text="copiedMessage ? @js(__('admin.partners.copied')) : @js(__('admin.partners.copy_message'))">
+            {{ __('admin.partners.copy_message') }}
         </button>
     </div>
 
     <div class="mt-6 pt-5 border-t border-gray-100 space-y-3">
-        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ $portalReady ? 'Set new PIN' : __('site.auth.or_activate_here') }}</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ $portalReady ? __('admin.partners.set_new_pin') : __('admin.partners.or_activate_here') }}</p>
         <form method="POST" action="{{ route('admin.partners.reset-pin', $record) }}" class="space-y-2 max-w-xs">
             @csrf
-            <label class="block text-xs font-semibold text-gray-700">4-digit PIN</label>
+            <label class="block text-xs font-semibold text-gray-700">{{ __('admin.partners.pin_label') }}</label>
             <input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required
-                   class="w-full rounded-xl border-gray-300 text-sm" placeholder="4 digits" autocomplete="off">
+                   class="w-full rounded-xl border-gray-300 text-sm" placeholder="{{ __('admin.partners.pin_placeholder') }}" autocomplete="off">
             <button type="submit"
-                    data-loading-label="{{ $portalReady ? 'Saving…' : __('site.auth.activating') }}"
+                    data-loading-label="{{ $portalReady ? __('admin.partners.saving') : __('admin.partners.activating') }}"
                     class="inline-flex text-sm font-semibold text-brand bg-brand-gold hover:brightness-95 px-4 py-2 rounded-xl">
-                {{ $portalReady ? 'Save PIN' : 'Activate & set PIN' }}
+                {{ $portalReady ? __('admin.partners.save_pin') : __('admin.partners.activate_set_pin') }}
             </button>
         </form>
     </div>
 
     <form method="POST" action="{{ route('admin.partners.reissue-activation', $record) }}" class="mt-5 space-y-2">
         @csrf
-        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">Resend activation</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500">{{ __('admin.partners.resend_activation') }}</p>
         <label class="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" name="notify_partner" value="1" class="rounded border-gray-300 text-brand">
-            Also SMS / email the link
+            {{ __('admin.partners.also_notify') }}
         </label>
         <button type="submit" class="inline-flex text-sm font-semibold text-slate-800 bg-white ring-1 ring-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl">
-            Resend activation
+            {{ __('admin.partners.resend_activation') }}
         </button>
     </form>
 </div>

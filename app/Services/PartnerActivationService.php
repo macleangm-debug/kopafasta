@@ -203,7 +203,6 @@ class PartnerActivationService
     {
         $query = array_filter([
             'partner_code' => $vendor->vendor_number ?: $vendor->partner_number,
-            'phone' => PhoneNumber::digits((string) $vendor->phone) ?: null,
         ]);
 
         return route('site.partner.start', $query);

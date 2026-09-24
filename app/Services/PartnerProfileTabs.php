@@ -11,49 +11,49 @@ class PartnerProfileTabs
     /** @return array<string, string> */
     public function tabs(Partner $partner, bool $canSeePayouts = false): array
     {
-        $tabs = ['profile' => 'Overview'];
+        $tabs = ['profile' => __('admin.partners.tab_overview')];
 
         if ($this->showsJobs($partner)) {
-            $tabs['jobs'] = 'Jobs';
+            $tabs['jobs'] = __('admin.partners.tab_jobs');
         }
         if ($this->showsCases($partner)) {
-            $tabs['cases'] = 'Cases';
+            $tabs['cases'] = __('admin.partners.tab_cases');
         }
         if ($this->showsPipeline($partner)) {
-            $tabs['pipeline'] = 'Business';
+            $tabs['pipeline'] = __('admin.partners.tab_business');
         }
         if ($this->showsListings($partner)) {
-            $tabs['listings'] = 'Listings';
+            $tabs['listings'] = __('admin.partners.tab_listings');
         }
         if ($this->showsCapital($partner)) {
-            $tabs['capital'] = 'Capital';
+            $tabs['capital'] = __('admin.partners.tab_capital');
         }
         if ($this->showsPerformance($partner)) {
-            $tabs['performance'] = 'Performance';
+            $tabs['performance'] = __('admin.partners.tab_performance');
         }
         if ($canSeePayouts) {
-            $tabs['payouts'] = 'Earnings';
+            $tabs['payouts'] = __('admin.partners.tab_earnings');
         }
         if ($this->showsPipeline($partner)
             || ($this->showsFieldGovernance($partner) && (
                 app(PartnerMembershipService::class)->requiresPayment($partner)
                 || filled($partner->membership_started_at)
             ))) {
-            $tabs['membership'] = 'Membership';
+            $tabs['membership'] = __('admin.partners.tab_membership');
         }
         if ($this->showsFieldGovernance($partner)) {
-            $tabs['compliance'] = 'Compliance';
-            $tabs['documents'] = 'Documents';
+            $tabs['compliance'] = __('admin.partners.tab_compliance');
+            $tabs['documents'] = __('admin.partners.tab_documents');
         }
         if ($this->showsPipeline($partner) || $this->showsFieldGovernance($partner)) {
-            $tabs['agreements'] = 'Agreements';
+            $tabs['agreements'] = __('admin.partners.tab_agreements');
         }
         if ($this->showsFieldGovernance($partner)) {
-            $tabs['history'] = 'History';
+            $tabs['history'] = __('admin.partners.tab_history');
         }
 
-        $tabs['portal'] = 'Portal';
-        $tabs['account'] = 'Account';
+        $tabs['portal'] = __('admin.partners.tab_portal');
+        $tabs['account'] = __('admin.partners.tab_account');
 
         return $tabs;
     }

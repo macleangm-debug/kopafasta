@@ -79,12 +79,12 @@
                 <button type="button" @click="openSearch()"
                         class="w-full flex items-center gap-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-2 text-sm text-gray-500 hover:ring-brand/30">
                     <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"/></svg>
-                    <span class="flex-1 text-left">Search Kopafasta…</span>
+                    <span class="flex-1 text-left">{{ __('admin.chrome.search') }}…</span>
                     <kbd class="hidden lg:inline text-[10px] font-semibold text-gray-400 ring-1 ring-gray-200 rounded px-1.5 py-0.5">⌘K / Ctrl+K</kbd>
                 </button>
             </div>
             <button type="button" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
-                    @click="openSearch()" aria-label="Search">
+                    @click="openSearch()" aria-label="{{ __('admin.chrome.search') }}">
                 <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"/></svg>
             </button>
             <template x-teleport="body">
@@ -101,14 +101,14 @@
                             <div class="flex-1 max-h-none md:max-h-[60vh] overflow-y-auto border-t border-gray-100">
                                 <template x-if="q.trim() === ''">
                                     <div>
-                                        <p class="px-4 pt-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">Recent</p>
+                                        <p class="px-4 pt-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{{ __('admin.chrome.recent') }}</p>
                                         <template x-for="item in recents" :key="item.url">
                                             <a :href="item.url" class="block px-4 py-2 hover:bg-brand-muted/40" @click="remember(item)">
                                                 <p class="text-sm font-semibold text-gray-900" x-text="item.title"></p>
                                                 <p class="text-xs text-gray-500" x-text="item.subtitle"></p>
                                             </a>
                                         </template>
-                                        <p class="px-4 py-6 text-sm text-gray-500" x-show="recents.length === 0">Type a customer, loan, campaign, or an action like Create demo. ↑ ↓ Enter Esc.</p>
+                                        <p class="px-4 py-6 text-sm text-gray-500" x-show="recents.length === 0">{{ __('admin.chrome.search_hint') }}</p>
                                     </div>
                                 </template>
                                 <template x-if="loading">
@@ -144,6 +144,7 @@
             </template>
 
             <div class="admin-menu flex items-center gap-2 sm:gap-3">
+            <x-site.locale-switcher variant="compact" :show-country="false" scope="admin" />
             @if ($shortcutCandidate)
                 <form method="post" action="{{ $shortcutPinned ? route('admin.nav.shortcuts.destroy') : route('admin.nav.shortcuts.store') }}"
                       @if ($shortcutPinned)
@@ -163,9 +164,9 @@
                 </form>
             @endif
                 <details class="relative">
-                    <summary class="relative inline-flex items-center gap-1.5 p-2 rounded-lg text-gray-600 hover:bg-gray-100 cursor-pointer" aria-label="Alerts">
+                    <summary class="relative inline-flex items-center gap-1.5 p-2 rounded-lg text-gray-600 hover:bg-gray-100 cursor-pointer" aria-label="{{ __('admin.chrome.alerts') }}">
                         <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/></svg>
-                        <span class="hidden sm:inline text-xs font-semibold">Alerts</span>
+                        <span class="hidden sm:inline text-xs font-semibold">{{ __('admin.chrome.alerts') }}</span>
                         @if ($adminBellCount > 0)
                             <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $adminBellCount > 9 ? '9+' : $adminBellCount }}</span>
                         @endif
@@ -176,7 +177,7 @@
                         </div>
                         @if ($adminPersonalNotifications->isNotEmpty())
                             <div class="px-4 py-2 bg-brand-muted/40 border-b border-gray-100">
-                                <p class="text-[10px] font-bold uppercase tracking-widest text-brand">Assignments</p>
+                                <p class="text-[10px] font-bold uppercase tracking-widest text-brand">{{ __('admin.chrome.assignments') }}</p>
                             </div>
                             @foreach ($adminPersonalNotifications as $note)
                                 @php
@@ -201,7 +202,7 @@
                             </a>
                         @empty
                             @if ($adminPersonalNotifications->isEmpty())
-                                <p class="px-4 py-8 text-sm text-gray-500 text-center">No pending alerts.</p>
+                                <p class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('admin.chrome.no_alerts') }}</p>
                                 @if ($canManagePartners)
                                     <p class="px-4 pb-6 text-xs text-gray-400 text-center">When screening asks for a partner in a missing region, it appears here as “Partner needed in …”. Partner support or an admin acts on it.</p>
                                 @endif
@@ -238,7 +239,7 @@
                                 <svg class="size-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                                 </svg>
-                                Account security
+                                {{ __('admin.chrome.account_security') }}
                             </a>
                             <form method="POST" action="{{ route('admin.logout') }}">
                                 @csrf
@@ -246,7 +247,7 @@
                                     <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                                     </svg>
-                                    Sign out
+                                    {{ __('admin.chrome.sign_out') }}
                                 </button>
                             </form>
                         </div>

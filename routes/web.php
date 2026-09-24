@@ -260,7 +260,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
         Route::get('/partner/activate/{vendor}', [PartnerActivationController::class, 'show'])->name('partner.activate');
         Route::post('/partner/activate/{vendor}', [PartnerActivationController::class, 'store'])->name('partner.activate.post');
         Route::get('/partner/start', [PartnerPortalController::class, 'start'])->name('partner.start');
-        Route::post('/partner/start', [PartnerPortalController::class, 'lookup'])->name('partner.start.lookup');
+        Route::post('/partner/start', [PartnerPortalController::class, 'lookup'])->middleware('throttle:6,1')->name('partner.start.lookup');
         Route::get('/partner/forgot-pin', [PartnerPortalController::class, 'showForgotPin'])->name('partner.forgot-pin');
         Route::post('/partner/forgot-pin/start', [PartnerPortalController::class, 'startForgotPin'])->middleware('throttle:6,1')->name('partner.forgot-pin.start');
         Route::post('/partner/forgot-pin/verify', [PartnerPortalController::class, 'verifyForgotPin'])->middleware('throttle:8,1')->name('partner.forgot-pin.verify');
@@ -673,7 +673,7 @@ Route::prefix('auth/two-factor')->name('auth.two-factor.')->group(function () {
     Route::post('confirm-setup', [WebTwoFactorController::class, 'confirmSetup'])->name('confirm-setup');
 });
 
-Route::prefix('staff')->name('staff.')->group(function () {
+Route::prefix('staff')->name('staff.')->middleware(SetLocale::class)->group(function () {
     Route::middleware('guest:admin')->group(function () {
         Route::get('login', [StaffAuthController::class, 'showLogin'])->name('login');
         Route::post('login', [StaffAuthController::class, 'login']);
@@ -709,7 +709,7 @@ $registerResource = function (string $slug, string $param, string $controller): 
     Route::delete("{$slug}/{{$param}}", [$controller, 'destroy'])->name("{$slug}.destroy");
 };
 
-Route::prefix('admin')->name('admin.')->group(function () use ($registerResource) {
+Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(function () use ($registerResource) {
 
     // Guest
     Route::middleware('guest:admin')->group(function () {

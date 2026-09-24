@@ -19,26 +19,41 @@ class SetLocale
             }
         }
 
-        $locale = $request->session()->get('locale');
+        $user = $request->user('admin') ?? $request->user();
+        $isAdminSurface = $request->is('admin', 'admin/*', 'staff', 'staff/*');
 
-        $user = $request->user();
-        $preferred = data_get($user?->preferences, 'preferred_locale')
-            ?? data_get($user?->preferences, 'locale');
-        if ((! is_string($locale) || $locale === '') && is_string($preferred) && in_array($preferred, ['en', 'sw'], true)) {
-            $locale = $preferred;
-            $request->session()->put('locale', $locale);
-        }
+        if ($isAdminSurface) {
+            $locale = $request->session()->get('admin_locale');
+            $preferred = data_get($user?->preferences, 'admin_locale');
+            if ((! is_string($locale) || $locale === '') && is_string($preferred) && in_array($preferred, ['en', 'sw'], true)) {
+                $locale = $preferred;
+                $request->session()->put('admin_locale', $locale);
+            }
+            // Admin/staff default to English so public-site Kiswahili cannot mix the console.
+            if (! is_string($locale) || $locale === '') {
+                $locale = 'en';
+            }
+        } else {
+            $locale = $request->session()->get('locale');
 
-        // Tanzania-first product: Kiswahili is the default until the visitor picks English.
-        if (! is_string($locale) || $locale === '') {
-            $country = strtoupper((string) $request->session()->get('country', 'TZ'));
-            $locale = $country === 'TZ'
-                ? 'sw'
-                : (string) config('app.locale', 'sw');
+            $preferred = data_get($user?->preferences, 'preferred_locale')
+                ?? data_get($user?->preferences, 'locale');
+            if ((! is_string($locale) || $locale === '') && is_string($preferred) && in_array($preferred, ['en', 'sw'], true)) {
+                $locale = $preferred;
+                $request->session()->put('locale', $locale);
+            }
+
+            // Tanzania-first product: Kiswahili is the default until the visitor picks English.
+            if (! is_string($locale) || $locale === '') {
+                $country = strtoupper((string) $request->session()->get('country', 'TZ'));
+                $locale = $country === 'TZ'
+                    ? 'sw'
+                    : (string) config('app.locale', 'sw');
+            }
         }
 
         if (! in_array($locale, ['en', 'sw'], true)) {
-            $locale = 'sw';
+            $locale = $isAdminSurface ? 'en' : 'sw';
         }
 
         app()->setLocale($locale);

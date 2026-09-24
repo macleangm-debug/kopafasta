@@ -36,13 +36,16 @@
                 <form method="POST" action="{{ route('site.partner.start.lookup') }}" class="mt-6 space-y-5" autocomplete="off">
                     @csrf
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.partner_code_label') }}</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('site.auth.partner_account_number') }}</label>
                         <input type="text" name="partner_code" value="{{ old('partner_code', request('partner_code')) }}" required
                                autocomplete="off" autocapitalize="characters" spellcheck="false"
                                placeholder="PT-XX-TZ-XXXX"
                                class="w-full px-3 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm font-mono uppercase outline-none">
                     </div>
-                    <x-site.phone-input name="phone" :label="__('site.feedback.phone')" :value="old('phone', request('phone'))" variant="rounded" :required="true" />
+                    <x-site.phone-input name="phone" :label="__('site.feedback.phone')" :value="old('phone')" variant="rounded" :required="true" />
+                    @if (! empty($maskedPhone) && ! $errors->has('phone'))
+                        <p class="text-xs text-gray-500 -mt-3">{{ __('site.auth.partner_phone_ends_in', ['last' => $maskedPhone]) }}</p>
+                    @endif
                     <p class="text-xs text-gray-500">{{ __('site.auth.partner_activate_pin_next') }}</p>
                     <x-site.turnstile action="partner-activate" />
                     <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md">

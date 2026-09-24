@@ -24,7 +24,16 @@ class PartnerPortalController extends Controller
                 ->first();
         }
 
-        return view('site.partner.start', ['partner' => $partner]);
+        $maskedPhone = null;
+        if ($partner) {
+            $digits = PhoneNumber::digits((string) $partner->phone);
+            $maskedPhone = strlen($digits) >= 4 ? substr($digits, -4) : null;
+        }
+
+        return view('site.partner.start', [
+            'partner' => $partner,
+            'maskedPhone' => $maskedPhone,
+        ]);
     }
 
     public function lookup(Request $request, PartnerActivationService $activation): RedirectResponse|View
@@ -51,7 +60,7 @@ class PartnerPortalController extends Controller
 
         if (! $vendor) {
             return back()->withInput()->withErrors([
-                'partner_code' => __('site.auth.partner_lookup_failed'),
+                'phone' => __('site.auth.partner_phone_mismatch'),
             ]);
         }
 
