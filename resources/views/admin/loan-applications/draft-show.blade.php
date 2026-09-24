@@ -15,6 +15,18 @@
         </x-slot:actions>
     </x-admin.letterhead>
 
+    @php
+        $app360 = app(\App\Services\Application360Presenter::class)->forDraft($draft, $snapshot, $badge);
+    @endphp
+    @include('admin.loan-applications.review._application_360', [
+        'record' => $draft,
+        'app360' => $app360,
+        'stageHistory' => collect(),
+        'documentRequests' => collect(),
+    ])
+
+    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-3">Current incomplete details</p>
+
     <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6">

@@ -158,6 +158,8 @@
         </div>
     </div>
 
+    @include('admin.loan-applications.review._application_360')
+
     @php $documentRequestClosure = data_get($record->screening_payload, 'document_request_closure'); @endphp
     @if (is_array($documentRequestClosure))
         <div class="mb-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 space-y-1">
