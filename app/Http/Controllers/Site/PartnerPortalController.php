@@ -78,44 +78,120 @@ class PartnerPortalController extends Controller
             ->with('status', __('site.auth.partner_activated'));
     }
 
-    public function showSetupPin(): View|RedirectResponse
+    public function showSetupPin(\App\Services\PinRecoveryChallengeService $recovery): View|RedirectResponse
     {
         $user = Auth::user();
         abort_unless($user && $user->role === 'vendor', 403);
 
-        if (app(\App\Services\PinService::class)->hasPin($user)) {
+        $needsPin = ! app(\App\Services\PinService::class)->hasPin($user);
+        $needsRecovery = ! $recovery->hasEnrolledAnswers($user);
+
+        if (! $needsPin && ! $needsRecovery) {
             return redirect()->route('site.partner.dashboard');
         }
 
-        return view('site.partner.setup-pin');
+        $keys = session('pin_setup_question_keys');
+        $needed = $recovery->requiredQuestionCount($user);
+        if (! is_array($keys) || count($keys) < $needed) {
+            $keys = $recovery->pickRandomKeys($needed);
+            session(['pin_setup_question_keys' => $keys]);
+        }
+
+        $partner = Vendor::query()->where('user_id', $user->id)->first();
+
+        return view('site.auth.setup-pin', [
+            'needsPin' => $needsPin,
+            'phase' => $needsPin ? 'pin' : 'questions',
+            'questions' => $recovery->questionsForKeys($keys),
+            'secureAccountPost' => route('site.partner.setup-pin.post'),
+            'secureAccountSwap' => route('site.partner.setup-pin.swap'),
+            'partnerContext' => $partner,
+        ]);
     }
 
-    public function storeSetupPin(Request $request): RedirectResponse
+    public function storeSetupPin(Request $request, \App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
+    {
+        $user = Auth::user();
+        abort_unless($user && $user->role === 'vendor', 403);
+
+        $needsPin = ! app(\App\Services\PinService::class)->hasPin($user);
+        $needsRecovery = ! $recovery->hasEnrolledAnswers($user);
+
+        if (! $needsPin && ! $needsRecovery) {
+            $request->session()->forget('pin_setup_question_keys');
+
+            return redirect()->route('site.partner.dashboard')
+                ->with(Celebration::SESSION_KEY, ['registration']);
+        }
+
+        if ($needsPin) {
+            $data = $request->validate([
+                'pin' => ['required', 'string', new \App\Rules\FourDigitPin, 'confirmed'],
+            ]);
+            app(\App\Services\PinService::class)->setPin($user, $data['pin']);
+
+            if (! $needsRecovery) {
+                $request->session()->forget('pin_setup_question_keys');
+
+                return redirect()->route('site.partner.dashboard')
+                    ->with(Celebration::SESSION_KEY, ['registration']);
+            }
+
+            return redirect()->route('site.partner.setup-pin');
+        }
+
+        if ((string) $request->input('phase') === 'pin') {
+            return redirect()->route('site.partner.setup-pin');
+        }
+
+        $needed = $recovery->requiredQuestionCount($user);
+        $keys = session('pin_setup_question_keys', []);
+        if (! is_array($keys) || count($keys) < $needed) {
+            return redirect()->route('site.partner.setup-pin')
+                ->withErrors(['answers' => __('site.auth.pin_recovery.expired')]);
+        }
+
+        $rules = [
+            'answers' => ['required', 'array'],
+        ];
+        foreach ($keys as $key) {
+            $rules["answers.$key"] = ['required', 'string', 'max:120'];
+        }
+
+        $data = $request->validate($rules);
+        $recovery->enroll($user, collect($keys)->mapWithKeys(
+            fn ($key) => [$key => (string) ($data['answers'][$key] ?? '')]
+        )->all());
+        $request->session()->forget('pin_setup_question_keys');
+
+        return redirect()
+            ->route('site.partner.dashboard')
+            ->with('status', __('site.auth.pin_recovery.setup_done'))
+            ->with(Celebration::SESSION_KEY, ['registration']);
+    }
+
+    public function swapSetupPin(Request $request, \App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
     {
         $user = Auth::user();
         abort_unless($user && $user->role === 'vendor', 403);
 
         $data = $request->validate([
-            'pin' => ['required', 'string', new \App\Rules\FourDigitPin, 'confirmed'],
+            'index' => ['required', 'integer', 'min:0', 'max:9'],
         ]);
 
-        app(\App\Services\PinService::class)->setPin($user, $data['pin']);
-
-        $recovery = app(\App\Services\PinRecoveryChallengeService::class);
-        if (! $recovery->hasEnrolledAnswers($user)) {
-            return redirect()
-                ->route('site.partner.setup-recovery')
-                ->with('status', __('site.auth.pin_recovery.setup_pin_saved'))
-                ->with(Celebration::SESSION_KEY, ['registration']);
+        $keys = session('pin_setup_question_keys', []);
+        if (! is_array($keys) || $keys === []) {
+            return redirect()->route('site.partner.setup-pin');
         }
 
-        return redirect()
-            ->route('site.partner.dashboard')
-            ->with('status', 'PIN created. Welcome to your partner portal.')
-            ->with(Celebration::SESSION_KEY, ['registration']);
+        session([
+            'pin_setup_question_keys' => $recovery->swapQuestionKey($keys, (int) $data['index']),
+        ]);
+
+        return redirect()->route('site.partner.setup-pin');
     }
 
-    public function showSetupRecovery(\App\Services\PinRecoveryChallengeService $recovery): View|RedirectResponse
+    public function showSetupRecovery(\App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
     {
         $user = Auth::user();
         abort_unless($user && $user->role === 'vendor', 403);
@@ -124,27 +200,12 @@ class PartnerPortalController extends Controller
             return redirect()->route('site.partner.dashboard');
         }
 
-        return view('site.partner.setup-recovery', [
-            'questions' => $recovery->bank(),
-        ]);
+        return redirect()->route('site.partner.setup-pin');
     }
 
     public function storeSetupRecovery(Request $request, \App\Services\PinRecoveryChallengeService $recovery): RedirectResponse
     {
-        $user = Auth::user();
-        abort_unless($user && $user->role === 'vendor', 403);
-
-        $data = $request->validate([
-            'question_keys' => ['required', 'array', 'size:2'],
-            'question_keys.*' => ['required', 'string'],
-            'answers' => ['required', 'array'],
-            'answers.*' => ['nullable', 'string', 'max:120'],
-        ]);
-        $recovery->enrollSelected($user, $data['question_keys'], $data['answers']);
-
-        return redirect()
-            ->route('site.partner.dashboard')
-            ->with('status', __('site.auth.partner_recovery_saved'));
+        return $this->storeSetupPin($request, $recovery);
     }
 
     public function showForgotPin(Request $request): View

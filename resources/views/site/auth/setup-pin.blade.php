@@ -4,6 +4,9 @@
         $needsPin = $needsPin ?? true;
         $questions = $questions ?? [];
         $phase = $phase ?? ($needsPin ? 'pin' : 'questions');
+        $secureAccountPost = $secureAccountPost ?? route('site.borrower.setup-pin.post');
+        $secureAccountSwap = $secureAccountSwap ?? route('site.borrower.setup-pin.swap');
+        $partnerContext = $partnerContext ?? null;
     @endphp
     <section class="h-full min-h-0 grid lg:grid-cols-2 premium-gradient overflow-hidden">
         <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
@@ -13,6 +16,12 @@
                 <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.auth.pin_recovery.setup_eyebrow') }}</p>
                 <h2 class="mt-2 text-4xl font-bold tracking-tight leading-tight">{{ __('site.auth.pin_recovery.setup_aside_title') }}</h2>
                 <p class="mt-4 text-white/70 max-w-md">{{ __('site.auth.pin_recovery.setup_aside_body') }}</p>
+                @if ($partnerContext?->name)
+                    <p class="mt-6 text-sm font-semibold text-white">{{ $partnerContext->name }}</p>
+                    @if ($partnerContext->partner_number)
+                        <p class="mt-1 text-xs text-white/50">{{ __('site.auth.partner_account_number') }} · {{ $partnerContext->partner_number }}</p>
+                    @endif
+                @endif
             </div>
             <p class="relative text-xs text-white/50">© {{ date('Y') }} {{ brand_name() }}</p>
         </aside>
@@ -25,7 +34,7 @@
                         <h1 class="text-2xl font-bold text-gray-900">{{ __('site.auth.pin_recovery.setup_title') }}</h1>
                         <p class="mt-1 text-sm text-gray-600">{{ __('site.auth.pin_recovery.setup_pin_only_body') }}</p>
 
-                        <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off" data-no-draft>
+                        <form method="POST" action="{{ $secureAccountPost }}" class="mt-6 space-y-4" autocomplete="off" data-no-draft>
                             @csrf
                             <input type="hidden" name="phase" value="pin">
 
@@ -52,7 +61,7 @@
                         <h1 class="text-2xl font-bold text-gray-900">{{ __('site.auth.pin_recovery.recovery_only_title') }}</h1>
                         <p class="mt-1 text-sm text-gray-600">{{ __('site.auth.pin_recovery.recovery_only_body') }}</p>
 
-                        <form method="POST" action="{{ route('site.borrower.setup-pin.post') }}" class="mt-6 space-y-4" autocomplete="off" data-no-draft>
+                        <form method="POST" action="{{ $secureAccountPost }}" class="mt-6 space-y-4" autocomplete="off" data-no-draft>
                             @csrf
                             <input type="hidden" name="phase" value="questions">
 
@@ -67,7 +76,7 @@
                                             </label>
                                             <button
                                                 type="submit"
-                                                formaction="{{ route('site.borrower.setup-pin.swap') }}"
+                                                formaction="{{ $secureAccountSwap }}"
                                                 formmethod="post"
                                                 name="index"
                                                 value="{{ $index }}"

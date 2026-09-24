@@ -58,8 +58,9 @@ class PartnerAccountController extends Controller
         $user = $request->user();
         abort_unless($user && in_array($user->role, ['vendor', 'investor'], true), 403);
 
+        $needed = $recovery->requiredQuestionCount($user);
         $data = $request->validate([
-            'question_keys' => ['required', 'array', 'size:2'],
+            'question_keys' => ['required', 'array', 'size:'.$needed],
             'question_keys.*' => ['required', 'string'],
             'answers' => ['required', 'array'],
             'answers.*' => ['nullable', 'string', 'max:120'],

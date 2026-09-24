@@ -24,6 +24,9 @@ class EnsurePartnerPin
         if ($request->routeIs(
             'site.partner.setup-pin',
             'site.partner.setup-pin.post',
+            'site.partner.setup-pin.swap',
+            'site.partner.setup-recovery',
+            'site.partner.setup-recovery.post',
             'site.logout',
             'auth.two-factor.*',
         )) {

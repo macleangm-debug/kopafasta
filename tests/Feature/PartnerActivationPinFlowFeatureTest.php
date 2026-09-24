@@ -57,8 +57,7 @@ class PartnerActivationPinFlowFeatureTest extends TestCase
                 'pin' => '1234',
                 'pin_confirmation' => '1234',
             ])
-            ->assertRedirect(route('site.partner.setup-recovery'))
-            ->assertSessionHas(Celebration::SESSION_KEY);
+            ->assertRedirect(route('site.partner.setup-pin'));
 
         $this->assertTrue(app(PinService::class)->hasPin($user->fresh()));
         $this->assertFalse(app(\App\Services\PinRecoveryChallengeService::class)->hasEnrolledAnswers($user->fresh()));

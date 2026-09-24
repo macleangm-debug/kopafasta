@@ -296,6 +296,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
 
         Route::get('/partner/setup-pin', [PartnerPortalController::class, 'showSetupPin'])->name('partner.setup-pin');
         Route::post('/partner/setup-pin', [PartnerPortalController::class, 'storeSetupPin'])->name('partner.setup-pin.post');
+        Route::post('/partner/setup-pin/swap-question', [PartnerPortalController::class, 'swapSetupPin'])->name('partner.setup-pin.swap');
         Route::get('/partner/setup-recovery', [PartnerPortalController::class, 'showSetupRecovery'])->name('partner.setup-recovery');
         Route::post('/partner/setup-recovery', [PartnerPortalController::class, 'storeSetupRecovery'])->name('partner.setup-recovery.post');
         Route::post('/partner/account/recovery', [PartnerAccountController::class, 'storeRecovery'])->name('partner.account.recovery');

@@ -70,7 +70,11 @@ class PartnerActivationPhoneAndAdminLocaleTest extends TestCase
         $html = $this->get($url)
             ->assertOk()
             ->assertSee($partner->name, false)
+            ->assertSee(__('site.auth.partner_activate_heading_supplier'), false)
+            ->assertSee(__('site.auth.partner_activate_brand'), false)
+            ->assertSee(__('site.auth.partner_activate_support'), false)
             ->assertSee('Namba ya akaunti ya mshirika', false)
+            ->assertDontSee('Wezesha MacLeans Autotraders', false)
             ->assertSee(__('site.auth.partner_phone_ends_in', ['last' => '0111']), false)
             ->assertDontSee('value="255715000111"', false)
             ->getContent();
@@ -126,6 +130,92 @@ class PartnerActivationPhoneAndAdminLocaleTest extends TestCase
             $this->assertNotNull($partner->activated_at, $case['entered']);
             $this->assertNotNull($partner->user_id, $case['entered']);
         }
+    }
+
+    public function test_self_activation_reuses_existing_portal_user_with_the_partner_email(): void
+    {
+        $partner = $this->invitedSupplier();
+        $existing = User::factory()->create([
+            'name' => 'Existing Portal',
+            'email' => $partner->email,
+            'phone' => $partner->phone,
+            'role' => 'vendor',
+            'is_active' => true,
+        ]);
+
+        $this->from(route('site.partner.start', ['partner_code' => $partner->partner_number]))
+            ->post(route('site.partner.start.lookup'), [
+                'partner_code' => $partner->partner_number,
+                'phone' => '255715000111',
+            ])
+            ->assertRedirect(route('site.partner.setup-pin'))
+            ->assertSessionMissing('errors');
+
+        $partner->refresh();
+        $this->assertSame($existing->id, $partner->user_id);
+        $this->assertSame(1, User::query()->where('email', $partner->email)->count());
+        $this->assertSame($partner->email, $existing->fresh()->email);
+    }
+
+    public function test_self_activation_does_not_fail_when_email_belongs_to_a_non_partner_identity(): void
+    {
+        $partner = $this->invitedSupplier();
+        User::factory()->create([
+            'name' => 'Admin MacLean',
+            'email' => $partner->email,
+            'phone' => '255700000001',
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $this->from(route('site.partner.start', ['partner_code' => $partner->partner_number]))
+            ->post(route('site.partner.start.lookup'), [
+                'partner_code' => $partner->partner_number,
+                'phone' => '255715000111',
+            ])
+            ->assertRedirect(route('site.partner.setup-pin'))
+            ->assertSessionMissing('errors');
+
+        $partner->refresh();
+        $this->assertNotNull($partner->user_id);
+        $portal = User::query()->findOrFail($partner->user_id);
+        $this->assertSame('vendor', $portal->role);
+        $this->assertNotSame($partner->email, $portal->email);
+        $this->assertSame('phone-verify@kopafasta.local', $partner->email);
+        $this->assertSame(2, User::query()->count());
+    }
+
+    public function test_self_activation_blocks_email_owned_by_another_partner(): void
+    {
+        $partner = $this->invitedSupplier();
+        $otherUser = User::factory()->create([
+            'email' => $partner->email,
+            'phone' => '255700000002',
+            'role' => 'vendor',
+        ]);
+        Vendor::create([
+            'name' => 'Other Supplier',
+            'category' => 'supplier',
+            'roles' => ['supplier'],
+            'status' => 'active',
+            'partner_number' => 'PT-SP-TZ-OTHR',
+            'phone' => '255700000002',
+            'email' => $partner->email,
+            'user_id' => $otherUser->id,
+            'activated_at' => now(),
+            'supplier_type' => 'managed_loan',
+        ]);
+
+        $this->from(route('site.partner.start', ['partner_code' => $partner->partner_number]))
+            ->post(route('site.partner.start.lookup'), [
+                'partner_code' => $partner->partner_number,
+                'phone' => '255715000111',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('email', __('site.auth.partner_identity_conflict'));
+
+        $this->assertNull($partner->fresh()->user_id);
+        $this->assertNull($partner->fresh()->activated_at);
     }
 
     private function invitedSupplier(): Vendor

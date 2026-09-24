@@ -112,10 +112,6 @@ class PinRecoveryChallengeService
 
     public function requiredQuestionCount(?User $user = null): int
     {
-        if ($user && in_array($user->role, ['vendor', 'investor'], true)) {
-            return 2;
-        }
-
         return (int) config('pin_recovery.questions_to_ask', 3);
     }
 
@@ -310,7 +306,8 @@ class PinRecoveryChallengeService
      */
     public function startForUser(User $user): ?array
     {
-        if ($this->hasEnrolledAnswers($user)) {
+        $enrolledCount = PinRecoveryAnswer::query()->where('user_id', $user->id)->count();
+        if ($enrolledCount >= 2) {
             return $this->startEnrolled($user);
         }
 

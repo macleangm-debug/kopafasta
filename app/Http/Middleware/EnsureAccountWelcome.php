@@ -29,6 +29,7 @@ class EnsureAccountWelcome
             'site.borrower.setup-pin.swap',
             'site.partner.setup-pin',
             'site.partner.setup-pin.post',
+            'site.partner.setup-pin.swap',
             'site.partner.setup-recovery',
             'site.partner.setup-recovery.post',
             'auth.two-factor.*',

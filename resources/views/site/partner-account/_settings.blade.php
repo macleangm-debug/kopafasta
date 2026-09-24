@@ -27,13 +27,10 @@
                 </p>
             </div>
             @if (! $hasRecovery)
-                <form method="POST" action="{{ route('site.partner.account.recovery') }}" class="space-y-4" autocomplete="off" data-no-draft>
-                    @csrf
-                    @include('site.partner._recovery-questions', ['questions' => $recovery->bank()])
-                    <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
-                        {{ __('site.auth.partner_recovery_setup_cta') }}
-                    </button>
-                </form>
+                <a href="{{ route('site.partner.setup-pin') }}"
+                   class="inline-flex items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
+                    {{ __('site.auth.pin_recovery.recovery_only_cta') }}
+                </a>
             @endif
         </div>
     @endif

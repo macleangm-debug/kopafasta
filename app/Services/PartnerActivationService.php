@@ -117,39 +117,9 @@ class PartnerActivationService
 
         $password = Str::password(32);
 
-        $email = $vendor->email;
-        if (blank($email)) {
-            $digits = preg_replace('/\D/', '', (string) $vendor->phone) ?: Str::random(8);
-            $email = 'partner-'.$vendor->id.'-'.$digits.'@partners.kopafasta.local';
-        }
+        $user = $this->resolvePortalUser($vendor, $password);
 
-        if (User::query()->where('email', $email)->exists() && ! $vendor->user_id) {
-            $existingUser = User::query()->where('email', $email)->first();
-            if ((int) $existingUser->id !== (int) $vendor->user_id) {
-                throw ValidationException::withMessages(['email' => 'Email already registered.']);
-            }
-        }
-
-        $existingUser = $vendor->user_id
-            ? User::query()->find($vendor->user_id)
-            : User::query()->where('email', $email)->first();
-
-        $role = match (true) {
-            $vendor->isAffiliate()           => 'vendor',
-            $vendor->isRecoveryPartner()      => 'vendor',
-            default                           => 'vendor',
-        };
-
-        $user = $existingUser ?? User::create([
-            'name'      => $vendor->name,
-            'email'     => $email,
-            'phone'     => $vendor->phone,
-            'password'  => Hash::make($password),
-            'role'      => $role,
-            'is_active' => true,
-        ]);
-
-        if ($existingUser) {
+        if ($user->wasRecentlyCreated === false) {
             $user->update(['is_active' => true]);
         }
 
@@ -184,7 +154,7 @@ class PartnerActivationService
 
         if ($incoming === '' || $stored === '' || $incoming !== $stored) {
             throw ValidationException::withMessages([
-                'phone' => 'Phone number does not match this partner code.',
+                'phone' => __('site.auth.partner_phone_mismatch'),
             ]);
         }
 
@@ -259,6 +229,134 @@ class PartnerActivationService
     public function reissueActivation(Vendor $vendor, ?User $actor = null, bool $notify = false): Vendor
     {
         return $this->sendActivationInvite($vendor, $actor, $notify);
+    }
+
+    /**
+     * Link the existing partner to a portal user. Never fail because this
+     * partner's own email/phone already exists on its contact/user row.
+     */
+    private function resolvePortalUser(Vendor $vendor, string $password): User
+    {
+        if ($vendor->user_id) {
+            $linked = User::query()->find($vendor->user_id);
+            if ($linked) {
+                return $linked;
+            }
+        }
+
+        $reusable = $this->reusablePortalUser($vendor);
+        if ($reusable) {
+            return $reusable;
+        }
+
+        $conflict = $this->foreignIdentityUsingPartnerEmail($vendor);
+        if ($conflict) {
+            throw ValidationException::withMessages([
+                'email' => __('site.auth.partner_identity_conflict'),
+            ]);
+        }
+
+        return User::create([
+            'name' => $vendor->name,
+            'email' => $this->portalEmailFor($vendor),
+            'phone' => $vendor->phone,
+            'password' => Hash::make($password),
+            'role' => 'vendor',
+            'is_active' => true,
+        ]);
+    }
+
+    private function reusablePortalUser(Vendor $vendor): ?User
+    {
+        $candidates = collect();
+
+        if (filled($vendor->email)) {
+            $byEmail = User::query()->where('email', $vendor->email)->first();
+            if ($byEmail) {
+                $candidates->push($byEmail);
+            }
+        }
+
+        if (filled($vendor->phone)) {
+            $byPhone = User::query()
+                ->where(function ($q) use ($vendor) {
+                    PhoneNumber::constrain($q, 'phone', (string) $vendor->phone);
+                })
+                ->first();
+            if ($byPhone) {
+                $candidates->push($byPhone);
+            }
+        }
+
+        foreach ($candidates->unique('id') as $user) {
+            if ($this->userBelongsToThisPartner($user, $vendor)) {
+                return $user;
+            }
+        }
+
+        return null;
+    }
+
+    private function userBelongsToThisPartner(User $user, Vendor $vendor): bool
+    {
+        if ((int) $vendor->user_id === (int) $user->id) {
+            return true;
+        }
+
+        $claimedByOther = Vendor::query()
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $vendor->id)
+            ->exists();
+        if ($claimedByOther) {
+            return false;
+        }
+
+        if (! in_array($user->role, ['vendor', 'investor'], true)) {
+            return false;
+        }
+
+        $sameEmail = filled($vendor->email)
+            && strcasecmp((string) $user->email, (string) $vendor->email) === 0;
+        $userPhone = PhoneNumber::nationalSuffix((string) $user->phone);
+        $vendorPhone = PhoneNumber::nationalSuffix((string) $vendor->phone);
+        $samePhone = $userPhone !== '' && $userPhone === $vendorPhone;
+
+        return $sameEmail || $samePhone;
+    }
+
+    /**
+     * Another partner already owns the portal user for this email.
+     * Borrower/admin emails are not stolen — a unique portal mailbox is used instead.
+     */
+    private function foreignIdentityUsingPartnerEmail(Vendor $vendor): ?User
+    {
+        if (blank($vendor->email)) {
+            return null;
+        }
+
+        $user = User::query()->where('email', $vendor->email)->first();
+        if (! $user) {
+            return null;
+        }
+
+        $claimedByOther = Vendor::query()
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $vendor->id)
+            ->exists();
+
+        return $claimedByOther ? $user : null;
+    }
+
+    private function portalEmailFor(Vendor $vendor): string
+    {
+        $email = trim((string) $vendor->email);
+        if ($email !== '' && ! User::query()->where('email', $email)->exists()) {
+            return $email;
+        }
+
+        $digits = preg_replace('/\D/', '', (string) $vendor->phone) ?: Str::random(8);
+
+        return 'partner-'.$vendor->id.'-'.$digits.'@partners.kopafasta.local';
     }
 
     private function placeWaitingValuerJobs(Vendor $vendor): void
