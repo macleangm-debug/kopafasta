@@ -16,61 +16,11 @@
     $isDraft = ! empty($app360['is_draft']);
     $isGroup = ! empty($app360['is_group']);
     $defaultKey = $participants[0]['key'] ?? 'p0';
+    $previousGuarantors = $app360['previous_guarantors'] ?? [];
 @endphp
 
 <section id="application-360" class="mb-6 space-y-4">
-    {{-- Application summary --}}
-    <div class="rounded-2xl overflow-hidden ring-1 ring-brand/20 shadow-sm">
-        <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white">
-            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                <div class="min-w-0">
-                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">Application 360</p>
-                    <h2 class="text-xl sm:text-2xl font-bold tracking-tight mt-1 truncate">
-                        {{ $app360['application_number'] ?? $record->application_number }}
-                    </h2>
-                    <p class="text-sm text-white/80 mt-1 truncate">
-                        {{ $app360['member_name'] ?? $record->partyLabel() }}
-                        @if (! empty($app360['member_no']))
-                            <span class="text-white/50">·</span> Member {{ $app360['member_no'] }}
-                        @endif
-                    </p>
-                    <p class="text-xs text-white/70 mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                        <span>{{ $app360['product_name'] ?? '—' }}</span>
-                        <span>{{ $app360['amount_label'] ?? '—' }}</span>
-                        <span>{{ $app360['stage_label'] ?? '—' }}</span>
-                        @if (! empty($app360['gate_label']))
-                            <span>{{ $app360['gate_label'] }}</span>
-                        @endif
-                    </p>
-                    @if ($percent !== null)
-                        <div class="mt-3 max-w-md">
-                            <div class="flex items-center justify-between text-[11px] text-white/75 mb-1">
-                                <span>Progress</span>
-                                <span class="tabular-nums font-semibold">{{ $percent }}%</span>
-                            </div>
-                            <div class="h-1.5 rounded-full bg-white/15 overflow-hidden">
-                                <div class="h-full rounded-full bg-brand-gold" style="width: {{ max(0, min(100, $percent)) }}%"></div>
-                            </div>
-                        </div>
-                    @endif
-                </div>
-                <div class="flex flex-wrap items-center gap-2 shrink-0">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
-                        {{ $app360['status_label'] ?? $app360['overall_status'] ?? '—' }}
-                    </span>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-gold/20 text-brand-gold ring-1 ring-brand-gold/40">
-                        {{ $app360['overall_status'] ?? '—' }}
-                    </span>
-                    @if (! empty($app360['member_url']))
-                        <a href="{{ $app360['member_url'] }}"
-                           class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-gold text-brand hover:brightness-95">
-                            Open Member 360 →
-                        </a>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
+    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-0.5">Application 360</p>
 
     {{-- Needs Attention --}}
     <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-5 py-4">
@@ -80,19 +30,17 @@
                 <div class="grid sm:grid-cols-2 gap-3">
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">What is missing?</p>
-                        <p class="text-sm font-semibold text-slate-900 mt-1">{{ $next['missing'] ?? $next['headline'] ?? 'Continue' }}</p>
+                        <p class="text-sm font-semibold text-slate-900 mt-1">{{ $next['reason'] ?? $next['missing'] ?? 'Continue' }}</p>
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Who needs to act?</p>
                         <p class="text-sm font-semibold text-slate-900 mt-1">{{ $next['who'] ?? 'Staff' }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Deadline / waiting</p>
+                        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Deadline</p>
                         <p class="text-sm font-semibold text-slate-900 mt-1">
                             @if (! empty($next['deadline']))
                                 {{ is_string($next['deadline']) ? $next['deadline'] : format_app_datetime($next['deadline'], 'd M Y') }}
-                            @elseif (($next['cta_kind'] ?? '') === 'waiting')
-                                Waiting
                             @else
                                 —
                             @endif
@@ -127,7 +75,7 @@
                     <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Participants</p>
                     <p class="text-[11px] text-slate-500 mt-0.5">{{ $isGroup ? 'Group' : 'Borrower / Guarantor' }}</p>
                 </div>
-                <p class="text-[11px] text-slate-500">{{ count($people) }} participant{{ count($people) === 1 ? '' : 's' }}</p>
+                <p class="text-[11px] text-slate-500">{{ collect($people)->where('kind', '!=', 'all')->count() }} active participant{{ collect($people)->where('kind', '!=', 'all')->count() === 1 ? '' : 's' }}</p>
             </div>
 
             <div class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory"
@@ -265,6 +213,22 @@
                     @endif
                 </div>
             @endforeach
+        </div>
+    @endif
+
+    @if (count($previousGuarantors) > 0)
+        <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 sm:px-5 py-3">
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Previous / Rejected</p>
+            <ul class="mt-2 space-y-1">
+                @foreach ($previousGuarantors as $row)
+                    <li class="text-sm text-slate-700">
+                        <span class="font-semibold">{{ $row['label'] ?? (($row['name'] ?? 'Guarantor').' — '.($row['status'] ?? 'Rejected')) }}</span>
+                        @if (! empty($row['at']))
+                            <span class="text-slate-500"> · {{ $row['at'] }}</span>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
         </div>
     @endif
 

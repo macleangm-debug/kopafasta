@@ -184,6 +184,16 @@ class DisplayedRateService
      */
     public function borrowerRateRange(LoanProduct $product): array
     {
+        if (app(AssetLendingService::class)->isAssetLendingProduct($product)) {
+            $financing = collect(app(AssetLendingService::class)->financingTiers())
+                ->filter(fn ($row) => $row['active'] ?? true);
+            if ($financing->isNotEmpty()) {
+                $rates = $financing->pluck('monthly_rate_percent')->map(fn ($r) => ((float) $r) / 100);
+
+                return ['min' => (float) $rates->min(), 'max' => (float) $rates->max()];
+            }
+        }
+
         $tiers = $this->loadTiers($product);
 
         if ($tiers->isNotEmpty()) {

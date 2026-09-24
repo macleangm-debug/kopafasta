@@ -346,10 +346,10 @@
     <div data-step-gate x-show="isSupplier" x-cloak>
         <x-admin.step title="Supplier settings">
             <p class="md:col-span-2 text-xs text-gray-500 mb-2">Deposit markup is the platform default for asset lending.</p>
-            <x-admin.select name="supplier_type" label="Supplier payment mode" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" />
+            <x-admin.select name="supplier_type" label="Supplier arrangement" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" help="Controls whether Kopafasta only administers collections or the supplier is settled using financing capital. Each application snapshots one mode." />
             <p class="md:col-span-2 text-xs text-gray-500">
-                <strong>Direct repayment</strong> — supplier receives principal from customer repayments.
-                <strong>Full upfront payment</strong> — entire asset value is paid on approval.
+                <strong>Service / Collection</strong> (default) — principal from verified repayments goes to the supplier wallet; financing income stays with Kopafasta. No Capital Partner required.
+                <strong>Capital-funded purchase</strong> — supplier is settled once; later customer principal services the funding receivable.
             </p>
         </x-admin.step>
     </div>

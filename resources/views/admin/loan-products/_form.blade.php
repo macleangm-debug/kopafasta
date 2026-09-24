@@ -7,7 +7,13 @@
     }
 @endphp
 
-<div x-data="{ cloneFrom: @js(old('clone_from_id', '')) }" class="space-y-6">
+<div x-data="{
+        cloneFrom: @js(old('clone_from_id', '')),
+        category: @js((string) old('category', $r?->category ?? '')),
+        requiresCollateral: @js((string) old('requires_collateral', $r?->requires_collateral ?? '0')),
+        requiresGuarantor: @js((string) old('requires_guarantor', $r?->requires_guarantor ?? '0')),
+        usesCapitalPartner: @js((string) old('uses_capital_partner', ($r?->uses_capital_partner ?? true) ? '1' : '0')),
+    }" class="space-y-6">
     <x-admin.step title="Basics">
         @unless ($r)
             <div class="md:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-100 p-4">
@@ -32,6 +38,7 @@
 
         <div class="md:col-span-2" x-show="!cloneFrom" x-cloak>
             <x-admin.select name="category"            label="Category"
+                            x-model="category"
                             :options="[
                                 'business_loan' => 'Business loan',
                                 'salary_loan'   => 'Salary loan',
@@ -42,7 +49,8 @@
                                 'group'         => 'Group',
                                 'individual'    => 'Individual',
                             ]"
-                            :value="$r?->category" />
+                            :value="$r?->category"
+                            help="Choose the family this product belongs to. Extra sections appear only when they apply." />
             <x-admin.select name="purpose_mode" label="Purpose mode"
                             :options="[
                                 'free' => 'Borrower chooses',
@@ -85,16 +93,21 @@
 
     <div x-show="!cloneFrom" x-cloak>
         @include('admin.loan-products._pricing-fields')
-        @include('admin.loan-products._rate-tiers-fields', ['record' => $r, 'rateTiers' => $rateTiers ?? null])
+        <div x-show="category === 'asset_finance'" x-cloak>
+            @include('admin.loan-products._asset-lending-pricing')
+        </div>
+        <div x-show="category !== 'asset_finance'">
+            @include('admin.loan-products._rate-tiers-fields', ['record' => $r, 'rateTiers' => $rateTiers ?? null])
+        </div>
         @include('admin.loan-products._post-approval-fees-fields')
         <x-admin.number-format-script />
         @include('admin.loan-products._document-templates-fields')
 
         <x-admin.step title="Requirements">
-            <x-admin.select name="requires_collateral" label="Requires collateral" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_collateral ?? '0')" />
-            <x-admin.select name="requires_guarantor"  label="Requires guarantor"  :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" />
-            @if ($r?->requires_guarantor)
-                <label class="flex items-start gap-3 text-sm text-gray-800 md:col-span-2">
+            <x-admin.select name="requires_collateral" label="Requires collateral" x-model="requiresCollateral" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_collateral ?? '0')" help="Member-owned security only. Marketplace / supplier assets do not use this valuation path." />
+            <x-admin.select name="requires_guarantor"  label="Requires guarantor" x-model="requiresGuarantor" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" help="When Yes, the borrower must invite a guarantor before the file can leave the guarantor gate." />
+            <div class="md:col-span-2 space-y-3" x-show="requiresGuarantor === '1'" x-cloak>
+                <label class="flex items-start gap-3 text-sm text-gray-800">
                     <input type="hidden" name="guarantor_gate_1_required" value="0">
                     <input type="checkbox" name="guarantor_gate_1_required" value="1"
                            @checked((bool) old('guarantor_gate_1_required', $r?->guarantor_gate_1_required))
@@ -104,7 +117,7 @@
                         <span class="block text-xs text-gray-500 mt-0.5">Declared-income check on the guarantor. Off by default — only enable when this product genuinely needs guarantor financial assessment.</span>
                     </span>
                 </label>
-                <label class="flex items-start gap-3 text-sm text-gray-800 md:col-span-2">
+                <label class="flex items-start gap-3 text-sm text-gray-800">
                     <input type="hidden" name="guarantor_gate_2_required" value="0">
                     <input type="checkbox" name="guarantor_gate_2_required" value="1"
                            @checked((bool) old('guarantor_gate_2_required', $r?->guarantor_gate_2_required))
@@ -114,7 +127,7 @@
                         <span class="block text-xs text-gray-500 mt-0.5">Statement-backed guarantor capacity. Off by default.</span>
                     </span>
                 </label>
-            @endif
+            </div>
             <div class="md:col-span-2">
                 <p class="text-sm font-medium text-gray-700 mb-2">Eligible grades</p>
                 <p class="text-xs text-gray-500 mb-2">Leave all unchecked to keep the product open to every grade.</p>
@@ -146,8 +159,8 @@
                     ? (bool) ($rosterReq['is_required'] ?? false)
                     : (bool) ($rosterReq?->is_required ?? false);
             @endphp
-            @if ($isGroupProduct)
-                <div class="md:col-span-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-4 space-y-3">
+            <div class="md:col-span-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-4 space-y-3"
+                 @unless ($isGroupProduct) x-show="category === 'group'" x-cloak @endunless>
                     <div>
                         <h3 class="text-sm font-semibold text-gray-900">Group loan evidence (optional)</h3>
                         <p class="text-xs text-gray-600 mt-1">
@@ -175,7 +188,6 @@
                         </span>
                     </label>
                 </div>
-            @endif
         </x-admin.step>
 
         <x-admin.step title="Documents" id="documents">

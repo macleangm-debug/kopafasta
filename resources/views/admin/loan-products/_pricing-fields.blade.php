@@ -3,17 +3,22 @@
 @endphp
 
 <x-admin.step title="Pricing & limits">
+    <p class="md:col-span-2 text-sm font-semibold text-gray-800">Amounts, fees, and repayment</p>
     <p class="md:col-span-2 text-xs text-gray-500">
-        Configure limits here; tiered monthly rates and rate components (BOT, processing, risk, insurance) are set in the next step.
+        Set the commercial limits staff will use. Asset Lending deposit and financing tiers appear only for Asset finance products.
     </p>
     <x-admin.money-input name="application_fee_amount" label="Application fee (TZS)" :value="$r?->application_fee_amount"
-                         placeholder="e.g. 5,000" help="Charged when a borrower applies for this product. Leave blank to use the global application fee." />
+                         placeholder="e.g. 5,000" help="Charged before the borrower can proceed beyond the application-fee gate. Leave blank to use the global application fee." />
     <x-admin.select name="uses_capital_partner" label="Uses capital partner?"
+                    x-model="usesCapitalPartner"
                     :options="['1' => 'Yes', '0' => 'No']"
                     :value="old('uses_capital_partner', ($r?->uses_capital_partner ?? true) ? '1' : '0')"
-                    help="When Yes, approved loans are funded proportionally from active capital partner pools. Asset lending products typically use No." />
-    <x-admin.input name="tenure_min_months" label="Min tenure (months)" type="number" :value="$r?->tenure_min_months" required />
-    <x-admin.input name="tenure_max_months" label="Max tenure (months)" type="number" :value="$r?->tenure_max_months" required />
+                    help="When Yes, approved loans are funded from active capital partner pools. Service / Collection Asset Lending uses No." />
+    <p class="md:col-span-2 text-xs text-gray-500" x-show="usesCapitalPartner === '1'" x-cloak>
+        Capital Partner funding applies after approval. Do not also send customer principal to the supplier once the supplier has been settled.
+    </p>
+    <x-admin.input name="tenure_min_months" label="Min tenure (months)" type="number" :value="$r?->tenure_min_months" required help="The shortest repayment period available for this product." />
+    <x-admin.input name="tenure_max_months" label="Max tenure (months)" type="number" :value="$r?->tenure_max_months" required help="The longest repayment period available for this product." />
     <x-admin.select name="repayment_cadence" label="Repayment cadence"
                     :options="['weekly' => 'Weekly (tenure × 4 instalments)', 'monthly' => 'Monthly']"
                     :value="$r?->repayment_cadence ?? 'weekly'" required />

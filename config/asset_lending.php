@@ -9,8 +9,8 @@ return [
     'markup_base' => env('ASSET_LENDING_MARKUP_BASE', 'deposit'),
 
     'supplier_types' => [
-        'managed_loan'        => 'Direct repayment (supplier receives principal from installments)',
-        'upfront_settlement'  => 'Full upfront payment (company pays supplier on approval)',
+        'managed_loan'        => 'Service / Collection',
+        'upfront_settlement'  => 'Capital-funded purchase',
     ],
 
     /** Default supplier type for new suppliers. */
@@ -18,6 +18,27 @@ return [
 
     /** Monthly rate used when auto-calculating marketplace weekly instalments. */
     'default_monthly_rate' => 0.12,
+
+    /**
+     * Deposit tiers use asset purchase price; financing tiers use financed balance after deposit.
+     * Product Configuration is the active editor. Settings storage is the shared read source.
+     */
+    'deposit_tiers' => [
+        ['from' => 0, 'to' => 5_000_000, 'percent' => 10, 'active' => true],
+        ['from' => 5_000_001, 'to' => 15_000_000, 'percent' => 8, 'active' => true],
+        ['from' => 15_000_001, 'to' => 30_000_000, 'percent' => 6, 'active' => true],
+        ['from' => 30_000_001, 'to' => 50_000_000, 'percent' => 4, 'active' => true],
+        ['from' => 50_000_001, 'to' => 100_000_000, 'percent' => 3, 'active' => true],
+        ['from' => 100_000_001, 'to' => null, 'percent' => 2, 'active' => true],
+    ],
+
+    'financing_tiers' => [
+        ['from' => 0, 'to' => 10_000_000, 'monthly_rate_percent' => 3.00, 'method' => 'reducing_balance', 'max_tenure_months' => 6, 'active' => true],
+        ['from' => 10_000_001, 'to' => 25_000_000, 'monthly_rate_percent' => 2.50, 'method' => 'reducing_balance', 'max_tenure_months' => 6, 'active' => true],
+        ['from' => 25_000_001, 'to' => 50_000_000, 'monthly_rate_percent' => 2.00, 'method' => 'reducing_balance', 'max_tenure_months' => 6, 'active' => true],
+        ['from' => 50_000_001, 'to' => 100_000_000, 'monthly_rate_percent' => 1.50, 'method' => 'reducing_balance', 'max_tenure_months' => 6, 'active' => true],
+        ['from' => 100_000_001, 'to' => null, 'monthly_rate_percent' => 1.25, 'method' => 'reducing_balance', 'max_tenure_months' => 6, 'active' => true],
+    ],
 
     /**
      * Asset categories with workflow requirements.

@@ -79,9 +79,13 @@ class Phase20FeatureTest extends TestCase
             ->assertSee('Default monthly rate', false);
     }
 
-    public function test_marketplace_weekly_installment_uses_configured_monthly_rate(): void
+    public function test_marketplace_weekly_installment_uses_product_configuration_tiers(): void
     {
-        Setting::set('asset_lending.default_monthly_rate_percent', 18);
+        $lending = app(\App\Services\AssetLendingService::class);
+        $lending->persistPricingTiers(
+            [['from' => 0, 'to' => null, 'percent' => 10, 'active' => true]],
+            [['from' => 0, 'to' => null, 'monthly_rate_percent' => 4, 'method' => 'reducing_balance', 'max_tenure_months' => 6, 'active' => true]],
+        );
 
         $asset = MarketplaceAsset::create([
             'slug'                => 'p20-rate-asset',
@@ -90,19 +94,20 @@ class Phase20FeatureTest extends TestCase
             'supplier_name'       => 'Supplier',
             'asset_value'         => 10_000_000,
             'supplier_deposit'    => 2_000_000,
-            'customer_deposit'    => 2_200_000,
-            'max_tenure_months'   => 12,
+            'customer_deposit'    => 1_000_000,
+            'max_tenure_months'   => 6,
             'is_active'           => true,
             'availability_status' => 'available',
         ]);
 
-        $weeklyAt18 = app(MarketplaceAssetService::class)->suggestWeeklyInstallment($asset);
-        $this->assertEqualsWithDelta(0.18, app(AssetLendingService::class)->defaultMonthlyRate(), 0.001);
+        $weeklyHigh = app(MarketplaceAssetService::class)->suggestWeeklyInstallment($asset);
+        $lending->persistPricingTiers(
+            [['from' => 0, 'to' => null, 'percent' => 10, 'active' => true]],
+            [['from' => 0, 'to' => null, 'monthly_rate_percent' => 1, 'method' => 'reducing_balance', 'max_tenure_months' => 6, 'active' => true]],
+        );
+        $weeklyLow = app(MarketplaceAssetService::class)->suggestWeeklyInstallment($asset->fresh());
 
-        Setting::set('asset_lending.default_monthly_rate_percent', 12);
-        $weeklyAt12 = app(MarketplaceAssetService::class)->suggestWeeklyInstallment($asset->fresh());
-
-        $this->assertGreaterThan($weeklyAt12, $weeklyAt18);
+        $this->assertGreaterThan($weeklyLow, $weeklyHigh);
     }
 
     public function test_public_marketplace_asset_page_uses_apply_for_asset_copy(): void

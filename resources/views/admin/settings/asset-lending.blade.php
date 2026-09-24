@@ -13,8 +13,8 @@
         <x-admin.settings-panel id="markup">
             <div class="bg-white rounded-xl ring-1 ring-gray-200 p-6 space-y-6">
                 <div>
-                    <p class="text-sm font-semibold text-gray-900 mb-2">Markup rules</p>
-                    <p class="text-xs text-gray-500 mb-3">Suppliers enter asset cost and deposit; the platform applies this markup to calculate customer price. Suppliers cannot override markup.</p>
+                    <p class="text-sm font-semibold text-gray-900 mb-2">Historical markup rules</p>
+                    <p class="text-xs text-gray-500 mb-3">Kept for existing listings. New borrower quotes use Product Configuration deposit and financing tiers — do not treat these markup or default-rate fields as the active quote editor. Suppliers cannot override markup.</p>
                     <div class="space-y-2">
                         <label class="flex items-center gap-2 text-sm">
                             <input type="radio" name="markup_base" value="deposit" @checked(($values['markup_base'] ?? 'deposit') === 'deposit')>

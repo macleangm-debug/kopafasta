@@ -235,4 +235,278 @@ class AssetLendingService
     {
         return $this->supplierType($vendor) === 'managed_loan';
     }
+
+    public function arrangementLabel(string $type): string
+    {
+        return (string) (config('asset_lending.supplier_types.'.$type) ?? $type);
+    }
+
+    public function requiresMarketplaceValuation(?string $category): bool
+    {
+        return (bool) ($this->categoryRequirements($category)['valuation_required'] ?? false);
+    }
+
+    /**
+     * Deposit tiers keyed on asset purchase price (Product Configuration editor; Settings storage).
+     *
+     * @return list<array{from: float, to: ?float, percent: float, active: bool}>
+     */
+    public function depositTiers(): array
+    {
+        $raw = $this->settings()['deposit_tiers'] ?? config('asset_lending.deposit_tiers', []);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        return $this->normalizeTierRows(is_array($raw) ? $raw : [], 'deposit');
+    }
+
+    /**
+     * Financing tiers keyed on financed balance after deposit.
+     *
+     * @return list<array{from: float, to: ?float, monthly_rate_percent: float, method: string, max_tenure_months: int, active: bool}>
+     */
+    public function financingTiers(): array
+    {
+        $raw = $this->settings()['financing_tiers'] ?? config('asset_lending.financing_tiers', []);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        return $this->normalizeTierRows(is_array($raw) ? $raw : [], 'financing');
+    }
+
+    /**
+     * Canonical Asset Lending quote: price → deposit → financed → financing → tenure → installment.
+     *
+     * @return array<string, mixed>
+     */
+    public function pricingQuoteFromAssetPrice(float $assetPrice, ?int $tenureMonths = null): array
+    {
+        $assetPrice = round(max(0, $assetPrice), 2);
+        $depositTier = $this->matchTier($this->depositTiers(), $assetPrice);
+        $depositPercent = (float) ($depositTier['percent'] ?? 0);
+        $depositAmount = round($assetPrice * ($depositPercent / 100), 2);
+        $financed = round(max(0, $assetPrice - $depositAmount), 2);
+        $financingTier = $this->matchTier($this->financingTiers(), $financed);
+        $monthlyRatePercent = (float) ($financingTier['monthly_rate_percent'] ?? 0);
+        $method = (string) ($financingTier['method'] ?? 'reducing_balance');
+        $maxTenure = (int) ($financingTier['max_tenure_months'] ?? 6);
+        $tenure = $tenureMonths !== null ? max(1, min($maxTenure, $tenureMonths)) : $maxTenure;
+        $monthlyRate = max(0, $monthlyRatePercent / 100);
+        $schedule = $this->reducingBalanceSchedule($financed, $monthlyRate, $tenure);
+        $installment = (float) ($schedule[0]['total_due'] ?? 0);
+        $totalPayable = round($depositAmount + array_sum(array_column($schedule, 'total_due')), 2);
+
+        return [
+            'asset_price' => $assetPrice,
+            'deposit_percent' => $depositPercent,
+            'deposit_amount' => $depositAmount,
+            'financed_amount' => $financed,
+            'monthly_rate_percent' => $monthlyRatePercent,
+            'rate_method' => $method,
+            'tenure_months' => $tenure,
+            'max_tenure_months' => $maxTenure,
+            'repayment_frequency' => 'monthly',
+            'installment' => round($installment, 2),
+            'total_interest' => round(array_sum(array_column($schedule, 'interest')), 2),
+            'total_payable' => $totalPayable,
+            'application_fee' => null,
+            'valuation_applicable' => false,
+            'schedule' => $schedule,
+            'deposit_tier_snapshot' => $depositTier,
+            'financing_tier_snapshot' => $financingTier,
+            'pricing_policy' => 'product_configuration_tiers',
+            'snapshotted_at' => now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Persist deposit / financing tiers. Product Configuration is the editor;
+     * Settings storage remains the shared read source for quotes.
+     *
+     * @param  list<array<string, mixed>>  $deposit
+     * @param  list<array<string, mixed>>  $financing
+     */
+    public function persistPricingTiers(array $deposit, array $financing): void
+    {
+        Setting::set('asset_lending.deposit_tiers', $this->normalizeTierRows($deposit, 'deposit'));
+        Setting::set('asset_lending.financing_tiers', $this->normalizeTierRows($financing, 'financing'));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $tiers
+     * @return array<string, mixed>|null
+     */
+    public function matchTier(array $tiers, float $amount): ?array
+    {
+        foreach ($tiers as $tier) {
+            if (! ($tier['active'] ?? true)) {
+                continue;
+            }
+            $from = (float) ($tier['from'] ?? 0);
+            $to = $tier['to'];
+            if ($amount + 0.00001 < $from) {
+                continue;
+            }
+            if ($to === null || $to === '' || $amount <= (float) $to + 0.00001) {
+                return $tier;
+            }
+        }
+
+        return $tiers[array_key_last($tiers)] ?? null;
+    }
+
+    /**
+     * @return list<array{installment_no: int, principal: float, interest: float, total_due: float, balance: float}>
+     */
+    public function reducingBalanceSchedule(float $principal, float $monthlyRate, int $tenureMonths): array
+    {
+        $principal = round(max(0, $principal), 2);
+        $tenureMonths = max(1, $tenureMonths);
+        if ($principal <= 0) {
+            return [];
+        }
+
+        $principalPart = round($principal / $tenureMonths, 2);
+        $balance = $principal;
+        $rows = [];
+        for ($i = 1; $i <= $tenureMonths; $i++) {
+            $interest = round($balance * $monthlyRate, 2);
+            $prin = ($i === $tenureMonths) ? round($balance, 2) : $principalPart;
+            $total = round($prin + $interest, 2);
+            $balance = round(max(0, $balance - $prin), 2);
+            $rows[] = [
+                'installment_no' => $i,
+                'principal' => $prin,
+                'interest' => $interest,
+                'total_due' => $total,
+                'balance' => $balance,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Snapshot commercial terms once. Later Product/Supplier edits must not rewrite history.
+     *
+     * @return array<string, mixed>
+     */
+    public function snapshotCommercialTerms(LoanApplication $application): array
+    {
+        $existing = $this->commercialSnapshot($application);
+        if ($existing !== []) {
+            return $existing;
+        }
+
+        $application->loadMissing(['product', 'assetReservation.asset.vendor']);
+        $asset = $application->assetReservation?->asset;
+        if (! $this->isAssetLendingApplication($application) || ! $asset) {
+            return [];
+        }
+
+        $vendor = $asset->vendor;
+        $arrangement = $vendor ? $this->supplierType($vendor) : (string) config('asset_lending.default_supplier_type', 'managed_loan');
+        $tenure = (int) ($application->requested_tenure_months ?? $asset->max_tenure_months ?? 6);
+        $quote = $this->pricingQuoteFromAssetPrice((float) ($asset->asset_value ?? 0), $tenure);
+        $quote['application_fee'] = $application->application_fee_amount;
+
+        $snapshot = [
+            'supplier_id' => $vendor?->id,
+            'supplier_arrangement' => $arrangement,
+            'supplier_arrangement_label' => $this->arrangementLabel($arrangement),
+            'asset_id' => $asset->id,
+            'asset_price' => $quote['asset_price'],
+            'deposit_tier' => $quote['deposit_tier_snapshot'],
+            'deposit_amount' => $quote['deposit_amount'],
+            'financed_amount' => $quote['financed_amount'],
+            'financing_tier' => $quote['financing_tier_snapshot'],
+            'tenure_months' => $quote['tenure_months'],
+            'installment' => $quote['installment'],
+            'total_payable' => $quote['total_payable'],
+            'application_fee' => $quote['application_fee'],
+            'supplier_settlement_method' => $arrangement,
+            'funding_source' => $arrangement === 'upfront_settlement' ? 'capital_partner' : null,
+            'valuation_applicable' => $this->requiresMarketplaceValuation($asset->category),
+            'product_settings_version' => [
+                'deposit_tiers' => $this->depositTiers(),
+                'financing_tiers' => $this->financingTiers(),
+                'snapshotted_at' => $quote['snapshotted_at'],
+            ],
+            'quote' => $quote,
+        ];
+
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        $payload['asset_lending_commercial'] = $snapshot;
+        $application->update(['screening_payload' => $payload]);
+
+        return $snapshot;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function commercialSnapshot(LoanApplication $application): array
+    {
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        $row = $payload['asset_lending_commercial'] ?? null;
+
+        return is_array($row) ? $row : [];
+    }
+
+    public function resolvedArrangement(LoanApplication $application): string
+    {
+        $snapshot = $this->commercialSnapshot($application);
+        $fromSnapshot = (string) ($snapshot['supplier_arrangement'] ?? '');
+        if (array_key_exists($fromSnapshot, config('asset_lending.supplier_types', []))) {
+            return $fromSnapshot;
+        }
+
+        $application->loadMissing('assetReservation.asset.vendor');
+        $vendor = $application->assetReservation?->asset?->vendor;
+
+        return $vendor ? $this->supplierType($vendor) : (string) config('asset_lending.default_supplier_type', 'managed_loan');
+    }
+
+    public function isServiceCollectionApplication(LoanApplication $application): bool
+    {
+        return $this->resolvedArrangement($application) === 'managed_loan';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeTierRows(array $rows, string $kind): array
+    {
+        $out = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $from = (float) ($row['from'] ?? 0);
+            $toRaw = $row['to'] ?? null;
+            $to = ($toRaw === null || $toRaw === '' || $toRaw === 'null') ? null : (float) $toRaw;
+            $base = [
+                'from' => $from,
+                'to' => $to,
+                'active' => filter_var($row['active'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            ];
+            if ($kind === 'deposit') {
+                $base['percent'] = (float) ($row['percent'] ?? 0);
+            } else {
+                $base['monthly_rate_percent'] = (float) ($row['monthly_rate_percent'] ?? $row['percent'] ?? 0);
+                $base['method'] = (string) ($row['method'] ?? 'reducing_balance');
+                $base['max_tenure_months'] = (int) ($row['max_tenure_months'] ?? 6);
+            }
+            $out[] = $base;
+        }
+
+        usort($out, fn ($a, $b) => $a['from'] <=> $b['from']);
+
+        return $out;
+    }
 }

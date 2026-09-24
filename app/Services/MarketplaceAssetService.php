@@ -132,13 +132,21 @@ class MarketplaceAssetService
             return 0.0;
         }
 
-        $monthlyRate ??= app(AssetLendingService::class)->defaultMonthlyRate();
-        $monthlyRate = max(0.01, min(0.35, $monthlyRate));
+        $quote = app(AssetLendingService::class)->pricingQuoteFromAssetPrice($assetValue, $tenureMonths);
+        $monthly = (float) ($quote['installment'] ?? 0);
+        if ($monthly <= 0) {
+            $monthlyRate ??= ((float) ($quote['monthly_rate_percent'] ?? 0)) / 100;
+            if ($monthlyRate <= 0) {
+                $monthlyRate = app(AssetLendingService::class)->defaultMonthlyRate();
+            }
+            $monthlyRate = max(0, min(0.35, $monthlyRate));
+            $totalRepayable = $loanPrincipal * (1 + ($monthlyRate * $tenureMonths));
+            $weeks = max(1, (int) round($tenureMonths * 4.33));
 
-        $totalRepayable = $loanPrincipal * (1 + ($monthlyRate * $tenureMonths));
-        $weeks = max(1, (int) round($tenureMonths * 4.33));
+            return round($totalRepayable / $weeks, 2);
+        }
 
-        return round($totalRepayable / $weeks, 2);
+        return round($monthly / 4.33, 2);
     }
 
     /**

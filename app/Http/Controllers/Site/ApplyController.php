@@ -2407,6 +2407,7 @@ class ApplyController extends Controller
                 ->find($request->input('asset_reservation_id'));
             if ($reservation) {
                 app(AssetReservationService::class)->linkApplication($reservation, $app);
+                app(AssetLendingService::class)->snapshotCommercialTerms($app->fresh(['assetReservation.asset.vendor', 'product']));
             }
         }
 

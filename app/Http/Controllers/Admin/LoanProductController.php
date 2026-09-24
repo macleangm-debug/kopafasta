@@ -104,6 +104,18 @@ class LoanProductController extends ResourceController
             'post_approval_fees.*.fee_type' => ['nullable', 'in:fixed,percent,gps'],
             'post_approval_fees.*.amount' => ['nullable', 'numeric', 'min:0'],
             'post_approval_fees.*.is_active' => ['nullable', 'boolean'],
+            'deposit_tiers' => ['nullable', 'array'],
+            'deposit_tiers.*.from' => ['nullable', 'numeric', 'min:0'],
+            'deposit_tiers.*.to' => ['nullable', 'numeric', 'min:0'],
+            'deposit_tiers.*.percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'deposit_tiers.*.active' => ['nullable'],
+            'financing_tiers' => ['nullable', 'array'],
+            'financing_tiers.*.from' => ['nullable', 'numeric', 'min:0'],
+            'financing_tiers.*.to' => ['nullable', 'numeric', 'min:0'],
+            'financing_tiers.*.monthly_rate_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'financing_tiers.*.max_tenure_months' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'financing_tiers.*.method' => ['nullable', 'string', 'max:40'],
+            'financing_tiers.*.active' => ['nullable'],
             'rate_tiers' => ['nullable', 'array'],
             'rate_tiers.*.min_amount' => ['nullable', 'numeric', 'min:0'],
             'rate_tiers.*.max_amount' => ['nullable', 'numeric', 'min:0'],
@@ -193,11 +205,15 @@ class LoanProductController extends ResourceController
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
+        $depositTiers = $validated['deposit_tiers'] ?? [];
+        $financingTiers = $validated['financing_tiers'] ?? [];
         $cloneFromId = $validated['clone_from_id'] ?? null;
         unset(
             $validated['requirements'],
             $validated['post_approval_fees'],
             $validated['rate_tiers'],
+            $validated['deposit_tiers'],
+            $validated['financing_tiers'],
             $validated['clone_from_id'],
             $validated['image'],
             $validated['seo_image'],
@@ -262,6 +278,7 @@ class LoanProductController extends ResourceController
         $this->syncPostApprovalFees($record, $postApprovalFees);
         $this->syncRateTiers($record, $rateTiers, applyDefaultsIfEmpty: true);
         $this->syncInterestRateFromTiers($record);
+        $this->syncAssetLendingTiers($record, $depositTiers, $financingTiers);
         $this->auditAdminCreated($record);
 
         $message = ucfirst($this->singular).' created.';
@@ -309,7 +326,9 @@ class LoanProductController extends ResourceController
         $requirements = $validated['requirements'] ?? [];
         $postApprovalFees = $validated['post_approval_fees'] ?? [];
         $rateTiers = $validated['rate_tiers'] ?? [];
-        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['clone_from_id'], $validated['image'], $validated['seo_image'], $validated['require_group_constitution'], $validated['require_group_member_roster']);
+        $depositTiers = $validated['deposit_tiers'] ?? [];
+        $financingTiers = $validated['financing_tiers'] ?? [];
+        unset($validated['requirements'], $validated['post_approval_fees'], $validated['rate_tiers'], $validated['deposit_tiers'], $validated['financing_tiers'], $validated['clone_from_id'], $validated['image'], $validated['seo_image'], $validated['require_group_constitution'], $validated['require_group_member_roster']);
 
         $payload = $this->transform($validated, $record);
         if ($request->hasFile('image')) {
@@ -325,6 +344,7 @@ class LoanProductController extends ResourceController
         $this->syncPostApprovalFees($record, $postApprovalFees);
         $this->syncRateTiers($record, $rateTiers, applyDefaultsIfEmpty: true);
         $this->syncInterestRateFromTiers($record);
+        $this->syncAssetLendingTiers($record, $depositTiers, $financingTiers);
         $regeneratedFees = app(\App\Services\PostApprovalFeeService::class)->syncFromProductUpdate($record->fresh());
         $record->refresh();
         $this->auditAdminUpdated($record, $before);
@@ -530,6 +550,22 @@ class LoanProductController extends ResourceController
                 ]
             );
         }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $deposit
+     * @param  list<array<string, mixed>>  $financing
+     */
+    protected function syncAssetLendingTiers(LoanProduct $product, array $deposit, array $financing): void
+    {
+        if ($deposit === [] && $financing === []) {
+            return;
+        }
+        if (! app(\App\Services\AssetLendingService::class)->isAssetLendingProduct($product)) {
+            return;
+        }
+
+        app(\App\Services\AssetLendingService::class)->persistPricingTiers($deposit, $financing);
     }
 
     /** @param list<array<string, mixed>> $rows */

@@ -38,6 +38,12 @@
     $layoutBackLabel = $fromGuided
         ? $evidenceCtx->backLabel($record)
         : 'Back to applications';
+    $app360 = $app360 ?? app(\App\Services\Application360Presenter::class)->forApplication(
+        $record,
+        auth()->user(),
+        $stageHistory ?? null,
+        $documentRequests ?? null,
+    );
 @endphp
 
 <x-admin.layout
@@ -77,6 +83,9 @@
                             @endif
                             @if ($product)
                                 <span class="text-white/50">·</span> {{ $product->name }}
+                            @endif
+                            @if (! empty($app360['amount_label']) && $app360['amount_label'] !== '—')
+                                <span class="text-white/50">·</span> {{ $app360['amount_label'] }}
                             @endif
                             @if ($linkedLoan)
                                 <span class="text-white/50">·</span> {{ $linkedLoan->loan_number }}
@@ -135,20 +144,33 @@
                         @endif
                     @else
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
-                            {{ display_label($record->status, 'application_status') }}
+                            {{ $app360['status_label'] ?? display_label($record->status, 'application_status') }}
                         </span>
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-gold/20 text-brand-gold ring-1 ring-brand-gold/40">
-                            {{ $workflow->stageLabel($record->current_stage ?? 'submitted') }}
+                            {{ $app360['stage_label'] ?? $workflow->stageLabel($record->current_stage ?? 'submitted') }}
                         </span>
+                        @if (! empty($app360['gate_label']))
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
+                                {{ $app360['gate_label'] }}
+                            </span>
+                        @endif
                         @if ($record->assignedAnalyst)
                             <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white ring-1 ring-white/20">
                                 Analyst: {{ $record->assignedAnalyst->name }}
                             </span>
                         @endif
+                        @if (! empty($app360['member_url']))
+                            <a href="{{ $app360['member_url'] }}"
+                               class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-gold text-brand hover:brightness-95">
+                                Open Member 360 →
+                            </a>
+                        @endif
                     @endif
                 </div>
             </div>
-            @if ($record->status === 'pending_documents')
+            @if (! empty($app360['waiting_reason']))
+                <p class="mt-3 text-xs font-semibold text-white/85">{{ $app360['waiting_reason'] }}</p>
+            @elseif ($record->status === 'pending_documents')
                 <p class="mt-3 text-xs font-semibold text-white/85">Awaiting borrower documents</p>
             @elseif ($record->status === 'awaiting_offer' || $record->offer_status === 'pending_borrower')
                 <p class="mt-3 text-xs font-semibold text-brand-gold">Awaiting borrower on offer</p>

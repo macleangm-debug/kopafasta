@@ -17,7 +17,12 @@ class AssetLendingRepaymentGlService
         }
 
         $vendor = app(AssetLendingRepaymentService::class)->supplierForLoan($loan);
-        if (! $vendor || ! app(AssetLendingService::class)->isManagedLoanSupplier($vendor)) {
+        $lending = app(AssetLendingService::class);
+        $application = $loan->application;
+        $arrangement = $application
+            ? $lending->resolvedArrangement($application)
+            : ($vendor ? $lending->supplierType($vendor) : '');
+        if (! $vendor || $arrangement !== 'managed_loan') {
             return null;
         }
 

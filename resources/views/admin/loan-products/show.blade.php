@@ -21,6 +21,9 @@
         'Requires collateral' => $record->requires_collateral ? 'Yes' : 'No',
         'Requires guarantor'  => $record->requires_guarantor ? 'Yes' : 'No',
         'Uses capital partner' => ($record->uses_capital_partner ?? true) ? 'Yes' : 'No',
+        'Supplier arrangement (default)' => app(\App\Services\AssetLendingService::class)->isAssetLendingProduct($record)
+            ? 'Service / Collection — valuation not applicable for Marketplace assets'
+            : '—',
         'Offer letter template' => $record->offerLetterTemplate?->name ?? 'System default',
         'Loan contract template' => $record->loanContractTemplate?->name ?? 'System default',
         'Status'              => $record->is_active ? 'Active' : 'Inactive',
@@ -28,7 +31,37 @@
         'Created'             => $record->created_at?->format('Y-m-d H:i'),
     ]">
 
-    @if ($record->rateTiers->isNotEmpty())
+    @php
+        $isAssetLending = app(\App\Services\AssetLendingService::class)->isAssetLendingProduct($record);
+        $depositTiers = $isAssetLending ? app(\App\Services\AssetLendingService::class)->depositTiers() : [];
+        $financingTiers = $isAssetLending ? app(\App\Services\AssetLendingService::class)->financingTiers() : [];
+    @endphp
+    @if ($isAssetLending)
+        <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
+            <h2 class="text-sm font-semibold text-gray-900">Asset Lending quote source</h2>
+            <p class="text-xs text-gray-500">Same deposit and financing tiers used by Edit, borrower quote, and application snapshot. Valuation is not applicable for Marketplace / supplier assets.</p>
+            <div class="grid md:grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="text-xs font-semibold text-gray-600 mb-2">Deposit tiers</p>
+                    <ul class="space-y-1">
+                        @foreach ($depositTiers as $tier)
+                            <li>{{ format_money((float) $tier['from']) }} – {{ $tier['to'] === null ? 'open' : format_money((float) $tier['to']) }} · {{ format_number((float) $tier['percent'], 2) }}%</li>
+                        @endforeach
+                    </ul>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-gray-600 mb-2">Financing tiers</p>
+                    <ul class="space-y-1">
+                        @foreach ($financingTiers as $tier)
+                            <li>{{ format_money((float) $tier['from']) }} – {{ $tier['to'] === null ? 'open' : format_money((float) $tier['to']) }} · {{ format_number((float) $tier['monthly_rate_percent'], 2) }}% · max {{ (int) $tier['max_tenure_months'] }} mo</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($record->rateTiers->isNotEmpty() && ! $isAssetLending)
         <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-3">
             <h2 class="text-sm font-semibold text-gray-900">Tiered monthly rates</h2>
             <p class="text-xs text-gray-500">Expand a band to see BOT, processing, risk, and insurance components.</p>
