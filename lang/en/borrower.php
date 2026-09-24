@@ -2488,6 +2488,8 @@ return [
         'confirm_lock_back' => 'Back / Correct',
         'confirm_lock_pending_hint' => 'Review your number, then save and confirm to lock it on your account.',
         'cannot_change' => 'National ID cannot be changed after it is saved. Contact support if you need a correction.',
+        'already_registered' => 'This National ID is already on another KopaFasta member account. Use Recover account or update the phone on the existing account instead of creating a new one.',
+        'already_registered_login' => 'This National ID is already registered. Sign in or recover the existing account — do not create a second member file.',
         'mismatch_warning_1' => 'The name on your NIDA record does not match your registration. You have :remaining attempt(s) left to correct this before identity verification is paused.',
         'mismatch_hidden_bureau' => 'The name on your NIDA record does not match your registration. For your security, bureau identity details are hidden.',
         'mismatch_no_override' => 'Your registration name must match NIDA. If your legal name changed or there is an error, contact KopaFasta support — you cannot override bureau names here.',

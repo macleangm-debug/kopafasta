@@ -2537,6 +2537,8 @@ return [
         'confirm_lock_back' => 'Rudi / Rekebisha',
         'confirm_lock_pending_hint' => 'Kagua namba yako, kisha hifadhi na uthibitishe ili kuifunga kwenye akaunti yako.',
         'cannot_change' => 'Namba ya kitambulisho haiwezi kubadilishwa baada ya kuhifadhiwa. Wasiliana na msaada ikiwa unahitaji marekebisho.',
+        'already_registered' => 'Namba hii ya NIDA tayari ipo kwenye akaunti nyingine ya mwanachama. Tumia Rejesha akaunti au badilisha simu kwenye akaunti iliyopo — usifungue akaunti mpya.',
+        'already_registered_login' => 'Namba hii ya NIDA tayari imesajiliwa. Ingia au rejesha akaunti iliyopo — usifungue faili la pili la mwanachama.',
         'mismatch_warning_1' => 'Jina kwenye rekodi yako ya NIDA halilingani na usajili wako. Una majaribio :remaining yaliyobaki kabla ya uthibitisho wa utambulisho kusitishwa.',
         'mismatch_hidden_bureau' => 'Jina kwenye rekodi yako ya NIDA halilingani na usajili wako. Kwa usalama wako, taarifa za bureau hazionyeshwi.',
         'mismatch_no_override' => 'Jina lako la usajili lazima lilingane na NIDA. Ikiwa jina lako la kisheria limebadilika au kuna kosa, wasiliana na msaada wa KopaFasta — huwezi kubadilisha majina ya bureau hapa.',

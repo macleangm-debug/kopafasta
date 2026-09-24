@@ -1174,6 +1174,19 @@ class AuthController extends Controller
                 ->with('status', __('borrower.auth.phone_taken_login'));
         }
 
+        if (filled($data['national_id'] ?? null)) {
+            $nidaOwner = app(\App\Services\DuplicateMemberResolutionService::class)
+                ->otherCustomerWithNationalId((string) $data['national_id']);
+            if ($nidaOwner) {
+                return redirect()
+                    ->route('site.login', [
+                        'phone' => $nidaOwner->phone ?: $data['phone'],
+                        'auth_method' => 'pin',
+                    ])
+                    ->with('status', __('borrower.nida.already_registered_login'));
+            }
+        }
+
         if (filled($data['promo_code'] ?? null) && blank($data['affiliate_code'] ?? null) && blank($data['referral_code'] ?? null)) {
             $promo = strtoupper(trim($data['promo_code']));
             $data['affiliate_code'] = $promo;

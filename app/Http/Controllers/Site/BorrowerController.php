@@ -1955,6 +1955,13 @@ class BorrowerController extends Controller
                 }
 
                 if (in_array($focus, ['identity', 'all'], true) && filled($data['national_id'] ?? null)) {
+                    $nidaOwner = app(\App\Services\DuplicateMemberResolutionService::class)
+                        ->otherCustomerWithNationalId((string) $data['national_id'], (int) $customer->id);
+                    if ($nidaOwner) {
+                        return back()
+                            ->withInput()
+                            ->withErrors(['national_id' => __('borrower.nida.already_registered')]);
+                    }
                     if ($customer->identity_locked) {
                         if (filled($customer->national_id)
                             && (string) $customer->national_id !== (string) $data['national_id']) {

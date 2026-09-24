@@ -34,6 +34,25 @@
     :backUrl="route('admin.customers.index')"
     backLabel="All customers">
 
+@if (filled($customer->merged_into_customer_id))
+        <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+            <p class="font-semibold">Merged / inactive duplicate</p>
+            <p class="mt-1">
+                This member file was merged into
+                <a href="{{ route('admin.customers.show', $customer->merged_into_customer_id) }}" class="font-semibold underline">
+                    member #{{ $customer->merged_into_customer_id }}
+                </a>
+                @if ($customer->merged_at)
+                    on {{ $customer->merged_at->format('d M Y H:i') }}
+                @endif
+                @if ($customer->merge_reason)
+                    · {{ $customer->merge_reason }}
+                @endif
+                Financial and application history was moved or left on file — nothing was hard-deleted.
+            </p>
+        </div>
+    @endif
+
 @if ($customer->status === 'pending')
         <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
             <p class="font-semibold">Incomplete registration — not a Member yet</p>
@@ -182,4 +201,63 @@
             @include('admin.customers.dossier._tab-'.$tab)
         </div>
     </section>
+
+    @if (empty($customer->merged_into_customer_id) && auth('admin')->user()?->can('delete', $customer))
+        @php $duplicateImpact = app(\App\Services\DuplicateMemberResolutionService::class)->impact($customer); @endphp
+        <section class="mt-5 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 sm:p-6">
+            <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Resolve duplicate account</p>
+            <p class="mt-1 text-sm text-gray-600">
+                Choose the canonical member. Empty accounts can be retired. Accounts with payments, applications, or documents are merged — history stays, this member ID remains as Merged into the canonical file.
+            </p>
+            <p class="mt-2 text-xs text-gray-500">
+                This file: {{ $duplicateImpact['payments'] }} payments
+                ({{ $duplicateImpact['settled_payments'] }} settled) ·
+                {{ $duplicateImpact['applications'] }} applications ·
+                {{ $duplicateImpact['drafts'] }} drafts ·
+                planned action: <span class="font-semibold">{{ $duplicateImpact['action'] === 'delete_empty' ? 'Retire empty' : 'Merge history' }}</span>
+            </p>
+            <form method="POST"
+                  action="{{ route('admin.customers.resolve-duplicate', $customer) }}"
+                  class="mt-4 grid sm:grid-cols-2 gap-3"
+                  @submit.prevent="window.confirmForm($el, {
+                      title: {{ \Illuminate\Support\Js::from($duplicateImpact['action'] === 'delete_empty' ? 'Retire this empty duplicate?' : 'Merge this account into the canonical member?') }},
+                      message: {{ \Illuminate\Support\Js::from($duplicateImpact['action'] === 'delete_empty'
+                          ? 'This account has no payments or applications. It will be marked inactive and linked to the canonical member. Financial history is not deleted because none exists.'
+                          : 'Payments, applications, and documents move to the canonical member. This member ID stays on file as Merged. Nothing is hard-deleted.') }},
+                      confirmLabel: {{ \Illuminate\Support\Js::from($duplicateImpact['action'] === 'delete_empty' ? 'Retire empty account' : 'Merge into canonical') }},
+                  })">
+                @csrf
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Canonical member ID</label>
+                    <input type="number" name="canonical_customer_id" required min="1"
+                           class="w-full rounded-xl ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                           placeholder="e.g. 256">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Reason</label>
+                    <input type="text" name="reason" required maxlength="180"
+                           class="w-full rounded-xl ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                           placeholder="Same person, different phone">
+                </div>
+                <div class="sm:col-span-2">
+                    <button type="submit" class="inline-flex rounded-xl bg-brand text-white font-semibold px-4 py-2.5 text-sm">
+                        Review and resolve
+                    </button>
+                </div>
+            </form>
+        </section>
+    @elseif (filled($customer->merged_into_customer_id))
+        <section class="mt-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 text-sm text-amber-950">
+            Merged into
+            <a href="{{ route('admin.customers.show', $customer->merged_into_customer_id) }}" class="font-semibold underline">
+                member #{{ $customer->merged_into_customer_id }}
+            </a>
+            @if ($customer->merged_at)
+                on {{ $customer->merged_at->format('d M Y H:i') }}
+            @endif
+            @if ($customer->merge_reason)
+                · {{ $customer->merge_reason }}
+            @endif
+        </section>
+    @endif
 </x-admin.layout>

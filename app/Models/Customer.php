@@ -39,6 +39,8 @@ class Customer extends Model
             'grade_review_until' => 'datetime',
             'grade_next_review_at' => 'datetime',
             'grade_override_expires_at' => 'datetime',
+            'merged_at' => 'datetime',
+            'merge_snapshot' => 'array',
         ];
     }
 
@@ -137,5 +139,10 @@ class Customer extends Model
     public function hasVerifiedIdentity(): bool
     {
         return $this->nida_verification_status === 'verified' && $this->identity_locked;
+    }
+
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'merged_into_customer_id');
     }
 }

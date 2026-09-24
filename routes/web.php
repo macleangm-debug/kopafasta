@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\CreditTeamController;
 use App\Http\Controllers\Admin\CreditTeamWorkspaceController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerKycController;
+use App\Http\Controllers\Admin\DuplicateMemberController;
 use App\Http\Controllers\Admin\CustomerProfileOpsController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepartmentController;
@@ -848,6 +849,8 @@ Route::prefix('admin')->name('admin.')->group(function () use ($registerResource
             ->name('customers.documents.reject');
         Route::post('customers/{customer}/nida-unlock', [CustomerController::class, 'unlockNidaIdentity'])
             ->name('customers.nida.unlock');
+        Route::post('customers/{customer}/resolve-duplicate', [DuplicateMemberController::class, 'store'])
+            ->name('customers.resolve-duplicate');
         Route::middleware('permission:customers.view')->group(function (): void {
             Route::get('customers/grade-watch', [GradeSettingsController::class, 'watch'])->name('customers.grade-watch');
             Route::post('customers/grade-watch/{customer}', [GradeSettingsController::class, 'saveWatch'])->name('customers.grade-watch.save');
