@@ -48,13 +48,12 @@
         </div>
         @endguest
 
-        @include('site.marketplace._category-filters', [
-            'categories' => $categories,
+        @include('site.marketplace._filters', [
+            'filters' => $filters,
             'category' => $category,
+            'categories' => $categories,
             'routeName' => 'site.marketplace',
         ])
-
-        @include('site.marketplace._filters', ['filters' => $filters, 'category' => $category, 'routeName' => 'site.marketplace'])
 
         @if ($assets->isEmpty())
             <div class="glass-card border-dashed p-16 text-center text-gray-500">

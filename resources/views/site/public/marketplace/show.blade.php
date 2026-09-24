@@ -34,22 +34,7 @@
 
                 <div class="mt-6">
                     <h2 class="text-xs uppercase tracking-widest text-brand font-bold mb-3">{{ __('site.marketplace.financing') }}</h2>
-                    <div class="glass-card divide-y divide-gray-200 overflow-hidden ring-1 ring-brand/10">
-                        <div class="p-4">
-                            <p class="text-[11px] uppercase tracking-wide text-gray-700 font-semibold">{{ __('borrower.marketplace.asset_value') }}</p>
-                            <p class="text-lg font-bold mt-1.5 tabular-nums text-gray-900">{{ format_money($asset['asset_value'] ?? 0, false, 0) }}</p>
-                        </div>
-                        <div class="grid grid-cols-2 divide-x divide-gray-200">
-                            <div class="p-4">
-                                <p class="text-[11px] uppercase tracking-wide text-gray-700 font-semibold">{{ __('borrower.marketplace.deposit') }}</p>
-                                <p class="text-lg font-bold mt-1.5 text-brand tabular-nums">{{ format_money($asset['deposit'], false, 0) }}</p>
-                            </div>
-                            <div class="p-4">
-                                <p class="text-[11px] uppercase tracking-wide text-gray-700 font-semibold">{{ __('borrower.marketplace.loan_amount') }}</p>
-                                <p class="text-lg font-bold mt-1.5 tabular-nums text-gray-900">{{ format_money($asset['remaining_loan'] ?? 0, false, 0) }}</p>
-                            </div>
-                        </div>
-                    </div>
+                    @include('site.marketplace._financing-summary', ['asset' => $asset])
                 </div>
 
                 @if (! empty($asset['serial_number']) || ! empty($asset['chassis_number']))

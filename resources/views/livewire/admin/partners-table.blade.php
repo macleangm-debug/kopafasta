@@ -13,6 +13,14 @@
             </span>
         @endif
         <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search name, phone, partner #, TIN, email…" class="rounded-lg border-gray-300 text-sm min-w-[16rem]">
+        @if (! ($lockStatus ?? false))
+            <select wire:model.live="status" class="rounded-lg border-gray-300 text-sm">
+                <option value="">All statuses</option>
+                <option value="inactive">Awaiting activation</option>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+            </select>
+        @endif
     </div>
 
     @if ($rows->isEmpty())

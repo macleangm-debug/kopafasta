@@ -195,7 +195,9 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertSee('name="tin"', false)
             ->assertSee('name="registration_number"', false)
             ->assertSee('data-kf-address-fields', false)
-            ->assertSee('Region → district', false);
+            ->assertSee('Region → district', false)
+            ->assertSee('value="nationwide"', false)
+            ->assertSee('md:grid-cols-2', false);
     }
 
     public function test_admin_can_create_individual_valuer_without_company_fields(): void
@@ -326,5 +328,105 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertSee('+255', false)
             ->assertSee('nida-boxes', false)
             ->assertSee('verification card goes live', false);
+    }
+
+    public function test_supplier_create_without_coverage_checkboxes_persists_and_lists(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.store'), [
+                'name' => 'KF Staging Path Supplier',
+                'category' => 'supplier',
+                'status' => 'inactive',
+                'phone' => '255712345930',
+                'email' => 'kf-staging-path@example.com',
+                'activation_mode' => 'invite',
+                'supplier_type' => 'managed_loan',
+            ]);
+
+        $partner = Vendor::query()->where('name', 'KF Staging Path Supplier')->first();
+        $this->assertNotNull($partner);
+        $this->assertSame('nationwide', $partner->coverage_type);
+        $this->assertSame([], $partner->regions ?? []);
+        $this->assertSame('inactive', $partner->status);
+        $this->assertNull($partner->user_id);
+        $response->assertRedirect(route('admin.partners.show', $partner->id));
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.index'))
+            ->assertOk()
+            ->assertSee('KF Staging Path Supplier', false)
+            ->assertSee('Asset supplier', false);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.index', ['role' => 'supplier']))
+            ->assertOk()
+            ->assertSee('KF Staging Path Supplier', false);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.index', ['q' => $partner->partner_number]))
+            ->assertOk()
+            ->assertSee('KF Staging Path Supplier', false);
+
+        $activation = app(\App\Services\PartnerActivationService::class);
+        $message = $activation->shareMessage($partner);
+        $this->assertStringContainsString('Thank you for registering as an Asset Supplier', $message);
+        $this->assertStringContainsString('Use the secure link below', $message);
+        $this->assertStringContainsString((string) $partner->partner_number, $message);
+        $this->assertStringContainsString($activation->publicActivateUrl($partner), $message);
+    }
+
+    public function test_supplier_create_uses_address_region_when_coverage_boxes_empty(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.store'), [
+                'name' => 'KF Address Region Supplier',
+                'category' => 'supplier',
+                'status' => 'inactive',
+                'phone' => '255712345931',
+                'coverage_type' => 'regions',
+                'address_region' => 'Dar es Salaam',
+                'address_district' => 'Ilala',
+                'activation_mode' => 'invite',
+                'supplier_type' => 'managed_loan',
+            ])
+            ->assertRedirect();
+
+        $partner = Vendor::query()->where('name', 'KF Address Region Supplier')->first();
+        $this->assertNotNull($partner);
+        $this->assertSame('regions', $partner->coverage_type);
+        $this->assertSame(['Dar es Salaam'], $partner->regions);
+        $this->assertSame('Dar es Salaam', data_get($partner->metadata, 'residence.region'));
+    }
+
+    public function test_failed_supplier_create_does_not_leave_a_ghost_record(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->mock(\App\Services\PartnerActivationService::class, function ($mock) {
+            $mock->shouldReceive('requiresActivation')->andReturn(true);
+            $mock->shouldReceive('sendActivationInvite')->andThrow(new \RuntimeException('activation failed'));
+        });
+
+        $this->withoutExceptionHandling();
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('activation failed');
+
+        try {
+            $this->actingAs($admin, 'admin')
+                ->post(route('admin.partners.store'), [
+                    'name' => 'KF Ghost Supplier',
+                    'category' => 'supplier',
+                    'status' => 'inactive',
+                    'phone' => '255712345932',
+                    'activation_mode' => 'invite',
+                    'supplier_type' => 'managed_loan',
+                ]);
+        } finally {
+            $this->assertNull(Vendor::query()->where('name', 'KF Ghost Supplier')->first());
+        }
     }
 }

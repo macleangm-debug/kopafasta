@@ -49,6 +49,11 @@ class PartnersTable extends Component
         $this->resetPage();
     }
 
+    public function updatingStatus(): void
+    {
+        $this->resetPage();
+    }
+
     public function render(PartnerService $partners)
     {
         $role = $this->lockCategory && filled($this->category)

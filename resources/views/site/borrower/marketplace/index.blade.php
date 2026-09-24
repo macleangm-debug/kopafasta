@@ -28,15 +28,12 @@
         </form>
     </div>
 
-    @include('site.marketplace._category-filters', [
-        'categories' => $categories,
+    @include('site.marketplace._filters', [
+        'filters' => $filters,
         'category' => $category,
+        'categories' => $categories,
         'routeName' => 'site.borrower.marketplace',
-        'activeClass' => 'bg-brand text-white',
-        'inactiveClass' => 'bg-white ring-1 ring-gray-200/80 text-gray-600 hover:bg-brand-muted/40',
     ])
-
-    @include('site.marketplace._filters', ['filters' => $filters, 'category' => $category, 'routeName' => 'site.borrower.marketplace'])
 
     @if ($assets->isEmpty())
         <x-site.empty-state icon="🏷️" :title="__('borrower.marketplace.empty_title')" :description="__('borrower.marketplace.empty_desc')" />

@@ -13,6 +13,8 @@
     'emitHidden' => true,
     /** When true, always show native selects (no mobile-only sheet). Use on wizard Overview where fields must never disappear. */
     'forceNative' => false,
+    /** Tighter labels/inputs for compact admin grids. */
+    'compact' => false,
     'locations' => location_tree('TZ'),
 ])
 
@@ -39,13 +41,23 @@
     $showStreet = (bool) $showStreet;
     $emitHidden = (bool) $emitHidden;
     $forceNative = (bool) $forceNative;
+    $compact = (bool) $compact;
     $sheetClass = $forceNative ? 'hidden' : 'lg:hidden';
     $selectClass = $forceNative
-        ? 'block w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-brand px-4 py-3 text-sm'
+        ? ($compact
+            ? 'block w-full rounded-xl border border-brand/15 bg-white shadow-sm px-3.5 py-2.5 text-sm hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15'
+            : 'block w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-brand px-4 py-3 text-sm')
         : 'hidden lg:block w-full rounded-xl border-gray-300 ring-1 ring-gray-200 focus:ring-brand px-4 py-3 text-sm';
+    $labelClass = $compact
+        ? 'block text-xs font-semibold text-gray-700 mb-1'
+        : 'block text-sm font-semibold text-gray-700 mb-1.5';
+    $gridClass = $compact ? 'grid sm:grid-cols-2 gap-3' : 'grid sm:grid-cols-2 gap-4';
+    $textInputClass = $compact
+        ? 'w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm px-3.5 py-2.5 placeholder:text-gray-400 hover:border-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15'
+        : 'w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm';
 @endphp
 
-<div class="grid sm:grid-cols-2 gap-4" data-kf-address-fields x-data="{
+<div class="{{ $gridClass }}" data-kf-address-fields x-data="{
     ...tzAddress(@js($locations), @js($initialRegion), @js($initialDistrict), @js([
         'selectRegion' => __('borrower.profile.select_region'),
         'selectDistrict' => __('borrower.profile.select_district'),
@@ -77,7 +89,7 @@
     },
 }">
     <div data-address-region>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ __('borrower.profile.fields.region') }} @if($required)<span class="text-red-500">*</span>@endif</label>
+        <label class="{{ $labelClass }}">{{ __('borrower.profile.fields.region') }} @if($required)<span class="text-red-500">*</span>@endif</label>
 
         <div class="{{ $sheetClass }}">
             <button type="button" @click="regionPickerOpen = true"
@@ -107,7 +119,7 @@
         </select>
     </div>
     <div data-address-district>
-        <label class="block text-sm font-semibold text-gray-700 mb-1.5">{{ __('borrower.profile.fields.district') }} @if($required)<span class="text-red-500">*</span>@endif</label>
+        <label class="{{ $labelClass }}">{{ __('borrower.profile.fields.district') }} @if($required)<span class="text-red-500">*</span>@endif</label>
 
         <div class="{{ $sheetClass }}">
             <button type="button" @click="openDistrictPicker()"
@@ -158,9 +170,9 @@
     </div>
     @if ($showWard)
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.ward') }}</label>
+        <label class="{{ $labelClass }}">{{ __('borrower.profile.fields.ward') }}</label>
         <input name="{{ $wardName }}" value="{{ old($oldKey('ward'), $ward) }}"
-               class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
+               class="{{ $textInputClass }}"
                placeholder="{{ __('borrower.profile.ward_placeholder') }}">
     </div>
     @elseif ($emitHidden)
@@ -168,9 +180,9 @@
     @endif
     @if ($showStreet)
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('borrower.profile.fields.street') }} @if($streetRequired)<span class="text-red-500">*</span>@endif</label>
+        <label class="{{ $labelClass }}">{{ __('borrower.profile.fields.street') }} @if($streetRequired)<span class="text-red-500">*</span>@endif</label>
         <input name="{{ $streetName }}" value="{{ old($oldKey('street'), $street) }}" @if($streetRequired) required @endif
-               class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 focus:ring-amber-500 px-3 py-2.5 text-sm"
+               class="{{ $textInputClass }}"
                placeholder="{{ __('borrower.profile.street_placeholder') }}">
     </div>
     @elseif ($emitHidden)

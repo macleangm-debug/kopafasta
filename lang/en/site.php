@@ -807,7 +807,7 @@ return [
         'partner_activate_form_hint' => 'Use the partner code you were given and the phone number registered for this account.',
         'partner_activate_pin_next' => 'After activation you will create a 4-digit PIN to sign in — just like borrowers.',
         'partner_invite_share' => "Hello :name,\n\nThank you for registering as a partner with :brand.\n\nYour partner account is ready for activation.\n\nPlease use the secure link below to activate your account and create your 4-digit PIN:\n\n:url\n\nPartner code: :code\n\nAfter activation, you will be able to access your partner portal.\n\n:brand",
-        'partner_invite_share_supplier' => "Hello :name,\n\nThank you for registering as an Asset Supplier with :brand.\n\nYour supplier account is ready for activation.\n\nPlease use the secure link below to activate your account and create your 4-digit PIN:\n\n:url\n\nPartner code: :code\n\nAfter activation, you will be able to access your supplier portal and manage your Asset Lending activity.\n\n:brand",
+        'partner_invite_share_supplier' => "Hello :name,\n\nThank you for registering as an Asset Supplier with :brand.\n\nYour supplier account is ready for activation.\n\nUse the secure link below to activate your account and create your 4-digit PIN:\n\n:url\n\nPartner code: :code\n\nAfter activation you can access your supplier portal and manage your Asset Lending activity.\n\n:brand",
         'partner_activate_named' => 'Activate :name',
         'partner_activate_named_hint' => 'Confirm the registered phone for :name, then create your 4-digit PIN.',
         'partner_code_label' => 'Partner code',

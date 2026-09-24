@@ -181,7 +181,12 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             ->assertSee('Dar Motors', false)
             ->assertSee('Nationwide', false)
             ->assertSee('kf-premium-panel', false)
-            ->assertSee(__('borrower.marketplace.request_collapsed_title'), false);
+            ->assertSee(__('borrower.marketplace.request_collapsed_title'), false)
+            ->assertSee('data-marketplace-filters', false)
+            ->assertSee('data-marketplace-filter-sheet', false)
+            ->assertSee('data-marketplace-category-chips', false)
+            ->assertSee(__('borrower.marketplace.search_assets'), false)
+            ->assertDontSee('categoriesOpen', false);
     }
 
     public function test_borrower_asset_request_takes_name_only_and_get_link_opens_form(): void
@@ -262,6 +267,8 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             ->assertSee(__('borrower.marketplace.asset_value'), false)
             ->assertSee(__('borrower.marketplace.deposit'), false)
             ->assertSee(__('borrower.marketplace.loan_amount'), false)
+            ->assertSee('data-financing-summary', false)
+            ->assertSee('whitespace-nowrap', false)
             ->assertDontSee('Choose duration', false)
             ->assertDontSee('name="tenure_months"', false)
             ->assertDontSee(__('borrower.marketplace.weekly_installment'), false);

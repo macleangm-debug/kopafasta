@@ -36,33 +36,24 @@
                 <p class="text-sm text-gray-800 mt-4 leading-relaxed">{{ $asset['description'] }}</p>
             @endif
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-3 mt-6">
-                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200">
-                    <p class="text-[11px] uppercase tracking-widest text-gray-700 font-semibold">{{ __('borrower.marketplace.asset_value') }}</p>
-                    <p class="text-lg font-bold text-gray-900 mt-1 tabular-nums">{{ format_money($asset['asset_value'] ?? 0) }}</p>
-                </div>
-                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200">
-                    <p class="text-[11px] uppercase tracking-widest text-gray-700 font-semibold">{{ __('borrower.marketplace.deposit') }}</p>
-                    <p class="text-lg font-bold text-brand mt-1 tabular-nums">{{ format_money($asset['deposit'] ?? 0) }}</p>
-                </div>
-                <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200">
-                    <p class="text-[11px] uppercase tracking-widest text-gray-700 font-semibold">{{ __('borrower.marketplace.loan_amount') }}</p>
-                    <p class="text-lg font-bold text-gray-900 mt-1 tabular-nums">{{ format_money($asset['remaining_loan'] ?? 0) }}</p>
-                </div>
+            <div class="mt-6">
+                @include('site.marketplace._financing-summary', ['asset' => $asset])
             </div>
-            <div class="mt-6 flex flex-wrap gap-3" id="apply">
-                <form method="POST" action="{{ route('site.borrower.marketplace.apply', $asset['id']) }}" x-data="{ submitting: false }" @submit="submitting = true">
-                    @csrf
-                    <button type="submit" :disabled="submitting"
-                            class="bg-brand-gold hover:brightness-95 disabled:opacity-70 text-brand font-semibold px-6 py-3 rounded-xl text-sm shadow-sm">
-                        <span x-show="!submitting">{{ __('borrower.marketplace.request_expand') }}</span>
-                        <span x-show="submitting" x-cloak>{{ __('borrower.marketplace.request_expand') }}…</span>
-                    </button>
-                </form>
+            <div class="mt-4" id="apply">
                 @if ($reservation)
-                    <a href="{{ route('site.borrower.marketplace.reserve', $asset['id']) }}" class="inline-flex items-center text-sm font-semibold text-emerald-700">
-                        {{ __('borrower.marketplace.continue_application') }} →
+                    <a href="{{ route('site.borrower.marketplace.reserve', $asset['id']) }}"
+                       class="flex w-full items-center justify-center bg-brand-gold hover:brightness-95 text-brand font-semibold px-6 py-3 rounded-xl text-sm shadow-sm">
+                        {{ __('borrower.marketplace.continue_application') }}
                     </a>
+                @else
+                    <form method="POST" action="{{ route('site.borrower.marketplace.apply', $asset['id']) }}" x-data="{ submitting: false }" @submit="submitting = true">
+                        @csrf
+                        <button type="submit" :disabled="submitting"
+                                class="w-full bg-brand-gold hover:brightness-95 disabled:opacity-70 text-brand font-semibold px-6 py-3 rounded-xl text-sm shadow-sm">
+                            <span x-show="!submitting">{{ __('borrower.marketplace.request_expand') }}</span>
+                            <span x-show="submitting" x-cloak>{{ __('borrower.marketplace.request_expand') }}…</span>
+                        </button>
+                    </form>
                 @endif
             </div>
         </div>

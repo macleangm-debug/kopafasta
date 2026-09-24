@@ -111,8 +111,10 @@
         </div>
 
         <div class="md:col-span-2" x-show="allowsPerson" x-cloak>
-            <p class="text-xs font-semibold text-gray-700 mb-2">Entity type</p>
-            <p class="text-xs text-gray-500 mb-3">Choose Individual for a person, or Company for a registered business. The next steps change to match — no trading name, BRELA, or TIN for an individual.</p>
+            <p class="text-xs font-semibold text-gray-700 mb-2">
+                Entity type
+                <x-admin.help-tip text="Choose Individual for a person, or Company for a registered business. The next steps change to match — no trading name, BRELA, or TIN for an individual." />
+            </p>
             <div class="flex flex-wrap gap-4">
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800">
                     <input type="radio" name="applicant_category" value="company" x-model="applicantCategory" class="text-brand focus:ring-brand">
@@ -193,9 +195,9 @@
         <div class="md:col-span-2" x-show="isCompany" x-cloak>
             <x-admin.input name="legal_name" label="Legal business name" :value="$r?->legal_name" x-bind:disabled="!isCompany" />
         </div>
-        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5" x-show="isCompany" x-cloak>
+        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3" x-show="isCompany" x-cloak>
             <x-admin.input name="tin" label="TIN" :value="$r?->tin" x-bind:disabled="!isCompany" />
-            <x-admin.input name="registration_number" label="BRELA / registration no." :value="$r?->registration_number" x-bind:disabled="!isCompany" />
+            <x-admin.input name="registration_number" label="Business registration number" :value="$r?->registration_number" x-bind:disabled="!isCompany" />
         </div>
 
         @if ($creating)
@@ -208,19 +210,24 @@
         @endif
     </x-admin.step>
 
-    <div data-step-gate x-show="needsCoverage" x-cloak>
+    <div data-step-gate x-show="needsCoverage" x-cloak @error('regions') data-has-error="true" @enderror>
         <x-admin.step title="Coverage regions">
-            <div class="md:col-span-2 space-y-3">
-                <p class="text-xs text-gray-500">Select regions, or mark the partner as nationwide for all regions.</p>
-                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
-                    <input type="radio" name="coverage_type" value="regions" @checked(old('coverage_type', $r?->coverage_type ?? 'regions') !== 'nationwide') class="text-brand focus:ring-brand">
-                    Specific regions
-                </label>
-                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
-                    <input type="radio" name="coverage_type" value="nationwide" @checked(old('coverage_type', $r?->coverage_type ?? 'regions') === 'nationwide') class="text-brand focus:ring-brand">
-                    Nationwide
-                </label>
-                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto rounded-xl border border-brand/15 p-3">
+            <div class="md:col-span-2 space-y-3" x-data="{ coverageType: @js(old('coverage_type', $r?->coverage_type ?? 'nationwide')) }">
+                <p class="text-xs text-gray-500">
+                    Nationwide unless this partner only works in specific regions.
+                    <x-admin.help-tip text="Address region is the office location. Coverage is where they can take work. If you pick specific regions, tick at least one — or leave Nationwide." />
+                </p>
+                <div class="flex flex-wrap gap-4">
+                    <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                        <input type="radio" name="coverage_type" value="nationwide" x-model="coverageType" @checked(old('coverage_type', $r?->coverage_type ?? 'nationwide') === 'nationwide') class="text-brand focus:ring-brand">
+                        Nationwide
+                    </label>
+                    <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                        <input type="radio" name="coverage_type" value="regions" x-model="coverageType" @checked(old('coverage_type', $r?->coverage_type ?? 'nationwide') === 'regions') class="text-brand focus:ring-brand">
+                        Specific regions
+                    </label>
+                </div>
+                <div x-show="coverageType === 'regions'" x-cloak class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto rounded-xl border border-brand/15 p-3">
                     @foreach ($regionOptions ?? [] as $region)
                         <label class="flex items-center gap-2 text-sm text-gray-700">
                             <input type="checkbox" name="regions[]" value="{{ $region }}"
@@ -230,6 +237,9 @@
                         </label>
                     @endforeach
                 </div>
+                @error('regions')
+                    <p class="text-xs text-red-600">{{ $message }}</p>
+                @enderror
             </div>
         </x-admin.step>
     </div>
@@ -248,7 +258,7 @@
                            help="Person who signs in / handles jobs — not the company trading name."
                            x-bind:disabled="!isCompany" />
         </div>
-        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
             <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" :required="$creating" />
             <x-admin.input name="email" label="Email" :value="$r?->email" type="email" />
         </div>
@@ -256,11 +266,16 @@
             <x-admin.national-id-input name="national_id" :value="$nationalId" />
         </div>
         @if ($creating)
-            <p class="md:col-span-2 text-xs text-gray-500 -mt-2">Phone is required so the partner can activate and sign in to the portal. Payout details and ID photos are completed by the partner after they sign in — the verification card goes live when their profile is finished.</p>
+            <p class="md:col-span-2 text-xs text-gray-500 -mt-1">
+                Phone is required for activation.
+                <x-admin.help-tip text="Payout details and ID photos are completed by the partner after they sign in — the verification card goes live when their profile is finished." />
+            </p>
         @endif
         <div class="md:col-span-2 space-y-2">
-            <p class="text-xs font-semibold text-gray-700">Address</p>
-            <p class="text-xs text-gray-500">Region → district → city / area → street. Same Tanzania geography as the rest of the platform.</p>
+            <p class="text-xs font-semibold text-gray-700">
+                Address
+                <x-admin.help-tip text="Region → district → city / area → street. Same Tanzania geography as the rest of the platform." />
+            </p>
             <x-site.address-fields
                 prefix="address"
                 :region="old('address_region', $residenceMeta['region'] ?? '')"
@@ -269,6 +284,7 @@
                 :street="old('address_street', $residenceMeta['street'] ?? '')"
                 :required="false"
                 :force-native="true"
+                :compact="true"
             />
         </div>
     </x-admin.step>
@@ -276,7 +292,10 @@
     <template x-if="isCompany">
         <div data-step-gate data-company-docs-step>
             <x-admin.step title="Business documents">
-                <p class="md:col-span-2 text-xs text-gray-500">BRELA, TIN certificate, business licence. PDF or image, max 5MB each. National ID photos are uploaded by the partner on their portal. Skip this step for an individual — they have no company papers.</p>
+                <p class="md:col-span-2 text-xs text-gray-500">
+                    BRELA, TIN, licence — PDF or image, max 5MB.
+                    <x-admin.help-tip text="National ID photos are uploaded by the partner on their portal. Skip this step for an individual — they have no company papers." />
+                </p>
                 @foreach ([
                     'doc_brela' => 'BRELA / company registration',
                     'doc_tin_certificate' => 'TIN certificate',
@@ -350,11 +369,14 @@
 
     <div data-step-gate x-show="isSupplier" x-cloak>
         <x-admin.step title="Supplier settings">
-            <p class="md:col-span-2 text-xs text-gray-500 mb-2">Deposit markup is the platform default for asset lending.</p>
-            <x-admin.select name="supplier_type" label="Supplier arrangement" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" help="Product says which modes are allowed. This supplier record says which mode this supplier supports. Each application snapshots one." />
+            <x-admin.select name="supplier_type" label="Supplier arrangement" :options="config('asset_lending.supplier_types')" :value="$r?->supplier_type ?? config('asset_lending.default_supplier_type')" />
             <p class="md:col-span-2 text-xs text-gray-500">
-                <strong>Service / Collection</strong> — supplier receives principal progressively from customer repayments.
-                <strong>Capital-funded purchase</strong> — supplier is settled using approved funding; later principal services the funding facility.
+                Deposit markup uses the platform default.
+                <x-admin.help-tip>
+                    Service / Collection — supplier receives principal from customer repayments.
+                    Capital-funded purchase — supplier is settled using approved funding.
+                    Product says which modes are allowed; this record says which mode this supplier supports.
+                </x-admin.help-tip>
             </p>
         </x-admin.step>
     </div>

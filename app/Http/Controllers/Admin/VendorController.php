@@ -12,6 +12,7 @@ use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 class VendorController extends ResourceController
 {
@@ -179,50 +180,58 @@ class VendorController extends ResourceController
         $data = $this->normalizeApplicantCategory($data);
         $this->validateAffiliateCode($data, null);
         $this->validateRegions($data);
-        $record = Vendor::create($data);
-        $this->storeBusinessDocuments($request, $record);
 
-        if ($record->isAffiliate() && blank($record->affiliate_code)) {
-            app(AffiliateService::class)->ensureCode($record);
-            $record->refresh();
-        }
+        $created = DB::transaction(function () use ($request, $data, $activationMode, $notifyPartner, $activationPin) {
+            $record = Vendor::create($data);
+            $this->storeBusinessDocuments($request, $record);
 
-        if ($record->isAffiliate()) {
-            app(\App\Services\AffiliateLifecycleService::class)->initializeNewAffiliate($record);
-            app(\App\Services\AffiliateEvaluationService::class)->syncPremiumStanding($record->fresh());
-            $record->refresh();
-        }
+            if ($record->isAffiliate() && blank($record->affiliate_code)) {
+                app(AffiliateService::class)->ensureCode($record);
+                $record->refresh();
+            }
 
-        $activation = app(\App\Services\PartnerActivationService::class);
-        $statusMessage = ucfirst($this->singular).' created.';
-        $shareInvite = false;
+            if ($record->isAffiliate()) {
+                app(\App\Services\AffiliateLifecycleService::class)->initializeNewAffiliate($record);
+                app(\App\Services\AffiliateEvaluationService::class)->syncPremiumStanding($record->fresh());
+                $record->refresh();
+            }
 
-        if ($activationMode === 'activate_now' && $activation->requiresActivation($record)) {
-            $token = $activation->prepareActivation($record);
-            $activation->activate($record->fresh(), $token, ['pin' => $activationPin]);
-            $statusMessage = ucfirst($this->singular).' created and portal activated.';
-        } elseif ($activationMode === 'invite' && $activation->requiresActivation($record)) {
-            $activation->sendActivationInvite($record, $request->user('admin'), notify: $notifyPartner);
-            $shareInvite = true;
-            $statusMessage = $notifyPartner
-                ? ucfirst($this->singular).' created. Notification queued — also share the partner code below.'
-                : ucfirst($this->singular).' created. Share the partner code below so they can activate.';
-        } elseif ($activationMode === 'draft') {
-            $statusMessage = ucfirst($this->singular).' saved as inactive draft.';
-        } elseif ($activation->requiresActivation($record)) {
-            $activation->sendActivationInvite($record, $request->user('admin'), notify: false);
-            $shareInvite = true;
-            $statusMessage = ucfirst($this->singular).' created. Share the partner code below so they can activate.';
-        }
+            $activation = app(\App\Services\PartnerActivationService::class);
+            $statusMessage = ucfirst($this->singular).' created.';
+            $shareInvite = false;
 
-        $this->auditAdminCreated($record);
+            if ($activationMode === 'activate_now' && $activation->requiresActivation($record)) {
+                $token = $activation->prepareActivation($record);
+                $activation->activate($record->fresh(), $token, ['pin' => $activationPin]);
+                $statusMessage = ucfirst($this->singular).' created and portal activated.';
+            } elseif ($activationMode === 'invite' && $activation->requiresActivation($record)) {
+                $activation->sendActivationInvite($record, $request->user('admin'), notify: $notifyPartner);
+                $shareInvite = true;
+                $statusMessage = $notifyPartner
+                    ? ucfirst($this->singular).' created. Notification queued — also share the partner code below.'
+                    : ucfirst($this->singular).' created. Share the partner code below so they can activate.';
+            } elseif ($activationMode === 'draft') {
+                $statusMessage = ucfirst($this->singular).' saved as inactive draft.';
+            } elseif ($activation->requiresActivation($record)) {
+                $activation->sendActivationInvite($record, $request->user('admin'), notify: false);
+                $shareInvite = true;
+                $statusMessage = ucfirst($this->singular).' created. Share the partner code below so they can activate.';
+            }
 
-        $this->placeWaitingValuerJobs($record->fresh(), $request->user('admin'));
+            $this->auditAdminCreated($record);
+            $this->placeWaitingValuerJobs($record->fresh(), $request->user('admin'));
+
+            return [
+                'record' => $record->fresh() ?? $record,
+                'status' => $statusMessage,
+                'share' => $shareInvite,
+            ];
+        });
 
         return redirect()
-            ->route("{$this->routePrefix}.show", $record->getKey())
-            ->with('status', trim($statusMessage))
-            ->with('partner_invite_ready', $shareInvite);
+            ->route("{$this->routePrefix}.show", $created['record']->getKey())
+            ->with('status', trim($created['status']))
+            ->with('partner_invite_ready', $created['share']);
     }
 
     public function update(Request $request, $id)
@@ -303,7 +312,7 @@ class VendorController extends ResourceController
             return;
         }
 
-        if (($data['coverage_type'] ?? 'regions') === 'nationwide') {
+        if (($data['coverage_type'] ?? 'nationwide') === 'nationwide') {
             return;
         }
 
@@ -312,6 +321,49 @@ class VendorController extends ResourceController
                 'regions' => 'Select at least one operating region for this partner type, or mark coverage as nationwide.',
             ]);
         }
+    }
+
+    /** @param array<string, mixed> $data */
+    private function resolveCoverage(array $data): array
+    {
+        $category = (string) ($data['category'] ?? '');
+        $roles = array_values(array_filter($data['roles'] ?? [$category]));
+        $requires = in_array($category, self::REGION_REQUIRED_CATEGORIES, true)
+            || collect($roles)->intersect(self::REGION_REQUIRED_CATEGORIES)->isNotEmpty();
+
+        if (! $requires) {
+            return $data;
+        }
+
+        $coverage = (string) ($data['coverage_type'] ?? '');
+        $regions = array_values(array_filter($data['regions'] ?? []));
+
+        if ($coverage === 'nationwide') {
+            $data['coverage_type'] = 'nationwide';
+            $data['regions'] = [];
+
+            return $data;
+        }
+
+        if ($regions !== []) {
+            $data['coverage_type'] = 'regions';
+            $data['regions'] = $regions;
+
+            return $data;
+        }
+
+        $fromAddress = trim((string) ($data['address_region'] ?? ''));
+        if ($fromAddress !== '') {
+            $data['coverage_type'] = 'regions';
+            $data['regions'] = [$fromAddress];
+
+            return $data;
+        }
+
+        $data['coverage_type'] = 'nationwide';
+        $data['regions'] = [];
+
+        return $data;
     }
 
     /** @param array<string, mixed> $data */
@@ -378,6 +430,7 @@ class VendorController extends ResourceController
             'ward' => $data['address_ward'] ?? null,
             'street' => $data['address_street'] ?? null,
         ]);
+        $data = $this->resolveCoverage($data);
         $payoutType = $data['payout_type'] ?? null;
         $payout = $payoutType ? array_filter([
             'type' => $payoutType,
@@ -448,8 +501,8 @@ class VendorController extends ResourceController
             $data['coverage_type'] = 'nationwide';
             $data['regions'] = [];
         } else {
-            $coverage = (string) ($data['coverage_type'] ?? 'regions');
-            $data['coverage_type'] = in_array($coverage, ['regions', 'nationwide'], true) ? $coverage : 'regions';
+            $coverage = (string) ($data['coverage_type'] ?? 'nationwide');
+            $data['coverage_type'] = in_array($coverage, ['regions', 'nationwide'], true) ? $coverage : 'nationwide';
             if ($data['coverage_type'] === 'nationwide') {
                 $data['regions'] = [];
             }

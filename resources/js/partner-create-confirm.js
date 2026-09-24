@@ -161,16 +161,12 @@ export function registerPartnerCreateConfirm(Alpine) {
 
             const form = this.form;
             const confirmBtn = this.$el?.querySelector?.('[data-partner-confirm-create]');
-            this.open = false;
-            this.form = null;
             if (confirmBtn && typeof window.kfMarkBusy === 'function') {
                 window.kfMarkBusy(confirmBtn);
             }
-            if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit();
-            } else {
-                form.submit();
-            }
+            // Native requestSubmit() also validates hidden required fields in
+            // display:none wizard steps and fails silently after the modal closes.
+            form.submit();
         },
     }));
 }
