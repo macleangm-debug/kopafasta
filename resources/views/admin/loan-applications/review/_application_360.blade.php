@@ -164,13 +164,20 @@
                                     <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ $person['role'] ?? 'Participant' }}</p>
                                     <p class="text-sm font-bold text-slate-900">{{ $person['name'] ?? '—' }}</p>
                                 </div>
-                                @if (! empty($person['href']))
+                                @if (! empty($person['is_member']) && ! empty($person['href']))
                                     <a href="{{ $person['href'] }}" class="shrink-0 text-[11px] font-bold text-brand hover:underline">Open Member / Profile 360 →</a>
                                 @endif
                             </div>
+                            @if (! empty($person['is_member']))
                             <p class="text-sm font-semibold text-slate-800 mt-2">
                                 KYC / Profile — {{ (int) ($person['completion_percent'] ?? 0) }}% complete
                             </p>
+                            @if (! empty($person['income_proof']))
+                            <p class="text-sm text-slate-700 mt-1">
+                                Proof of Income —
+                                <span class="font-semibold">{{ $person['income_proof']['status_label'] ?? 'Missing' }}</span>
+                            </p>
+                            @endif
                             <div class="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                                 <div class="h-full rounded-full bg-brand" style="width: {{ max(0, min(100, (int) ($person['completion_percent'] ?? 0))) }}%"></div>
                             </div>
@@ -190,6 +197,15 @@
                                     <span class="text-[11px] text-slate-500">No profile sections yet</span>
                                 @endforelse
                             </div>
+                            @else
+                            <p class="text-sm font-semibold text-slate-800 mt-2">
+                                {{ $person['invitation_status'] ?? $person['readiness'] ?? 'Invited' }}
+                            </p>
+                            @if (! empty($person['contact']))
+                                <p class="text-sm text-slate-600 mt-1">{{ $person['contact'] }}</p>
+                            @endif
+                            <p class="text-sm text-slate-600 mt-1">{{ $person['member_note'] ?? 'Invited as guarantor — not a member yet.' }}</p>
+                            @endif
                         </div>
                     @endif
 
@@ -238,7 +254,9 @@
                         @endphp
                         <div>
                             <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Documents</p>
-                            @if ($docs === [])
+                            @if (empty($person['is_member']))
+                                <p class="text-sm text-slate-500">No member file — this person was invited as a guarantor and has not registered.</p>
+                            @elseif ($docs === [])
                                 <p class="text-sm text-slate-500">No documents on file for this person.</p>
                             @else
                                 <x-admin.document-holder :items="$docs" :groups="$holderGroups" :expanded="false" />

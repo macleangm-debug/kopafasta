@@ -40,6 +40,19 @@
 
     <section class="border-t border-gray-100 pt-5">
         <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand mb-3">Income / activity evidence</p>
+        @php $incomeProof = $dossier['income_proof'] ?? null; @endphp
+        @if (is_array($incomeProof))
+            <div class="mb-3 flex flex-wrap items-center gap-2">
+                <span class="text-sm font-semibold text-slate-800">Proof of Income</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-semibold ring-1
+                    @if (($incomeProof['state'] ?? '') === 'provided') bg-emerald-50 text-emerald-800 ring-emerald-200
+                    @elseif (($incomeProof['state'] ?? '') === 'pending_review') bg-amber-50 text-amber-950 ring-amber-200
+                    @else bg-rose-50 text-rose-800 ring-rose-200
+                    @endif">
+                    {{ $incomeProof['status_label'] ?? 'Missing' }}
+                </span>
+            </div>
+        @endif
         @if ($activityDocs->isEmpty())
             <p class="text-sm text-gray-500">No income or activity evidence on file.</p>
         @else

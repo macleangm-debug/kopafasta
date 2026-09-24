@@ -180,6 +180,7 @@ class CustomerDossierService
             'face_verified'    => $this->face->isVerified($customer),
             'documents'        => $documents,
             'documents_by_context' => $documentsByContext,
+            'income_proof'     => app(IncomeProofService::class)->evidenceState($customer),
             'document_types'   => $documentTypes,
             'payment_accounts' => $paymentAccounts,
             'payment_snapshot' => $paymentSnapshot,
@@ -286,11 +287,22 @@ class CustomerDossierService
                 $code = strtolower((string) ($doc->documentType?->code ?? ''));
                 $name = strtolower((string) ($doc->documentType?->name ?? ''));
                 $cat = strtolower((string) ($doc->documentType?->category ?? ''));
+                $incomeCodes = array_map('strtolower', array_merge(
+                    config('income_proof.employed_required_codes', []),
+                    config('income_proof.informal_required_any_codes', []),
+                    config('income_proof.business_registration_codes', []),
+                    config('income_proof.informal_optional_codes', []),
+                    ['income_statement'],
+                ));
 
-                return str_contains($code, 'income')
+                return in_array($code, $incomeCodes, true)
+                    || str_contains($code, 'income')
                     || str_contains($code, 'business')
                     || str_contains($code, 'employment')
+                    || str_contains($code, 'statement')
                     || str_contains($name, 'income')
+                    || str_contains($name, 'statement')
+                    || str_contains($name, 'salary')
                     || in_array($cat, ['income', 'activity', 'employment'], true);
             }),
             'collateral' => $bucket(function ($doc) {

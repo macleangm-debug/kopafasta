@@ -198,7 +198,7 @@ class ProfileCompletionService
 
     public function isDocumentsComplete(Customer $customer): bool
     {
-        $requireIncome = (bool) (Setting::group('kyc')['require_income_proof'] ?? false);
+        $requireIncome = app(IncomeProofService::class)->isRequired();
         $requireResidenceLetter = app(ProfileValidationService::class)->requiresResidenceLetter();
 
         if (! $requireIncome && ! $requireResidenceLetter) {

@@ -168,7 +168,7 @@ class ProfileCompletionEligibilityTest extends TestCase
     {
         Setting::setMany(['kyc.require_income_proof' => true]);
 
-        $customer = $this->completeBusinessOwnerProfile();
+        $customer = $this->completeBusinessOwnerProfile(withIncomeProof: false);
         $svc = app(ProfileCompletionService::class);
 
         $this->assertTrue($svc->isActivityFieldsComplete($customer));
@@ -356,7 +356,7 @@ class ProfileCompletionEligibilityTest extends TestCase
         ], $overrides));
     }
 
-    private function completeBusinessOwnerProfile(): Customer
+    private function completeBusinessOwnerProfile(bool $withIncomeProof = true): Customer
     {
         $customer = $this->baseCustomer([
             'activity_type' => 'business_owner',
@@ -379,6 +379,20 @@ class ProfileCompletionEligibilityTest extends TestCase
             'account_name' => 'Uat Borrower',
             'is_default' => true,
         ]);
+
+        if ($withIncomeProof) {
+            $type = \App\Models\DocumentType::query()->firstOrCreate(
+                ['code' => 'mobile_money_statement'],
+                ['name' => 'Mobile money statement', 'is_active' => true, 'category' => 'kyc'],
+            );
+            \App\Models\CustomerDocument::create([
+                'customer_id' => $customer->id,
+                'document_type_id' => $type->id,
+                'loan_application_id' => null,
+                'file_path' => 'kyc/mobile-money.pdf',
+                'status' => 'pending_review',
+            ]);
+        }
 
         return $customer->fresh();
     }

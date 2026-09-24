@@ -237,6 +237,68 @@ class Application360FeatureTest extends TestCase
         $panelHtml = $panelMatch[0] ?? '';
         $this->assertStringContainsString('Paul Albert Mtawa', $panelHtml);
         $this->assertStringContainsString('Waiting for guarantor', $panelHtml);
+        $this->assertTrue(! empty($guarantors[0]['is_member']));
+        $this->assertNotEmpty($guarantors[0]['href'] ?? null);
+    }
+
+    public function test_application_360_invite_only_guarantor_is_not_a_member(): void
+    {
+        [$admin, $app] = $this->screeningFile();
+        $app->update([
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+        ]);
+
+        $record = \App\Models\Guarantor::create([
+            'first_name' => 'Paulo',
+            'last_name' => 'Albert Mtawa',
+            'phone' => '+255667094545',
+            'relationship' => 'relative',
+        ]);
+        $link = \App\Models\CustomerGuarantor::create([
+            'customer_id' => $app->customer_id,
+            'guarantor_id' => $record->id,
+            'loan_application_id' => $app->id,
+            'status' => 'rejected',
+        ]);
+        \App\Models\GuarantorInvitation::create([
+            'customer_id' => $app->customer_id,
+            'loan_application_id' => $app->id,
+            'loan_product_id' => $app->loan_product_id,
+            'customer_guarantor_id' => $link->id,
+            'guarantor_customer_id' => null,
+            'type' => 'external',
+            'channel' => 'sms',
+            'invitee_name' => 'Paulo Albert Mtawa',
+            'token' => 'g360-invite-'.random_int(1000, 9999),
+            'short_code' => 'GINV'.random_int(100, 999),
+            'contact' => '+255667094545',
+            'status' => 'rejected',
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $panel = app(Application360Presenter::class)->forApplication($app->fresh(), $admin);
+        $guarantors = collect($panel['people'])->where('role', 'Guarantor')->values();
+        $this->assertCount(1, $guarantors);
+        $this->assertSame('Paulo Albert Mtawa', $guarantors[0]['name'] ?? null);
+        $this->assertArrayHasKey('customer_id', $guarantors[0]);
+        $this->assertNull($guarantors[0]['customer_id']);
+        $this->assertFalse((bool) ($guarantors[0]['is_member'] ?? true));
+        $this->assertArrayHasKey('href', $guarantors[0]);
+        $this->assertNull($guarantors[0]['href']);
+        $this->assertArrayNotHasKey('completion_percent', $guarantors[0]);
+        $this->assertSame('rejected', $guarantors[0]['invitation_code'] ?? null);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->getContent();
+        preg_match('/id="application-360".*?<\/section>/s', $html, $panelMatch);
+        $panelHtml = $panelMatch[0] ?? '';
+        $this->assertStringContainsString('Paulo Albert Mtawa', $panelHtml);
+        $this->assertStringContainsString('not a Kopafasta member', $panelHtml);
+        $this->assertStringContainsString('No member file', $panelHtml);
+        $this->assertStringContainsString('+255667094545', $panelHtml);
     }
 
     /** @return array{0: User, 1: LoanApplication} */

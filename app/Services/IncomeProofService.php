@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\CustomerDocument;
-use App\Models\Setting;
 use Illuminate\Support\Collection;
 
 class IncomeProofService
@@ -14,7 +13,7 @@ class IncomeProofService
 
     public function isRequired(): bool
     {
-        return (bool) (Setting::group('kyc')['require_income_proof'] ?? false);
+        return true;
     }
 
     public function activityType(Customer $customer): ?string
@@ -72,7 +71,74 @@ class IncomeProofService
 
     public function hasDocument(Customer $customer, string $code): bool
     {
-        return app(ProfileDocumentService::class)->hasProfileDocument($customer, $code);
+        $document = app(ProfileDocumentService::class)->latestProfileDocument($customer, $code);
+
+        return $this->documentSatisfies($document);
+    }
+
+    /**
+     * Allowed Proof of Income evidence codes for this activity type.
+     *
+     * @return list<string>
+     */
+    public function allowedEvidenceCodes(Customer $customer): array
+    {
+        if ($this->isEmployed($customer)) {
+            return array_values(config('income_proof.employed_required_codes', []));
+        }
+
+        return array_values(config('income_proof.informal_required_any_codes', self::PRIMARY_CODES));
+    }
+
+    /**
+     * Compact evidence state for Profile 360 / Application 360 — not a second document engine.
+     *
+     * @return array{key: string, label: string, state: string, status_label: string, satisfied: bool}
+     */
+    public function evidenceState(Customer $customer): array
+    {
+        $docs = app(ProfileDocumentService::class)
+            ->latestByCodes($customer, $this->allowedEvidenceCodes($customer))
+            ->values();
+        $latest = $docs->sortByDesc('id')->first();
+        $valid = $docs->first(fn (CustomerDocument $doc) => $this->documentSatisfies($doc));
+
+        $state = match (true) {
+            $valid && in_array((string) $valid->status, ['verified', 'approved'], true) => 'provided',
+            (bool) $valid => 'pending_review',
+            $latest && in_array((string) $latest->status, ['rejected', 'revision_required', 'needs_replacement'], true) => 'needs_replacement',
+            default => 'missing',
+        };
+
+        $labels = [
+            'provided' => 'Provided / accepted',
+            'pending_review' => 'Pending review',
+            'missing' => 'Missing',
+            'needs_replacement' => 'Needs replacement',
+        ];
+
+        return [
+            'key' => 'income_proof',
+            'label' => __('borrower.loan_profile.sections.proof_of_income'),
+            'state' => $state,
+            'status_label' => $labels[$state],
+            'satisfied' => $this->satisfiesRequirement($customer),
+        ];
+    }
+
+    private function documentSatisfies(?CustomerDocument $document): bool
+    {
+        if (! $document) {
+            return false;
+        }
+
+        return ! in_array((string) $document->status, [
+            'rejected',
+            'revision_required',
+            'needs_replacement',
+            'replaced',
+            'archived',
+        ], true);
     }
 
     public function hasPrimaryProof(Customer $customer): bool

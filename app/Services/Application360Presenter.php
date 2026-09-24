@@ -705,6 +705,9 @@ class Application360Presenter
                 if (strcasecmp($role, 'Guarantor') === 0 && (int) $customerId === $borrowerId) {
                     $customerId = null;
                 }
+                if (strcasecmp($role, 'Guarantor') === 0 && ! $customerId) {
+                    continue;
+                }
                 $customer = $customerId
                     ? \App\Models\Customer::query()->find($customerId)
                     : null;
@@ -830,27 +833,54 @@ class Application360Presenter
             return $card;
         }
 
+        $status = app(GuarantorInvitationService::class)->workflowStatus($link, $invite);
+
+        return $this->invitedGuarantorCard(
+            $name,
+            'guarantor-'.($link->id ?? 'pending'),
+            (string) ($status['label'] ?? 'Invitation sent'),
+            (string) ($status['code'] ?? ''),
+            $invite?->contact ?? $link->guarantor?->phone,
+        );
+    }
+
+    /**
+     * Invitation-only guarantor: name record + invite, not a Customer / Members row.
+     *
+     * @return array<string, mixed>
+     */
+    private function invitedGuarantorCard(
+        string $name,
+        string $key,
+        string $statusLabel,
+        string $statusCode = '',
+        ?string $contact = null,
+    ): array {
+        $note = match ($statusCode) {
+            'rejected' => 'Invitation declined — this person is not a Kopafasta member, so they do not appear on Members.',
+            'expired' => 'Invitation expired — this person is not a Kopafasta member.',
+            default => 'Invited as guarantor — they are not a member yet. They appear on Members only after they accept and register.',
+        };
+
         return [
-            'key' => 'guarantor-'.($link->id ?? 'pending'),
+            'key' => $key,
             'kind' => 'person',
             'customer_id' => null,
+            'is_member' => false,
             'name' => $name,
             'role' => 'Guarantor',
-            'kyc' => '0%',
-            'completion_percent' => 0,
+            'kyc' => null,
             'completed_areas' => [],
-            'missing_areas' => ['Waiting for guarantor'],
-            'completion_cards' => [[
-                'key' => 'profile',
-                'label' => 'Profile',
-                'complete' => false,
-            ]],
+            'missing_areas' => [$statusLabel],
+            'completion_cards' => [],
             'crb' => '—',
-            'readiness' => 'Waiting',
-            'issue' => 'Waiting for guarantor',
-            'href' => $application->customer
-                ? route('admin.customers.show', ['customer' => $application->customer, 'tab' => 'applications']).'#member-file'
-                : route('admin.loan-applications.show', $application),
+            'readiness' => $statusLabel,
+            'issue' => $statusLabel,
+            'invitation_status' => $statusLabel,
+            'invitation_code' => $statusCode,
+            'contact' => $contact,
+            'member_note' => $note,
+            'href' => null,
             'tone' => 'attention',
             'documents' => [],
         ];
@@ -886,10 +916,14 @@ class Application360Presenter
             ];
         }
 
+        $incomeProof = app(IncomeProofService::class)->evidenceState($customer);
+
         return [
             'key' => $key ?: ('customer-'.$customer->id),
             'kind' => 'person',
+            'is_member' => true,
             'customer_id' => (int) $customer->id,
+            'income_proof' => $incomeProof,
             'name' => trim($customer->full_name ?: ($customer->first_name.' '.$customer->last_name)) ?: 'Member',
             'role' => $role,
             'kyc' => $percent.'%',
@@ -984,28 +1018,12 @@ class Application360Presenter
             if ($gCustomer) {
                 $people[] = $this->customerCard($gCustomer, 'Guarantor');
             } else {
-                $people[] = [
-                    'key' => 'guarantor-draft',
-                    'kind' => 'person',
-                    'customer_id' => null,
-                    'name' => (string) ($gName ?: 'Guarantor'),
-                    'role' => 'Guarantor',
-                    'kyc' => '0%',
-                    'completion_percent' => 0,
-                    'completed_areas' => [],
-                    'missing_areas' => $waitingOnGuarantor ? [$guarantorStatus ?: 'Awaiting guarantor'] : [],
-                    'completion_cards' => $waitingOnGuarantor ? [[
-                        'key' => 'profile',
-                        'label' => 'Profile',
-                        'complete' => false,
-                    ]] : [],
-                    'crb' => '—',
-                    'readiness' => $waitingOnGuarantor ? 'Needs attention' : 'Ready',
-                    'issue' => $waitingOnGuarantor ? $guarantorStatus : null,
-                    'href' => $customer ? route('admin.customers.show', $customer) : null,
-                    'tone' => $waitingOnGuarantor ? 'attention' : 'complete',
-                    'documents' => [],
-                ];
+                $people[] = $this->invitedGuarantorCard(
+                    (string) ($gName ?: 'Guarantor'),
+                    'guarantor-draft',
+                    $guarantorStatus !== '' ? $guarantorStatus : 'Invitation sent',
+                    $waitingOnGuarantor ? 'invitation_sent' : '',
+                );
             }
         }
 
