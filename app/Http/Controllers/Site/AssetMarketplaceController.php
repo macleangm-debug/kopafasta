@@ -469,7 +469,7 @@ class AssetMarketplaceController extends Controller
             ->where('is_active', true)
             ->where(fn ($q) => $q->whereNull('availability_status')->orWhere('availability_status', 'available'))
             ->where(function ($q) use ($assetId): void {
-                $q->where('slug', $assetId);
+                $q->where('slug', $assetId)->orWhere('asset_number', $assetId);
                 if (is_numeric($assetId)) {
                     $q->orWhere('id', (int) $assetId);
                 }
@@ -491,7 +491,7 @@ class AssetMarketplaceController extends Controller
         return MarketplaceAsset::query()
             ->where('is_active', true)
             ->where(function ($q) use ($assetId): void {
-                $q->where('slug', $assetId);
+                $q->where('slug', $assetId)->orWhere('asset_number', $assetId);
                 if (is_numeric($assetId)) {
                     $q->orWhere('id', (int) $assetId);
                 }
@@ -537,19 +537,21 @@ class AssetMarketplaceController extends Controller
         return [
             'id' => $asset->slug ?: (string) $asset->id,
             'asset_id' => $asset->id,
+            'asset_number' => $asset->asset_number,
             'supplier_id' => $vendor?->id,
             'commercial_mode' => $vendor?->supplier_type ?? config('asset_lending.default_supplier_type'),
             'category' => $asset->category,
-            'title' => $asset->title,
-            'vendor' => $vendor?->name ?: $asset->supplier_name,
-            'supplier' => $vendor?->name ?: $asset->supplier_name,
-            'supplier_region' => $specs['city'] ?? $vendor?->coverageLabel(),
-            'city' => $specs['city'] ?? $vendor?->coverageLabel(),
-            'condition' => $specs['condition'] ?? null,
-            'make' => $specs['make'] ?? null,
-            'model' => $specs['model'] ?? null,
-            'year' => $specs['year'] ?? null,
-            'description' => $asset->description,
+            'category_label' => marketplace_category_label($asset->category),
+            'title' => marketplace_plain($asset->title),
+            'vendor' => marketplace_plain($vendor?->name ?: $asset->supplier_name),
+            'supplier' => marketplace_plain($vendor?->name ?: $asset->supplier_name),
+            'supplier_region' => marketplace_plain($specs['city'] ?? $vendor?->coverageLabel()),
+            'city' => marketplace_plain($specs['city'] ?? $vendor?->coverageLabel()),
+            'condition' => marketplace_plain($specs['condition'] ?? null),
+            'make' => marketplace_plain($specs['make'] ?? null),
+            'model' => marketplace_plain($specs['model'] ?? null),
+            'year' => marketplace_plain($specs['year'] ?? null),
+            'description' => marketplace_plain($asset->description),
             'asset_value' => $assetValue ?: (float) ($quote['asset_price'] ?? 0),
             'deposit' => $deposit,
             'remaining_loan' => $remainingLoan,

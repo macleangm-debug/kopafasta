@@ -47,30 +47,36 @@
     </div>
 </x-admin.step>
 <x-admin.step title="Pricing"
-              x-data="marketplaceDepositPreview(@js((float) $markupPercent))"
+              x-data="marketplaceDepositPreview(@js((float) $markupPercent), @js($depositTiers ?? []))"
               x-init="bindMoneyInputs($el)"
               data-markup-percent="{{ $markupPercent }}">
-    <x-admin.input name="asset_value" label="Asset value" money :decimals="2" :value="$assetValue" required
-                   data-preview-field="asset_value" @input="refresh($event)" />
-    <x-admin.input name="deposit_percent" label="Deposit (% of asset value)" type="number" step="0.01" min="0.01" max="100"
-                   :value="$depositPercent" required data-preview-field="deposit_percent" @input="refresh($event)" />
-    <p class="md:col-span-2 text-xs text-gray-500">
-        Platform deposit markup
-        (<strong>{{ rtrim(rtrim(number_format($markupPercent, 2), '0'), '.') }}%</strong>)
-        is added on top of the supplier deposit. Weekly installment is calculated during loan processing.
-    </p>
-    <div class="md:col-span-2">
-        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_max_tenure') }}</label>
-        <div class="flex items-center gap-2">
-            <input type="text" inputmode="numeric" pattern="[0-9]*" name="max_tenure_months" required
-                   value="{{ $maxTenure }}"
-                   class="w-16 rounded-xl border-gray-300 text-sm text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-            <span class="text-sm text-gray-600">{{ __('site.supplier_portal.wizard_max_tenure_months') }}</span>
+    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+        <div>
+            <x-admin.input name="asset_value" :label="__('site.supplier_portal.wizard_amount')" money :decimals="2" :value="$assetValue" required
+                           data-preview-field="asset_value" @input="refresh($event)" />
         </div>
-        <p class="text-xs text-gray-500 mt-1.5">{{ __('site.supplier_portal.wizard_max_tenure_helper', ['months' => $productMaxTenure]) }}</p>
-        @error('max_tenure_months')
-            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-        @enderror
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_deposit_rate') }}</label>
+            <div class="flex items-center gap-2">
+                <input type="text" readonly tabindex="-1" :value="depositPercent + '%'"
+                       value="{{ rtrim(rtrim(number_format((float) $depositPercent, 2), '0'), '.') }}%"
+                       class="w-16 rounded-xl border-gray-300 bg-gray-50 text-sm text-center tabular-nums">
+            </div>
+            <p class="text-xs text-gray-500 mt-1.5">{{ __('site.supplier_portal.wizard_deposit_rate_helper') }}</p>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_max_tenure') }}</label>
+            <div class="flex items-center gap-2">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" name="max_tenure_months" required
+                       value="{{ $maxTenure }}"
+                       class="w-16 rounded-xl border-gray-300 text-sm text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                <span class="text-sm text-gray-600">{{ __('site.supplier_portal.wizard_max_tenure_months') }}</span>
+            </div>
+            <p class="text-xs text-gray-500 mt-1.5">{{ __('site.supplier_portal.wizard_max_tenure_helper', ['months' => $productMaxTenure]) }}</p>
+            @error('max_tenure_months')
+                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+            @enderror
+        </div>
     </div>
     <x-admin.select name="is_active" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" :value="($r?->is_active ?? true) ? '1' : '0'" />
     <div class="md:col-span-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -89,22 +95,33 @@
 
 @once
     <script>
-        function marketplaceDepositPreview(markupPercent) {
+        function marketplaceDepositPreview(markupPercent, tiers) {
             return {
                 markupPercent,
                 assetValue: 0,
-                depositPercent: 0,
+                tiers: tiers || [],
+                get depositPercent() {
+                    const tier = this.matchTier(this.assetValue);
+                    return Number(tier?.percent || 0);
+                },
                 bindMoneyInputs(root) {
                     const assetInput = root.querySelector('[data-preview-field="asset_value"]');
-                    const percentInput = root.querySelector('[data-preview-field="deposit_percent"]');
                     this.assetValue = this.parseNumber(assetInput?.value);
-                    this.depositPercent = this.parseNumber(percentInput?.value);
                 },
                 refresh(event) {
-                    const field = event?.target?.dataset?.previewField;
-                    const value = this.parseNumber(event?.target?.value);
-                    if (field === 'asset_value') this.assetValue = value;
-                    if (field === 'deposit_percent') this.depositPercent = value;
+                    if (event?.target?.dataset?.previewField === 'asset_value') {
+                        this.assetValue = this.parseNumber(event.target.value);
+                    }
+                },
+                matchTier(amount) {
+                    for (const tier of this.tiers) {
+                        if (tier.active === false) continue;
+                        const from = Number(tier.from || 0);
+                        const to = tier.to;
+                        if (amount + 0.00001 < from) continue;
+                        if (to === null || to === '' || amount <= Number(to) + 0.00001) return tier;
+                    }
+                    return this.tiers[this.tiers.length - 1] || null;
                 },
                 parseNumber(value) {
                     if (value === null || value === undefined || value === '') return 0;

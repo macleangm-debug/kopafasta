@@ -104,34 +104,43 @@
 
                 <x-admin.step :title="__('site.supplier_portal.wizard_price')">
                     <div class="md:col-span-2 space-y-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_selling_price') }}</label>
-                            <input type="text" inputmode="decimal" data-money-input="2" name="asset_value"
-                                   x-model="assetValueInput" @input="refreshPrice($event)"
-                                   value="{{ \App\Support\MoneyFormat::forInput($assetValue, 2) }}"
-                                   required class="w-full rounded-xl border-gray-300 text-sm">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_amount') }}</label>
+                                <input type="text" inputmode="decimal" data-money-input="2" name="asset_value"
+                                       x-model="assetValueInput" @input="refreshPrice($event)"
+                                       value="{{ \App\Support\MoneyFormat::forInput($assetValue, 2) }}"
+                                       required class="w-full rounded-xl border-gray-300 text-sm tabular-nums">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_deposit_rate') }}</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" readonly tabindex="-1" :value="(quote.percent || 0) + '%'"
+                                           class="w-16 rounded-xl border-gray-300 bg-gray-50 text-sm text-center tabular-nums">
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1.5">{{ __('site.supplier_portal.wizard_deposit_rate_helper') }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_max_tenure') }}</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" inputmode="numeric" pattern="[0-9]*" name="max_tenure_months"
+                                           x-model="maxTenure"
+                                           class="w-16 rounded-xl border-gray-300 text-sm text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                                    <span class="text-sm text-gray-600">{{ __('site.supplier_portal.wizard_max_tenure_months') }}</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1.5">{{ __('site.supplier_portal.wizard_max_tenure_helper', ['months' => $productMaxTenure]) }}</p>
+                                @error('max_tenure_months')
+                                    <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
                         </div>
+                        <p class="text-xs text-gray-500">{{ __('site.supplier_portal.wizard_tenure_later') }}</p>
                         <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 py-3 text-sm space-y-1.5">
-                            <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_deposit_rate') }}</span><strong class="tabular-nums" x-text="(quote.percent || 0) + '%'"></strong></div>
                             <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_base_deposit') }}</span><strong class="tabular-nums" x-text="money(quote.base)"></strong></div>
                             <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_deposit_markup') }}</span><strong class="tabular-nums" x-text="money(quote.markup)"></strong></div>
                             <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_deposit_due') }}</span><strong class="tabular-nums text-brand" x-text="money(quote.due)"></strong></div>
                             <div class="flex justify-between gap-3"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_financed') }}</span><strong class="tabular-nums" x-text="money(quote.financed)"></strong></div>
                             <div class="flex justify-between gap-3 pt-1 border-t border-brand/10"><span class="text-gray-600">{{ __('site.supplier_portal.wizard_pre_financing') }}</span><strong class="tabular-nums" x-text="money(quote.pre)"></strong></div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_max_tenure') }}</label>
-                            <div class="flex items-center gap-2">
-                                <input type="text" inputmode="numeric" pattern="[0-9]*" name="max_tenure_months"
-                                       x-model="maxTenure"
-                                       class="w-16 rounded-xl border-gray-300 text-sm text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-                                <span class="text-sm text-gray-600">{{ __('site.supplier_portal.wizard_max_tenure_months') }}</span>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1.5">{{ __('site.supplier_portal.wizard_max_tenure_helper', ['months' => $productMaxTenure]) }}</p>
-                            @error('max_tenure_months')
-                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                            @enderror
-                            <p class="text-xs text-gray-500 mt-2">{{ __('site.supplier_portal.wizard_tenure_later') }}</p>
                         </div>
                         @if ($asset)
                             <label class="inline-flex items-center gap-2 text-sm">

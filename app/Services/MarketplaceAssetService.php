@@ -20,6 +20,31 @@ class MarketplaceAssetService
         return max(1, min(7, (int) Setting::get('asset_lending.max_asset_photos', 7)));
     }
 
+    public function nextAssetNumber(?int $vendorId): ?string
+    {
+        if (! $vendorId || ! Schema::hasColumn('marketplace_assets', 'asset_number')) {
+            return null;
+        }
+
+        $vendor = Vendor::query()->find($vendorId);
+        $base = $vendor?->vendor_number ?: $vendor?->partner_number;
+        if (! filled($base)) {
+            return null;
+        }
+
+        $seq = MarketplaceAsset::query()
+            ->where('partner_id', $vendorId)
+            ->whereNotNull('asset_number')
+            ->count() + 1;
+
+        do {
+            $number = $base.'-A'.str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
+            $seq++;
+        } while (MarketplaceAsset::query()->where('asset_number', $number)->exists());
+
+        return $number;
+    }
+
     /** Normalize formatted money strings and insurance toggle before validation. */
     public function normalizeRequest(Request $request): void
     {
@@ -78,6 +103,12 @@ class MarketplaceAssetService
 
         if (empty($data['slug']) && ! empty($data['title'])) {
             $data['slug'] = Str::slug($data['title']).'-'.Str::lower(Str::random(4));
+        }
+
+        if (Schema::hasColumn('marketplace_assets', 'asset_number') && blank($data['asset_number'] ?? null) && blank($existing?->asset_number)) {
+            $data['asset_number'] = $this->nextAssetNumber((int) ($data['vendor_id'] ?? $existing?->partner_id));
+        } else {
+            unset($data['asset_number']);
         }
 
         if (! empty($data['category'])) {
@@ -312,7 +343,7 @@ class MarketplaceAssetService
 
         $existing = MarketplaceAsset::query()
             ->where(function ($q) use ($assetId): void {
-                $q->where('slug', $assetId);
+                $q->where('slug', $assetId)->orWhere('asset_number', $assetId);
                 if (is_numeric($assetId)) {
                     $q->orWhere('id', (int) $assetId);
                 }

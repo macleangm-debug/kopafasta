@@ -990,6 +990,7 @@ return [
         ],
     ],
     'product_detail' => [
+        'overview_heading' => 'Muhtasari',
         'overview' => 'Muhtasari',
         'target_audience' => 'Ni kwa nani?',
         'features' => 'Vipengele na faida',
@@ -1753,6 +1754,8 @@ return [
         'wizard_publish' => 'Chapisha mali',
         'wizard_save' => 'Hifadhi mabadiliko',
         'wizard_selling_price' => 'Bei ya muuzaji',
+        'wizard_amount' => 'Kiasi',
+        'wizard_deposit_rate_helper' => 'Kutoka mipangilio ya bidhaa ya Asset Lending.',
         'wizard_condition' => 'Hali',
         'wizard_city' => 'Jiji',
         'wizard_make' => 'Mtengenezaji',

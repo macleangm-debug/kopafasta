@@ -15,13 +15,16 @@
             </div>
             <div class="lg:col-span-5">
                 <div class="kf-premium-panel rounded-2xl p-4 sm:p-5 mb-5">
-                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ config('asset_marketplace.categories.'.$asset['category']) }}</p>
-                    <h1 class="text-2xl sm:text-3xl font-bold mt-1 tracking-tight">{{ $asset['title'] }}</h1>
+                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ $asset['category_label'] ?? marketplace_category_label($asset['category'] ?? null) }}</p>
+                    <h1 class="text-2xl sm:text-3xl font-bold mt-1 tracking-tight">{{ marketplace_plain($asset['title'] ?? '') }}</h1>
+                    @if (! empty($asset['asset_number']))
+                        <p class="text-xs font-mono text-white/70 mt-1">{{ __('borrower.marketplace.asset_id') }} {{ $asset['asset_number'] }}</p>
+                    @endif
                     @if (! empty($asset['vendor']))
                         <p class="text-sm text-white/80 mt-2">
-                            <span class="font-semibold text-white">{{ $asset['vendor'] }}</span>
+                            <span class="font-semibold text-white">{{ marketplace_plain($asset['vendor']) }}</span>
                             @if (! empty($asset['supplier_region']) || ! empty($asset['city']))
-                                <span> · {{ $asset['city'] ?? $asset['supplier_region'] }}</span>
+                                <span> · {{ marketplace_plain($asset['city'] ?? $asset['supplier_region']) }}</span>
                             @endif
                         </p>
                     @endif
@@ -29,8 +32,8 @@
 
                 @if (! empty($asset['description']))
                     <div class="mt-6 glass-card p-5">
-                        <h2 class="text-xs uppercase tracking-widest text-brand font-bold mb-2">{{ __('site.product_detail.overview') }}</h2>
-                        <p class="text-sm text-gray-800 leading-relaxed">{{ $asset['description'] }}</p>
+                        <h2 class="text-xs uppercase tracking-widest text-brand font-bold mb-2">{{ __('site.product_detail.overview_heading') }}</h2>
+                        <p class="text-sm text-gray-800 leading-relaxed">{{ marketplace_plain($asset['description'] ?? '') }}</p>
                     </div>
                 @endif
 

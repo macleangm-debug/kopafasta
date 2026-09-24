@@ -1001,6 +1001,7 @@ return [
     ],
 
     'product_detail' => [
+        'overview_heading' => 'Overview',
         'overview' => 'Overview',
         'target_audience' => 'Who is this for?',
         'features' => 'Features & benefits',
@@ -1771,6 +1772,8 @@ return [
         'wizard_publish' => 'Publish asset',
         'wizard_save' => 'Save changes',
         'wizard_selling_price' => 'Supplier selling price',
+        'wizard_amount' => 'Amount',
+        'wizard_deposit_rate_helper' => 'From Asset Lending Product Configuration.',
         'wizard_condition' => 'Condition',
         'wizard_city' => 'City',
         'wizard_make' => 'Make',

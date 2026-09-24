@@ -65,6 +65,7 @@ class MarketplaceAssetController extends ResourceController
             'suppliers' => Vendor::query()->where('category', 'supplier')->orderBy('name')->pluck('name', 'id'),
             'categories' => $this->categoryOptions($asset),
             'defaultDepositMarkupPercent' => $lending->defaultDepositMarkupPercent(),
+            'depositTiers' => $lending->depositTiers(),
             'productMaxTenureMonths' => $lending->productMaxTenureMonths(),
             'maxAssetPhotos' => $assetService->maxPhotos(),
             'prefill' => [

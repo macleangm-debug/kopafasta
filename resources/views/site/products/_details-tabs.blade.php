@@ -5,7 +5,7 @@
     <h2 class="text-xl font-bold text-gray-900 mb-4">{{ __('site.product_detail.essentials') }}</h2>
     <div class="grid sm:grid-cols-2 gap-4 mb-8">
         <div class="glass-card p-5">
-            <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('site.product_detail.overview') }}</p>
+            <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ __('site.product_detail.overview_heading') }}</p>
             <p class="text-sm text-gray-700 leading-relaxed">{{ $p['overview_short'] }}</p>
         </div>
         <div class="glass-card p-5">

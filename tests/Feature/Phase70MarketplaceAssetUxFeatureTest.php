@@ -67,7 +67,9 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.marketplace-assets.edit', $asset->slug))
             ->assertOk()
-            ->assertSee('Deposit (% of asset value)', false);
+            ->assertSee(__('site.supplier_portal.wizard_deposit_rate'), false)
+            ->assertSee(__('site.supplier_portal.wizard_amount'), false)
+            ->assertSee(__('site.supplier_portal.wizard_max_tenure'), false);
     }
 
     public function test_starting_application_keeps_asset_listed_until_deposit(): void

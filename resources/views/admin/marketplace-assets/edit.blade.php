@@ -5,6 +5,7 @@
         'record' => $record,
         'productMaxTenureMonths' => $productMaxTenureMonths ?? app(\App\Services\AssetLendingService::class)->productMaxTenureMonths(),
         'defaultDepositMarkupPercent' => $defaultDepositMarkupPercent ?? 10,
+        'depositTiers' => $depositTiers ?? [],
         'maxAssetPhotos' => $maxAssetPhotos ?? 7,
         'suppliers' => $suppliers ?? [],
         'categories' => $categories ?? [],

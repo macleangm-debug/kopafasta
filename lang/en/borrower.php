@@ -1505,6 +1505,7 @@ return [
         'duration_range_label' => 'Duration',
         'duration_range' => ':min to :max months',
         'up_to_months' => 'Up to :months months',
+        'asset_id' => 'Asset ID',
         'duration_choose_in_wizard' => 'You choose the exact tenure in the loan wizard (within this range).',
         'tenure_adjust_hint' => 'Choose a shorter duration up to the supplier max — the weekly repayment updates automatically.',
         'deposit_first_hint' => 'Next steps: pay the application fee in the loan wizard, then guarantor → review → submit. Asset down payment is paid only after approval.',

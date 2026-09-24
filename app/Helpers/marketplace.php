@@ -38,3 +38,32 @@ if (! function_exists('marketplace_photo_urls')) {
             ->all();
     }
 }
+
+if (! function_exists('marketplace_plain')) {
+    function marketplace_plain(mixed $value): string
+    {
+        if (is_array($value)) {
+            $label = $value['label'] ?? $value['name'] ?? null;
+            if (is_string($label) && $label !== '') {
+                return $label;
+            }
+
+            return implode(', ', array_filter($value, fn ($item) => is_scalar($item) && $item !== ''));
+        }
+
+        return is_scalar($value) ? (string) $value : '';
+    }
+}
+
+if (! function_exists('marketplace_category_label')) {
+    function marketplace_category_label(?string $category): string
+    {
+        $categories = config('asset_marketplace.categories', []);
+        $label = $categories[$category] ?? null;
+        if (is_array($label)) {
+            return marketplace_plain($label['label'] ?? $category);
+        }
+
+        return marketplace_plain($label ?: $category);
+    }
+}

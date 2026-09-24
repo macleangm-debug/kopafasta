@@ -13,7 +13,7 @@ class MarketplaceAsset extends Model
     use MapsLegacyPartnerId;
 
     protected $fillable = [
-        'slug', 'category', 'title', 'serial_number', 'chassis_number', 'engine_number',
+        'slug', 'asset_number', 'category', 'title', 'serial_number', 'chassis_number', 'engine_number',
         'insurance_policy_number', 'description', 'supplier_name', 'vendor_id',
         'asset_value', 'supplier_deposit', 'deposit_markup_percent', 'customer_deposit',
         'weekly_installment', 'max_tenure_months', 'waiting_period_days', 'photos', 'specs', 'is_active', 'availability_status',
@@ -55,6 +55,7 @@ class MarketplaceAsset extends Model
         return static::query()
             ->where('id', $value)
             ->orWhere('slug', $value)
+            ->orWhere('asset_number', $value)
             ->first();
     }
 

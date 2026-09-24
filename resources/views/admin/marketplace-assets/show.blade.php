@@ -14,7 +14,7 @@
     <x-admin.letterhead
         kicker="Marketplace"
         :title="$record->title"
-        :subtitle="($categoryLabel ?? $record->category).' · '.$record->supplier_name">
+        :subtitle="($categoryLabel ?? $record->category).' · '.($record->asset_number ? $record->asset_number.' · ' : '').$record->supplier_name">
         <x-slot:actions>
             @if ($canManage)
                 <a href="{{ route('admin.marketplace-assets.edit', $record) }}"

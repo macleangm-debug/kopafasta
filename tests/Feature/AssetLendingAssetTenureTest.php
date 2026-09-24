@@ -88,6 +88,50 @@ class AssetLendingAssetTenureTest extends TestCase
         );
     }
 
+    public function test_public_marketplace_show_survives_array_category_and_description(): void
+    {
+        $asset = MarketplaceAsset::create([
+            'slug' => 'grand-terron-9-maxus-sx6y',
+            'title' => 'Grand Terron 9 Maxus',
+            'category' => 'vehicle',
+            'description' => 'Grand Terron 9 Maxus',
+            'supplier_name' => 'MacLeans Autotraders',
+            'asset_value' => 10_000_000,
+            'supplier_deposit' => 800_000,
+            'customer_deposit' => 880_000,
+            'max_tenure_months' => 6,
+            'is_active' => true,
+            'availability_status' => 'available',
+            'specs' => ['city' => ['Dar es Salaam', 'Arusha']],
+        ]);
+
+        $this->get(route('site.marketplace.show', $asset->slug))
+            ->assertOk()
+            ->assertSee('Grand Terron 9 Maxus', false)
+            ->assertDontSee('Choose duration', false);
+    }
+
+    public function test_prepare_for_save_assigns_supplier_tied_asset_number(): void
+    {
+        $vendor = Vendor::create([
+            'vendor_number' => 'PT-SP-TZ-MHXL',
+            'name' => 'MacLeans Autotraders',
+            'category' => 'supplier',
+            'status' => 'active',
+        ]);
+
+        $prepared = app(MarketplaceAssetService::class)->prepareForSave([
+            'category' => 'vehicle',
+            'title' => 'Numbered Vehicle',
+            'asset_value' => 10_000_000,
+            'max_tenure_months' => 6,
+            'vendor_id' => $vendor->id,
+            'is_active' => true,
+        ]);
+
+        $this->assertSame('PT-SP-TZ-MHXL-A001', $prepared['asset_number']);
+    }
+
     public function test_admin_create_form_uses_the_same_compact_tenure_field(): void
     {
         $this->productCeiling(24);
