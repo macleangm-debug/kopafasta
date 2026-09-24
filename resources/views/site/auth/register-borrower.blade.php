@@ -53,7 +53,7 @@
             </p>
         </aside>
 
-        <div class="h-full min-h-0 overflow-y-auto overscroll-y-contain flex items-start lg:items-center justify-center px-4 py-8 sm:px-12 form-scroll-lock" x-data="borrowerWizard({
+        <div class="h-full min-h-0 overflow-y-auto overscroll-y-contain flex items-start lg:items-center justify-center px-4 py-6 sm:px-12 form-scroll-lock" x-data="borrowerWizard({
             first_name:  @js(old('first_name', $prefill['first_name'] ?? '')),
             middle_name: @js(old('middle_name', $prefill['middle_name'] ?? '')),
             last_name:   @js(old('last_name', $prefill['last_name'] ?? '')),
@@ -73,7 +73,7 @@
                     <x-site.brand-mark size="md" />
                 </a>
 
-                <div class="lg:hidden mb-6">
+                <div class="lg:hidden mb-4">
                     <div class="flex items-center justify-between text-xs font-medium text-gray-500">
                         <span><span x-text="@js(__('borrower.register.step_label')) + ' ' + step + '/2'"></span></span>
                         <span x-text="[@js(__('borrower.register.step_country')), @js(__('borrower.register.step_details'))][step-1]"></span>
@@ -83,7 +83,15 @@
                     </div>
                 </div>
 
-                <div class="glass-card p-8 sm:p-10">
+                <div class="glass-card overflow-hidden">
+                    <div class="kf-premium-panel mx-4 mt-4 mb-0 rounded-2xl px-5 py-5 sm:mx-5 sm:px-6 sm:py-5">
+                        <div class="relative">
+                            <span class="inline-flex items-center rounded-full bg-brand-gold/15 text-brand-gold ring-1 ring-brand-gold/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em]">{{ __('site.auth.shell.join') }}</span>
+                            <h1 class="mt-2.5 text-xl sm:text-2xl font-bold tracking-tight leading-tight">{{ __('site.auth.shell.register_heading') }}</h1>
+                            <p class="mt-1.5 text-sm text-white/80 leading-relaxed">{{ __('site.auth.shell.register_support') }}</p>
+                        </div>
+                    </div>
+                    <div class="px-5 pt-5 pb-6 sm:px-6 sm:pb-7">
                     @if ($isGuarantorRegistration && ! empty($prefill['borrower_name']))
                         <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
                             {{ __('borrower.guarantor_invite.register_banner', ['borrower' => $prefill['borrower_name']]) }}
@@ -113,7 +121,7 @@
                             <h2 class="text-2xl font-bold text-gray-900">{{ __('borrower.register.country_phone_title') }}</h2>
                             <p class="mt-1 text-sm text-gray-600">{{ __('borrower.register.country_phone_body') }}</p>
 
-                            <div class="mt-6 space-y-5" x-data="{ countryOpen: false }">
+                            <div class="mt-4 kf-auth-form" x-data="{ countryOpen: false }">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.country') }}</label>
                                     <button type="button" @click="countryOpen = true"
@@ -320,6 +328,7 @@
                             </div>
                         </div>
                     </form>
+                    </div>
                 </div>
 
                 <p class="mt-6 text-center text-sm text-gray-600 lg:hidden">

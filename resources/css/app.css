@@ -134,6 +134,44 @@ html.kf-auth-lock body {
         @apply relative overflow-hidden text-white bg-gradient-to-br from-[#5c3d1e] via-[#8b5a2b] to-[#3f2a14]
             shadow-[0_18px_40px_rgba(63,42,20,0.32)] ring-1 ring-brand-gold/35;
     }
+
+    /*
+     * Shared auth form language — login, register, Secure Account, PIN, recovery.
+     * Same action = same visual pattern for borrower and partner.
+     */
+    .kf-auth-form {
+        @apply space-y-3.5;
+    }
+
+    .kf-auth-label {
+        @apply block text-xs font-medium text-gray-600 mb-1;
+    }
+
+    .kf-auth-input {
+        @apply w-full min-w-0 px-3 py-2.5 rounded-xl bg-white border border-gray-200 text-sm outline-none
+            focus:border-brand focus:ring-2 focus:ring-brand/10;
+    }
+
+    .kf-auth-pin {
+        @apply w-full min-w-0 px-3 py-2.5 rounded-xl bg-white border border-gray-200 text-center text-lg
+            tracking-[0.5em] font-mono outline-none focus:border-brand focus:ring-2 focus:ring-brand/10;
+    }
+
+    .kf-auth-help {
+        @apply mt-1 text-xs text-gray-500;
+    }
+
+    .kf-auth-error {
+        @apply mt-1 text-xs text-red-600;
+    }
+
+    .kf-auth-btn {
+        @apply w-full bg-brand hover:bg-brand-light text-white font-bold py-3.5 rounded-xl transition shadow-md;
+    }
+
+    .kf-auth-btn-gold {
+        @apply w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3.5 rounded-xl text-sm shadow-sm;
+    }
 }
 
 .kf-premium-panel::before,
