@@ -46,7 +46,6 @@ return [
         'supplier' => [
             ['title' => 'account_welcome.supplier.welcome_title', 'body' => 'account_welcome.supplier.welcome_body', 'illustration' => 'welcome'],
             ['title' => 'account_welcome.supplier.assets_title', 'body' => 'account_welcome.supplier.assets_body', 'illustration' => 'plus'],
-            ['title' => 'account_welcome.supplier.requests_title', 'body' => 'account_welcome.supplier.requests_body', 'illustration' => 'cases'],
             ['title' => 'account_welcome.supplier.money_title', 'body' => 'account_welcome.supplier.money_body', 'illustration' => 'wallet'],
             ['title' => 'account_welcome.supplier.ready_title', 'body' => 'account_welcome.supplier.ready_body', 'illustration' => 'ready'],
         ],

@@ -2,14 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\AssetRequest;
 use App\Models\AssetReservation;
 use App\Models\MarketplaceAsset;
+use App\Models\Repayment;
 use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Models\VendorPayment;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 
 class SupplierPortalHomeService
 {
@@ -30,7 +29,7 @@ class SupplierPortalHomeService
         $assetsListed = MarketplaceAsset::query()->where('partner_id', $vendor->id)->count();
         $activeFinanced = MarketplaceAsset::query()
             ->where('partner_id', $vendor->id)
-            ->whereHas('reservations', fn ($q) => $q->whereNotIn('status', ['released', 'cancelled']))
+            ->whereHas('reservations', fn ($q) => $q->whereIn('status', self::commercialStatuses()))
             ->count();
 
         $payBase = VendorPayment::query()->where('partner_id', $vendor->id);
@@ -46,8 +45,8 @@ class SupplierPortalHomeService
         $assetActivity = MarketplaceAsset::query()
             ->where('partner_id', $vendor->id)
             ->withCount([
-                'reservations as request_count',
-                'reservations as active_count' => fn ($q) => $q->whereNotIn('status', ['released', 'cancelled']),
+                'reservations as request_count' => fn ($q) => $q->whereIn('status', self::commercialStatuses()),
+                'reservations as active_count' => fn ($q) => $q->whereIn('status', self::commercialStatuses()),
             ])
             ->orderByDesc('request_count')
             ->orderByDesc('active_count')
@@ -116,35 +115,59 @@ class SupplierPortalHomeService
             ];
         }
 
-        $handover = AssetReservation::query()
-            ->whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))
-            ->whereIn('status', ['viewing_scheduled', 'post_approval_fees_paid', 'gps_installation'])
-            ->count();
-        if ($handover > 0) {
-            $items[] = [
-                'title' => __('site.supplier_portal.attention_handover_title'),
-                'body' => __('site.supplier_portal.attention_handover_body', ['count' => $handover]),
-                'url' => route('site.supplier.requests'),
-                'cta' => __('site.supplier_portal.attention_handover_cta'),
-            ];
-        }
+        return $items;
+    }
 
-        if (Schema::hasColumn('asset_requests', 'partner_id')) {
-            $openRequests = AssetRequest::query()
-                ->where('partner_id', $vendor->id)
-                ->whereIn('status', ['reviewing', 'matched'])
-                ->count();
-            if ($openRequests > 0) {
-                $items[] = [
-                    'title' => __('site.supplier_portal.attention_requests_title'),
-                    'body' => __('site.supplier_portal.attention_requests_body', ['count' => $openRequests]),
-                    'url' => route('site.supplier.requests'),
-                    'cta' => __('site.supplier_portal.attention_requests_cta'),
-                ];
+    /**
+     * Approved / deposit-stage deals only. No sourcing, viewing, or handover queue.
+     *
+     * @return list<string>
+     */
+    public static function commercialStatuses(): array
+    {
+        return [
+            'reservation_fee_paid',
+            'deposit_paid',
+            'application_submitted',
+            'approved',
+            'post_approval_fees_paid',
+            'gps_installation',
+            'insurance_active',
+            'registration_complete',
+        ];
+    }
+
+    /**
+     * @return array{collected: float, remaining: float, deposit_label: string}
+     */
+    public function dealMoney(AssetReservation $row, Vendor $vendor): array
+    {
+        $asset = $row->asset;
+        $assetValue = (float) ($asset?->asset_value ?? 0);
+        $deposit = (float) ($asset?->supplier_deposit ?? 0);
+        $financed = max(0.0, $assetValue - $deposit);
+
+        $collected = 0.0;
+        $loan = $row->loanApplication?->loan;
+        if ($loan) {
+            $repaymentIds = Repayment::query()->where('loan_id', $loan->id)->pluck('id');
+            if ($repaymentIds->isNotEmpty()) {
+                $collected = (float) VendorPayment::query()
+                    ->where('partner_id', $vendor->id)
+                    ->where('source_type', 'managed_loan_repayment')
+                    ->whereIn('source_id', $repaymentIds)
+                    ->whereIn('status', ['pending', 'approved', 'paid'])
+                    ->sum('amount');
             }
         }
 
-        return $items;
+        return [
+            'collected' => $collected,
+            'remaining' => max(0.0, $financed - $collected),
+            'deposit_label' => ($row->deposit_status ?? '') === 'paid'
+                ? __('site.supplier_portal.buyer_deposit_paid')
+                : __('site.supplier_portal.buyer_waiting_deposit'),
+        ];
     }
 
     /**

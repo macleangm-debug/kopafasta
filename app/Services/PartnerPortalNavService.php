@@ -120,7 +120,7 @@ class PartnerPortalNavService
         return [
             ['key' => 'dashboard', 'label' => __('site.supplier_portal.nav_home'), 'route' => 'site.supplier.dashboard', 'icon' => 'home'],
             ['key' => 'assets', 'label' => __('site.supplier_portal.nav_assets'), 'route' => 'site.supplier.assets', 'icon' => 'folder'],
-            ['key' => 'requests', 'label' => __('site.supplier_portal.nav_requests'), 'route' => 'site.supplier.requests', 'icon' => 'clipboard'],
+            ['key' => 'requests', 'label' => __('site.supplier_portal.nav_buyers'), 'route' => 'site.supplier.requests', 'icon' => 'users'],
             ['key' => 'settlements', 'label' => __('site.supplier_portal.nav_money'), 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
             ['key' => 'profile', 'label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile', 'icon' => 'user'],
         ];

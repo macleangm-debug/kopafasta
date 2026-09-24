@@ -54,6 +54,10 @@ class EnsureAccountWelcome
             return $next($request);
         }
 
+        if ($request->session()->get('account_welcome_done')) {
+            return $next($request);
+        }
+
         $payload = app(AccountWelcomeService::class)->forUser($user);
         if (! $payload) {
             return $next($request);

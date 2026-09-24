@@ -138,27 +138,30 @@ class SupplierController extends Controller
         return redirect()->route('site.supplier.assets')->with('status', 'Asset updated.');
     }
 
-    public function requests(): View
+    public function requests(SupplierPortalHomeService $home): View
     {
         $vendor = $this->supplier();
-        $requests = Schema::hasColumn('asset_requests', 'partner_id')
-            ? AssetRequest::query()
-                ->where('partner_id', $vendor->id)
-                ->whereIn('status', ['reviewing', 'matched'])
-                ->latest()
-                ->paginate(20, ['*'], 'assigned')
-            : new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20, 1, [
-                'path' => request()->url(),
-                'pageName' => 'assigned',
-            ]);
-
         $reservations = AssetReservation::query()
-            ->with(['asset', 'customer', 'loanApplication'])
+            ->with(['asset', 'customer', 'loanApplication.loan'])
             ->whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))
+            ->whereIn('status', SupplierPortalHomeService::commercialStatuses())
             ->latest()
-            ->paginate(20, ['*'], 'journey');
+            ->paginate(20);
 
-        return view('site.supplier.requests', compact('vendor', 'requests', 'reservations'));
+        $deals = $reservations->getCollection()->map(function (AssetReservation $row) use ($home, $vendor) {
+            $money = $home->dealMoney($row, $vendor);
+
+            return [
+                'row' => $row,
+                'buyer' => $row->customer?->legalDisplayName() ?: '—',
+                'asset' => $row->asset?->title ?: '—',
+                'collected' => $money['collected'],
+                'remaining' => $money['remaining'],
+                'deposit_label' => $money['deposit_label'],
+            ];
+        });
+
+        return view('site.supplier.requests', compact('vendor', 'reservations', 'deals'));
     }
 
     public function reservations(): RedirectResponse

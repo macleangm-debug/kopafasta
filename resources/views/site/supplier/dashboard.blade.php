@@ -51,7 +51,7 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             @foreach ([
                 [__('site.supplier_portal.quick_upload'), route('site.supplier.assets.create'), '➕'],
-                [__('site.supplier_portal.quick_requests'), route('site.supplier.requests'), '📋'],
+                [__('site.supplier_portal.quick_buyers'), route('site.supplier.requests'), '👥'],
                 [__('site.supplier_portal.quick_payments'), route('site.supplier.settlements'), '💸'],
                 [__('site.supplier_portal.quick_profile'), route('site.supplier.profile'), '👤'],
             ] as [$label, $url, $icon])

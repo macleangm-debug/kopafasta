@@ -56,13 +56,15 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertOk()
             ->assertSee(__('account_welcome.supplier.welcome_title'), false)
             ->assertSee(__('account_welcome.supplier.assets_title'), false)
+            ->assertSee(__('account_welcome.supplier.money_title'), false)
             ->assertSee(__('account_welcome.skip'), false)
             ->assertSee(__('account_welcome.finish'), false)
+            ->assertDontSee(__('account_welcome.supplier.requests_title'), false)
             ->assertDontSee(__('account_welcome.valuer.welcome_title'), false)
             ->assertDontSee('kf-chrome-page', false);
     }
 
-    public function test_supplier_welcome_skips_launcher_and_reuses_borrower_component(): void
+    public function test_supplier_welcome_completes_and_launches_the_app(): void
     {
         $user = User::factory()->needsWelcome()->create(['role' => 'vendor']);
         Vendor::create([
@@ -79,8 +81,19 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->post(route('site.account-welcome.complete'), ['audience' => 'supplier'])
             ->assertRedirect(route('site.supplier.dashboard'));
 
-        $this->assertFalse(app(KopafastaLaunchService::class)->pending());
+        $this->assertTrue(session()->get(KopafastaLaunchService::SESSION_KEY));
+        $this->assertTrue(session()->get('account_welcome_done'));
         $this->assertNull(app(AccountWelcomeService::class)->forUser($user->fresh()));
+
+        $this->actingAs($user->fresh())
+            ->withSession([
+                KopafastaLaunchService::SESSION_KEY => true,
+                'account_welcome_done' => true,
+            ])
+            ->get(route('site.supplier.dashboard'))
+            ->assertOk()
+            ->assertSee('kf-launcher', false)
+            ->assertDontSee(__('account_welcome.supplier.welcome_title'), false);
     }
 
     public function test_dashboard_is_operational_and_nav_is_simplified(): void
@@ -95,7 +108,8 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.supplier_portal.stat_available'), false)
             ->assertSee(__('site.supplier_portal.stat_pending'), false)
             ->assertSee(__('site.supplier_portal.quick_upload'), false)
-            ->assertSee(__('site.supplier_portal.quick_requests'), false)
+            ->assertSee(__('site.supplier_portal.quick_buyers'), false)
+            ->assertSee(__('site.supplier_portal.nav_buyers'), false)
             ->assertSee(__('site.supplier_portal.recent_payments_title'), false)
             ->assertSee(__('site.supplier_portal.asset_activity_title'), false)
             ->assertSee(__('site.supplier_portal.nav_home'), false)
@@ -172,6 +186,72 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.supplier_portal.wizard_type'), false)
             ->assertSee(__('site.supplier_portal.wizard_review'), false)
             ->assertSee(__('site.supplier_portal.wizard_publish'), false);
+    }
+
+    public function test_buyers_page_shows_only_deposit_stage_deals(): void
+    {
+        [$user, $vendor] = $this->supplier();
+
+        $asset = \App\Models\MarketplaceAsset::create([
+            'slug' => 'supplier-buyer-bike-'.random_int(100, 999),
+            'title' => 'Supplier Bajaj',
+            'category' => 'motorbike',
+            'supplier_name' => $vendor->name,
+            'vendor_id' => $vendor->id,
+            'weekly_installment' => 50_000,
+            'max_tenure_months' => 12,
+            'asset_value' => 2_000_000,
+            'supplier_deposit' => 400_000,
+            'customer_deposit' => 500_000,
+            'availability_status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $early = \App\Models\Customer::create([
+            'customer_number' => 'CU-SUP-EARLY',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Early',
+            'last_name' => 'Viewer',
+            'phone' => '255712000111',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+        $buyer = \App\Models\Customer::create([
+            'customer_number' => 'CU-SUP-BUYER',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Asha',
+            'last_name' => 'Buyer',
+            'phone' => '255712000222',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+
+        \App\Models\AssetReservation::create([
+            'customer_id' => $early->id,
+            'marketplace_asset_id' => $asset->id,
+            'status' => 'viewing_scheduled',
+        ]);
+        \App\Models\AssetReservation::create([
+            'customer_id' => $buyer->id,
+            'marketplace_asset_id' => $asset->id,
+            'status' => 'approved',
+            'deposit_status' => 'pending',
+            'deposit_amount' => 500_000,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.requests'))
+            ->assertOk()
+            ->assertSee(__('site.supplier_portal.requests_title'), false)
+            ->assertSee('Asha Buyer', false)
+            ->assertSee(__('site.supplier_portal.buyer_waiting_deposit'), false)
+            ->assertSee(__('site.supplier_portal.buyer_remaining'), false)
+            ->assertDontSee('Early Viewer', false)
+            ->assertDontSee('Accept', false)
+            ->assertDontSee('GPS installed', false)
+            ->assertDontSee('Acknowledge', false);
     }
 
     public function test_canonical_nida_is_reused_on_profile(): void

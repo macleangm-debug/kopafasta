@@ -79,13 +79,13 @@
                         @endif
 
                         <h2 @class([
-                                'shrink-0 font-bold leading-[1.15] mt-2 max-w-md',
+                                'shrink-0 font-bold leading-[1.15] tracking-normal whitespace-pre-wrap mt-2 max-w-md',
                                 'text-[1.75rem] sm:text-3xl' => ! $standalone,
                                 'text-[1.75rem] sm:text-4xl' => $standalone,
                             ])>{{ $card['title'] }}</h2>
 
                         <p @class([
-                                'shrink-0 text-white/85 leading-relaxed mt-2 sm:mt-3 max-w-md',
+                                'shrink-0 text-white/85 leading-relaxed tracking-normal whitespace-pre-wrap mt-2 sm:mt-3 max-w-md',
                                 'text-base sm:text-base' => ! $standalone,
                                 'text-base sm:text-lg' => $standalone,
                             ])>{{ $card['body'] }}</p>

@@ -54,14 +54,15 @@ class AccountWelcomeService
     public function complete(User $user, ?string $audience = null): void
     {
         $audience = $audience ?: $this->audienceFor($user);
-        if (! $audience) {
-            return;
-        }
 
         $prefs = is_array($user->preferences) ? $user->preferences : [];
         $done = is_array($prefs[self::PREF_KEY] ?? null) ? $prefs[self::PREF_KEY] : [];
-        $done[$audience] = now()->toIso8601String();
+        if ($audience) {
+            $done[$audience] = now()->toIso8601String();
+        }
         $prefs[self::PREF_KEY] = $done;
+        // Legacy flag: forUser() treats this as completed for every audience.
+        $prefs['account_welcome_completed_at'] = now()->toIso8601String();
         $user->forceFill(['preferences' => $prefs])->save();
     }
 
