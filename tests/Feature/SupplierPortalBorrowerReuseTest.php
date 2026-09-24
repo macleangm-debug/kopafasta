@@ -112,6 +112,8 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.supplier_portal.stat_active_financed'), false)
             ->assertSee(__('site.supplier_portal.stat_available'), false)
             ->assertSee(__('site.supplier_portal.stat_pending'), false)
+            ->assertSee(__('site.partner_portal.wallet_available'), false)
+            ->assertSee(__('site.partner_portal.wallet_withdraw_hint'), false)
             ->assertSee(__('site.supplier_portal.quick_upload'), false)
             ->assertSee(__('site.supplier_portal.quick_buyers'), false)
             ->assertSee(__('site.supplier_portal.nav_buyers'), false)

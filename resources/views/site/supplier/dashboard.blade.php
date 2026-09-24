@@ -8,27 +8,33 @@
 
     <section class="kf-premium-panel rounded-3xl mb-5">
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
-        <div class="relative p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
+        <div class="relative p-5 sm:p-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+            <div class="min-w-0">
                 <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.supplier_portal.title') }}</p>
                 <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $vendor->name }}</h1>
                 <p class="text-sm text-white/70 mt-1 font-mono">{{ $vendor->vendor_number ?? $vendor->partner_number ?? 'PTR' }}</p>
                 <p class="text-sm text-white/80 mt-2 max-w-lg">{{ __('site.supplier_portal.hero_blurb') }}</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <a href="{{ route('site.supplier.assets.create') }}"
+                       class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold px-4 py-2.5 hover:bg-yellow-400 shadow-md text-sm">
+                        {{ __('site.supplier_portal.cta_upload') }}
+                    </a>
+                    <a href="{{ route('site.supplier.profile', ['section' => 'card']) }}"
+                       class="inline-flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 text-sm">
+                        {{ __('site.supplier_portal.nav_card') }}
+                    </a>
+                    <a href="{{ route('site.supplier.settlements') }}"
+                       class="inline-flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 text-sm">
+                        {{ __('site.supplier_portal.cta_settlements') }}
+                    </a>
+                </div>
             </div>
-            <div class="flex flex-wrap gap-2 shrink-0">
-                <a href="{{ route('site.supplier.assets.create') }}"
-                   class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold px-4 py-2.5 hover:bg-yellow-400 shadow-md text-sm">
-                    {{ __('site.supplier_portal.cta_upload') }}
-                </a>
-                <a href="{{ route('site.supplier.profile', ['section' => 'card']) }}"
-                   class="inline-flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 text-sm">
-                    {{ __('site.supplier_portal.nav_card') }}
-                </a>
-                <a href="{{ route('site.supplier.settlements') }}"
-                   class="inline-flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-semibold px-4 py-2.5 text-sm">
-                    {{ __('site.supplier_portal.cta_settlements') }}
-                </a>
-            </div>
+            <a href="{{ route('site.supplier.settlements') }}"
+               class="rounded-2xl bg-white/10 ring-1 ring-white/20 px-5 py-4 min-w-[12rem] shrink-0">
+                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.partner_portal.wallet_available') }}</p>
+                <p class="text-2xl font-extrabold tabular-nums mt-1">{{ format_money($stats['available'] ?? 0) }}</p>
+                <p class="text-xs text-white/70 mt-1">{{ __('site.partner_portal.wallet_withdraw_hint') }}</p>
+            </a>
         </div>
     </section>
 
