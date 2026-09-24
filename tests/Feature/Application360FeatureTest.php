@@ -226,8 +226,10 @@ class Application360FeatureTest extends TestCase
         $this->assertSame('Paul Albert Mtawa', $guarantors[0]['name'] ?? null);
         $this->assertSame((int) $guarantorCustomer->id, (int) ($guarantors[0]['customer_id'] ?? 0));
         $this->assertNotSame((int) $app->customer_id, (int) ($guarantors[0]['customer_id'] ?? 0));
-        $this->assertSame('Waiting for guarantor', $panel['next']['missing'] ?? null);
+        $this->assertSame('Waiting for guarantor profile', $panel['next']['missing'] ?? null);
+        $this->assertSame('Awaiting guarantor', $panel['next']['primary_status'] ?? $panel['status_label'] ?? null);
         $this->assertSame('Guarantor', $panel['next']['who'] ?? null);
+        $this->assertNotSame($panel['next']['missing'] ?? null, $panel['next']['headline'] ?? null);
 
         $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $app))
@@ -236,7 +238,7 @@ class Application360FeatureTest extends TestCase
         preg_match('/id="application-360".*?<\/section>/s', $html, $panelMatch);
         $panelHtml = $panelMatch[0] ?? '';
         $this->assertStringContainsString('Paul Albert Mtawa', $panelHtml);
-        $this->assertStringContainsString('Waiting for guarantor', $panelHtml);
+        $this->assertStringContainsString('Waiting for guarantor profile', $panelHtml);
         $this->assertTrue(! empty($guarantors[0]['is_member']));
         $this->assertNotEmpty($guarantors[0]['href'] ?? null);
     }
@@ -279,15 +281,16 @@ class Application360FeatureTest extends TestCase
 
         $panel = app(Application360Presenter::class)->forApplication($app->fresh(), $admin);
         $guarantors = collect($panel['people'])->where('role', 'Guarantor')->values();
-        $this->assertCount(1, $guarantors);
-        $this->assertSame('Paulo Albert Mtawa', $guarantors[0]['name'] ?? null);
-        $this->assertArrayHasKey('customer_id', $guarantors[0]);
-        $this->assertNull($guarantors[0]['customer_id']);
-        $this->assertFalse((bool) ($guarantors[0]['is_member'] ?? true));
-        $this->assertArrayHasKey('href', $guarantors[0]);
-        $this->assertNull($guarantors[0]['href']);
-        $this->assertArrayNotHasKey('completion_percent', $guarantors[0]);
-        $this->assertSame('rejected', $guarantors[0]['invitation_code'] ?? null);
+        $this->assertCount(0, $guarantors);
+        $previous = collect($panel['previous_guarantors'] ?? [])->values();
+        $this->assertCount(1, $previous);
+        $this->assertSame('Paulo Albert Mtawa', $previous[0]['name'] ?? null);
+        $this->assertSame('Rejected', $previous[0]['status'] ?? null);
+        $this->assertStringContainsString('Paulo Albert Mtawa — Rejected', (string) ($previous[0]['label'] ?? ''));
+        $this->assertSame('Awaiting new guarantor', $panel['status_label'] ?? null);
+        $this->assertSame('Invite replacement guarantor', $panel['next']['cta'] ?? null);
+        $this->assertSame('Borrower', $panel['next']['who'] ?? null);
+        $this->assertSame('Previous invitation declined', $panel['next']['reason'] ?? $panel['next']['missing'] ?? null);
 
         $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-applications.show', $app))
@@ -295,10 +298,11 @@ class Application360FeatureTest extends TestCase
             ->getContent();
         preg_match('/id="application-360".*?<\/section>/s', $html, $panelMatch);
         $panelHtml = $panelMatch[0] ?? '';
-        $this->assertStringContainsString('Paulo Albert Mtawa', $panelHtml);
-        $this->assertStringContainsString('not a Kopafasta member', $panelHtml);
-        $this->assertStringContainsString('No member file', $panelHtml);
-        $this->assertStringContainsString('+255667094545', $panelHtml);
+        $this->assertStringContainsString('Paulo Albert Mtawa — Rejected', $panelHtml);
+        $this->assertStringContainsString('Previous / Rejected', $panelHtml);
+        $this->assertStringContainsString('Invite replacement guarantor', $html);
+        $this->assertStringNotContainsString('not a Kopafasta member', $panelHtml);
+        $this->assertSame(1, substr_count($html, 'Open Member 360'));
     }
 
     /** @return array{0: User, 1: LoanApplication} */

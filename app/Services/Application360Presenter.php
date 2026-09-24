@@ -63,6 +63,9 @@ class Application360Presenter
         if ($statusLabel === '' || $statusLabel === (string) $application->status) {
             $statusLabel = str_replace('_', ' ', ucfirst((string) $application->status));
         }
+        if (! empty($next['primary_status'])) {
+            $statusLabel = (string) $next['primary_status'];
+        }
 
         return [
             'application_number' => $application->application_number,
@@ -80,6 +83,7 @@ class Application360Presenter
             'stage_label' => $this->workflow->stageLabel($stage),
             'status' => (string) $application->status,
             'status_label' => $statusLabel,
+            'waiting_reason' => $next['reason'] ?? null,
             'gate_label' => $next['gate_label'] ?? null,
             'progress_percent' => $next['percent'] ?? null,
             'overall_status' => $this->overallStatus($next, $application),
@@ -88,6 +92,7 @@ class Application360Presenter
             'attention' => $attention,
             'people' => $people,
             'participants' => $participants,
+            'previous_guarantors' => $this->previousGuarantors($application),
             'readiness' => $readiness,
             'timeline' => $this->timeline($application, $stageHistory),
         ];
@@ -229,14 +234,36 @@ class Application360Presenter
             $href = $application->customer
                 ? route('admin.customers.show', ['customer' => $application->customer, 'tab' => 'applications']).'#member-file'
                 : route('admin.loan-applications.show', $application);
+            $queue = $this->guarantorQueueState($application);
+
+            if ($queue['needs_replacement']) {
+                return [
+                    'source' => 'guarantor',
+                    'headline' => 'Borrower invites a replacement guarantor',
+                    'missing' => 'Previous invitation declined',
+                    'reason' => 'Previous invitation declined',
+                    'primary_status' => 'Awaiting new guarantor',
+                    'who' => 'Borrower',
+                    'deadline' => null,
+                    'cta' => 'Invite replacement guarantor',
+                    'href' => $href,
+                    'cta_kind' => 'continue',
+                    'gate_label' => null,
+                    'percent' => null,
+                    'bucket' => 'do_now',
+                    'subjects' => [],
+                ];
+            }
 
             return [
                 'source' => 'guarantor',
-                'headline' => 'Waiting for guarantor',
-                'missing' => 'Waiting for guarantor',
+                'headline' => 'Guarantor must accept the invitation',
+                'missing' => 'Waiting for guarantor profile',
+                'reason' => 'Waiting for guarantor profile',
+                'primary_status' => 'Awaiting guarantor',
                 'who' => 'Guarantor',
                 'deadline' => null,
-                'cta' => 'View guarantor',
+                'cta' => 'Awaiting guarantor',
                 'href' => $href,
                 'cta_kind' => 'waiting',
                 'gate_label' => null,
@@ -568,7 +595,9 @@ class Application360Presenter
         if ($application->customer) {
             $participants[] = 'Borrower';
         }
-        $guarantorCount = $application->customerGuarantors?->count() ?? 0;
+        $guarantorCount = collect($application->customerGuarantors ?? [])
+            ->filter(fn ($link) => ! $this->isHistoricalGuarantor($link))
+            ->count();
         if ($guarantorCount > 0) {
             $participants[] = $guarantorCount === 1 ? '1 guarantor' : $guarantorCount.' guarantors';
         }
@@ -681,6 +710,14 @@ class Application360Presenter
             ];
         }
 
+        foreach ($this->previousGuarantors($application) as $row) {
+            $events[] = [
+                'at' => (string) ($row['at'] ?? ''),
+                'label' => (string) ($row['label'] ?? $row['name'] ?? 'Guarantor'),
+                'sort' => (int) ($row['sort'] ?? 0),
+            ];
+        }
+
         usort($events, fn ($a, $b) => ($a['sort'] ?? 0) <=> ($b['sort'] ?? 0));
 
         return array_map(
@@ -783,6 +820,9 @@ class Application360Presenter
             ->all();
 
         foreach ($application->customerGuarantors ?? [] as $link) {
+            if ($this->isHistoricalGuarantor($link)) {
+                continue;
+            }
             $card = $this->guarantorCard($application, $link);
             $id = (int) ($card['customer_id'] ?? 0);
             if ($id > 0 && in_array($id, $existing, true)) {
@@ -1010,6 +1050,13 @@ class Application360Presenter
 
         $gName = $snapshot['guarantor']['name'] ?? null;
         $gCustomerId = $snapshot['guarantor']['customer_id'] ?? $snapshot['guarantor']['id'] ?? null;
+        $gCode = strtolower((string) ($snapshot['guarantor']['code'] ?? $guarantorStatus));
+        if (in_array($gCode, ['rejected', 'expired', 'replaced', 'declined'], true)
+            || str_contains($gCode, 'reject')
+            || str_contains($gCode, 'declin')
+            || str_contains($gCode, 'expir')) {
+            return $people;
+        }
         if (filled($gName) || ($guarantorStatus !== '' && strtolower($guarantorStatus) !== 'not required')) {
             $gCustomer = is_numeric($gCustomerId) ? \App\Models\Customer::query()->find((int) $gCustomerId) : null;
             if ($gCustomer && $customer && (int) $gCustomer->id === (int) $customer->id) {
@@ -1293,6 +1340,68 @@ class Application360Presenter
     /**
      * @param  array<string, mixed>  $next
      */
+    /**
+     * ACTIVE / INVITED / ACCEPTED drive current state. REJECTED / REPLACED / EXPIRED stay history.
+     *
+     * @return array{needs_replacement: bool, has_active: bool}
+     */
+    private function guarantorQueueState(LoanApplication $application): array
+    {
+        $links = $application->customerGuarantors ?? collect();
+        $hasActive = $links->contains(fn ($link) => ! $this->isHistoricalGuarantor($link));
+
+        return [
+            'has_active' => $hasActive,
+            'needs_replacement' => ! $hasActive && $links->isNotEmpty(),
+        ];
+    }
+
+    private function isHistoricalGuarantor(\App\Models\CustomerGuarantor $link): bool
+    {
+        $invite = $link->invitation;
+        $code = strtolower((string) (app(GuarantorInvitationService::class)->workflowStatus($link, $invite)['code'] ?? ''));
+        $linkStatus = strtolower((string) ($link->status ?? ''));
+
+        return in_array($code, ['rejected', 'expired', 'replaced'], true)
+            || in_array($linkStatus, ['rejected', 'replaced', 'expired'], true);
+    }
+
+    /**
+     * @return list<array{name: string, status: string, at: string, label: string, sort: int}>
+     */
+    private function previousGuarantors(LoanApplication $application): array
+    {
+        $rows = [];
+        foreach ($application->customerGuarantors ?? [] as $link) {
+            if (! $this->isHistoricalGuarantor($link)) {
+                continue;
+            }
+            $invite = $link->invitation;
+            $status = app(GuarantorInvitationService::class)->workflowStatus($link, $invite);
+            $name = trim((string) (
+                $invite?->invitee_name
+                ?? $invite?->guarantorCustomer?->full_name
+                ?? $link->displayName()
+                ?? 'Guarantor'
+            ));
+            $when = $invite?->responded_at ?? $invite?->updated_at ?? $link->updated_at ?? $application->updated_at;
+            $label = $status['label'] ?? 'Rejected';
+            if (strcasecmp((string) ($status['code'] ?? ''), 'rejected') === 0
+                || strcasecmp((string) ($link->status ?? ''), 'rejected') === 0) {
+                $label = 'Rejected';
+            }
+            $rows[] = [
+                'name' => $name !== '' ? $name : 'Guarantor',
+                'status' => $label,
+                'at' => $when ? $when->format('d M Y g:i A') : '',
+                'label' => ($name !== '' ? $name : 'Guarantor').' — '.$label,
+                'sort' => $when ? $when->timestamp : 0,
+            ];
+        }
+
+        return $rows;
+    }
+
     private function overallStatus(array $next, LoanApplication $application): string
     {
         if ($application->isClosed()) {
