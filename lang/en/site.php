@@ -805,6 +805,8 @@ return [
         'partner_activate_badge_supplier' => 'Supplier',
         'partner_activate_step_phone' => '1 · Verify phone',
         'partner_phone_label' => 'Phone number',
+        'partner_phone_placeholder' => 'Enter phone number',
+        'partner_verify_continue' => 'Verify phone',
         'partner_identity_conflict' => 'This email is already used by another Kopafasta account. Contact support to finish activation.',
         'partner_types' => 'Affiliate partners, service partners & business partners',
         'use_partner_login' => 'Are you a partner?',

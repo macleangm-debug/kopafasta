@@ -802,6 +802,8 @@ return [
         'partner_activate_badge_supplier' => 'Muuzaji',
         'partner_activate_step_phone' => '1 · Thibitisha simu',
         'partner_phone_label' => 'Namba ya simu',
+        'partner_phone_placeholder' => 'Andika namba ya simu',
+        'partner_verify_continue' => 'Thibitisha simu',
         'partner_identity_conflict' => 'Barua pepe hii tayari inatumiwa na akaunti nyingine ya Kopafasta. Wasiliana na msaada kumaliza uwezeshaji.',
         'partner_types' => 'Wasambazaji, washirika wa huduma na biashara',
         'use_partner_login' => 'Wewe ni mshirika?',

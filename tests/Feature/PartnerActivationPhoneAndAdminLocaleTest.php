@@ -71,16 +71,23 @@ class PartnerActivationPhoneAndAdminLocaleTest extends TestCase
             ->assertOk()
             ->assertSee($partner->name, false)
             ->assertSee(__('site.auth.partner_activate_heading_supplier'), false)
-            ->assertSee(__('site.auth.partner_activate_brand'), false)
             ->assertSee(__('site.auth.partner_activate_support'), false)
             ->assertSee('Namba ya akaunti ya mshirika', false)
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee('data-no-draft', false)
+            ->assertSee('readonly', false)
             ->assertDontSee('Wezesha MacLeans Autotraders', false)
             ->assertSee(__('site.auth.partner_phone_ends_in', ['last' => '0111']), false)
+            ->assertSee(__('site.auth.partner_phone_placeholder'), false)
             ->assertDontSee('value="255715000111"', false)
+            ->assertDontSee('value="715000111"', false)
             ->getContent();
 
         $this->assertStringNotContainsString('715000111', $html);
         $this->assertStringContainsString('name="phone"', $html);
+        $this->assertStringContainsString('name="phone_local"', $html);
+        $this->assertDoesNotMatchRegularExpression('/name="phone_local"[^>]*value="[^"]+"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/data-phone-hidden[^>]*value="[1-9][^"]*"/', $html);
     }
 
     public function test_wrong_phone_is_blocked_without_extra_account_detail(): void

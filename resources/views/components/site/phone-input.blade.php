@@ -14,10 +14,16 @@
     'form' => null,
     'allowCountryChange' => false,
     'prefixClass' => null,
+    'placeholder' => '712 345 678',
+    'lockEmpty' => false,
 ])
 
 @php
     $allowCountryChange = filter_var($allowCountryChange, FILTER_VALIDATE_BOOLEAN);
+    $lockEmpty = filter_var($lockEmpty, FILTER_VALIDATE_BOOLEAN);
+    if ($lockEmpty && ! $errors->has($name)) {
+        $value = null;
+    }
     if (! $allowCountryChange) {
         $lockedCountry = strtoupper((string) ($lockedCountry ?: app(\App\Services\CountrySettingsService::class)->defaultCountryCode()));
     } else {
@@ -29,8 +35,10 @@
         $lockedPrefix = $country['phone_prefix'] ?? $split['prefix'];
         $split = [
             'prefix' => $lockedPrefix,
-            'local' => $split['local'],
-            'full' => \App\Support\PhoneNumber::normalizeForCountry($value, $lockedCountry) ?? '',
+            'local' => $lockEmpty && ! $errors->has($name) ? '' : $split['local'],
+            'full' => $lockEmpty && ! $errors->has($name)
+                ? ''
+                : (\App\Support\PhoneNumber::normalizeForCountry($value, $lockedCountry) ?? ''),
         ];
         $countries = [[
             'code' => $lockedCountry,
@@ -120,10 +128,12 @@
             </select>
         @endif
         <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only x-model="local" data-phone-local
-               placeholder="712 345 678"
-               autocomplete="{{ $lockedCountry ? 'off' : 'tel-national' }}"
+               placeholder="{{ $placeholder }}"
+               autocomplete="{{ $lockEmpty ? 'one-time-code' : ($lockedCountry ? 'off' : 'tel-national') }}"
                name="{{ $name }}_local"
+               value="{{ $lockEmpty && ! $errors->has($name) ? '' : $split['local'] }}"
                @input="local = String(local || '').replace(/\D/g, ''); syncHidden()"
+               @if ($lockEmpty && ! $errors->has($name)) readonly onfocus="this.removeAttribute('readonly')" @endif
                @if ($requiredWhen) data-required-when="{{ $requiredWhen }}" @endif
                @if ($required) required @endif
                @if ($form) form="{{ $form }}" @endif
