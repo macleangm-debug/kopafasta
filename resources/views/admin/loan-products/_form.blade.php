@@ -5,6 +5,7 @@
     foreach (($cloneSources ?? collect()) as $p) {
         $cloneOptions[(string) $p->id] = $p->name.' ('.$p->code.')';
     }
+    $isAssetLending = $r && is_marketplace_loan_product((string) $r->code);
 @endphp
 
 <div x-data="{
@@ -92,20 +93,23 @@
     </x-admin.step>
 
     <div x-show="!cloneFrom" x-cloak>
-        @include('admin.loan-products._pricing-fields')
-        <div x-show="category === 'asset_finance'" x-cloak>
-            @include('admin.loan-products._asset-lending-pricing')
-        </div>
-        <div x-show="category !== 'asset_finance'">
+        @include('admin.loan-products._pricing-fields', ['isAssetLending' => $isAssetLending])
+        @if ($isAssetLending)
+            <x-admin.step title="Pricing">
+                @include('admin.loan-products._asset-lending-pricing')
+            </x-admin.step>
+        @else
             @include('admin.loan-products._rate-tiers-fields', ['record' => $r, 'rateTiers' => $rateTiers ?? null])
-        </div>
-        @include('admin.loan-products._post-approval-fees-fields')
+        @endif
+        @include('admin.loan-products._post-approval-fees-fields', [
+            'assetLendingCompact' => $isAssetLending,
+        ])
         <x-admin.number-format-script />
-        @include('admin.loan-products._document-templates-fields')
+        @include('admin.loan-products._document-templates-fields', ['isAssetLending' => $isAssetLending])
 
         <x-admin.step title="Requirements">
             <x-admin.select name="requires_collateral" label="Requires collateral" x-model="requiresCollateral" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_collateral ?? '0')" help="Member-owned security only. Marketplace / supplier assets do not use this valuation path." />
-            <x-admin.select name="requires_guarantor"  label="Requires guarantor" x-model="requiresGuarantor" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" help="When Yes, the borrower must invite a guarantor before the file can leave the guarantor gate." />
+            <x-admin.select name="requires_guarantor"  label="Requires guarantor" x-model="requiresGuarantor" :options="['1' => 'Yes', '0' => 'No']" :value="(string) ($r?->requires_guarantor ?? '0')" help="The application cannot proceed until an eligible guarantor completes their profile." />
             <div class="md:col-span-2 space-y-3" x-show="requiresGuarantor === '1'" x-cloak>
                 <label class="flex items-start gap-3 text-sm text-gray-800">
                     <input type="hidden" name="guarantor_gate_1_required" value="0">
@@ -191,35 +195,28 @@
         </x-admin.step>
 
         <x-admin.step title="Documents" id="documents">
+            <p class="md:col-span-2 text-xs text-gray-500">
+                Choose which documents this product needs. Templates themselves stay in
+                <a href="{{ route('admin.document-templates.index') }}" class="font-semibold text-amber-700 hover:underline">Documents / Templates</a>.
+            </p>
             @include('admin.loan-products._requirements-fields')
         </x-admin.step>
 
-        <x-admin.step title="SEO (optional overrides)">
-            <p class="md:col-span-2 text-sm text-gray-600">
-                Leave blank to generate a title from the product name, category, and brand, and a description from the public product copy.
-                These fields never change how the loan engine decides eligibility.
+        <x-admin.step title="Search and sharing">
+            <p class="md:col-span-2 text-xs text-gray-500">
+                Leave title and description blank to inherit from the product name and public description. Global SEO stays in Settings Hub.
             </p>
-            <x-admin.input name="seo_title" label="SEO title (English)" :value="$r?->seo_title" />
-            <x-admin.input name="seo_title_sw" label="SEO title (Kiswahili)" :value="$r?->seo_title_sw" />
-            <div class="md:col-span-2 grid sm:grid-cols-2 gap-4">
-                <x-admin.textarea name="seo_description" label="Meta description (English)" :value="$r?->seo_description" rows="2" maxlength="320" />
-                <x-admin.textarea name="seo_description_sw" label="Meta description (Kiswahili)" :value="$r?->seo_description_sw" rows="2" maxlength="320" />
-            </div>
             <label class="md:col-span-2 inline-flex items-center gap-2 text-sm">
                 <input type="hidden" name="seo_indexable" value="0">
                 <input type="checkbox" name="seo_indexable" value="1"
                        @checked((bool) old('seo_indexable', $r?->seo_indexable ?? true))
                        class="rounded border-gray-300 text-brand focus:ring-brand/30">
-                Indexable in search engines when the product is public
+                Search visibility on
             </label>
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Social image</label>
-                @if ($r?->seo_image_path)
-                    <img src="{{ asset('storage/'.$r->seo_image_path) }}" alt="" class="mb-3 h-24 w-40 object-cover rounded-xl ring-1 ring-gray-200">
-                @endif
-                <input type="file" name="seo_image" accept="image/*"
-                       class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-amber-800">
-            </div>
+            <x-admin.input name="seo_title" label="SEO title (optional override)" :value="$r?->seo_title" />
+            <x-admin.textarea name="seo_description" label="SEO description (optional override)" :value="$r?->seo_description" rows="2" maxlength="320" />
+            <input type="hidden" name="seo_title_sw" value="{{ old('seo_title_sw', $r?->seo_title_sw) }}">
+            <input type="hidden" name="seo_description_sw" value="{{ old('seo_description_sw', $r?->seo_description_sw) }}">
         </x-admin.step>
     </div>
 </div>

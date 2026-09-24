@@ -1,11 +1,16 @@
 @php
     $r = $record ?? null;
+    $isAssetLending = $isAssetLending ?? false;
 @endphp
 
-<x-admin.step title="Pricing & limits">
-    <p class="md:col-span-2 text-sm font-semibold text-gray-800">Amounts, fees, and repayment</p>
+<x-admin.step title="Amounts & limits">
+    <p class="md:col-span-2 text-sm font-semibold text-gray-800">{{ $isAssetLending ? 'Application fee, tenure, and limits' : 'Amounts, fees, and repayment' }}</p>
     <p class="md:col-span-2 text-xs text-gray-500">
-        Set the commercial limits staff will use. Asset Lending deposit and financing tiers appear only for Asset finance products.
+        @if ($isAssetLending)
+            Deposit and financing rates are on the next step. This product does not use the Individual Loan amount-band rate editor.
+        @else
+            Set the commercial limits staff will use. Tiered monthly rates are on the next step.
+        @endif
     </p>
     <x-admin.money-input name="application_fee_amount" label="Application fee (TZS)" :value="$r?->application_fee_amount"
                          placeholder="e.g. 5,000" help="Charged before the borrower can proceed beyond the application-fee gate. Leave blank to use the global application fee." />
@@ -22,14 +27,19 @@
     <x-admin.select name="repayment_cadence" label="Repayment cadence"
                     :options="['weekly' => 'Weekly (tenure × 4 instalments)', 'monthly' => 'Monthly']"
                     :value="$r?->repayment_cadence ?? 'weekly'" required />
-    <x-admin.select name="interest_method" label="Interest calculation method"
-                    :options="['reducing' => 'Reducing balance', 'flat' => 'Flat rate']"
-                    :value="old('interest_method', $r?->interest_method ?? 'reducing')" required
-                    help="Reducing balance is the default. Flat charges interest on the full principal each period. For Sharia products this stays in the background — borrowers see total repayable language instead." />
-    <x-admin.select name="hides_interest" label="Hide interest language (Sharia)"
-                    :options="['1' => 'Yes — show charge / total repayable wording', '0' => 'No — show interest wording']"
-                    :value="old('hides_interest', ($r?->hides_interest ?? false) ? '1' : '0')"
-                    help="When Yes, borrower-facing screens and letters avoid the word interest; pricing still uses the same rate engine as Individual Loan." />
+    @if ($isAssetLending)
+        <input type="hidden" name="interest_method" value="{{ old('interest_method', $r?->interest_method ?? 'reducing') }}">
+        <input type="hidden" name="hides_interest" value="{{ old('hides_interest', ($r?->hides_interest ?? false) ? '1' : '0') }}">
+    @else
+        <x-admin.select name="interest_method" label="Interest calculation method"
+                        :options="['reducing' => 'Reducing balance', 'flat' => 'Flat rate']"
+                        :value="old('interest_method', $r?->interest_method ?? 'reducing')" required
+                        help="Reducing balance is the default. Flat charges interest on the full principal each period. For Sharia products this stays in the background — borrowers see total repayable language instead." />
+        <x-admin.select name="hides_interest" label="Hide interest language (Sharia)"
+                        :options="['1' => 'Yes — show charge / total repayable wording', '0' => 'No — show interest wording']"
+                        :value="old('hides_interest', ($r?->hides_interest ?? false) ? '1' : '0')"
+                        help="When Yes, borrower-facing screens and letters avoid the word interest; pricing still uses the same rate engine as Individual Loan." />
+    @endif
     <x-admin.money-input name="min_amount" label="Min amount (TZS)" :value="$r?->min_amount" required />
     <x-admin.money-input name="max_amount" label="Max amount (TZS)" :value="$r?->max_amount" required />
     <input type="hidden" name="interest_rate" value="{{ old('interest_rate', $r?->interest_rate ?? 0) }}">

@@ -19,7 +19,7 @@ class SupportChatController extends Controller
             ->paginate(30);
 
         $supportAgents = User::query()
-            ->whereIn('role', ['admin', 'manager', 'officer', 'collector'])
+            ->whereIn('role', ['admin', 'manager', 'officer', 'collector', 'agent'])
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
@@ -32,7 +32,7 @@ class SupportChatController extends Controller
         $supportConversation->load(['customer', 'user', 'assignedTo', 'messages.senderUser']);
 
         $supportAgents = User::query()
-            ->whereIn('role', ['admin', 'manager', 'officer', 'collector'])
+            ->whereIn('role', ['admin', 'manager', 'officer', 'collector', 'agent'])
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'email']);

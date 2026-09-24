@@ -1,8 +1,7 @@
 @php
     use App\Services\FeeCatalogService;
     $catalog = $postApprovalFeeCatalog ?? app(FeeCatalogService::class)->postApprovalFees();
-    $catalogById = $catalog->keyBy('id');
-
+    $assetLendingCompact = $assetLendingCompact ?? false;
     $existing = collect(old('post_approval_fees', ($postApprovalFees ?? collect())->map(fn ($f) => [
         'charges_fee_id' => $f->charges_fee_id ?? null,
         'code'           => $f->code ?? '',
@@ -11,6 +10,22 @@
         'amount'         => $f->amount ?? 0,
         'is_active'      => (bool) ($f->is_active ?? true),
     ])->all()));
+    $alPreferred = ['GPS_FEE', 'INS_FEE', 'REG_POST_FEE'];
+    $alHidden = ['VAL_POST_FEE', 'VAL_FEE'];
+    if ($assetLendingCompact) {
+        $catalog = $catalog->filter(function ($fee) use ($alPreferred, $alHidden, $existing) {
+            $code = strtoupper((string) ($fee->code ?? ''));
+            if (in_array($code, $alHidden, true)) {
+                return false;
+            }
+            if (in_array($code, $alPreferred, true)) {
+                return true;
+            }
+
+            return $existing->contains(fn ($row) => (int) ($row['charges_fee_id'] ?? 0) === (int) $fee->id);
+        })->values();
+    }
+    $catalogById = $catalog->keyBy('id');
 
     $selectedCatalogIds = $existing->pluck('charges_fee_id')->filter()->map(fn ($id) => (int) $id)->all();
     $catalogPayload = $catalog->map(fn ($f) => [
@@ -26,8 +41,12 @@
 <x-admin.step title="Post-approval fees" id="post-approval-fees">
     <div class="md:col-span-2">
         <p class="text-xs text-gray-500 mb-2">
-            Select fees from <a href="{{ route('admin.charges-fees.index') }}" class="text-amber-700 font-semibold hover:underline">Fee management (Charges &amp; fees)</a>.
-            Define each fee once as <strong>fixed (TZS)</strong> or <strong>percentage</strong> with <em>When = After approval</em>; the system applies them when generating borrower payment lines.
+            @if ($assetLendingCompact)
+                Tick only the Asset Lending post-approval items that apply. Valuation is not used for Marketplace / supplier assets. Amounts stay in Fee management.
+            @else
+                Select fees from <a href="{{ route('admin.charges-fees.index') }}" class="text-amber-700 font-semibold hover:underline">Fee management (Charges &amp; fees)</a>.
+                Define each fee once as <strong>fixed (TZS)</strong> or <strong>percentage</strong> with <em>When = After approval</em>.
+            @endif
         </p>
 
         @if ($catalog->isEmpty())
@@ -66,6 +85,10 @@
         <div class="space-y-3" id="post-approval-fee-rows">
             @foreach ($existing as $i => $row)
                 @php
+                    $rowCode = strtoupper((string) ($row['code'] ?? ''));
+                    if ($assetLendingCompact && in_array($rowCode, $alHidden, true)) {
+                        continue;
+                    }
                     $linked = $row['charges_fee_id'] ? $catalogById->get((int) $row['charges_fee_id']) : null;
                 @endphp
                 <div class="post-approval-fee-row rounded-lg bg-gray-50 p-3 ring-1 ring-gray-100" data-row-index="{{ $i }}">
