@@ -330,6 +330,53 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertSee('verification card goes live', false);
     }
 
+    public function test_supplier_create_with_document_page_fields_does_not_insert_ghost_columns(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.store'), [
+                'name' => 'MacLeans Autotraders Pages',
+                'legal_name' => 'MacLeans Autotraders Pages',
+                'registration_number' => '12345678',
+                'tin' => '12345678',
+                'category' => 'supplier',
+                'applicant_category' => 'company',
+                'status' => 'inactive',
+                'phone' => '255715222199',
+                'email' => 'pages-supplier@example.com',
+                'contact_person_name' => 'Maclean Mwaijonga',
+                'national_id' => '19800101123456789012',
+                'address_region' => 'Dar es Salaam',
+                'address_district' => 'Ilala',
+                'address_street' => 'Mikocheni',
+                'coverage_type' => 'regions',
+                'regions' => ['Dar es Salaam'],
+                'activation_mode' => 'invite',
+                'supplier_type' => 'managed_loan',
+                'doc_brela_pages' => null,
+                'doc_tin_certificate_pages' => null,
+                'doc_business_licence_pages' => null,
+                'doc_other_pages' => null,
+            ]);
+
+        $partner = Vendor::query()->where('name', 'MacLeans Autotraders Pages')->first();
+        $this->assertNotNull($partner);
+        $response->assertRedirect(route('admin.partners.show', $partner->id));
+        $this->assertSame('supplier', $partner->category);
+        $this->assertSame(['supplier'], $partner->roles);
+        $this->assertSame('managed_loan', $partner->supplier_type);
+        $this->assertSame('inactive', $partner->status);
+        $this->assertNull($partner->user_id);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.show', $partner->id))
+            ->assertOk()
+            ->assertSee('MacLeans Autotraders Pages', false)
+            ->assertSee('Awaiting activation', false)
+            ->assertSee('Send activation via WhatsApp', false);
+    }
+
     public function test_supplier_create_without_coverage_checkboxes_persists_and_lists(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

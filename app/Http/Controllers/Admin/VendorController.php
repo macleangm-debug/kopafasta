@@ -443,12 +443,6 @@ class VendorController extends ResourceController
 
         unset(
             $data['vendor_number'],
-            $data['doc_brela'],
-            $data['doc_tin_certificate'],
-            $data['doc_business_licence'],
-            $data['doc_national_id_front'],
-            $data['doc_national_id_back'],
-            $data['doc_other'],
             $data['contact_person_name'],
             $data['national_id'],
             $data['address_region'],
@@ -462,6 +456,12 @@ class VendorController extends ResourceController
             $data['payout_bank_name'],
             $data['payout_account_number'],
         );
+
+        foreach (array_keys($data) as $key) {
+            if (str_starts_with((string) $key, 'doc_')) {
+                unset($data[$key]);
+            }
+        }
 
         if (! $existing instanceof Vendor) {
             $data['vendor_number'] = app(PartnerCodeService::class)->generate((string) ($data['category'] ?? 'supplier'));
