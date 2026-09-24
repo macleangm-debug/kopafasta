@@ -182,6 +182,12 @@ class PartnerExperienceConsistencyTest extends TestCase
             ->get(route('site.account-welcome.show'))
             ->assertOk()
             ->assertSee(__('account_welcome.borrower.welcome_title', [], 'en'), false)
+            ->assertSee(__('account_welcome.borrower.points_body', [], 'en'), false)
+            ->assertDontSee(__('account_welcome.borrower.points_fee_generic', [], 'en'), false)
+            ->assertSee('kf-welcome-nav', false)
+            ->assertSee('@touchend="swipe($event)"', false)
+            ->assertSee(__('account_welcome.back', [], 'en'), false)
+            ->assertSee(__('account_welcome.next', [], 'en'), false)
             ->assertDontSee('kf-chrome-page', false);
 
         $payload = app(AccountWelcomeService::class)->forUser($borrower);
@@ -266,5 +272,15 @@ class PartnerExperienceConsistencyTest extends TestCase
 
         $this->assertSame([], array_values(array_diff($flatten($en), $flatten($sw))));
         $this->assertNotNull(app(AccountWelcomeService::class)->audienceFor(User::factory()->create(['role' => 'borrower'])));
+
+        foreach (['en', 'sw'] as $locale) {
+            foreach (['welcome_body', 'products_body', 'points_body', 'grade_body', 'plus_body', 'ready_body'] as $key) {
+                $this->assertLessThanOrEqual(
+                    160,
+                    mb_strlen((string) trans('account_welcome.borrower.'.$key, [], $locale)),
+                    $locale.' '.$key.' should stay short enough for 2–4 mobile lines'
+                );
+            }
+        }
     }
 }

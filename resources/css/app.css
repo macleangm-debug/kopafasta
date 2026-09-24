@@ -626,16 +626,29 @@ body.kf-camera-open .kf-mobile-bottom-nav {
 
 .kf-welcome-art svg {
     width: 100%;
-    max-width: 11rem;
+    max-width: 8.5rem;
     height: auto;
 }
 
+@media (min-width: 640px) {
+    .kf-welcome-art svg {
+        max-width: 11rem;
+    }
+}
+
 .kf-welcome-art-rewards {
-    padding: 1rem 1.25rem;
-    border-radius: 1.5rem;
-    background: linear-gradient(180deg, rgba(245, 200, 66, 0.16), rgba(255, 255, 255, 0.04));
-    outline: 1px solid rgba(245, 200, 66, 0.35);
-    box-shadow: 0 12px 32px rgba(8, 47, 39, 0.22);
+    padding: 0.45rem 0.7rem;
+    border-radius: 1.25rem;
+    background: linear-gradient(180deg, rgba(245, 200, 66, 0.12), rgba(255, 255, 255, 0.03));
+    outline: 1px solid rgba(245, 200, 66, 0.28);
+    box-shadow: 0 8px 20px rgba(8, 47, 39, 0.16);
+}
+
+@media (min-width: 640px) {
+    .kf-welcome-art-rewards {
+        padding: 1rem 1.25rem;
+        border-radius: 1.5rem;
+    }
 }
 
 .kf-launcher {

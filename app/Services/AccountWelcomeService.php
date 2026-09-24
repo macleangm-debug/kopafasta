@@ -29,17 +29,10 @@ class AccountWelcomeService
         $cards = collect(config('account_welcome.audiences.'.$audience, []))
             ->map(function (array $card) {
                 $variant = (string) ($card['variant'] ?? 'default');
-                $body = __($card['body']);
-                if ($variant === 'rewards') {
-                    $hint = app(LoyaltyRedemptionService::class)->onboardingHint();
-                    if (filled($hint)) {
-                        $body = trim($body.' '.$hint);
-                    }
-                }
 
                 return [
                     'title' => __($card['title']),
-                    'body' => $body,
+                    'body' => __($card['body']),
                     'illustration' => (string) ($card['illustration'] ?? 'wallet'),
                     'variant' => $variant,
                 ];
