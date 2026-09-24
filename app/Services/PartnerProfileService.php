@@ -219,6 +219,54 @@ class PartnerProfileService
     }
 
     /**
+     * If admin already captured NIDA on create, copy it into the portal identity
+     * record so the supplier is not asked to type the number again.
+     */
+    public function hydrateCanonicalIdentity(Partner|Lender $entity): void
+    {
+        if (! $entity instanceof Partner) {
+            return;
+        }
+
+        $meta = is_array($entity->metadata) ? $entity->metadata : [];
+        $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
+        $changed = false;
+
+        $canonical = trim((string) ($identity['national_id'] ?? $entity->getAttribute('national_id') ?? ''));
+        if ($canonical !== '' && blank($identity['national_id'] ?? null)) {
+            $identity['national_id'] = \App\Support\NationalIdValidator::format($canonical) ?? $canonical;
+            $changed = true;
+        }
+
+        $docLabels = [
+            'national_id_front' => __('site.partner_account.doc_types.national_id_front'),
+            'national_id_back' => __('site.partner_account.doc_types.national_id_back'),
+        ];
+        foreach ($docLabels as $metaKey => $label) {
+            if (filled($identity[$metaKey] ?? null)) {
+                continue;
+            }
+            $doc = $entity->documents()
+                ->where(function ($q) use ($metaKey, $label) {
+                    $q->where('doc_type', $metaKey)->orWhere('label', $label);
+                })
+                ->latest()
+                ->first();
+            if ($doc && filled($doc->file_path)) {
+                $identity[$metaKey] = $doc->file_path;
+                $changed = true;
+            }
+        }
+
+        if (! $changed) {
+            return;
+        }
+
+        $meta['identity'] = $identity;
+        $entity->forceFill(['metadata' => $meta])->save();
+    }
+
+    /**
      * Why this partner cannot receive, accept, or start a job yet.
      *
      * Paying types (Settings → Partner membership) need a complete profile and

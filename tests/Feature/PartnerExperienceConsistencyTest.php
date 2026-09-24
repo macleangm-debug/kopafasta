@@ -207,6 +207,7 @@ class PartnerExperienceConsistencyTest extends TestCase
             'gps_installer' => ['audience' => 'gps_installer', 'title' => 'account_welcome.gps.welcome_title'],
             'insurance' => ['audience' => 'insurance', 'title' => 'account_welcome.insurance.welcome_title'],
             'debt_collector' => ['audience' => 'recovery', 'title' => 'account_welcome.recovery.welcome_title'],
+            'supplier' => ['audience' => 'supplier', 'title' => 'account_welcome.supplier.welcome_title'],
         ];
 
         foreach ($cases as $category => $expected) {

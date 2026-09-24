@@ -1,4 +1,4 @@
-@props(['partner', 'profileRoute'])
+@props(['partner', 'profileRoute', 'compact' => false])
 
 @php
     $service = app(\App\Services\PartnerProfileService::class);
@@ -32,6 +32,7 @@
 </section>
 
 <section class="mb-6">
+    @unless ($compact)
     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('site.partner_account.sections_title') }}</p>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         @foreach ($sections as $section)
@@ -67,4 +68,5 @@
             </a>
         @endforeach
     </div>
+    @endunless
 </section>

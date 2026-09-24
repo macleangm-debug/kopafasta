@@ -78,4 +78,16 @@ return [
         'ready_title' => "You're ready",
         'ready_body' => 'Open cases that need action first. Earnings appear in your wallet where they apply.',
     ],
+    'supplier' => [
+        'welcome_title' => 'Welcome to your Supplier Portal',
+        'welcome_body' => 'Manage your assets, requests, collections and account from one place.',
+        'assets_title' => 'Add your assets',
+        'assets_body' => 'List the assets customers can request through Kopafasta.',
+        'requests_title' => 'Follow customer requests',
+        'requests_body' => 'See requests linked to your assets and follow their progress.',
+        'money_title' => 'Track your money',
+        'money_body' => 'See principal collected for your assets, available balances and payment history.',
+        'ready_title' => 'Keep your account ready',
+        'ready_body' => 'Complete your supplier profile, payment account and required documents.',
+    ],
 ];

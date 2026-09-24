@@ -169,7 +169,7 @@
                     <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
                          class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95">
                         @foreach ($profileLinks as $link)
-                            <a href="{{ route($link['route']) }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $link['label'] }}</a>
+                            <a href="{{ route($link['route'], $link['params'] ?? []) }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $link['label'] }}</a>
                         @endforeach
                         <div class="border-t border-gray-100 my-1"></div>
                         <form method="POST" action="{{ route('site.logout') }}">
@@ -224,7 +224,7 @@
                     </div>
                     <nav class="px-2 py-2 max-h-[50vh] overflow-y-auto">
                         @foreach ($profileLinks as $link)
-                            <a href="{{ route($link['route']) }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ $link['label'] }}</a>
+                            <a href="{{ route($link['route'], $link['params'] ?? []) }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ $link['label'] }}</a>
                         @endforeach
                         @foreach ($overflowNav as $item)
                             <a href="{{ route($item['route']) }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ $item['label'] }}</a>

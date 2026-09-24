@@ -31,13 +31,17 @@ class AccountWelcomeController extends Controller
         $user = $request->user();
         abort_unless($user, 403);
 
-        $welcome->complete($user, $request->input('audience'));
+        $audience = $request->input('audience');
+        $welcome->complete($user, is_string($audience) ? $audience : null);
 
         if ($user->customer) {
             app(\App\Services\MembershipService::class)->ensureMemberNumber($user->customer);
         }
 
-        app(KopafastaLaunchService::class)->arm($request);
+        // Supplier welcome is an account slider, not a first-launch brand animation.
+        if (($audience ?: $welcome->audienceFor($user)) !== 'supplier') {
+            app(KopafastaLaunchService::class)->arm($request);
+        }
 
         return redirect()->to($welcome->homeUrl($user->fresh()));
     }

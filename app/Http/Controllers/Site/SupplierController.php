@@ -13,6 +13,7 @@ use App\Services\AssetReservationService;
 use App\Services\MarketplaceAssetService;
 use App\Services\PartnerPortalRedirectService;
 use App\Services\PartnerProfileService;
+use App\Services\SupplierPortalHomeService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,20 +39,17 @@ class SupplierController extends Controller
         return $vendor;
     }
 
-    public function dashboard(): View
+    public function dashboard(SupplierPortalHomeService $home): View
     {
         $vendor = $this->supplier();
+        $homeData = $home->dashboard($vendor);
 
         return view('site.supplier.dashboard', [
             'vendor' => $vendor,
-            'stats'  => [
-                'assets'       => MarketplaceAsset::where('partner_id', $vendor->id)->count(),
-                'reservations' => AssetReservation::whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))->whereNotIn('status', ['released', 'cancelled'])->count(),
-                'requests'     => Schema::hasColumn('asset_requests', 'partner_id')
-                    ? AssetRequest::where('partner_id', $vendor->id)->whereIn('status', ['reviewing', 'matched'])->count()
-                    : 0,
-                'pending_pay'  => (int) VendorPayment::where('partner_id', $vendor->id)->where('status', 'pending')->sum('amount'),
-            ],
+            'stats' => $homeData['stats'],
+            'attention' => $homeData['attention'],
+            'recentPayments' => $homeData['recent_payments'],
+            'assetActivity' => $homeData['asset_activity'],
         ]);
     }
 
@@ -143,26 +141,31 @@ class SupplierController extends Controller
     public function requests(): View
     {
         $vendor = $this->supplier();
-        // Only admin-released requests (assigned + reviewing/matched) appear here.
-        $requests = AssetRequest::query()
-            ->where('partner_id', $vendor->id)
-            ->whereIn('status', ['reviewing', 'matched'])
-            ->latest()
-            ->paginate(20);
+        $requests = Schema::hasColumn('asset_requests', 'partner_id')
+            ? AssetRequest::query()
+                ->where('partner_id', $vendor->id)
+                ->whereIn('status', ['reviewing', 'matched'])
+                ->latest()
+                ->paginate(20, ['*'], 'assigned')
+            : new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20, 1, [
+                'path' => request()->url(),
+                'pageName' => 'assigned',
+            ]);
 
-        return view('site.supplier.requests', compact('vendor', 'requests'));
-    }
-
-    public function reservations(): View
-    {
-        $vendor = $this->supplier();
         $reservations = AssetReservation::query()
             ->with(['asset', 'customer', 'loanApplication'])
             ->whereHas('asset', fn ($q) => $q->where('partner_id', $vendor->id))
             ->latest()
-            ->paginate(20);
+            ->paginate(20, ['*'], 'journey');
 
-        return view('site.supplier.reservations', compact('vendor', 'reservations'));
+        return view('site.supplier.requests', compact('vendor', 'requests', 'reservations'));
+    }
+
+    public function reservations(): RedirectResponse
+    {
+        $this->supplier();
+
+        return redirect()->route('site.supplier.requests');
     }
 
     public function settlements(): View
@@ -173,21 +176,24 @@ class SupplierController extends Controller
             ->where('partner_id', $vendor->id)
             ->latest()
             ->paginate(20);
+        $payBase = VendorPayment::query()->where('partner_id', $vendor->id);
 
-        return view('site.supplier.settlements', compact('vendor', 'payments'));
+        return view('site.supplier.settlements', [
+            'vendor' => $vendor,
+            'payments' => $payments,
+            'money' => [
+                'available' => (float) (clone $payBase)->where('status', 'approved')->sum('amount'),
+                'pending' => (float) (clone $payBase)->where('status', 'pending')->sum('amount'),
+                'paid' => (float) (clone $payBase)->where('status', 'paid')->sum('amount'),
+            ],
+        ]);
     }
 
-    public function applications(): View
+    public function applications(): RedirectResponse
     {
-        $vendor = $this->supplier();
-        $applications = \App\Models\LoanApplication::query()
-            ->with(['customer', 'product', 'assetReservation.asset', 'loan'])
-            ->whereHas('assetReservation.asset', fn ($q) => $q->where('partner_id', $vendor->id))
-            ->whereNotIn('status', ['withdrawn'])
-            ->latest()
-            ->paginate(20);
+        $this->supplier();
 
-        return view('site.supplier.applications', compact('vendor', 'applications'));
+        return redirect()->route('site.supplier.settlements');
     }
 
     public function delivered(): View
@@ -261,10 +267,12 @@ class SupplierController extends Controller
     public function profile(Request $request, ?string $section = null): View|RedirectResponse
     {
         $vendor = $this->supplier();
+        app(PartnerProfileService::class)->hydrateCanonicalIdentity($vendor);
 
         $section = $section ?: 'hub';
+        $allowed = array_merge(['hub', 'card', 'documents', 'settings'], PartnerProfileService::SECTIONS);
 
-        if (! in_array($section, array_merge(['hub'], PartnerProfileService::SECTIONS), true)) {
+        if (! in_array($section, $allowed, true)) {
             return redirect()->route('site.supplier.profile');
         }
 
@@ -275,18 +283,28 @@ class SupplierController extends Controller
             'updateRoute'     => 'site.supplier.profile.update',
             'layoutComponent' => 'site.supplier-layout',
             'eyebrow'         => __('site.supplier_portal.title'),
-            'accountTabs'     => [
-                ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.supplier.profile')],
-                ['key' => 'documents', 'label' => __('site.partner_account.tab_documents'), 'url' => route('site.supplier.documents')],
-                ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.supplier.settings')],
-            ],
+            'accountTabs'     => [],
         ];
 
         if ($section === 'hub') {
             return view('site.partner-account.hub', $common + [
-                'title'    => __('site.partner_account.hub_title'),
-                'subtitle' => __('site.partner_account.hub_subtitle'),
+                'title'    => __('site.supplier_portal.profile_title'),
+                'subtitle' => __('site.supplier_portal.profile_subtitle'),
             ]);
+        }
+
+        if ($section === 'card') {
+            return view('site.supplier.card', $common + [
+                'title' => __('site.supplier_portal.card_title'),
+            ]);
+        }
+
+        if ($section === 'documents') {
+            return $this->documents();
+        }
+
+        if ($section === 'settings') {
+            return $this->settings();
         }
 
         return view('site.partner-account.'.$section, $common + [

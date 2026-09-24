@@ -551,8 +551,8 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
                 Route::post('/reservations/{reservation}', [SupplierController::class, 'updateReservation'])->name('reservations.update');
                 Route::post('/requests/{assetRequest}', [SupplierController::class, 'updateRequest'])->name('requests.update');
                 Route::get('/settlements', [SupplierController::class, 'settlements'])->name('settlements');
-                Route::get('/profile/{section?}', [SupplierController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
-                Route::put('/profile/{section}', [SupplierController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
+                Route::get('/profile/{section?}', [SupplierController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|card|documents|settings');
+                Route::put('/profile/{section}', [SupplierController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
                 Route::get('/documents', [SupplierController::class, 'documents'])->name('documents');
                 Route::post('/documents', [SupplierController::class, 'uploadDocument'])->name('documents.store');
                 Route::get('/settings', [SupplierController::class, 'settings'])->name('settings');
@@ -629,8 +629,8 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::post('/requests/{assetRequest}', [SupplierController::class, 'updateRequest'])->name('requests.update');
             Route::get('/settlements', [SupplierController::class, 'settlements'])->name('settlements');
             Route::get('/notifications', [SupplierController::class, 'notifications'])->name('notifications');
-            Route::get('/profile/{section?}', [SupplierController::class, 'profile'])->name('profile')->where('section', 'hub|personal|face|residence|activity|payment');
-            Route::put('/profile/{section}', [SupplierController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|face|residence|activity|payment');
+            Route::get('/profile/{section?}', [SupplierController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|card|documents|settings');
+            Route::put('/profile/{section}', [SupplierController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
             Route::get('/documents', [SupplierController::class, 'documents'])->name('documents');
             Route::post('/documents', [SupplierController::class, 'uploadDocument'])->name('documents.store');
             Route::get('/settings', [SupplierController::class, 'settings'])->name('settings');

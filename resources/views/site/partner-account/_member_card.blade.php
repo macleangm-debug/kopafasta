@@ -22,8 +22,10 @@
 
     $isCompany = $partner instanceof \App\Models\Partner && $partner->isCompanyApplicant();
     $profileComplete = $profile->isComplete($partner);
-    $verified = ($partner->status ?? '') === 'active' && $membership->isActive($partner) && $profileComplete;
-    $color = $verified ? 'green' : (($partner->status ?? '') === 'active' ? 'orange' : 'slate');
+    $accountActive = ($partner->status ?? '') === 'active' || filled($partner->activated_at);
+    $accountStatus = (string) ($partner->status ?? '');
+    $verified = $accountActive && $membership->isActive($partner) && $profileComplete;
+    $color = $accountActive ? ($verified ? 'green' : 'orange') : 'slate';
     $panelClass = match ($color) {
         'green'  => 'kf-premium-panel-bronze',
         'orange' => 'kf-premium-panel-orange',
@@ -38,9 +40,13 @@
         'orange' => 'bg-white text-amber-800',
         default  => 'bg-white text-slate-800',
     };
-    $statusLabel = $verified
-        ? __('site.card_verify.status.active')
-        : __('site.card_verify.status.inactive');
+    $statusLabel = match ($accountStatus) {
+        'active' => __('site.card_verify.status.active'),
+        'suspended' => __('site.card_verify.status.inactive'),
+        default => $accountActive
+            ? __('site.card_verify.status.active')
+            : __('site.card_verify.status.inactive'),
+    };
 
     $base = rtrim(app(ReferralService::class)->appBaseUrl(), '/');
     $verifyUrl = $partnerNumber ? $base.'/v/p/'.rawurlencode($partnerNumber) : null;
@@ -58,7 +64,7 @@
         }
     }
 
-    $issued = optional($partner->membership_started_at)->format('d M Y') ?? '—';
+    $issued = optional($partner->membership_started_at ?? $partner->activated_at ?? $partner->created_at)->format('d M Y') ?? '—';
     $expires = optional($partner->membership_expires_at)->format('d M Y') ?? '—';
     $logoUrl = brand('logo_mark_url') ?: brand('logo_url') ?: 'images/brand/kopafasta-mark.png';
     $membershipActive = $membership->isActive($partner);
@@ -132,7 +138,7 @@
                 <span class="text-xl font-bold tracking-tight truncate">{{ brand_name() }}</span>
             </span>
             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.14em] {{ $badgeClass }} shrink-0">
-                {{ $verified ? $role : $statusLabel }}
+                {{ $statusLabel }}
             </span>
         </div>
 
@@ -258,7 +264,7 @@
                         <img src="{{ asset(ltrim((string) $logoUrl, '/')) }}" alt="" class="h-11 w-auto object-contain shrink-0">
                         <span class="text-2xl font-bold tracking-tight truncate">{{ brand_name() }}</span>
                     </span>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-[0.14em] {{ $badgeClass }}">{{ $verified ? $role : $statusLabel }}</span>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-[0.14em] {{ $badgeClass }}">{{ $statusLabel }}</span>
                 </div>
                 <div class="relative flex items-start gap-4">
                     @if ($isCompany)

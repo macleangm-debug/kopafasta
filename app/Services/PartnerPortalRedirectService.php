@@ -20,7 +20,7 @@ class PartnerPortalRedirectService
         }
 
         if ($vendor?->portalShell() === 'supplier') {
-            return route('site.partner.supplier.dashboard');
+            return route('site.supplier.dashboard');
         }
 
         if ($vendor?->portalShell() === 'capital') {

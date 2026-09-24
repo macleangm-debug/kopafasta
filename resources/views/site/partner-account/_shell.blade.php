@@ -34,13 +34,31 @@
     $completionCtaLabel = $completionPercent < 100
         ? __('borrower.profile.hero_completion_cta')
         : null;
-    $verified = ($partner->status ?? '') === 'active' && $membership->isActive($partner) && $profileComplete;
-    $badgeLabel = $verified ? $role : __('site.card_verify.status.inactive');
+    $accountActive = ($partner->status ?? '') === 'active' || filled($partner->activated_at);
+    $verified = $accountActive && $membership->isActive($partner) && $profileComplete;
+    $badgeLabel = $accountActive
+        ? __('site.card_verify.status.active')
+        : __('site.card_verify.status.inactive');
     $hubUrl = route($profileRoute);
     $personalUrl = route($profileRoute, ['section' => 'personal']);
 @endphp
 
-@if ($active === 'hub')
+@if ($active === 'hub' && $portal === 'supplier')
+    <x-site.account-shell-hero
+        mode="identity"
+        :display-name="$displayName"
+        :member-no="$partnerNumber"
+        :photo-url="$photoUrl"
+        :initial="$initial"
+        :show-grade-badge="false"
+        :badge-label="$badgeLabel"
+        :completion-percent="$completionPercent"
+        :completion-cta-url="$completionCtaUrl"
+        :completion-cta-label="$completionCtaLabel"
+        :cta-url="route($profileRoute, ['section' => 'card'])"
+        :cta-label="__('site.supplier_portal.nav_card')"
+    />
+@elseif ($active === 'hub')
     <x-site.account-shell-hero
         mode="contextual"
         :title="__('borrower.membership.my_card')"
@@ -66,12 +84,15 @@
         :completion-percent="$completionPercent"
         :completion-cta-url="$completionCtaUrl"
         :completion-cta-label="$completionCtaLabel"
-        :cta-url="$hubUrl"
-        :cta-label="__('borrower.membership.my_card')"
+        :cta-url="$portal === 'supplier' ? route($profileRoute, ['section' => 'card']) : $hubUrl"
+        :cta-label="$portal === 'supplier' ? __('site.supplier_portal.nav_card') : __('borrower.membership.my_card')"
     />
 @endif
 
-@if ($active === 'hub')
+@if ($active === 'hub' && $portal === 'supplier')
+    @include('site.partner-account._tabs', ['active' => 'hub', 'partner' => $partner, 'profileRoute' => $profileRoute, 'portal' => $portal])
+    @include('site.partner-account._overview', ['partner' => $partner, 'profileRoute' => $profileRoute, 'compact' => true])
+@elseif ($active === 'hub')
     @include('site.partner-account._member_card', ['partner' => $partner])
     @include('site.partner-account._overview', ['partner' => $partner, 'profileRoute' => $profileRoute])
 @elseif ($active === 'membership')

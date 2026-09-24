@@ -21,9 +21,8 @@
     :subtitle="$vendor?->partner_number ?? auth()->user()?->email"
     :banner="null"
     :profile-links="[
-        ['label' => __('site.supplier_portal.nav_dashboard'), 'route' => 'site.supplier.dashboard'],
+        ['label' => __('site.supplier_portal.nav_card'), 'route' => 'site.supplier.profile', 'params' => ['section' => 'card']],
         ['label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile'],
-        ['label' => __('site.supplier_portal.nav_documents'), 'route' => 'site.supplier.documents'],
         ['label' => __('site.supplier_portal.nav_settings'), 'route' => 'site.supplier.settings'],
     ]"
 >

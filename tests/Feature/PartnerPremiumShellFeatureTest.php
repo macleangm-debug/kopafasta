@@ -59,7 +59,7 @@ class PartnerPremiumShellFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('site.supplier_portal.title'), false)
             ->assertSee(__('site.supplier_portal.nav_assets'), false)
-            ->assertSee(__('site.supplier_portal.no_assigned_tasks'), false)
+            ->assertSee(__('site.supplier_portal.stat_assets'), false)
             ->assertSee('kf-premium-panel', false);
     }
 

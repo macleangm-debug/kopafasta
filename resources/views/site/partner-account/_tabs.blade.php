@@ -4,20 +4,36 @@
     $service = app(\App\Services\PartnerProfileService::class);
     $sectionKeys = $partner ? $service->sectionsFor($partner) : ['personal', 'face', 'residence', 'payment'];
     $labels = [
-        'personal'  => __('site.partner_account.tab_personal'),
-        'company'   => __('site.partner_account.tab_company'),
+        'hub'       => __('site.supplier_portal.tab_overview'),
+        'personal'  => $portal === 'supplier'
+            ? __('site.supplier_portal.tab_contact')
+            : __('site.partner_account.tab_personal'),
+        'company'   => $portal === 'supplier'
+            ? __('site.supplier_portal.tab_business')
+            : __('site.partner_account.tab_company'),
         'face'      => __('site.partner_account.tab_face'),
-        'residence' => ($partner instanceof \App\Models\Partner && $partner->isCompanyApplicant())
-            ? __('site.partner_account.tab_company_address')
-            : __('site.partner_account.tab_residence'),
+        'residence' => $portal === 'supplier'
+            ? __('site.supplier_portal.tab_address')
+            : (($partner instanceof \App\Models\Partner && $partner->isCompanyApplicant())
+                ? __('site.partner_account.tab_company_address')
+                : __('site.partner_account.tab_residence')),
         'activity'  => __('site.partner_account.tab_activity'),
-        'payment'   => __('site.partner_account.tab_payment'),
+        'payment'   => $portal === 'supplier'
+            ? __('site.supplier_portal.tab_payment')
+            : __('site.partner_account.tab_payment'),
+        'documents' => __('site.supplier_portal.tab_documents'),
+        'settings'  => __('site.supplier_portal.tab_security'),
         'agreement' => __('site.affiliate_portal.agreement_title'),
         'membership'=> __('site.affiliate_portal.membership_title'),
     ];
     $tabs = collect($sectionKeys)
         ->mapWithKeys(fn (string $key) => [$key => $labels[$key] ?? $key])
         ->all();
+    if ($portal === 'supplier') {
+        $tabs = ['hub' => $labels['hub']] + $tabs;
+        $tabs['documents'] = $labels['documents'];
+        $tabs['settings'] = $labels['settings'];
+    }
     if ($portal === 'affiliate' && $partner instanceof \App\Models\Partner && $partner->isAffiliate()) {
         if ($partner->isPremiumAffiliate()) {
             $tabs['agreement'] = $labels['agreement'];

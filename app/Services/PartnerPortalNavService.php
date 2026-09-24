@@ -118,13 +118,10 @@ class PartnerPortalNavService
     public function supplierNav(): array
     {
         return [
-            ['key' => 'dashboard', 'label' => __('site.supplier_portal.nav_dashboard'), 'route' => 'site.supplier.dashboard', 'icon' => 'home'],
+            ['key' => 'dashboard', 'label' => __('site.supplier_portal.nav_home'), 'route' => 'site.supplier.dashboard', 'icon' => 'home'],
             ['key' => 'assets', 'label' => __('site.supplier_portal.nav_assets'), 'route' => 'site.supplier.assets', 'icon' => 'folder'],
-            ['key' => 'applications', 'label' => __('site.supplier_portal.nav_applications'), 'route' => 'site.supplier.applications', 'icon' => 'clipboard'],
-            ['key' => 'reservations', 'label' => __('site.supplier_portal.nav_reservations'), 'route' => 'site.supplier.reservations', 'icon' => 'calendar'],
-            ['key' => 'requests', 'label' => __('site.supplier_portal.nav_requests'), 'route' => 'site.supplier.requests', 'icon' => 'bell'],
-            ['key' => 'settlements', 'label' => __('site.supplier_portal.nav_settlements'), 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
-            ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.supplier.notifications', 'icon' => 'bell'],
+            ['key' => 'requests', 'label' => __('site.supplier_portal.nav_requests'), 'route' => 'site.supplier.requests', 'icon' => 'clipboard'],
+            ['key' => 'settlements', 'label' => __('site.supplier_portal.nav_money'), 'route' => 'site.supplier.settlements', 'icon' => 'wallet'],
             ['key' => 'profile', 'label' => __('site.supplier_portal.nav_profile'), 'route' => 'site.supplier.profile', 'icon' => 'user'],
         ];
     }
@@ -162,7 +159,7 @@ class PartnerPortalNavService
             $prefer = ['dashboard', 'share', 'referrals', 'wallet', 'profile'];
         }
         if (($nav[0]['route'] ?? null) === 'site.supplier.dashboard') {
-            $prefer = ['dashboard', 'requests', 'applications', 'settlements', 'profile'];
+            $prefer = ['dashboard', 'assets', 'requests', 'settlements', 'profile'];
         }
 
         $byKey = [];

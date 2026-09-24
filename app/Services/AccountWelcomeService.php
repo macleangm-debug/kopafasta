@@ -93,6 +93,7 @@ class AccountWelcomeService
             'valuer' => 'valuer',
             'gps_installer' => 'gps_installer',
             'insurance' => 'insurance',
+            'supplier' => 'supplier',
             'call_center', 'debt_collector', 'auctioneer', 'legal_partner' => 'recovery',
             default => null,
         };
