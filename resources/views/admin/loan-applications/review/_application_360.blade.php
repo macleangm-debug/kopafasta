@@ -9,13 +9,17 @@
     $next = $app360['next'] ?? [];
     $lifecycle = $app360['lifecycle'] ?? [];
     $people = $app360['people'] ?? [];
+    $participants = $app360['participants'] ?? $people;
     $readiness = $app360['readiness'] ?? [];
     $timeline = $app360['timeline'] ?? [];
     $percent = isset($app360['progress_percent']) ? (int) $app360['progress_percent'] : null;
+    $isDraft = ! empty($app360['is_draft']);
+    $isGroup = ! empty($app360['is_group']);
+    $defaultKey = $participants[0]['key'] ?? 'p0';
 @endphp
 
 <section id="application-360" class="mb-6 space-y-4">
-    {{-- Application Hero --}}
+    {{-- Application summary --}}
     <div class="rounded-2xl overflow-hidden ring-1 ring-brand/20 shadow-sm">
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white">
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -104,7 +108,7 @@
                 @if (! empty($next['href']) && ($next['cta_kind'] ?? '') !== 'waiting')
                     <a href="{{ $next['href'] }}"
                        class="w-full lg:w-auto inline-flex justify-center items-center px-5 py-3 rounded-xl bg-brand text-white text-sm font-bold shadow-sm hover:bg-brand-light">
-                        {{ $next['cta'] ?? 'Continue' }}
+                        {{ $next['cta'] ?? ($isDraft ? 'Continue application' : 'Continue') }}
                     </a>
                 @elseif (($next['cta_kind'] ?? '') === 'waiting')
                     <span class="w-full lg:w-auto inline-flex justify-center items-center px-5 py-3 rounded-xl bg-amber-50 text-amber-950 text-sm font-bold ring-1 ring-amber-200">
@@ -115,132 +119,216 @@
         </div>
     </div>
 
-    {{-- People --}}
-    @if (count($people) > 0)
-        <div>
-            <div class="flex items-end justify-between gap-3 mb-2 px-0.5">
-                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">People</p>
+    {{-- Participants --}}
+    @if (count($participants) > 0)
+        <div x-data="{ p: @js($defaultKey) }" class="rounded-2xl bg-white ring-1 ring-slate-200 px-4 sm:px-5 py-4">
+            <div class="flex items-end justify-between gap-3 mb-3">
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Participants</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">{{ $isGroup ? 'Group' : 'Borrower / Guarantor' }}</p>
+                </div>
                 <p class="text-[11px] text-slate-500">{{ count($people) }} participant{{ count($people) === 1 ? '' : 's' }}</p>
             </div>
-            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                @foreach ($people as $person)
+
+            <div class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory"
+                 style="-webkit-overflow-scrolling: touch;">
+                @foreach ($participants as $person)
                     @php
-                        $tone = match ($person['tone'] ?? '') {
-                            'complete' => 'ring-emerald-200 bg-emerald-50/40',
-                            'attention' => 'ring-amber-200 bg-amber-50/50',
-                            default => 'ring-slate-200 bg-white',
-                        };
+                        $pkey = $person['key'] ?? ('p'.$loop->index);
+                        $chipLabel = $person['label'] ?? $person['role'] ?? $person['name'];
                     @endphp
-                    <div class="rounded-2xl ring-1 {{ $tone }} px-4 py-3 flex flex-col gap-2">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ $person['role'] }}</p>
-                                <p class="text-sm font-bold text-slate-900 truncate">{{ $person['name'] }}</p>
-                            </div>
-                            @if (! empty($person['href']))
-                                <a href="{{ $person['href'] }}" class="shrink-0 text-[11px] font-bold text-brand hover:underline">Open →</a>
-                            @endif
-                        </div>
-                        <dl class="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px]">
-                            <div>
-                                <dt class="text-slate-500">Profile / KYC</dt>
-                                <dd class="font-semibold text-slate-800">{{ $person['kyc'] ?? '—' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-slate-500">CRB</dt>
-                                <dd class="font-semibold text-slate-800">{{ $person['crb'] ?? '—' }}</dd>
-                            </div>
-                            <div class="col-span-2">
-                                <dt class="text-slate-500">Readiness</dt>
-                                <dd class="font-semibold text-slate-800">{{ $person['readiness'] ?? '—' }}</dd>
-                            </div>
-                        </dl>
-                        @if (! empty($person['issue']))
-                            <p class="text-[11px] font-semibold text-amber-900 bg-amber-100/70 rounded-lg px-2 py-1">{{ $person['issue'] }}</p>
+                    <button type="button"
+                            @click="p = @js($pkey)"
+                            :class="p === @js($pkey) ? 'bg-brand text-white ring-brand' : 'bg-slate-50 text-slate-700 ring-slate-200 hover:bg-slate-100'"
+                            class="snap-start shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ring-1 transition">
+                        {{ $chipLabel }}
+                        @if (($person['kind'] ?? '') !== 'all' && isset($person['completion_percent']))
+                            <span class="tabular-nums opacity-80">{{ (int) $person['completion_percent'] }}%</span>
                         @endif
-                    </div>
+                    </button>
                 @endforeach
             </div>
+
+            @foreach ($participants as $person)
+                @php $pkey = $person['key'] ?? ('p'.$loop->index); @endphp
+                <div x-show="p === @js($pkey)" x-cloak class="mt-4 space-y-4">
+                    @if (($person['kind'] ?? '') === 'all')
+                        <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3">
+                            <p class="text-sm font-bold text-slate-900">Group readiness</p>
+                            <p class="text-sm text-slate-700 mt-1">{{ $person['aggregate_label'] ?? '' }}</p>
+                        </div>
+                    @else
+                        <div>
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ $person['role'] ?? 'Participant' }}</p>
+                                    <p class="text-sm font-bold text-slate-900">{{ $person['name'] ?? '—' }}</p>
+                                </div>
+                                @if (! empty($person['href']))
+                                    <a href="{{ $person['href'] }}" class="shrink-0 text-[11px] font-bold text-brand hover:underline">Open Member / Profile 360 →</a>
+                                @endif
+                            </div>
+                            <p class="text-sm font-semibold text-slate-800 mt-2">
+                                KYC / Profile — {{ (int) ($person['completion_percent'] ?? 0) }}% complete
+                            </p>
+                            <div class="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                <div class="h-full rounded-full bg-brand" style="width: {{ max(0, min(100, (int) ($person['completion_percent'] ?? 0))) }}%"></div>
+                            </div>
+                            <div class="mt-3 flex flex-wrap gap-1.5">
+                                @forelse ($person['completion_cards'] ?? [] as $card)
+                                    @php
+                                        $done = ! empty($card['complete']);
+                                        $tone = $done
+                                            ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+                                            : 'bg-amber-50 text-amber-950 ring-amber-200';
+                                    @endphp
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold ring-1 {{ $tone }}">
+                                        <span aria-hidden="true">{{ $done ? '✓' : '!' }}</span>
+                                        {{ $card['label'] }}
+                                    </span>
+                                @empty
+                                    <span class="text-[11px] text-slate-500">No profile sections yet</span>
+                                @endforelse
+                            </div>
+                        </div>
+                    @endif
+
+                    @if ($isDraft && ($person['kind'] ?? '') !== 'all' && count($readiness) > 0)
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Application progress</p>
+                            <div class="flex gap-1.5 overflow-x-auto pb-1">
+                                @foreach ($readiness as $row)
+                                    @php
+                                        $state = $row['state'] ?? 'upcoming';
+                                        $tone = match ($state) {
+                                            'complete' => 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+                                            'current' => 'bg-brand/10 text-brand ring-brand/25 font-bold',
+                                            'attention' => 'bg-amber-50 text-amber-950 ring-amber-200 font-bold',
+                                            default => 'bg-slate-50 text-slate-500 ring-slate-200',
+                                        };
+                                        $mark = match ($state) {
+                                            'complete' => '✓',
+                                            'current' => '●',
+                                            'attention' => '!',
+                                            default => '○',
+                                        };
+                                    @endphp
+                                    <span class="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] ring-1 {{ $tone }}">
+                                        <span aria-hidden="true">{{ $mark }}</span> {{ $row['label'] }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    @if (($person['kind'] ?? '') !== 'all')
+                        @php
+                            $docs = $person['documents'] ?? [];
+                            $holderGroups = collect([
+                                'identity' => 'Identity',
+                                'residence' => 'Residence',
+                                'financial' => 'Financial',
+                                'business' => 'Business',
+                                'collateral' => 'Collateral',
+                                'other' => 'Other',
+                            ])->filter(fn ($_, $key) => collect($docs)->contains(fn ($doc) => ($doc['category'] ?? '') === $key))
+                                ->map(fn ($label, $key) => ['key' => $key, 'label' => $label])
+                                ->values()
+                                ->all();
+                        @endphp
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Documents</p>
+                            @if ($docs === [])
+                                <p class="text-sm text-slate-500">No documents on file for this person.</p>
+                            @else
+                                <x-admin.document-holder :items="$docs" :groups="$holderGroups" :expanded="false" />
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endforeach
         </div>
     @endif
 
-    {{-- Journey / Readiness --}}
-    <div>
-        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2 px-0.5">Journey / readiness</p>
-        <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
-            @foreach ($readiness as $row)
-                @php
-                    $state = $row['state'] ?? 'upcoming';
-                    if ($state === 'na') {
-                        continue;
-                    }
-                    $tone = match ($state) {
-                        'complete' => 'bg-emerald-50 ring-emerald-200 text-emerald-900',
-                        'current' => 'bg-brand/5 ring-brand/20 text-brand',
-                        'attention' => 'bg-amber-50 ring-amber-200 text-amber-950',
-                        default => 'bg-slate-50 ring-slate-200 text-slate-600',
-                    };
-                    $mark = match ($state) {
-                        'complete' => '✓ Complete',
-                        'current' => '● Current',
-                        'attention' => '! Needs attention',
-                        default => '○ Upcoming',
-                    };
-                @endphp
-                @if (! empty($row['href']) && in_array($state, ['current', 'attention'], true))
-                    <a href="{{ $row['href'] }}" class="rounded-xl ring-1 px-3 py-2.5 {{ $tone }} block hover:brightness-95">
-                        <p class="text-xs font-bold">{{ $row['label'] }}</p>
-                        <p class="text-[11px] mt-0.5 opacity-90">{{ $mark }}</p>
-                        @if (! empty($row['detail']) && $state !== 'complete')
-                            <p class="text-[11px] mt-1 font-semibold">{{ $row['detail'] }}</p>
-                        @endif
-                    </a>
-                @else
-                    <div class="rounded-xl ring-1 px-3 py-2.5 {{ $tone }}">
-                        <p class="text-xs font-bold">{{ $row['label'] }}</p>
-                        <p class="text-[11px] mt-0.5 opacity-90">{{ $mark }}</p>
-                        @if (! empty($row['detail']) && $state !== 'complete')
-                            <p class="text-[11px] mt-1 font-semibold">{{ $row['detail'] }}</p>
-                        @endif
-                    </div>
-                @endif
-            @endforeach
+    @unless ($isDraft)
+        {{-- Journey / Readiness (submitted files only) --}}
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2 px-0.5">Journey / readiness</p>
+            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                @foreach ($readiness as $row)
+                    @php
+                        $state = $row['state'] ?? 'upcoming';
+                        if ($state === 'na') {
+                            continue;
+                        }
+                        $tone = match ($state) {
+                            'complete' => 'bg-emerald-50 ring-emerald-200 text-emerald-900',
+                            'current' => 'bg-brand/5 ring-brand/20 text-brand',
+                            'attention' => 'bg-amber-50 ring-amber-200 text-amber-950',
+                            default => 'bg-slate-50 ring-slate-200 text-slate-600',
+                        };
+                        $mark = match ($state) {
+                            'complete' => '✓ Complete',
+                            'current' => '● Current',
+                            'attention' => '! Needs attention',
+                            default => '○ Upcoming',
+                        };
+                    @endphp
+                    @if (! empty($row['href']) && in_array($state, ['current', 'attention'], true))
+                        <a href="{{ $row['href'] }}" class="rounded-xl ring-1 px-3 py-2.5 {{ $tone }} block hover:brightness-95">
+                            <p class="text-xs font-bold">{{ $row['label'] }}</p>
+                            <p class="text-[11px] mt-0.5 opacity-90">{{ $mark }}</p>
+                            @if (! empty($row['detail']) && $state !== 'complete')
+                                <p class="text-[11px] mt-1 font-semibold">{{ $row['detail'] }}</p>
+                            @endif
+                        </a>
+                    @else
+                        <div class="rounded-xl ring-1 px-3 py-2.5 {{ $tone }}">
+                            <p class="text-xs font-bold">{{ $row['label'] }}</p>
+                            <p class="text-[11px] mt-0.5 opacity-90">{{ $mark }}</p>
+                            @if (! empty($row['detail']) && $state !== 'complete')
+                                <p class="text-[11px] mt-1 font-semibold">{{ $row['detail'] }}</p>
+                            @endif
+                        </div>
+                    @endif
+                @endforeach
+            </div>
         </div>
-    </div>
 
-    {{-- Compact lifecycle strip --}}
-    <div class="rounded-2xl bg-white ring-1 ring-slate-200 px-4 py-3">
-        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">Lifecycle</p>
-        <div class="flex flex-wrap gap-1.5">
-            @foreach ($lifecycle as $step)
-                @php
-                    $tone = match ($step['state'] ?? '') {
-                        'complete' => 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-                        'current' => 'bg-brand/10 text-brand ring-brand/25 font-bold',
-                        'attention' => 'bg-amber-50 text-amber-950 ring-amber-200 font-bold',
-                        default => 'bg-slate-50 text-slate-500 ring-slate-200',
-                    };
-                    $mark = match ($step['state'] ?? '') {
-                        'complete' => '✓',
-                        'current' => '●',
-                        'attention' => '!',
-                        default => '○',
-                    };
-                @endphp
-                @if (! empty($step['href']))
-                    <a href="{{ $step['href'] }}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] ring-1 {{ $tone }}">
-                        <span aria-hidden="true">{{ $mark }}</span> {{ $step['label'] }}
-                    </a>
-                @else
-                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] ring-1 {{ $tone }}">
-                        <span aria-hidden="true">{{ $mark }}</span> {{ $step['label'] }}
-                    </span>
-                @endif
-            @endforeach
-        </div>
-    </div>
+        @if (count($lifecycle) > 0)
+            <div class="rounded-2xl bg-white ring-1 ring-slate-200 px-4 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">Lifecycle</p>
+                <div class="flex flex-wrap gap-1.5">
+                    @foreach ($lifecycle as $step)
+                        @php
+                            $tone = match ($step['state'] ?? '') {
+                                'complete' => 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+                                'current' => 'bg-brand/10 text-brand ring-brand/25 font-bold',
+                                'attention' => 'bg-amber-50 text-amber-950 ring-amber-200 font-bold',
+                                default => 'bg-slate-50 text-slate-500 ring-slate-200',
+                            };
+                            $mark = match ($step['state'] ?? '') {
+                                'complete' => '✓',
+                                'current' => '●',
+                                'attention' => '!',
+                                default => '○',
+                            };
+                        @endphp
+                        @if (! empty($step['href']))
+                            <a href="{{ $step['href'] }}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] ring-1 {{ $tone }}">
+                                <span aria-hidden="true">{{ $mark }}</span> {{ $step['label'] }}
+                            </a>
+                        @else
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] ring-1 {{ $tone }}">
+                                <span aria-hidden="true">{{ $mark }}</span> {{ $step['label'] }}
+                            </span>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    @endunless
 
-    {{-- Timeline (bottom) --}}
     @if (count($timeline) > 0)
         <details class="rounded-2xl ring-1 ring-slate-200 bg-white">
             <summary class="cursor-pointer list-none px-4 py-3 text-xs font-bold text-slate-700 flex items-center justify-between">

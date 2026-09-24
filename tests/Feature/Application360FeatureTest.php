@@ -23,7 +23,7 @@ class Application360FeatureTest extends TestCase
             ->assertOk()
             ->assertSee('id="application-360"', false)
             ->assertSee('Needs Attention / Next Action', false)
-            ->assertSee('People', false)
+            ->assertSee('Participants', false)
             ->assertSee('Journey / readiness', false)
             ->assertSee('Open Member 360', false)
             ->getContent();
@@ -40,6 +40,8 @@ class Application360FeatureTest extends TestCase
         $this->assertNotEmpty($panel['readiness']);
         $this->assertSame('screening', $panel['next']['source'] ?? null);
         $this->assertSame('Borrower', $panel['people'][0]['role'] ?? null);
+        $this->assertArrayHasKey('completion_cards', $panel['people'][0]);
+        $this->assertArrayHasKey('documents', $panel['people'][0]);
     }
 
     public function test_application_360_keeps_member_link_separate_from_credit_file(): void
@@ -99,17 +101,69 @@ class Application360FeatureTest extends TestCase
             ->assertOk()
             ->assertSee('id="application-360"', false)
             ->assertSee('Needs Attention / Next Action', false)
-            ->assertSee('People', false)
+            ->assertSee('Participants', false)
             ->assertSee('Borrower', false)
-            ->assertSee('Journey / readiness', false)
-            ->assertSee('Current incomplete details', false)
+            ->assertSee('Continue application', false)
+            ->assertDontSee('Identity verification incomplete — Face / NIDA still pending')
+            ->assertDontSee('Journey / readiness')
             ->getContent();
 
         $this->assertStringContainsString('What is missing?', $html);
+        preg_match('/id="application-360".*?<\/section>/s', $html, $panelMatch);
+        $panelHtml = $panelMatch[0] ?? '';
+        $this->assertNotSame('', $panelHtml);
+        $this->assertStringNotContainsString('Face verification', $panelHtml);
+        $this->assertStringNotContainsString('Journey / readiness', $panelHtml);
         $panel = app(Application360Presenter::class)->forDraft($draft);
         $this->assertTrue((bool) ($panel['is_draft'] ?? false));
         $this->assertNotEmpty($panel['people']);
         $this->assertSame('Borrower', $panel['people'][0]['role'] ?? null);
+        $this->assertSame((int) $customer->id, (int) ($panel['people'][0]['customer_id'] ?? 0));
+        $this->assertArrayHasKey('completion_percent', $panel['people'][0]);
+        $this->assertArrayHasKey('completion_cards', $panel['people'][0]);
+        $this->assertEmpty($panel['lifecycle'] ?? []);
+        $this->assertSame('Continue application', $panel['next']['cta'] ?? null);
+    }
+
+    public function test_application_360_groups_documents_and_dedupes_historical_uploads(): void
+    {
+        [$admin, $app] = $this->screeningFile();
+        $type = \App\Models\DocumentType::create([
+            'code' => 'national_id',
+            'name' => 'National ID',
+            'category' => 'kyc',
+            'is_active' => true,
+        ]);
+        \App\Models\CustomerDocument::create([
+            'customer_id' => $app->customer_id,
+            'document_type_id' => $type->id,
+            'file_path' => 'customer/'.$app->customer_id.'/documents/id-old.jpg',
+            'status' => 'verified',
+            'created_at' => now()->subDays(10),
+        ]);
+        $latest = \App\Models\CustomerDocument::create([
+            'customer_id' => $app->customer_id,
+            'document_type_id' => $type->id,
+            'file_path' => 'customer/'.$app->customer_id.'/documents/id-new.jpg',
+            'status' => 'verified',
+            'created_at' => now()->subDay(),
+        ]);
+
+        $panel = app(Application360Presenter::class)->forApplication($app, $admin);
+        $docs = $panel['people'][0]['documents'] ?? [];
+        $ids = collect($docs)->where('type_code', 'national_id')->values();
+        $this->assertCount(1, $ids);
+        $this->assertSame('identity', $ids[0]['category'] ?? null);
+        $this->assertSame('doc-'.$latest->id, $ids[0]['key'] ?? null);
+        $this->assertCount(1, $ids[0]['history'] ?? []);
+        $this->assertNotEmpty($panel['people'][0]['completion_cards'] ?? []);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.loan-applications.show', $app))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('document-holder', $html);
+        $this->assertStringContainsString('Identity', $html);
     }
 
     /** @return array{0: User, 1: LoanApplication} */

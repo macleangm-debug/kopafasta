@@ -23,6 +23,7 @@ class Application360Presenter
         private readonly ApplicationDocumentRequestService $documents,
         private readonly CollateralSecureService $collateralSecure,
         private readonly ApplicationOfferService $offers,
+        private readonly ProfileCompletionService $profileCompletion,
     ) {}
 
     /**
@@ -53,6 +54,7 @@ class Application360Presenter
         $lifecycle = $this->lifecycle($application, $stage);
         $attention = $this->attentionSummaries($application, $documentRequests, $next);
         $people = $this->people($application, $actor, $next);
+        $participants = $this->participantsFromPeople($people, (bool) $application->loanGroup);
         $readiness = $this->readiness($application, $documentRequests, $next, $lifecycle);
 
         $statusLabel = display_label($application->status, 'application_status');
@@ -83,6 +85,7 @@ class Application360Presenter
             'lifecycle' => $lifecycle,
             'attention' => $attention,
             'people' => $people,
+            'participants' => $participants,
             'readiness' => $readiness,
             'timeline' => $this->timeline($application, $stageHistory),
         ];
@@ -109,7 +112,6 @@ class Application360Presenter
         $product = $draft->product;
         $amount = $drafts->requestedAmount($draft) ?? 0.0;
         $percent = (int) ($snapshot['application_completion_percent'] ?? 0);
-        $identityPending = ! empty($snapshot['identity_verification']['pending']);
         $profileComplete = ! empty($snapshot['profile_information']['complete']);
         $guarantorStatus = (string) ($snapshot['guarantor']['status'] ?? $snapshot['guarantor_status'] ?? '');
         $waitingOnGuarantor = str_contains(strtolower($guarantorStatus), 'pending')
@@ -118,9 +120,7 @@ class Application360Presenter
 
         $missing = (string) ($snapshot['current_step'] ?? $drafts->progressLabel($draft));
         $who = 'Borrower';
-        if ($identityPending) {
-            $missing = 'Identity verification incomplete — Face / NIDA still pending';
-        } elseif ($waitingOnGuarantor && ! in_array(strtolower($guarantorStatus), ['not required', 'approved', ''], true)) {
+        if ($waitingOnGuarantor && ! in_array(strtolower($guarantorStatus), ['not required', 'approved', ''], true)) {
             $missing = 'Waiting for guarantor — '.$guarantorStatus;
             $who = 'Guarantor';
         } elseif (! $profileComplete) {
@@ -131,76 +131,18 @@ class Application360Presenter
             ? route('admin.customers.show', $customer)
             : route('admin.loan-applications.incomplete');
 
-        $people = [];
-        if ($customer) {
-            $people[] = $this->customerCard($customer, 'Borrower');
-        }
-        $gName = $snapshot['guarantor']['name'] ?? null;
-        if (filled($gName) || ($guarantorStatus !== '' && strtolower($guarantorStatus) !== 'not required')) {
-            $people[] = [
-                'name' => (string) ($gName ?: 'Guarantor'),
-                'role' => 'Guarantor',
-                'kyc' => $guarantorStatus !== '' ? $guarantorStatus : 'Invited',
-                'crb' => '—',
-                'readiness' => $waitingOnGuarantor ? 'Needs attention' : 'Ready',
-                'issue' => $waitingOnGuarantor ? $guarantorStatus : null,
-                'href' => $customer ? route('admin.customers.show', $customer) : null,
-                'tone' => $waitingOnGuarantor ? 'attention' : 'complete',
-            ];
-        }
+        $people = $this->draftPeople($draft, $snapshot, $guarantorStatus, $waitingOnGuarantor);
+        $isGroup = $this->draftIsGroup($draft, $snapshot);
+        $participants = $this->participantsFromPeople($people, $isGroup);
 
-        $lifecycle = [
-            ['key' => 'application', 'label' => 'Application', 'state' => 'attention', 'href' => route('admin.loan-applications.incomplete.show', $draft)],
-            ['key' => 'screening', 'label' => 'Screening', 'state' => 'upcoming', 'href' => null],
-            ['key' => 'decision', 'label' => 'Decision', 'state' => 'upcoming', 'href' => null],
-            ['key' => 'committee', 'label' => 'Committee', 'state' => 'upcoming', 'href' => null],
-            ['key' => 'offer', 'label' => 'Offer', 'state' => 'upcoming', 'href' => null],
-            ['key' => 'post_approval', 'label' => 'Post-Approval', 'state' => 'upcoming', 'href' => null],
-            ['key' => 'contract', 'label' => 'Contract', 'state' => 'upcoming', 'href' => null],
-            ['key' => 'disbursement', 'label' => 'Disbursement', 'state' => 'upcoming', 'href' => null],
-        ];
-
-        $readiness = [
-            [
-                'key' => 'application',
-                'label' => 'Application & affordability',
-                'state' => 'attention',
-                'detail' => $missing,
-                'href' => null,
-            ],
-            [
-                'key' => 'identity',
-                'label' => 'Identity / KYC',
-                'state' => $identityPending ? 'attention' : 'complete',
-                'detail' => $identityPending ? 'Pending verification' : 'Complete',
-                'href' => $customer ? route('admin.customers.show', ['customer' => $customer, 'tab' => 'about']) : null,
-            ],
-            [
-                'key' => 'documents',
-                'label' => 'Documents',
-                'state' => empty($snapshot['uploaded_documents'] ?? []) ? 'attention' : 'current',
-                'detail' => empty($snapshot['uploaded_documents'] ?? [])
-                    ? 'None uploaded yet'
-                    : count($snapshot['uploaded_documents']).' on file',
-                'href' => null,
-            ],
-            [
-                'key' => 'screening',
-                'label' => 'Screening & CRB',
-                'state' => 'upcoming',
-                'detail' => 'Starts after submission',
-                'href' => null,
-            ],
-        ];
-        foreach (['decision', 'committee', 'offer', 'post_approval', 'contract', 'disbursement'] as $key) {
+        $lifecycle = [];
+        $readiness = [];
+        foreach ($snapshot['journey_steps'] ?? [] as $step) {
             $readiness[] = [
-                'key' => $key,
-                'label' => match ($key) {
-                    'post_approval' => 'Post-Approval',
-                    default => ucfirst(str_replace('_', '-', $key)),
-                },
-                'state' => 'upcoming',
-                'detail' => null,
+                'key' => (string) ($step['key'] ?? 'step'),
+                'label' => (string) ($step['label'] ?? 'Step'),
+                'state' => ! empty($step['complete']) ? 'complete' : (! empty($step['current']) ? 'current' : 'upcoming'),
+                'detail' => ! empty($step['current']) ? $missing : null,
                 'href' => null,
             ];
         }
@@ -231,7 +173,7 @@ class Application360Presenter
             'member_url' => $customer ? route('admin.customers.show', $customer) : null,
             'member_phone' => $customer?->phone,
             'member_email' => $email,
-            'is_group' => false,
+            'is_group' => $isGroup,
             'is_draft' => true,
             'product_name' => $product?->name,
             'product_code' => $product?->code,
@@ -250,7 +192,7 @@ class Application360Presenter
                 'missing' => $missing,
                 'who' => $who,
                 'deadline' => null,
-                'cta' => 'Open Member 360',
+                'cta' => 'Continue application',
                 'href' => $href,
                 'cta_kind' => $waitingOnGuarantor ? 'waiting' : 'continue',
                 'gate_label' => null,
@@ -261,6 +203,7 @@ class Application360Presenter
             'lifecycle' => $lifecycle,
             'attention' => [],
             'people' => $people,
+            'participants' => $participants,
             'readiness' => $readiness,
             'timeline' => $timeline,
             'draft_snapshot' => $snapshot,
@@ -281,7 +224,24 @@ class Application360Presenter
 
         if (in_array($stage, $screeningStages, true)
             || in_array((string) $application->status, ['pending_documents', 'under_review'], true)) {
-            $row = $this->screeningNext->forApplication($application, $actor);
+            try {
+                $row = $this->screeningNext->forApplication($application, $actor);
+            } catch (\Throwable) {
+                return [
+                    'source' => 'screening',
+                    'headline' => 'Continue Screening',
+                    'missing' => 'Continue Screening',
+                    'who' => 'Staff',
+                    'deadline' => null,
+                    'cta' => 'Continue Screening',
+                    'href' => route('admin.loan-applications.guided-screening', $application),
+                    'cta_kind' => 'continue',
+                    'gate_label' => null,
+                    'percent' => null,
+                    'bucket' => null,
+                    'subjects' => [],
+                ];
+            }
             $ctaKind = (string) ($row['cta_kind'] ?? 'continue');
             $href = match ($ctaKind) {
                 'waiting' => (string) ($row['desk_href'] ?? $row['href'] ?? '#'),
@@ -293,14 +253,14 @@ class Application360Presenter
 
             return [
                 'source' => 'screening',
-                'headline' => (string) ($row['what_happens_next'] ?? $row['cta'] ?? 'Continue Screening'),
-                'missing' => (string) ($row['what_happens_next'] ?? $row['cta'] ?? 'Continue Screening'),
-                'who' => (string) ($waiting['label'] ?? $row['participant'] ?? 'Staff'),
+                'headline' => $this->plainText($row['what_happens_next'] ?? $row['cta'] ?? 'Continue Screening', 'Continue Screening'),
+                'missing' => $this->plainText($row['what_happens_next'] ?? $row['cta'] ?? 'Continue Screening', 'Continue Screening'),
+                'who' => $this->plainText($waiting['label'] ?? $row['participant'] ?? 'Staff', 'Staff'),
                 'deadline' => $waiting['deadline'] ?? $waiting['due'] ?? null,
-                'cta' => (string) ($row['cta'] ?? 'Continue Screening'),
+                'cta' => $this->plainText($row['cta'] ?? 'Continue Screening', 'Continue Screening'),
                 'href' => $href,
                 'cta_kind' => $ctaKind,
-                'gate_label' => (string) ($row['current_gate_label'] ?? $row['gate_label'] ?? ''),
+                'gate_label' => $this->plainText($row['current_gate_label'] ?? $row['gate_label'] ?? '', ''),
                 'percent' => $row['percent'] ?? null,
                 'bucket' => $row['bucket'] ?? null,
                 'subjects' => $row['subjects'] ?? [],
@@ -728,20 +688,23 @@ class Application360Presenter
                     $issue = $total > 0 ? "Screening {$done}/{$total}" : 'Screening in progress';
                 }
                 $gate3 = $subject['gate3']['label'] ?? ($subject['gate3']['chip'] ?? null);
-                $cards[] = [
-                    'name' => (string) ($subject['label'] ?? 'Participant'),
-                    'role' => (string) ($subject['role'] ?? ucfirst((string) ($subject['person'] ?? 'participant'))),
-                    'kyc' => $this->kycLabel($customer),
-                    'crb' => $gate3 ? (string) $gate3 : '—',
-                    'readiness' => ($subject['complete'] ?? false) ? 'Ready' : ($issue ?? 'In progress'),
-                    'issue' => ($subject['complete'] ?? false) ? null : $issue,
-                    'href' => $customer
-                        ? route('admin.customers.show', $customer)
-                        : ($subject['href'] ?? null),
-                    'tone' => ($subject['complete'] ?? false)
+                $card = $customer
+                    ? $this->customerCard($customer, (string) ($subject['role'] ?? ucfirst((string) ($subject['person'] ?? 'participant'))))
+                    : [
+                        'name' => (string) ($subject['label'] ?? 'Participant'),
+                        'role' => (string) ($subject['role'] ?? ucfirst((string) ($subject['person'] ?? 'participant'))),
+                        'href' => $subject['href'] ?? null,
+                        'tone' => 'attention',
+                    ];
+                $card['crb'] = $gate3 ? (string) $gate3 : ($card['crb'] ?? '—');
+                if ($issue && empty($card['issue'])) {
+                    $card['issue'] = $issue;
+                    $card['readiness'] = ($subject['complete'] ?? false) ? 'Ready' : $issue;
+                    $card['tone'] = ($subject['complete'] ?? false)
                         ? 'complete'
-                        : (((int) ($subject['failed'] ?? 0) > 0) ? 'attention' : 'current'),
-                ];
+                        : (((int) ($subject['failed'] ?? 0) > 0) ? 'attention' : ($card['tone'] ?? 'current'));
+                }
+                $cards[] = $card;
             }
 
             return $cards;
@@ -750,19 +713,7 @@ class Application360Presenter
         $cards = [];
         if ($application->loanGroup) {
             $group = $application->loanGroup;
-            $cards[] = [
-                'name' => $group->name ?: ('Group #'.$group->id),
-                'role' => 'Group',
-                'kyc' => $group->members?->count().' members',
-                'crb' => '—',
-                'readiness' => 'Group facility',
-                'issue' => null,
-                'href' => route('admin.loan-applications.show', [
-                    'loan_application' => $application,
-                    'workspace' => 'profiles',
-                ]),
-                'tone' => 'current',
-            ];
+            $index = 2;
             foreach ($group->members ?? [] as $member) {
                 $customer = $member->customer;
                 if (! $customer) {
@@ -770,10 +721,11 @@ class Application360Presenter
                 }
                 $isLeader = (int) ($group->leader_id ?? 0) === (int) $member->id
                     || (int) ($group->leader_customer_id ?? 0) === (int) $customer->id;
-                $cards[] = $this->customerCard(
-                    $customer,
-                    $isLeader ? 'Leader / borrower' : 'Group member',
-                );
+                $role = $isLeader ? 'Leader' : 'Member '.$index;
+                if (! $isLeader) {
+                    $index++;
+                }
+                $cards[] = $this->customerCard($customer, $role);
             }
         } elseif ($application->customer) {
             $cards[] = $this->customerCard($application->customer, 'Borrower');
@@ -799,9 +751,20 @@ class Application360Presenter
                     ?? $link->name
                     ?? 'Guarantor';
                 $cards[] = [
+                    'key' => 'guarantor-pending-'.($link->id ?? 'x'),
+                    'kind' => 'person',
+                    'customer_id' => null,
                     'name' => (string) $name,
                     'role' => 'Guarantor',
-                    'kyc' => display_label($link->status ?? $link->invitation?->status, 'guarantor_status') ?: 'Invited',
+                    'kyc' => '0%',
+                    'completion_percent' => 0,
+                    'completed_areas' => [],
+                    'missing_areas' => ['Guarantor profile incomplete'],
+                    'completion_cards' => [[
+                        'key' => 'profile',
+                        'label' => 'Profile',
+                        'complete' => false,
+                    ]],
                     'crb' => '—',
                     'readiness' => 'Awaiting profile',
                     'issue' => 'Guarantor profile incomplete',
@@ -810,6 +773,7 @@ class Application360Presenter
                         'workspace' => 'profiles',
                     ]),
                     'tone' => 'attention',
+                    'documents' => [],
                 ];
                 continue;
             }
@@ -822,43 +786,318 @@ class Application360Presenter
     /**
      * @return array<string, mixed>
      */
-    private function customerCard(\App\Models\Customer $customer, string $role): array
+    private function customerCard(\App\Models\Customer $customer, string $role, ?string $key = null): array
     {
-        $face = display_label($customer->face_verification_status, 'face_verification_status')
-            ?: str_replace('_', ' ', (string) ($customer->face_verification_status ?: 'Not started'));
-        $nida = display_label($customer->nida_verification_status, 'nida_verification_status')
-            ?: str_replace('_', ' ', (string) ($customer->nida_verification_status ?: 'Not verified'));
-        $issue = null;
-        $tone = 'complete';
-        if (! in_array((string) $customer->face_verification_status, ['verified', 'skipped'], true)) {
-            $issue = 'Face verification: '.$face;
-            $tone = 'attention';
-        } elseif (! in_array((string) $customer->nida_verification_status, ['verified'], true)) {
-            $issue = 'National ID: '.$nida;
-            $tone = 'attention';
+        $summary = $this->profileCompletion->completionSummary($customer);
+        $calculated = $this->profileCompletion->calculate($customer);
+        $percent = (int) ($summary['percent'] ?? $calculated['percent'] ?? 0);
+        $completed = array_values(array_filter(
+            $summary['completed'] ?? [],
+            fn ($label) => ! $this->isRetiredVerificationLabel((string) $label),
+        ));
+        $missing = array_values(array_filter(
+            $summary['remaining'] ?? [],
+            fn ($label) => ! $this->isRetiredVerificationLabel((string) $label),
+        ));
+        $needsAttention = $percent < 100 || $missing !== [];
+        $completionCards = [];
+        foreach ($calculated['sections'] ?? [] as $section) {
+            $label = (string) ($section['label'] ?? $section['key'] ?? '');
+            if ($this->isRetiredVerificationLabel($label) || $this->isRetiredVerificationLabel((string) ($section['key'] ?? ''))) {
+                continue;
+            }
+            $completionCards[] = [
+                'key' => (string) ($section['key'] ?? ''),
+                'label' => $label,
+                'complete' => ! empty($section['complete']),
+            ];
         }
 
         return [
+            'key' => $key ?: ('customer-'.$customer->id),
+            'kind' => 'person',
+            'customer_id' => (int) $customer->id,
             'name' => trim($customer->full_name ?: ($customer->first_name.' '.$customer->last_name)) ?: 'Member',
             'role' => $role,
-            'kyc' => $nida.' · '.$face,
+            'kyc' => $percent.'%',
+            'completion_percent' => $percent,
+            'completed_areas' => $completed,
+            'missing_areas' => $missing,
+            'completion_cards' => $completionCards,
             'crb' => '—',
-            'readiness' => $issue ? 'Needs attention' : 'Ready',
-            'issue' => $issue,
+            'readiness' => $needsAttention ? 'Needs attention' : 'Ready',
+            'issue' => $needsAttention ? (implode(', ', array_slice($missing, 0, 3)) ?: 'Profile incomplete') : null,
             'href' => route('admin.customers.show', $customer),
-            'tone' => $tone,
+            'tone' => $needsAttention ? 'attention' : 'complete',
+            'documents' => $this->documentHolders($customer),
         ];
     }
 
-    private function kycLabel(?\App\Models\Customer $customer): string
+    /**
+     * @param  list<array<string, mixed>>  $people
+     * @return list<array<string, mixed>>
+     */
+    private function participantsFromPeople(array $people, bool $isGroup): array
     {
-        if (! $customer) {
-            return '—';
+        $persons = array_values(array_filter(
+            $people,
+            fn ($row) => ($row['kind'] ?? 'person') !== 'all' && ($row['role'] ?? '') !== 'Group',
+        ));
+        $out = [];
+        if ($isGroup && count($persons) > 1) {
+            $complete = count(array_filter($persons, fn ($row) => ($row['tone'] ?? '') === 'complete'));
+            $attention = count($persons) - $complete;
+            $out[] = [
+                'key' => 'all',
+                'kind' => 'all',
+                'customer_id' => null,
+                'name' => 'All',
+                'role' => 'Group',
+                'label' => 'All ('.count($persons).')',
+                'kyc' => $complete.' / '.count($persons),
+                'completion_percent' => count($persons) > 0 ? (int) round(($complete / count($persons)) * 100) : 0,
+                'completed_areas' => [],
+                'missing_areas' => [],
+                'complete_count' => $complete,
+                'attention_count' => $attention,
+                'aggregate_label' => $complete.' complete · '.$attention.' need attention',
+                'crb' => '—',
+                'readiness' => $attention > 0 ? 'Needs attention' : 'Ready',
+                'issue' => $attention > 0 ? $attention.' member'.($attention === 1 ? '' : 's').' need attention' : null,
+                'href' => null,
+                'tone' => $attention > 0 ? 'attention' : 'complete',
+                'documents' => [],
+            ];
         }
-        $nida = display_label($customer->nida_verification_status, 'nida_verification_status') ?: 'NIDA';
-        $face = display_label($customer->face_verification_status, 'face_verification_status') ?: 'Face';
 
-        return $nida.' · '.$face;
+        return array_merge($out, $persons);
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @return list<array<string, mixed>>
+     */
+    private function draftPeople(LoanApplicationDraft $draft, array $snapshot, string $guarantorStatus, bool $waitingOnGuarantor): array
+    {
+        $people = [];
+        $customer = $draft->customer;
+        if ($customer) {
+            $people[] = $this->customerCard($customer, 'Borrower');
+        }
+
+        $members = $this->draftGroupMembers($draft, $snapshot);
+        if ($members !== []) {
+            $index = 2;
+            foreach ($members as $member) {
+                if (! $member instanceof \App\Models\Customer) {
+                    continue;
+                }
+                if ($customer && (int) $member->id === (int) $customer->id) {
+                    $people[0]['role'] = 'Leader';
+                    continue;
+                }
+                $people[] = $this->customerCard($member, 'Member '.$index);
+                $index++;
+            }
+        }
+
+        $gName = $snapshot['guarantor']['name'] ?? null;
+        $gCustomerId = $snapshot['guarantor']['customer_id'] ?? $snapshot['guarantor']['id'] ?? null;
+        if (filled($gName) || ($guarantorStatus !== '' && strtolower($guarantorStatus) !== 'not required')) {
+            $gCustomer = is_numeric($gCustomerId) ? \App\Models\Customer::query()->find((int) $gCustomerId) : null;
+            if ($gCustomer) {
+                $people[] = $this->customerCard($gCustomer, 'Guarantor');
+            } else {
+                $people[] = [
+                    'key' => 'guarantor-draft',
+                    'kind' => 'person',
+                    'customer_id' => null,
+                    'name' => (string) ($gName ?: 'Guarantor'),
+                    'role' => 'Guarantor',
+                    'kyc' => '0%',
+                    'completion_percent' => 0,
+                    'completed_areas' => [],
+                    'missing_areas' => $waitingOnGuarantor ? [$guarantorStatus ?: 'Awaiting guarantor'] : [],
+                    'completion_cards' => $waitingOnGuarantor ? [[
+                        'key' => 'profile',
+                        'label' => 'Profile',
+                        'complete' => false,
+                    ]] : [],
+                    'crb' => '—',
+                    'readiness' => $waitingOnGuarantor ? 'Needs attention' : 'Ready',
+                    'issue' => $waitingOnGuarantor ? $guarantorStatus : null,
+                    'href' => $customer ? route('admin.customers.show', $customer) : null,
+                    'tone' => $waitingOnGuarantor ? 'attention' : 'complete',
+                    'documents' => [],
+                ];
+            }
+        }
+
+        return $people;
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @return list<\App\Models\Customer>
+     */
+    private function draftGroupMembers(LoanApplicationDraft $draft, array $snapshot): array
+    {
+        $payload = $draft->payload ?? [];
+        $raw = $payload['group_members'] ?? $payload['form']['group_members'] ?? $snapshot['group_members'] ?? [];
+        if (! is_array($raw)) {
+            return [];
+        }
+        $ids = [];
+        foreach ($raw as $row) {
+            $id = is_array($row)
+                ? ($row['customer_id'] ?? $row['id'] ?? null)
+                : $row;
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return \App\Models\Customer::query()->whereIn('id', $ids)->get()->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function draftIsGroup(LoanApplicationDraft $draft, array $snapshot): bool
+    {
+        $product = $draft->product;
+        if ($product && (str_starts_with(strtoupper((string) $product->code), 'GL') || ($product->category ?? '') === 'group')) {
+            return true;
+        }
+
+        return $this->draftGroupMembers($draft, $snapshot) !== [];
+    }
+
+    /**
+     * Canonical Profile Document Holder groups — one current document per type code.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function documentHolders(\App\Models\Customer $customer): array
+    {
+        $customer->loadMissing(['documents.documentType']);
+        $grouped = [];
+        foreach ($customer->documents as $doc) {
+            $type = $doc->documentType;
+            $code = strtolower((string) ($type?->code ?: ($type?->name ?: 'doc-'.$doc->id)));
+            $grouped[$code][] = $doc;
+        }
+
+        $rows = [];
+        foreach ($grouped as $code => $docs) {
+            usort($docs, fn ($a, $b) => ($b->created_at?->timestamp ?? 0) <=> ($a->created_at?->timestamp ?? 0));
+            $current = $docs[0];
+            $status = match ((string) ($current->status ?? '')) {
+                'rejected', 'revision_required', 'needs_replacement' => 'needs_replacement',
+                default => filled($current->file_path) ? 'present' : 'missing',
+            };
+            $url = $current->file_path ? asset('storage/'.$current->file_path) : null;
+            $label = $current->documentType?->name ?? 'Document';
+            $category = $this->documentHolderCategory($code, $label, (string) ($current->documentType?->category ?? ''));
+            $history = [];
+            foreach (array_slice($docs, 1) as $older) {
+                if (! filled($older->file_path)) {
+                    continue;
+                }
+                $history[] = [
+                    'key' => 'doc-'.$older->id,
+                    'url' => asset('storage/'.$older->file_path),
+                    'uploaded_at' => $older->created_at?->timezone(config('app.timezone'))->format('d M Y'),
+                ];
+            }
+            $rows[] = [
+                'key' => 'doc-'.$current->id,
+                'type_code' => $code,
+                'category' => $category,
+                'label' => $label,
+                'status' => $status,
+                'url' => $url,
+                'eyebrow' => match ($status) {
+                    'present' => 'Present',
+                    'needs_replacement' => 'Needs replacement',
+                    default => 'Missing',
+                },
+                'uploaded_at' => $current->created_at?->timezone(config('app.timezone'))->format('d M Y'),
+                'kind' => str_contains(strtolower((string) $current->file_path), '.pdf') ? 'pdf' : 'image',
+                'history' => $history,
+            ];
+        }
+
+        foreach ($this->profileCompletion->sectionGaps($customer, 'kyc') as $gap) {
+            $label = (string) ($gap['label'] ?? 'Document');
+            $code = strtolower((string) ($gap['key'] ?? $label));
+            $already = collect($rows)->contains(
+                fn ($row) => $row['type_code'] === $code || strcasecmp((string) $row['label'], $label) === 0
+            );
+            if ($already) {
+                continue;
+            }
+            $rows[] = [
+                'key' => 'missing-'.$code,
+                'type_code' => $code,
+                'category' => $this->documentHolderCategory($code, $label, ''),
+                'label' => $label,
+                'status' => 'missing',
+                'url' => null,
+                'eyebrow' => 'Missing',
+                'uploaded_at' => null,
+                'kind' => 'image',
+                'history' => [],
+            ];
+        }
+
+        $order = ['identity' => 0, 'residence' => 1, 'financial' => 2, 'business' => 3, 'collateral' => 4, 'other' => 5];
+        usort($rows, function ($a, $b) use ($order) {
+            $ca = $order[$a['category'] ?? 'other'] ?? 5;
+            $cb = $order[$b['category'] ?? 'other'] ?? 5;
+            if ($ca !== $cb) {
+                return $ca <=> $cb;
+            }
+
+            return strcasecmp((string) $a['label'], (string) $b['label']);
+        });
+
+        return $rows;
+    }
+
+    /**
+     * Map a stored document onto the existing Profile holder categories.
+     */
+    private function documentHolderCategory(string $code, string $label, string $storedCategory): string
+    {
+        $hay = strtolower(trim($code.' '.$label.' '.$storedCategory));
+        if (str_contains($hay, 'national') || str_contains($hay, 'nida') || str_contains($hay, 'passport')
+            || str_contains($hay, 'voter') || str_contains($hay, 'driving') || str_contains($hay, 'identity')
+            || str_contains($hay, 'selfie') || str_contains($hay, 'face')) {
+            return 'identity';
+        }
+        if (str_contains($hay, 'residence') || str_contains($hay, 'lga') || str_contains($hay, 'utility')
+            || str_contains($hay, 'tenancy') || str_contains($hay, 'letter')) {
+            return 'residence';
+        }
+        if (str_contains($hay, 'bank') || str_contains($hay, 'mobile_money') || str_contains($hay, 'mobile money')
+            || str_contains($hay, 'salary') || str_contains($hay, 'income') || str_contains($hay, 'statement')) {
+            return 'financial';
+        }
+        if (str_contains($hay, 'business') || str_contains($hay, 'licence') || str_contains($hay, 'license')
+            || str_contains($hay, 'tin') || str_contains($hay, 'brela')) {
+            return 'business';
+        }
+        if (str_contains($hay, 'collateral') || str_contains($hay, 'asset') || str_contains($hay, 'vehicle')
+            || str_contains($hay, 'ownership') || str_contains($hay, 'insurance') || str_contains($hay, 'logbook')) {
+            return 'collateral';
+        }
+
+        return 'other';
     }
 
     /**
@@ -975,5 +1214,34 @@ class Application360Presenter
             'completed' => 'Complete',
             default => 'Needs attention',
         };
+    }
+
+    private function isRetiredVerificationLabel(string $value): bool
+    {
+        $hay = strtolower($value);
+
+        return str_contains($hay, 'face verification')
+            || str_contains($hay, 'face photos')
+            || str_contains($hay, 'nida verification')
+            || str_contains($hay, 'face_verification')
+            || $hay === 'face'
+            || str_contains($hay, 'selfie');
+    }
+
+    private function plainText(mixed $value, string $fallback): string
+    {
+        if (is_array($value)) {
+            foreach (['label', 'text', 'headline', 'cta', 0] as $key) {
+                if (isset($value[$key]) && ! is_array($value[$key]) && filled($value[$key])) {
+                    return (string) $value[$key];
+                }
+            }
+
+            return $fallback;
+        }
+
+        $text = trim((string) ($value ?? ''));
+
+        return $text !== '' ? $text : $fallback;
     }
 }
