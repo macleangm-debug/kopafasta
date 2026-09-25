@@ -1,10 +1,8 @@
-<x-site.supplier-layout :title="__('site.supplier_portal.card_title')" active="profile" content-width="wide" hero-key="card">
-    @include('site.partner-account._tabs', [
-        'active' => 'card',
+<x-site.supplier-layout :title="__('site.card_verify.my_card_title')" active="profile" content-width="wide" :hero="false">
+    @include('site.partner-account._shell', [
         'partner' => $partner,
-        'profileRoute' => $profileRoute,
         'portal' => $portal,
+        'active' => 'card',
+        'profileRoute' => $profileRoute,
     ])
-
-    @include('site.partner-account._member_card', ['partner' => $partner])
 </x-site.supplier-layout>

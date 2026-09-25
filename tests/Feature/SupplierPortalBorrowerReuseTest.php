@@ -205,12 +205,12 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertOk();
         $hub->assertSee(__('site.partner_account.personal_section'), false);
         $hub->assertSee(__('site.partner_account.payment_section'), false);
-        $hub->assertSee('data-kf-partner-card-pair', false);
-        $hub->assertSee('md:grid-cols-2', false);
-        $hub->assertSee(__('borrower.membership.status_title'), false);
+        $hub->assertSee('data-kf-completion-hero', false);
+        $hub->assertSee(__('site.card_verify.my_card_title'), false);
+        $hub->assertSee(route('site.supplier.profile', ['section' => 'card']), false);
+        $hub->assertDontSee('data-kf-partner-card-pair', false);
         $hub->assertSee(__('site.supplier_portal.title'), false);
         $hub->assertSee('kf-chrome-sidebar', false);
-        $hub->assertDontSee('data-kf-completion-hero', false);
         $hub->assertDontSee(route('site.borrower.profile'), false);
         $hub->assertSee(__('borrower.profile.security'), false);
         $hub->assertSee(__('site.partner_portal.nav_settings'), false);
@@ -251,9 +251,13 @@ class SupplierPortalBorrowerReuseTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.supplier.profile', ['section' => 'card']))
             ->assertOk()
-            ->assertSee(__('site.supplier_portal.card_title'), false)
+            ->assertSee(__('site.card_verify.my_card_title'), false)
+            ->assertSee(__('site.partner_portal.nav_profile'), false)
+            ->assertSee(route('site.supplier.profile'), false)
+            ->assertSee('data-kf-partner-card-pair', false)
             ->assertSee(__('site.card_verify.status.active'), false)
-            ->assertDontSee(__('site.card_verify.status.inactive'), false);
+            ->assertDontSee(__('site.card_verify.status.inactive'), false)
+            ->assertDontSee('data-kf-completion-hero', false);
 
         $this->actingAs($user)
             ->get(route('site.supplier.profile', ['section' => 'payment']))

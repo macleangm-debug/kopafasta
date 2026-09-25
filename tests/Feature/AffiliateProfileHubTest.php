@@ -37,7 +37,11 @@ class AffiliateProfileHubTest extends TestCase
             ->assertSee(__('site.partner_account.personal_section'), false)
             ->assertSee(__('site.partner_account.face_section'), false)
             ->assertSee(__('site.partner_account.residence_section'), false)
-            ->assertSee(__('site.partner_account.payment_section'), false);
+            ->assertSee(__('site.partner_account.payment_section'), false)
+            ->assertSee('data-kf-completion-hero', false)
+            ->assertSee(__('site.card_verify.my_card_title'), false)
+            ->assertSee(route('site.affiliate.profile', ['section' => 'card']), false)
+            ->assertDontSee('data-kf-partner-card-pair', false);
     }
 
     public function test_unknown_section_slug_is_rejected_by_route_constraint(): void

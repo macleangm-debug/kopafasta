@@ -78,7 +78,7 @@ class AffiliateController extends Controller
 
         $section = $section ?: 'hub';
 
-        if (! in_array($section, array_merge(['hub', 'agreement', 'membership'], PartnerProfileService::SECTIONS), true)) {
+        if (! in_array($section, array_merge(['hub', 'card', 'agreement', 'membership'], PartnerProfileService::SECTIONS), true)) {
             return redirect()->route('site.affiliate.profile');
         }
 
@@ -102,6 +102,12 @@ class AffiliateController extends Controller
             return view('site.partner-account.hub', $common + [
                 'title'    => __('site.partner_account.hub_title'),
                 'subtitle' => __('site.partner_account.hub_subtitle'),
+            ]);
+        }
+
+        if ($section === 'card') {
+            return view('site.partner-account.card', $common + [
+                'title' => __('site.card_verify.my_card_title'),
             ]);
         }
 

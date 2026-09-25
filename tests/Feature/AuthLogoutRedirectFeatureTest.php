@@ -48,6 +48,17 @@ class AuthLogoutRedirectFeatureTest extends TestCase
             ->assertSee(__('site.auth.partner_sign_in'), false);
     }
 
+    public function test_investor_logout_returns_to_partner_login(): void
+    {
+        $user = User::factory()->create(['role' => 'investor']);
+
+        $this->actingAs($user)
+            ->post(route('site.logout'))
+            ->assertRedirect(route('site.login.partner'));
+
+        $this->assertGuest('web');
+    }
+
     public function test_admin_logout_returns_to_staff_admin_login(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

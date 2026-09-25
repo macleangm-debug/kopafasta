@@ -938,7 +938,7 @@ class VendorController extends Controller
         $vendor = $this->vendor();
 
         $section = $section ?: 'hub';
-        $allowed = array_merge(['hub'], app(PartnerProfileService::class)->sectionsFor($vendor));
+        $allowed = array_merge(['hub', 'card'], app(PartnerProfileService::class)->sectionsFor($vendor));
 
         if (! in_array($section, $allowed, true)) {
             return redirect()->route('site.partner.profile');
@@ -966,6 +966,12 @@ class VendorController extends Controller
             return view('site.partner-account.hub', $common + [
                 'title' => __('site.partner_account.hub_title'),
                 'subtitle' => __('site.partner_account.hub_subtitle'),
+            ]);
+        }
+
+        if ($section === 'card') {
+            return view('site.partner-account.card', $common + [
+                'title' => __('site.card_verify.my_card_title'),
             ]);
         }
 

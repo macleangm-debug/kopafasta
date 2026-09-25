@@ -39,7 +39,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/payments/{payment}/invoice', [VendorController::class, 'invoice'])->name('invoice');
         Route::get('/calendar', [VendorController::class, 'calendar'])->name('calendar');
         Route::get('/notifications', [VendorController::class, 'notifications'])->name('notifications');
-        Route::get('/profile/{section?}', [VendorController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment');
+        Route::get('/profile/{section?}', [VendorController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|card');
         Route::put('/profile/{section}', [VendorController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
         Route::get('/membership/pay', [VendorController::class, 'membershipPayForm'])->name('membership.pay');
         Route::post('/membership/pay', [VendorController::class, 'membershipPay'])->name('membership.pay.post');
