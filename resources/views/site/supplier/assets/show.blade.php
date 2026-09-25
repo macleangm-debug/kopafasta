@@ -15,7 +15,7 @@
                     <p class="text-sm text-white/70 mt-1 font-mono">{{ $asset->asset_number ?: ($asset->slug ?: '—') }}</p>
                     <p class="text-sm text-white/80 mt-2 max-w-lg">{{ __('site.supplier_portal.asset_summary_blurb') }}</p>
                     <div class="mt-4 flex flex-wrap gap-2">
-                        <a href="{{ route('site.supplier.assets.edit', $asset) }}"
+                        <a href="{{ route('site.supplier.assets.edit', $asset->id) }}"
                            class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold px-4 py-2.5 hover:bg-yellow-400 shadow-md text-sm">
                             {{ __('site.supplier_portal.asset_edit') }}
                         </a>
@@ -57,7 +57,7 @@
                     :title="__('site.supplier_portal.asset_photos_empty_title')"
                     :description="__('site.supplier_portal.asset_photos_empty_desc')"
                     :action-label="__('site.supplier_portal.asset_edit')"
-                    :action-url="route('site.supplier.assets.edit', $asset)"
+                    :action-url="route('site.supplier.assets.edit', $asset->id)"
                 />
             @endif
         </div>
@@ -90,7 +90,7 @@
                                 {{ __('site.supplier_portal.asset_view_buyers') }}
                             </a>
                         @else
-                            <a href="{{ route('site.supplier.assets.edit', $asset) }}"
+                            <a href="{{ route('site.supplier.assets.edit', $asset->id) }}"
                                class="inline-flex items-center rounded-lg bg-brand-gold text-brand font-bold px-3 py-1.5 text-xs">
                                 {{ __('site.supplier_portal.asset_edit') }}
                             </a>

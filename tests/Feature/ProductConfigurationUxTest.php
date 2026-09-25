@@ -39,6 +39,7 @@ class ProductConfigurationUxTest extends TestCase
             ->assertSee('Asset Lending commercial model', false)
             ->assertSee('Capital Partner required: No', false)
             ->assertSee('Search and sharing', false)
+            ->assertSee('admin-wizard', false)
             ->getContent();
 
         $this->assertStringContainsString('requiresGuarantor', $html);
@@ -69,6 +70,7 @@ class ProductConfigurationUxTest extends TestCase
             ->get(route('admin.loan-products.edit', $product))
             ->assertOk()
             ->assertSee('Tiered monthly rates', false)
+            ->assertSee('admin-wizard', false)
             ->assertDontSee('Deposit tiers');
     }
 }

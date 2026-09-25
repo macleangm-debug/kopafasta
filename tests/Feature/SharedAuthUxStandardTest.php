@@ -24,6 +24,9 @@ class SharedAuthUxStandardTest extends TestCase
         $this->assertStringContainsString(__('site.auth.welcome_back'), $login);
         $this->assertStringContainsString(__('site.auth.shell.login_support'), $login);
         $this->assertStringContainsString(__('site.auth.shell.register_heading'), $register);
+        $this->assertStringContainsString(__('borrower.register.details_title'), $register);
+        $this->assertStringContainsString(__('borrower.register.details_body'), $register);
+        $this->assertStringNotContainsString('<h2 class="text-2xl font-bold text-gray-900">'.e(__('borrower.register.details_title')), $register);
         $this->assertStringContainsString('name="phone"', $login);
         $this->assertStringContainsString('name="pin"', $login);
         $this->assertStringContainsString('kf-auth-pin', $login);

@@ -352,8 +352,8 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
         $this->get(route('site.marketplace'))
             ->assertOk()
             ->assertSee('Four Photo Truck', false)
-            ->assertSee('aria-label="Previous photo"', false)
-            ->assertSee('bg-brand text-white', false);
+            ->assertDontSee('aria-label="Previous photo"', false)
+            ->assertDontSee('aria-label="Next photo"', false);
     }
 
     public function test_request_asset_opens_application_overview_with_duration_quotes(): void

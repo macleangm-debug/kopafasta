@@ -12,7 +12,8 @@
     $hasTenure = filled($product->tenure_max_months ?? null);
 @endphp
 
-<article class="glass-card overflow-hidden hover:shadow-[0_16px_48px_rgba(0,77,64,0.14)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col h-full group">
+<article class="relative glass-card overflow-hidden hover:shadow-[0_16px_48px_rgba(0,77,64,0.14)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col h-full group">
+    <a href="{{ route('site.product', $product->code) }}" class="absolute inset-0 z-10" aria-label="{{ $productName }}"></a>
     <div class="p-3 pb-0">
         <x-site.product-illustration :code="$product->code" size="card" class="!aspect-[2/1]" />
     </div>
@@ -45,11 +46,5 @@
                 </div>
             @endif
         </dl>
-
-        <a href="{{ route('site.product', $product->code) }}"
-           class="mt-auto pt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-bold px-4 py-2.5 transition-all duration-300 shadow-sm">
-            {{ __('site.products.learn_more') }}
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
-        </a>
     </div>
 </article>

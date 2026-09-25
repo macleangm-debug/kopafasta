@@ -34,6 +34,7 @@ class Phase11FeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.create', ['category' => 'valuer']))
             ->assertOk()
+            ->assertSee('admin-wizard', false)
             ->assertSee('Rates', false)
             ->assertSee('value="valuer"', false);
     }

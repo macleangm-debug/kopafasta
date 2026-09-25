@@ -17,7 +17,6 @@
                         <th class="px-4 py-3 font-semibold">{{ __('site.supplier_portal.col_activity') }}</th>
                         <th class="px-4 py-3 font-semibold">{{ __('borrower.marketplace.deposit') }}</th>
                         <th class="px-4 py-3 font-semibold">{{ __('borrower.marketplace.loan_amount') }}</th>
-                        <th class="px-4 py-3 font-semibold"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">
@@ -28,7 +27,7 @@
                         <tr>
                             <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ $asset->asset_number ?: '—' }}</td>
                             <td class="px-4 py-3">
-                                <a href="{{ route('site.supplier.assets.show', $asset) }}" class="font-semibold text-brand hover:underline">{{ $asset->title }}</a>
+                                <a href="{{ route('site.supplier.assets.show', $asset->id) }}" class="font-semibold text-brand hover:underline">{{ $asset->title }}</a>
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
                                 {{ __('site.supplier_portal.asset_activity_meta', [
@@ -38,10 +37,6 @@
                             </td>
                             <td class="px-4 py-3 tabular-nums">{{ format_money($quote['customer_deposit_due'] ?? $asset->customer_deposit) }}</td>
                             <td class="px-4 py-3 tabular-nums">{{ format_money($quote['financed_amount'] ?? 0) }}</td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap">
-                                <a href="{{ route('site.supplier.assets.edit', $asset) }}" class="text-brand font-semibold hover:underline mr-3">Edit</a>
-                                <a href="{{ route('site.marketplace.show', $asset->slug ?: $asset->id) }}" target="_blank" rel="noopener" class="text-brand font-semibold hover:underline">{{ __('site.supplier_portal.market_view') }} →</a>
-                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -52,7 +47,7 @@
                 @php
                     $quote = app(\App\Services\AssetLendingService::class)->pricingQuoteFromAssetPrice((float) $asset->asset_value);
                 @endphp
-                <a href="{{ route('site.supplier.assets.show', $asset) }}" class="block rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3">
+                <a href="{{ route('site.supplier.assets.show', $asset->id) }}" class="block rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3">
                     <p class="font-semibold text-gray-900">{{ $asset->title }}</p>
                     @if ($asset->asset_number)
                         <p class="text-[11px] font-mono text-gray-500 mt-0.5">{{ $asset->asset_number }}</p>

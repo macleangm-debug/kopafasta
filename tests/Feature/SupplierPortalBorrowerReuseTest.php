@@ -339,9 +339,11 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->get(route('site.supplier.assets'))
             ->assertOk()
             ->assertSee('Summary Bajaj', false)
-            ->assertSee(route('site.supplier.assets.show', $asset), false)
+            ->assertSee(route('site.supplier.assets.show', $asset->id), false)
             ->assertSee(__('site.supplier_portal.col_activity'), false)
-            ->assertSee(__('site.supplier_portal.asset_activity_meta', ['requests' => 0, 'active' => 0]), false);
+            ->assertSee(__('site.supplier_portal.asset_activity_meta', ['requests' => 0, 'active' => 0]), false)
+            ->assertDontSee(route('site.supplier.assets.edit', $asset->id), false)
+            ->assertDontSee(__('site.supplier_portal.market_view'), false);
 
         $this->actingAs($user)
             ->get(route('site.supplier.assets.show', $asset))
@@ -351,7 +353,15 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.supplier_portal.asset_next_title'), false)
             ->assertSee(__('site.supplier_portal.asset_next_no_buyers'), false)
             ->assertSee(__('site.supplier_portal.asset_edit'), false)
+            ->assertSee(route('site.supplier.assets.edit', $asset->id), false)
+            ->assertSee(__('site.supplier_portal.market_view'), false)
             ->assertSee('kf-premium-panel', false);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.assets.edit', $asset->id))
+            ->assertOk()
+            ->assertSee('admin-wizard', false)
+            ->assertSee('Summary Bajaj', false);
     }
 
     public function test_add_asset_uses_existing_wizard(): void

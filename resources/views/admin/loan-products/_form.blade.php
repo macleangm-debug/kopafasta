@@ -14,7 +14,13 @@
         requiresCollateral: @js((string) old('requires_collateral', $r?->requires_collateral ?? '0')),
         requiresGuarantor: @js((string) old('requires_guarantor', $r?->requires_guarantor ?? '0')),
         usesCapitalPartner: @js((string) old('uses_capital_partner', ($r?->uses_capital_partner ?? true) ? '1' : '0')),
-    }" class="space-y-6">
+    }"
+    x-init="
+        $watch('cloneFrom', () => $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild')))));
+        $watch('category', () => $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild')))));
+        $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
+    "
+    class="space-y-0">
     <x-admin.step title="Basics">
         @unless ($r)
             <div class="md:col-span-2 rounded-xl bg-amber-50 ring-1 ring-amber-100 p-4">
@@ -92,7 +98,7 @@
         </div>
     </x-admin.step>
 
-    <div x-show="!cloneFrom" x-cloak>
+    <div data-step-gate x-show="!cloneFrom">
         @include('admin.loan-products._pricing-fields', ['isAssetLending' => $isAssetLending])
         @if ($isAssetLending)
             <x-admin.step title="Pricing">

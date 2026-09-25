@@ -87,8 +87,18 @@
                     <div class="kf-premium-panel mx-4 mt-4 mb-0 rounded-2xl px-5 py-5 sm:mx-5 sm:px-6 sm:py-5">
                         <div class="relative">
                             <span class="inline-flex items-center rounded-full bg-brand-gold/15 text-brand-gold ring-1 ring-brand-gold/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em]">{{ __('site.auth.shell.join') }}</span>
-                            <h1 class="mt-2.5 text-xl sm:text-2xl font-bold tracking-tight leading-tight">{{ __('site.auth.shell.register_heading') }}</h1>
-                            <p class="mt-1.5 text-sm text-white/80 leading-relaxed">{{ __('site.auth.shell.register_support') }}</p>
+                            <h1 class="mt-2.5 text-xl sm:text-2xl font-bold tracking-tight leading-tight"
+                                x-text="step === 2
+                                    ? (isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details')) : @js(__('borrower.register.details_title')))
+                                    : @js(__('site.auth.shell.register_heading'))">{{ $initialStep === 2
+                                    ? ($isGuarantorRegistration ? __('borrower.guarantor_invite.register_step_details') : __('borrower.register.details_title'))
+                                    : __('site.auth.shell.register_heading') }}</h1>
+                            <p class="mt-1.5 text-sm text-white/80 leading-relaxed"
+                               x-text="step === 2
+                                    ? (isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details_hint')) : @js(__('borrower.register.details_body')))
+                                    : @js(__('site.auth.shell.register_support'))">{{ $initialStep === 2
+                                    ? ($isGuarantorRegistration ? __('borrower.guarantor_invite.register_step_details_hint') : __('borrower.register.details_body'))
+                                    : __('site.auth.shell.register_support') }}</p>
                         </div>
                     </div>
                     <div class="px-5 pt-5 pb-6 sm:px-6 sm:pb-7">
@@ -118,10 +128,7 @@
 
                         {{-- Step 1: Country & phone --}}
                         <div x-show="step === 1">
-                            <h2 class="text-2xl font-bold text-gray-900">{{ __('borrower.register.country_phone_title') }}</h2>
-                            <p class="mt-1 text-sm text-gray-600">{{ __('borrower.register.country_phone_body') }}</p>
-
-                            <div class="mt-4 kf-auth-form" x-data="{ countryOpen: false }">
+                            <div class="kf-auth-form" x-data="{ countryOpen: false }">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.country') }}</label>
                                     <button type="button" @click="countryOpen = true"
@@ -248,10 +255,7 @@
 
                         {{-- Step 2: Personal --}}
                         <div x-show="step === 2" x-cloak>
-                            <h2 class="text-2xl font-bold text-gray-900" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details')) : @js(__('borrower.register.details_title'))"></h2>
-                            <p class="mt-1 text-sm text-gray-600" x-text="isGuarantor ? @js(__('borrower.guarantor_invite.register_step_details_hint')) : @js(__('borrower.register.details_body'))"></p>
-
-                            <div class="mt-6 space-y-5">
+                            <div class="space-y-5">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div class="min-w-0">
                                         <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.first_name') }} <span class="text-red-500">*</span></label>

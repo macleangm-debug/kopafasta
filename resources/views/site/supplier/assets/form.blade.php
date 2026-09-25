@@ -13,7 +13,7 @@
 
     <div class="mx-auto w-full max-w-2xl sm:max-w-3xl px-1 sm:px-0">
         <form method="POST" enctype="multipart/form-data"
-              action="{{ $asset ? route('site.supplier.assets.update', $asset) : route('site.supplier.assets.store') }}"
+              action="{{ $asset ? route('site.supplier.assets.update', $asset->id) : route('site.supplier.assets.store') }}"
               class="glass-card rounded-3xl ring-1 ring-brand/10 p-4 sm:p-8"
               x-data="supplierAssetWizard(@js([
                   'category' => $selectedCategory,
@@ -42,7 +42,7 @@
             <input type="hidden" name="_submit_token" value="{{ $submitToken }}">
             <input type="hidden" name="is_active" :value="isActive ? 1 : 0">
 
-            <x-admin.wizard :submit-label="$asset ? __('site.supplier_portal.wizard_save') : __('site.supplier_portal.wizard_publish')" :cancel-url="route('site.supplier.assets')">
+            <x-admin.wizard :submit-label="$asset ? __('site.supplier_portal.wizard_save') : __('site.supplier_portal.wizard_publish')" :cancel-url="$asset ? route('site.supplier.assets.show', $asset->id) : route('site.supplier.assets')">
                 <x-admin.step :title="__('site.supplier_portal.wizard_type')">
                     <div class="md:col-span-2">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_type') }}</label>

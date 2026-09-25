@@ -38,6 +38,8 @@ class LandingVariantFeatureTest extends TestCase
         $this->assertStringContainsString('snap-x snap-mandatory', $html);
         $this->assertStringContainsString(__('site.products.carousel_next'), $html);
         $this->assertStringNotContainsString(__('site.products.see_more'), $html);
+        $this->assertStringNotContainsString(__('site.products.learn_more'), $html);
+        $this->assertStringContainsString(route('site.product', 'IL', false), $html);
     }
 
     public function test_landing_query_param_switches_to_variant_b(): void

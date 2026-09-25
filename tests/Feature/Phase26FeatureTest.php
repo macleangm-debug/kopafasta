@@ -79,6 +79,7 @@ class Phase26FeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.loan-products.create'))
             ->assertOk()
+            ->assertSee('admin-wizard', false)
             ->assertSee('function addRateTierRow()', false)
             ->assertSee('+ Add tier', false);
     }

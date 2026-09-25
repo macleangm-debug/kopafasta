@@ -71,6 +71,7 @@ class Phase10FeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.edit', $partner))
             ->assertOk()
-            ->assertSee('Edit partner', false);
+            ->assertSee('Edit partner', false)
+            ->assertSee('admin-wizard', false);
     }
 }
