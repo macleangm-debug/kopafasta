@@ -194,6 +194,85 @@
             </x-slot:form>
         </x-site.profile-section-card>
 
+        @if ($isAffiliate && ! $isCompany)
+            @php
+                $reference = is_array($meta['reference_contact'] ?? null) ? $meta['reference_contact'] : [];
+                $referenceComplete = filled($reference['name'] ?? null)
+                    && filled($reference['relationship'] ?? null)
+                    && filled($reference['phone'] ?? null);
+            @endphp
+            <x-site.profile-section-card
+                section-id="section-reference"
+                icon="📞"
+                :title="__('site.affiliate_portal.reference_title')"
+                :complete="$referenceComplete"
+                :collapsible="true">
+                <x-slot:view>
+                    <p class="text-sm text-gray-600 mb-3">{{ __('site.affiliate_portal.reference_hint') }}</p>
+                    @if ($referenceComplete)
+                        <dl class="grid sm:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <dt class="text-xs text-gray-500">{{ __('site.affiliate_portal.reference_name') }}</dt>
+                                <dd class="font-semibold text-gray-900 mt-0.5">{{ $reference['name'] }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">{{ __('site.affiliate_portal.reference_relationship') }}</dt>
+                                <dd class="font-semibold text-gray-900 mt-0.5">{{ $reference['relationship'] }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">{{ __('site.affiliate_portal.reference_phone') }}</dt>
+                                <dd class="font-semibold text-gray-900 mt-0.5">{{ $reference['phone'] }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-gray-500">{{ __('site.affiliate_portal.reference_email') }}</dt>
+                                <dd class="font-semibold text-gray-900 mt-0.5">{{ $reference['email'] ?? '—' }}</dd>
+                            </div>
+                        </dl>
+                    @else
+                        <p class="text-sm text-gray-500">{{ __('site.partner_account.section_empty') }}</p>
+                    @endif
+                </x-slot:view>
+                <x-slot:form>
+                    <form method="POST" action="{{ route($updateRoute, ['section' => 'personal']) }}" class="space-y-4"
+                          data-kf-autosave
+                          data-kf-autosave-saving="{{ __('borrower.document_upload.saving') }}"
+                          data-kf-autosave-saved="{{ __('borrower.document_upload.saved') }}"
+                          data-kf-autosave-fail="{{ __('borrower.document_upload.could_not_save') }}"
+                          data-kf-autosave-retry="{{ __('borrower.document_upload.retry') }}"
+                          data-kf-account-shell>
+                        @csrf @method('PUT')
+                        <input type="hidden" name="focus" value="reference">
+                        <p class="text-sm text-gray-600">{{ __('site.affiliate_portal.reference_hint') }}</p>
+                        <div>
+                            <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.affiliate_portal.reference_name') }}</label>
+                            <input name="reference_name" value="{{ old('reference_name', $reference['name'] ?? '') }}" required
+                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
+                        </div>
+                        <x-site.sheet-select
+                            name="reference_relationship"
+                            :label="__('site.affiliate_portal.reference_relationship')"
+                            :options="__('borrower.profile.kin_relationship_options')"
+                            :value="old('reference_relationship', $reference['relationship'] ?? '')"
+                            :placeholder="__('borrower.profile.select_relationship')"
+                            :required="true"
+                        />
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <x-site.phone-input name="reference_phone" :label="__('site.affiliate_portal.reference_phone')" :value="old('reference_phone', $reference['phone'] ?? '')" variant="rounded" />
+                            <div>
+                                <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.affiliate_portal.reference_email') }}</label>
+                                <input name="reference_email" type="email" value="{{ old('reference_email', $reference['email'] ?? '') }}"
+                                       class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
+                            </div>
+                        </div>
+                        <label class="flex items-start gap-2 text-sm text-gray-700">
+                            <input type="checkbox" name="reference_consent" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('reference_consent', $reference['consent'] ?? false))>
+                            <span>{{ __('site.affiliate_portal.reference_consent') }}</span>
+                        </label>
+                    </form>
+                </x-slot:form>
+            </x-site.profile-section-card>
+        @endif
+
         @if ($isAffiliate)
             {{-- Promo code --}}
             <x-site.profile-section-card

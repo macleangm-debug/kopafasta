@@ -172,7 +172,6 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
         $routes = [
             'site.affiliate.dashboard',
             'site.affiliate.share',
-            'site.affiliate.referrals',
             'site.affiliate.wallet',
             'site.affiliate.performance',
             'site.affiliate.notifications',
@@ -570,15 +569,13 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
     {
         [$user] = $this->affiliateUser(['affiliate_code' => 'HERO001', 'name' => 'Hero Affiliate']);
 
-        $html = $this->actingAs($user)
+        $this->actingAs($user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
             ->get(route('site.affiliate.dashboard'))
             ->assertOk()
             ->assertSee(__('site.affiliate_portal.hero_available', [], 'en'), false)
             ->assertSee('HERO001', false)
-            ->getContent();
-
-        $this->assertStringContainsString('hidden sm:block', $html);
-        $this->assertStringContainsString('hidden sm:inline-flex', $html);
+            ->assertSee(__('site.affiliate_portal.quick_actions_title', [], 'en'), false)
+            ->assertDontSee(__('affiliate_terms.accept_button', [], 'en'), false);
     }
 }

@@ -29,7 +29,7 @@ return [
         'welcome_body' => 'Sambaza Kopafasta kwa watu unaowahudumia. Kamisheni inapatikana tu kwenye shughuli stahiki.',
         'share_title' => 'Sambaza Kopafasta',
         'share_body' => 'Tumia kiungo chako na msimbo wa promo. Wanaoanza nawe wanahusishwa nawe.',
-        'track_title' => 'Fuatilia athari yako',
+        'track_title' => 'Fuatilia matokeo yako',
         'track_body' => 'Ona rufaa, maombi na maendeleo ya wateja kwenye portal yako.',
         'earn_title' => 'Pata na toa',
         'earn_body' => 'Kamisheni stahiki zinaingia kwenye pochi yako. Toa ukifikia kiwango cha chini.',

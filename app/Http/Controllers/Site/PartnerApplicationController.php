@@ -31,7 +31,7 @@ class PartnerApplicationController extends Controller
             'legal_name' => ['nullable', 'string', 'max:150'],
             'registration_number' => ['nullable', 'string', 'max:80'],
             'tin' => ['nullable', 'string', 'max:40'],
-            'region' => ['nullable', 'string', 'max:100'],
+            'region' => ['required', 'string', 'max:100'],
             'coverage_regions' => ['nullable', 'array'],
             'coverage_regions.*' => ['string', 'max:100'],
             'occupation' => ['required', 'string', 'max:150'],

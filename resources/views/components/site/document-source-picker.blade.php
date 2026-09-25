@@ -14,14 +14,24 @@
     $cameraOnly = (bool) $cameraOnly;
 @endphp
 
-{{-- Canonical + → Upload / Camera (or camera-only: + opens shutter immediately).
-     Owns its own open state. Mobile sheet + desktop menu teleport to body so
-     (1) taps reach Upload/Camera and (2) desktop menu is never clipped. --}}
+{{-- Canonical + → Upload / Camera.
+     Desktop uses a popover only. Mobile uses a bottom sheet only.
+     Separate open flags so a teleported sheet cannot appear beside the desktop menu. --}}
 <div class="relative inline-flex shrink-0"
      x-data="{
-        open: false,
+        menuOpen: false,
+        sheetOpen: false,
         cameraOnly: @js($cameraOnly),
+        desktop: false,
         menuStyle: {},
+        syncDesktop() {
+            this.desktop = window.matchMedia('(min-width: 1024px)').matches;
+            if (this.desktop) {
+                this.sheetOpen = false;
+            } else {
+                this.menuOpen = false;
+            }
+        },
         placeMenu() {
             const btn = this.$refs.trigger;
             if (! btn) return;
@@ -37,31 +47,39 @@
             };
         },
         pick(source) {
-            this.open = false;
+            this.menuOpen = false;
+            this.sheetOpen = false;
             window.dispatchEvent(new CustomEvent('document-source', {
                 detail: { source: source, hostId: @js($hostId) },
             }));
         },
         openPicker() {
+            this.syncDesktop();
             if (this.cameraOnly) {
                 this.pick('camera');
                 return;
             }
-            this.open = true;
-            if (window.matchMedia('(min-width: 1024px)').matches) {
-                this.placeMenu();
+            if (this.desktop) {
+                this.sheetOpen = false;
+                this.menuOpen = ! this.menuOpen;
+                if (this.menuOpen) this.placeMenu();
+                return;
             }
+            this.menuOpen = false;
+            this.sheetOpen = ! this.sheetOpen;
         },
      }"
+     x-init="syncDesktop()"
+     @resize.window="syncDesktop(); if (menuOpen) placeMenu()"
      @document-source-open.window="
         if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
         openPicker();
      ">
     <button type="button"
             x-ref="trigger"
-            @click="cameraOnly ? openPicker() : (open = !open, open && placeMenu())"
+            @click="openPicker()"
             class="kf-request-add"
-            :class="open && 'is-open'"
+            :class="(menuOpen || sheetOpen) && 'is-open'"
             aria-label="{{ $cameraOnly ? $cameraLabel : $title }}">
         <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
@@ -71,11 +89,11 @@
     @unless ($cameraOnly)
     <template x-teleport="body">
         <div x-cloak
-             x-show="open && window.matchMedia('(min-width: 1024px)').matches"
+             x-show="menuOpen"
              x-transition
-             @click.outside="open = false"
-             @resize.window="if (open) placeMenu()"
-             @scroll.window.passive="if (open) placeMenu()"
+             @click.outside="menuOpen = false"
+             @resize.window="if (menuOpen) placeMenu()"
+             @scroll.window.passive="if (menuOpen) placeMenu()"
              :style="menuStyle"
              class="rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 overflow-hidden">
             <button type="button" @click="pick('upload')"
@@ -95,25 +113,23 @@
         </div>
     </template>
 
-    <div class="lg:hidden">
-        <x-site.bottom-sheet :title="$title" open="open">
-            <div class="space-y-2 pb-2">
-                <button type="button" @click="pick('upload')"
-                        class="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 text-left text-sm font-semibold text-gray-800 hover:bg-brand/5">
-                    <span class="size-10 rounded-xl bg-brand/10 text-brand grid place-items-center shrink-0" aria-hidden="true">
-                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 20h16"/></svg>
-                    </span>
-                    {{ $uploadLabel }}
-                </button>
-                <button type="button" @click="pick('camera')"
-                        class="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 text-left text-sm font-semibold text-gray-800 hover:bg-brand/5">
-                    <span class="size-10 rounded-xl bg-brand-gold/20 text-brand grid place-items-center shrink-0" aria-hidden="true">
-                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-                    </span>
-                    {{ $cameraLabel }}
-                </button>
-            </div>
-        </x-site.bottom-sheet>
-    </div>
+    <x-site.bottom-sheet :title="$title" open="sheetOpen">
+        <div class="space-y-2 pb-2">
+            <button type="button" @click="pick('upload')"
+                    class="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 text-left text-sm font-semibold text-gray-800 hover:bg-brand/5">
+                <span class="size-10 rounded-xl bg-brand/10 text-brand grid place-items-center shrink-0" aria-hidden="true">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 20h16"/></svg>
+                </span>
+                {{ $uploadLabel }}
+            </button>
+            <button type="button" @click="pick('camera')"
+                    class="w-full flex items-center gap-3 rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 text-left text-sm font-semibold text-gray-800 hover:bg-brand/5">
+                <span class="size-10 rounded-xl bg-brand-gold/20 text-brand grid place-items-center shrink-0" aria-hidden="true">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                </span>
+                {{ $cameraLabel }}
+            </button>
+        </div>
+    </x-site.bottom-sheet>
     @endunless
 </div>

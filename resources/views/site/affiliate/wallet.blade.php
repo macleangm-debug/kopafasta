@@ -1,10 +1,11 @@
-<x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.wallet_title'))" active="wallet">
+<x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.wallet_title'))" active="wallet" :hero="false">
 
     <section class="mb-6 kf-premium-panel rounded-2xl p-6 sm:p-8 relative" x-data="{ withdrawing: {{ $errors->has('amount') || $errors->has('notes') ? 'true' : 'false' }} }">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
         <div class="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
-                <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.hero_available') }}</p>
+                <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.wallet_title') }}</p>
+                <p class="text-xs uppercase tracking-widest text-white/70 font-semibold mt-3">{{ __('site.affiliate_portal.hero_available') }}</p>
                 <p class="text-3xl sm:text-4xl font-bold mt-1 tabular-nums">{{ format_money($available) }}</p>
                 <p class="text-sm text-white/70 mt-2">{{ __('site.affiliate_portal.hero_pending', ['amount' => format_money($pending ?? $totals['pending'] ?? 0)]) }}</p>
                 <p class="text-sm text-white/70 mt-1">{{ __('site.affiliate_portal.min_payout_note', ['amount' => format_money($minPayout)]) }}</p>

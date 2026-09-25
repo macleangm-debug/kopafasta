@@ -11,6 +11,15 @@ return [
     /** Paid via payment.show before affiliate application enters review. */
     'application_fee_amount' => (float) env('AFFILIATE_APPLICATION_FEE', 10000),
 
+    /**
+     * Countries where Affiliate-facing funnels hide the Registered stage.
+     * Underlying registration events stay stored for other countries / analytics.
+     */
+    'funnel_hide_registered_countries' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('AFFILIATE_FUNNEL_HIDE_REGISTERED', 'TZ'))
+    ))),
+
     /** percentage | fixed | tiered | hybrid */
     'commission_mode' => env('AFFILIATE_COMMISSION_MODE', 'percentage'),
 

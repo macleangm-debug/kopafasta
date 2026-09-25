@@ -1,7 +1,15 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.share_title'))" active="share">
 
     @unless ($eligibility['can_share'] ?? false)
-        <div class="glass-card p-5 mb-6 text-sm text-gray-700">{{ __('site.affiliate_portal.eligibility_blocked') }}</div>
+        <div class="glass-card p-5 mb-6 ring-1 ring-amber-200 bg-amber-50/70">
+            <p class="text-sm font-bold text-gray-900">{{ ($shareLock['title'] ?? null) ?: __('site.affiliate_portal.eligibility_blocked') }}</p>
+            <p class="text-sm text-gray-700 mt-1">{{ $shareLock['body'] ?? __('site.affiliate_portal.eligibility_blocked') }}</p>
+            @if (! empty($shareLock['cta_url']))
+                <a href="{{ $shareLock['cta_url'] }}" class="inline-flex mt-3 text-sm font-semibold text-brand hover:underline">
+                    {{ $shareLock['cta_label'] }} →
+                </a>
+            @endif
+        </div>
     @endunless
 
     <section class="kf-premium-panel rounded-2xl p-6 sm:p-8 mb-6 relative overflow-hidden">

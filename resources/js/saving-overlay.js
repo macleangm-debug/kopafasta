@@ -74,13 +74,19 @@ export function registerSavingOverlay(Alpine) {
         }
         toast.querySelector('span:last-child').textContent = label;
         toast.classList.remove('hidden');
+        try {
+            if (window.Alpine?.store('kfSaving')) {
+                window.Alpine.store('kfSaving').uploading = false;
+            }
+        } catch (e) { /* ignore */ }
         // Force a paint so Saving is visible before the request resolves on fast networks.
         void toast.offsetWidth;
     };
 
     window.kfShowSaving = function (message, progress) {
         if (window.kfIsBorrowerProfileContext()
-            || (typeof window.kfIsAccountShellContext === 'function' && window.kfIsAccountShellContext())) {
+            || (typeof window.kfIsAccountShellContext === 'function' && window.kfIsAccountShellContext())
+            || document.querySelector('form[data-inline-document-progress]')) {
             window.kfShowInlineSaving(message, progress?.percent != null ? { percent: progress.percent } : undefined);
             return;
         }

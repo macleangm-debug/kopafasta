@@ -78,8 +78,19 @@ class AffiliateProfileHubTest extends TestCase
         $this->assertSame('19900101-12345-67890-12', $identity['national_id']);
         $this->assertTrue($identity['no_physical_nida_card']);
 
-        // Contact details were already present on the seeded vendor, and the
-        // checkbox waives the physical card requirement, so personal is complete.
+        $this->actingAs($user)
+            ->put(route('site.affiliate.profile.update', ['section' => 'personal']), [
+                'focus' => 'reference',
+                'reference_name' => 'Amina Juma',
+                'reference_relationship' => 'sibling',
+                'reference_phone' => '255712345678',
+                'reference_consent' => '1',
+            ])
+            ->assertRedirect();
+
+        $vendor->refresh();
+        $this->assertSame('Amina Juma', data_get($vendor->metadata, 'reference_contact.name'));
+
         $service = app(\App\Services\PartnerProfileService::class);
         $status = $service->sectionStatus($vendor, 'personal');
         $this->assertSame('complete', $status['status']);

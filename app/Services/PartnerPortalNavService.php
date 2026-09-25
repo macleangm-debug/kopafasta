@@ -103,10 +103,9 @@ class PartnerPortalNavService
     {
         return [
             ['key' => 'dashboard', 'label' => __('site.affiliate_portal.nav_dashboard'), 'route' => 'site.affiliate.dashboard', 'icon' => 'home'],
-            ['key' => 'referrals', 'label' => __('site.affiliate_portal.nav_referrals'), 'route' => 'site.affiliate.referrals', 'icon' => 'users'],
+            ['key' => 'performance', 'label' => __('site.affiliate_portal.nav_performance'), 'route' => 'site.affiliate.performance', 'icon' => 'chart'],
             ['key' => 'share', 'label' => __('site.affiliate_portal.nav_share'), 'route' => 'site.affiliate.share', 'icon' => 'share'],
             ['key' => 'wallet', 'label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet', 'icon' => 'wallet'],
-            ['key' => 'performance', 'label' => __('site.affiliate_portal.nav_performance'), 'route' => 'site.affiliate.performance', 'icon' => 'chart'],
             ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.affiliate.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile', 'icon' => 'user'],
         ];
@@ -156,7 +155,7 @@ class PartnerPortalNavService
             $prefer = ['dashboard', 'recovery', 'recovery_wallet', 'notifications', 'profile'];
         }
         if (($nav[0]['route'] ?? null) === 'site.affiliate.dashboard') {
-            $prefer = ['dashboard', 'share', 'referrals', 'wallet', 'profile'];
+            $prefer = ['dashboard', 'performance', 'share', 'wallet', 'profile'];
         }
         if (($nav[0]['route'] ?? null) === 'site.supplier.dashboard') {
             $prefer = ['dashboard', 'assets', 'requests', 'settlements', 'profile'];

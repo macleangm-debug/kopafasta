@@ -456,6 +456,13 @@ class PartnerProfileService
             $items[] = ['key' => 'nida_back', 'label' => __('site.partner_account.nida_back'), 'filled' => filled($identity['national_id_back'] ?? null)];
         }
 
+        if ($entity instanceof Partner && $entity->isAffiliate() && ! $entity->isCompanyApplicant()) {
+            $reference = is_array($meta['reference_contact'] ?? null) ? $meta['reference_contact'] : [];
+            $items[] = ['key' => 'reference_name', 'label' => __('site.affiliate_portal.reference_name'), 'filled' => filled($reference['name'] ?? null)];
+            $items[] = ['key' => 'reference_relationship', 'label' => __('site.affiliate_portal.reference_relationship'), 'filled' => filled($reference['relationship'] ?? null)];
+            $items[] = ['key' => 'reference_phone', 'label' => __('site.affiliate_portal.reference_phone'), 'filled' => filled($reference['phone'] ?? null)];
+        }
+
         return $this->statusFromItems($items);
     }
 
@@ -583,6 +590,27 @@ class PartnerProfileService
             if (filled($code)) {
                 app(AffiliateService::class)->updateCode($entity, $code);
             }
+
+            return;
+        }
+
+        if ($focus === 'reference' && $entity instanceof Partner && $entity->isAffiliate() && ! $entity->isCompanyApplicant()) {
+            $data = $request->validate([
+                'reference_name' => ['required', 'string', 'max:120'],
+                'reference_relationship' => ['required', 'string', 'max:40'],
+                'reference_phone' => ['required', 'string', 'max:30'],
+                'reference_email' => ['nullable', 'email', 'max:120'],
+                'reference_consent' => ['accepted'],
+            ]);
+            $meta = $entity->metadata ?? [];
+            $meta['reference_contact'] = array_filter([
+                'name' => $data['reference_name'],
+                'relationship' => $data['reference_relationship'],
+                'phone' => $data['reference_phone'],
+                'email' => $data['reference_email'] ?? null,
+                'consent' => true,
+            ], fn ($value) => $value !== null && $value !== '');
+            $entity->update(['metadata' => $meta]);
 
             return;
         }

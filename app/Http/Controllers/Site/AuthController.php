@@ -917,7 +917,10 @@ class AuthController extends Controller
     public function logout(Request $request): RedirectResponse
     {
         $user = Auth::guard('web')->user();
-        $isPartner = $user && in_array((string) $user->role, ['vendor', 'affiliate', 'investor'], true);
+        $isPartner = $user && (
+            in_array((string) $user->role, ['vendor', 'affiliate', 'investor'], true)
+            || \App\Models\Vendor::query()->where('user_id', $user->id)->exists()
+        );
 
         Auth::guard('web')->logout();
         app(WebTwoFactorAuthService::class)->clearSessionVerification($request);

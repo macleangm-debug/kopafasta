@@ -43,9 +43,9 @@ class AffiliateController extends Controller
         return view('site.affiliate.performance', app(AffiliatePortalPresenter::class)->performance($this->affiliate()));
     }
 
-    public function referrals(): View
+    public function referrals(): RedirectResponse
     {
-        return view('site.affiliate.referrals', app(AffiliatePortalPresenter::class)->referrals($this->affiliate()));
+        return redirect()->route('site.affiliate.performance');
     }
 
     public function wallet(): View
@@ -56,10 +56,7 @@ class AffiliateController extends Controller
     public function agreement(): View
     {
         $vendor = $this->affiliate();
-        $accountTabs = [
-            ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.affiliate.profile')],
-            ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.affiliate.settings')],
-        ];
+        $accountTabs = [];
 
         return view('site.affiliate.agreement', app(AffiliatePortalPresenter::class)->agreementDocument($vendor) + [
             'partner' => $vendor,
@@ -82,10 +79,7 @@ class AffiliateController extends Controller
             return redirect()->route('site.affiliate.profile');
         }
 
-        $accountTabs = [
-            ['key' => 'profile', 'label' => __('site.partner_account.tab_profile'), 'url' => route('site.affiliate.profile')],
-            ['key' => 'settings', 'label' => __('site.partner_account.tab_settings'), 'url' => route('site.affiliate.settings')],
-        ];
+        $accountTabs = [];
 
         $common = [
             'partner'         => $vendor,

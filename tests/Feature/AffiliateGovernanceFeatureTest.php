@@ -74,7 +74,10 @@ class AffiliateGovernanceFeatureTest extends TestCase
             ->assertSee(__('site.affiliate_apply.decl_paragraph'), false)
             ->assertSee(__('site.affiliate_apply.decl_agree'), false)
             ->assertDontSee('name="declaration_accurate"', false)
-            ->assertDontSee('window.confirmForm($el', false);
+            ->assertDontSee('window.confirmForm($el', false)
+            ->assertDontSee('Prefer not to say', false)
+            ->assertDontSee('Sipendi kusema', false)
+            ->assertSee('name="region"', false);
     }
 
     public function test_approval_and_account_activation_do_not_make_promo_operational(): void
@@ -312,15 +315,35 @@ class AffiliateGovernanceFeatureTest extends TestCase
         $this->assertSame(1, CustomerPayment::query()->where('payment_type', 'affiliate_application_fee')->count());
     }
 
-    public function test_public_apply_does_not_require_region_or_coverage(): void
+    public function test_public_apply_requires_residence_region_but_not_coverage(): void
     {
         Storage::fake('public');
+
+        $this->from(route('site.affiliate.apply'))
+            ->post(route('site.affiliate.apply.post'), [
+                'applicant_category' => 'individual',
+                'full_name' => 'Online Only Affiliate',
+                'email' => 'online-aff@example.com',
+                'phone' => '+255712345802',
+                'occupation' => 'Content creator',
+                'sales_experience' => 'I promote products to an online audience.',
+                'languages' => ['sw'],
+                'why_affiliate' => 'I already advise followers about loans.',
+                'acquisition_methods' => ['social_media'],
+                'monthly_reach' => '100+',
+                'first_10_customers' => 'I will share from my existing online audience.',
+                'declaration_accepted' => '1',
+                'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
+                'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
+            ])->assertRedirect(route('site.affiliate.apply'))
+            ->assertSessionHasErrors('region');
 
         $this->post(route('site.affiliate.apply.post'), [
             'applicant_category' => 'individual',
             'full_name' => 'Online Only Affiliate',
             'email' => 'online-aff@example.com',
             'phone' => '+255712345802',
+            'region' => 'Dar es Salaam',
             'occupation' => 'Content creator',
             'sales_experience' => 'I promote products to an online audience.',
             'languages' => ['sw'],
@@ -335,7 +358,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
 
         $application = PartnerApplication::query()->where('email', 'online-aff@example.com')->first();
         $this->assertNotNull($application);
-        $this->assertNull($application->region);
+        $this->assertSame('Dar es Salaam', $application->region);
         $this->assertSame([], $application->coverage_regions ?? []);
 
         $application->update(['status' => 'approved']);

@@ -55,6 +55,7 @@ class AffiliatePortalPresenter
             'standing' => $standing,
             'commercial' => $commercial,
             'funnel' => $funnel,
+            'funnelKeys' => $this->visibleFunnelKeys(),
             'progress' => $progress,
             'impact' => $impact,
             'activity' => $activity,
@@ -72,13 +73,16 @@ class AffiliatePortalPresenter
         $links = $this->affiliates->messageContext($vendor);
         $locale = app()->getLocale();
 
+        $eligibility = $this->eligibility->for($vendor);
+
         return [
             'vendor' => $vendor,
             'links' => $links,
             'shareMessage' => $this->affiliates->renderMessage($vendor, 'share_template'),
             'smsMessage' => $this->settings->message('referral_sms', $links, $locale),
             'attributionWindow' => $this->settings->attributionWindowDays(),
-            'eligibility' => $this->eligibility->for($vendor),
+            'eligibility' => $eligibility,
+            'shareLock' => $this->needsAttention($vendor, $eligibility, $this->membership->summary($vendor)),
             'canChangeCode' => $this->affiliates->canChangeCode($vendor),
             'nextCodeChangeAt' => $this->affiliates->nextCodeChangeAt($vendor),
             'qrUrl' => 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='.urlencode($links['affiliate_link']),
@@ -99,6 +103,9 @@ class AffiliatePortalPresenter
             'standing' => $standing,
             'progress' => $this->assessmentProgress($vendor, $standing),
             'impact' => $this->impactSnapshot($vendor),
+            'funnel' => $this->referralFunnel($vendor),
+            'funnelKeys' => $this->visibleFunnelKeys(),
+            'pipeline' => $this->referralPipeline($vendor),
             'warningLadder' => [
                 ['label' => __('site.affiliate_portal.performance_needs_attention'), 'periods' => $this->settings->volumeMissesBeforeNudge()],
                 ['label' => __('site.affiliate_portal.performance_at_risk'), 'periods' => $this->settings->volumeMissesBeforeWatchlist()],
@@ -215,16 +222,13 @@ class AffiliatePortalPresenter
             'amount' => format_money($available),
             'amount_label' => __('site.affiliate_portal.hero_available'),
             'meta' => $code,
-            'cta_label' => $attention['cta_label'] ?? ($eligibility['can_share'] ? __('site.affiliate_portal.nav_share') : null),
-            'cta_url' => $attention['cta_url'] ?? ($eligibility['can_share'] ? route('site.affiliate.share') : null),
-            'secondary_cta_label' => $eligibility['can_share'] ? __('site.affiliate_portal.nav_performance') : null,
-            'secondary_cta_url' => $eligibility['can_share'] ? route('site.affiliate.performance') : null,
-            'tertiary_cta_label' => ($available >= $this->settings->minimumPayoutAmount() && $eligibility['can_share'])
-                ? __('site.affiliate_portal.request_payout')
-                : null,
-            'tertiary_cta_url' => ($available >= $this->settings->minimumPayoutAmount() && $eligibility['can_share'])
-                ? route('site.affiliate.wallet').'#payout-form'
-                : null,
+            'amount_compact' => format_money_compact($available),
+            'cta_label' => null,
+            'cta_url' => null,
+            'secondary_cta_label' => null,
+            'secondary_cta_url' => null,
+            'tertiary_cta_label' => null,
+            'tertiary_cta_url' => null,
             'compact_mobile' => true,
         ];
     }
@@ -241,18 +245,18 @@ class AffiliatePortalPresenter
         $reasons = $eligibility['reasons'] ?? [];
         if (in_array('terms_unaccepted', $reasons, true)) {
             return [
-                'title' => __('site.affiliate_portal.attention_terms_title'),
-                'body' => __('site.affiliate_portal.attention_terms_body'),
-                'cta_label' => __('affiliate_terms.accept_button'),
+                'title' => __('site.affiliate_portal.lock_terms_title'),
+                'body' => __('site.affiliate_portal.lock_terms_body'),
+                'cta_label' => __('site.affiliate_portal.lock_terms_cta'),
                 'cta_url' => route('site.affiliate.terms'),
             ];
         }
         if (in_array('kyc_unverified', $reasons, true)) {
             return [
-                'title' => __('site.affiliate_portal.attention_kyc_title'),
-                'body' => __('site.affiliate_portal.attention_kyc_body'),
-                'cta_label' => __('site.affiliate_portal.complete_kyc'),
-                'cta_url' => route('site.affiliate.profile', ['section' => 'face']),
+                'title' => __('site.affiliate_portal.lock_profile_title'),
+                'body' => __('site.affiliate_portal.lock_profile_body'),
+                'cta_label' => __('site.affiliate_portal.lock_profile_cta'),
+                'cta_url' => route('site.affiliate.profile'),
             ];
         }
         if (in_array('agreement_inactive', $reasons, true) || in_array('membership_inactive', $reasons, true)) {
@@ -357,6 +361,19 @@ class AffiliatePortalPresenter
             'regs_this_month' => $regsNow,
             'insights' => array_slice($insights, 0, 3),
         ];
+    }
+
+    /** @return list<string> */
+    public function visibleFunnelKeys(): array
+    {
+        $keys = ['visited', 'registered', 'applied', 'approved', 'qualifying', 'commission'];
+        $country = strtoupper((string) session('country', config('app.country', 'TZ')));
+        $hide = config('affiliates.funnel_hide_registered_countries', ['TZ']);
+        if (in_array($country, $hide, true)) {
+            $keys = array_values(array_filter($keys, fn (string $key) => $key !== 'registered'));
+        }
+
+        return $keys;
     }
 
     /** @return array<string, int> */

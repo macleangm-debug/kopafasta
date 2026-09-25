@@ -119,6 +119,7 @@
                         :options="$regionOptions"
                         :value="old('region')"
                         :placeholder="__('site.affiliate_apply.select_region')"
+                        :required="true"
                     />
                     <p class="mt-1 text-xs text-gray-500">{{ __('site.affiliate_apply.region_hint') }}</p>
                 </div>

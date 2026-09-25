@@ -98,4 +98,12 @@
             {{ __('site.partner_account.contact_support') }} →
         </a>
     @endif
+
+    <form method="POST" action="{{ route('site.logout') }}" class="pt-2">
+        @csrf
+        <button type="submit"
+                class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white ring-1 ring-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-bold py-3.5">
+            {{ __('borrower.layout.sign_out') }}
+        </button>
+    </form>
 </div>
