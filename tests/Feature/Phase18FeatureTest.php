@@ -31,9 +31,9 @@ class Phase18FeatureTest extends TestCase
             ->assertSee('id="login-method-switcher"', false)
             ->assertSee(__('site.auth.welcome_back'), false)
             ->assertSee(__('site.auth.partner_login_cta'), false)
-            ->assertSee('partnerOpen = true', false)
+            ->assertSee(route('site.login.partner'), false)
+            ->assertDontSee('partnerOpen = true', false)
             ->assertSee('name="auth_method" value="pin"', false)
-            ->assertDontSee('max-h-[100dvh]', false)
             ->getContent();
 
         $this->assertStringNotContainsString('account_type_borrower', $html);

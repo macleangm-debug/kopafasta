@@ -18,7 +18,6 @@
     :aside-body="$support"
     id="login-method-switcher"
     data-method="{{ $authMethod }}"
-    x-data="{ partnerOpen: false }"
 >
     @if (session('status'))
         <div class="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -75,42 +74,9 @@
             {{ __('site.auth.new_here') }}
             <a href="{{ route('site.register') }}" class="text-brand font-semibold hover:underline">{{ __('site.auth.create_account') }}</a>
         </div>
-        <button type="button" @click="partnerOpen = true" class="mt-3 w-full text-center text-sm font-semibold text-brand hover:underline">
+        <a href="{{ route('site.login.partner') }}" class="mt-3 w-full inline-flex justify-center text-sm font-semibold text-brand hover:underline">
             {{ __('site.auth.partner_login_cta') }}
-        </button>
-
-        <x-site.action-panel open="partnerOpen" :title="__('site.auth.partner_sign_in')" size="md">
-            <form method="POST" action="{{ route('site.login.post') }}" class="kf-auth-form">
-                @csrf
-                <input type="hidden" name="auth_method" value="password">
-                <div>
-                    <label class="kf-auth-label">{{ __('site.auth.email_or_phone') }}</label>
-                    <input type="text" name="login" value="{{ old('login') }}" autocomplete="username"
-                           placeholder="{{ __('site.auth.email_or_phone_placeholder') }}"
-                           required class="kf-auth-input">
-                </div>
-                <div>
-                    <div class="flex items-center justify-between gap-3 mb-1">
-                        <label class="kf-auth-label mb-0">{{ __('site.auth.password') }}</label>
-                        <a href="{{ route('site.forgot-pin') }}" class="text-xs text-brand font-medium hover:underline">{{ __('site.auth.forgot_password') }}</a>
-                    </div>
-                    <input type="password" name="password" autocomplete="current-password" required class="kf-auth-input">
-                </div>
-                <label class="flex items-center gap-2 text-sm text-gray-600">
-                    <input type="checkbox" name="trust_device" value="1" class="rounded border-gray-300 text-brand focus:ring-brand">
-                    {{ __('site.auth.trust_device', ['days' => app(\App\Services\TrustedDeviceService::class)->ttlDays()]) }}
-                </label>
-                <label class="flex items-center gap-2 text-sm text-gray-600">
-                    <input type="checkbox" name="remember" value="1" class="rounded border-gray-300 text-brand focus:ring-brand">
-                    {{ __('site.auth.remember_me') }}
-                </label>
-                <x-site.turnstile action="login" />
-                <button class="kf-auth-btn">{{ __('site.auth.sign_in') }}</button>
-            </form>
-            <p class="mt-4 text-center text-xs text-gray-500">
-                <a href="{{ route('site.partner.start') }}" class="text-brand font-semibold hover:underline">{{ __('site.auth.activate_account') }}</a>
-            </p>
-        </x-site.action-panel>
+        </a>
     @else
         <form method="POST" action="{{ route('site.login.post') }}" class="kf-auth-form">
             @csrf

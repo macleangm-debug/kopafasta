@@ -21,15 +21,31 @@ class AuthLogoutRedirectFeatureTest extends TestCase
         $this->assertGuest('web');
     }
 
-    public function test_partner_logout_returns_to_partner_landing_not_admin(): void
+    public function test_partner_logout_returns_to_partner_login_not_admin(): void
     {
         $user = User::factory()->create(['role' => 'vendor']);
 
         $response = $this->actingAs($user)->post(route('site.logout'));
 
-        $response->assertRedirect(route('site.partners'));
+        $response->assertRedirect(route('site.login.partner'));
         $this->assertStringNotContainsString('/admin/login', (string) $response->headers->get('Location'));
         $this->assertGuest('web');
+    }
+
+    public function test_borrower_login_partner_cta_opens_the_partner_login_page(): void
+    {
+        $this->get(route('site.login'))
+            ->assertOk()
+            ->assertSee(route('site.login.partner'), false)
+            ->assertDontSee('partnerOpen', false);
+
+        $this->get(route('site.login.partner'))
+            ->assertRedirect(route('site.login', ['portal' => 'partner']));
+
+        $this->followingRedirects()
+            ->get(route('site.login.partner'))
+            ->assertOk()
+            ->assertSee(__('site.auth.partner_sign_in'), false);
     }
 
     public function test_admin_logout_returns_to_staff_admin_login(): void

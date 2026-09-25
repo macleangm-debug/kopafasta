@@ -924,7 +924,7 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route($isPartner ? 'site.partners' : 'site.home')
+        return redirect()->route($isPartner ? 'site.login.partner' : 'site.home')
             ->withCookie(app(TrustedDeviceService::class)->forgetCookie());
     }
 
