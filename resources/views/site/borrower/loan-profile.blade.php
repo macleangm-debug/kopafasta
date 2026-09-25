@@ -38,20 +38,42 @@
             );
         $showDisbursementChecklist = ! $isDraft && $isPostApproval && ! $isDisbursed && ! empty($profile['disbursement_checklist']);
         $showSchedule = false; // Repayment schedule lives on the active loan page only.
+        $assetName = $profile['product_details']['asset']['name'] ?? null;
+        $loansUrl = route('site.borrower.loans');
+        $nextActionLabel = $profile['next_action']['label'] ?? ($status['label'] ?? null);
     @endphp
 
-    <div class="mb-4">
-        <a href="{{ route('site.borrower.loans', ['tab' => 'applications']) }}" data-kf-motion="pop" class="text-sm font-semibold text-brand hover:underline">
-            {{ __('borrower.loan_profile.back') }}
-        </a>
-    </div>
-
-    <x-site.borrower-page-header
-        :eyebrow="__('borrower.loan_profile.label')"
-        :title="$summary['product_name']"
-        :subtitle="$summary['application_number']"
-        :share="($application?->id ?? $draft?->id) ? 'kf-app-'.($application?->id ?? $draft?->id) : null"
-    />
+    <section class="mb-4 rounded-2xl p-4 sm:p-5 relative overflow-hidden kf-premium-panel"
+             @if (($application?->id ?? $draft?->id)) style="view-transition-name: kf-app-{{ $application?->id ?? $draft?->id }}" @endif>
+        <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+        <div class="relative space-y-3">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.loan_profile.label') }}</p>
+                    <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-white mt-1">{{ $summary['product_name'] }}</h1>
+                    @if (! empty($assetName))
+                        <p class="text-sm text-white/80 mt-1 truncate">{{ $assetName }}</p>
+                    @endif
+                    <p class="text-xs font-mono text-white/65 mt-1">{{ $summary['application_number'] }}</p>
+                </div>
+                <a href="{{ $loansUrl }}" data-kf-motion="pop"
+                   class="shrink-0 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand font-bold text-xs sm:text-sm px-3.5 py-2.5">
+                    {{ __('borrower.loan_profile.back_to_loan') }}
+                </a>
+            </div>
+            <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                @if (! empty($summary['requested_amount']))
+                    <p class="text-lg sm:text-xl font-extrabold tabular-nums whitespace-nowrap text-white">{{ format_money($summary['requested_amount']) }}</p>
+                @endif
+                @if (! empty($status['label']))
+                    <p class="text-xs font-semibold text-white/80">{{ $status['label'] }}</p>
+                @endif
+                @if (! empty($nextActionLabel) && $nextActionLabel !== ($status['label'] ?? null))
+                    <p class="text-xs text-white/70">{{ $nextActionLabel }}</p>
+                @endif
+            </div>
+        </div>
+    </section>
 
     @if (! empty($summary['loan_number']))
         <p class="text-xs text-emerald-700 -mt-4 mb-4 font-mono">{{ __('borrower.loan_profile.loan_number') }}: {{ $summary['loan_number'] }}</p>
@@ -112,7 +134,7 @@
 
     {{-- 3. Compact summary (collapsed after submission when under review) --}}
     @if ($isDraft)
-        <div class="glass-card p-5 mb-6">
+        <div class="glass-card p-4 mb-4">
             <div class="mb-4">
                 <h2 class="font-semibold">{{ __('borrower.loan_profile.summary_title') }}</h2>
             </div>
@@ -186,20 +208,13 @@
     @endif
 
     @if ($isDraft && $missingRequirements->isNotEmpty())
-        <div id="requested-actions" class="mb-6 overflow-hidden rounded-3xl ring-1 ring-amber-200 bg-gradient-to-br from-amber-50 via-white to-white shadow-sm">
-            <div class="px-5 py-4 border-b border-amber-100/80">
-                <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('borrower.loan_profile.missing_requirements_title') }}</p>
-                <p class="mt-1.5 text-sm text-amber-950/90 leading-relaxed">{{ __('borrower.loan_profile.missing_requirements_hint') }}</p>
-            </div>
-            <div class="px-5 py-4 space-y-2">
-                @foreach ($missingRequirements as $item)
-                    <a href="{{ $item['upload_url'] ?? $completeProfileUrl }}"
-                       class="flex items-center justify-between gap-3 rounded-2xl bg-white ring-1 ring-amber-200/80 hover:ring-brand/30 hover:bg-brand-muted/20 px-4 py-3 transition">
-                        <span class="text-sm font-semibold text-gray-900">{{ $item['label'] ?? '—' }}</span>
-                        <span class="text-xs font-bold text-brand shrink-0">{{ __('borrower.loan_profile.complete_profile') }} →</span>
-                    </a>
-                @endforeach
-            </div>
+        <div id="requested-actions" class="mb-4 rounded-2xl ring-1 ring-amber-200 bg-amber-50/70 px-4 py-4">
+            <p class="text-sm font-bold text-amber-950">{{ __('borrower.loan_profile.profile_incomplete_title') }}</p>
+            <p class="mt-1 text-sm text-amber-950/80 leading-snug">{{ __('borrower.loan_profile.profile_incomplete_body') }}</p>
+            <a href="{{ $completeProfileUrl }}"
+               class="mt-3 inline-flex items-center font-bold text-sm text-brand">
+                {{ __('borrower.loan_profile.complete_profile') }} →
+            </a>
         </div>
     @endif
 

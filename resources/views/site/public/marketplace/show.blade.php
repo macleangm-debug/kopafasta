@@ -4,16 +4,18 @@
             ← {{ __('borrower.marketplace.back_to_marketplace') }}
         </a>
 
-        <div class="grid lg:grid-cols-12 gap-8 lg:gap-10 mt-6">
-            <div class="lg:col-span-7">
+        <div class="w-full max-w-full space-y-4 lg:grid lg:grid-cols-12 lg:gap-10 lg:space-y-0 mt-6">
+            <div class="w-full min-w-0 lg:col-span-7">
                 @include('site.marketplace._photo-slider', [
                     'photos' => $asset['photos'] ?? [],
                     'category' => $asset['category'] ?? 'other',
                     'zoom' => true,
                     'share' => ! empty($asset['id']) ? 'kf-mp-'.$asset['id'] : null,
+                    'durationMonths' => $asset['max_tenure_months'] ?? null,
+                    'priceAmount' => $asset['asset_value'] ?? null,
                 ])
             </div>
-            <div class="lg:col-span-5">
+            <div class="w-full min-w-0 lg:col-span-5">
                 <div class="kf-premium-panel rounded-2xl p-4 sm:p-5 mb-5">
                     <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ $asset['category_label'] ?? marketplace_category_label($asset['category'] ?? null) }}</p>
                     <h1 class="text-2xl sm:text-3xl font-bold mt-1 tracking-tight">{{ marketplace_plain($asset['title'] ?? '') }}</h1>

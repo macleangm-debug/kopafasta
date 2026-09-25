@@ -284,6 +284,7 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             ->assertDontSee('Choose duration', false)
             ->assertDontSee('name="tenure_months"', false)
             ->assertDontSee(__('borrower.marketplace.weekly_installment'), false)
+            ->assertSee('data-kf-duration-badge', false)
             ->assertSee(__('borrower.marketplace.up_to_months', [
                 'months' => effective_marketplace_asset_max_tenure($asset),
             ]), false);
@@ -291,10 +292,13 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
         $this->get(route('site.marketplace.show', $asset->slug))
             ->assertOk()
             ->assertDontSee(__('borrower.marketplace.weekly_installment'), false)
+            ->assertSee('data-kf-duration-badge', false)
             ->assertSee(__('borrower.marketplace.duration_range_label', [], 'sw'), false)
             ->assertSee(__('borrower.marketplace.up_to_months', [
                 'months' => effective_marketplace_asset_max_tenure($asset),
-            ], 'sw'), false);
+            ], 'sw'), false)
+            ->assertSee(__('borrower.marketplace.deposit', [], 'sw'), false)
+            ->assertSee(__('borrower.marketplace.loan_amount', [], 'sw'), false);
     }
 
     public function test_green_photo_arrows_show_only_when_asset_has_more_than_one_image(): void

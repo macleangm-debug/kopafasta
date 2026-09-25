@@ -60,10 +60,23 @@
         <span class="absolute top-3 left-3 rounded-full bg-white/95 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand shadow-sm z-20 pointer-events-none">
             {{ $categories[$asset['category'] ?? ''] ?? ($asset['category_label'] ?? $asset['category'] ?? '') }}
         </span>
+        @if (! empty($asset['max_tenure_months']))
+            <span data-kf-duration-badge class="absolute bottom-8 left-3 rounded-lg bg-black/60 backdrop-blur text-white text-[11px] font-bold px-2.5 py-1 shadow-sm z-20 pointer-events-none">
+                {{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}
+            </span>
+        @endif
         @if (! empty($asset['asset_value']))
-            <span class="absolute bottom-3 right-3 rounded-lg bg-brand/90 backdrop-blur text-white text-xs font-bold px-2.5 py-1 tabular-nums shadow-sm z-20 pointer-events-none">
+            <span class="absolute bottom-8 right-3 rounded-lg bg-brand/90 backdrop-blur text-white text-xs font-bold px-2.5 py-1 tabular-nums shadow-sm z-20 pointer-events-none">
                 {{ format_money($asset['asset_value'], false, 0) }}
             </span>
+        @endif
+        @if ($photoCount > 1)
+            <div class="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center justify-center gap-1.5 pointer-events-none" aria-hidden="true">
+                <template x-for="(photo, i) in photos" :key="'card-dot-' + i">
+                    <span class="size-2 rounded-full"
+                          :class="index === i ? 'bg-white scale-125' : 'bg-white/45'"></span>
+                </template>
+            </div>
         @endif
     </div>
     <div class="p-4 flex-1 flex flex-col gap-2">
@@ -89,12 +102,5 @@
                 <p class="font-bold text-gray-900 tabular-nums mt-0.5 whitespace-nowrap leading-snug" style="font-size: clamp(0.72rem, 2.6vw, 0.85rem)">{{ format_money($asset['remaining_loan'] ?? 0, false, 0) }}</p>
             </div>
         </div>
-
-        @if (! empty($asset['max_tenure_months']))
-            <div class="rounded-xl bg-brand-gold/20 ring-1 ring-brand-gold/40 px-3 py-2.5 text-center">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.marketplace.duration_range_label') }}</p>
-                <p class="mt-0.5 text-sm font-extrabold text-brand tabular-nums">{{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}</p>
-            </div>
-        @endif
     </div>
 </article>

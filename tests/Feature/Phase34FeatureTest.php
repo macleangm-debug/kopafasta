@@ -198,6 +198,8 @@ class Phase34FeatureTest extends TestCase
             ->assertOk()
             ->assertSee('max-w-3xl mx-auto', false)
             ->assertSee(__('borrower.loan_profile.label'), false)
-            ->assertSee(__('borrower.loan_profile.back'), false);
+            ->assertSee(__('borrower.loan_profile.back_to_loan'), false)
+            ->assertSee('kf-premium-panel', false)
+            ->assertDontSee(__('borrower.loan_profile.missing_requirements_title'), false);
     }
 }

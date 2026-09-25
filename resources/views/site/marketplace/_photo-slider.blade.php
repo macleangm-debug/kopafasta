@@ -1,4 +1,11 @@
-@props(['photos' => [], 'category' => 'other', 'zoom' => false, 'share' => null])
+@props([
+    'photos' => [],
+    'category' => 'other',
+    'zoom' => false,
+    'share' => null,
+    'durationMonths' => null,
+    'priceAmount' => null,
+])
 
 @php
     $urls = marketplace_photo_urls($photos);
@@ -7,7 +14,7 @@
 
 @if ($count > 0)
     <div
-        class="space-y-2.5"
+        class="w-full space-y-2.5"
         x-data="{
             index: 0,
             zoomed: false,
@@ -36,7 +43,7 @@
     >
         {{-- Main preview (cover / selected) --}}
         <div
-            class="relative rounded-2xl overflow-hidden bg-slate-100 aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none ring-1 ring-black/5 shadow-md select-none"
+            class="relative w-full rounded-2xl overflow-hidden bg-slate-100 aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none ring-1 ring-black/5 shadow-md select-none"
             @if ($share) style="view-transition-name: {{ $share }}" @endif
             @touchstart.passive="onTouchStart($event)"
             @touchend.passive="onTouchEnd($event)"
@@ -56,13 +63,13 @@
                 <button
                     type="button"
                     @click.stop="prev()"
-                    class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-11 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-3xl font-black leading-none hover:bg-brand-light"
+                    class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-10 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-2xl font-black leading-none hover:bg-brand-light"
                     aria-label="Previous photo"
                 >‹</button>
                 <button
                     type="button"
                     @click.stop="next()"
-                    class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-11 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-3xl font-black leading-none hover:bg-brand-light"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-10 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-2xl font-black leading-none hover:bg-brand-light"
                     aria-label="Next photo"
                 >›</button>
                 <div
@@ -70,14 +77,23 @@
                     x-text="(index + 1) + ' / ' + photos.length"
                 ></div>
             @endif
-        </div>
-
-        <div class="sm:hidden flex items-center justify-center gap-1.5 pt-1" x-show="photos.length > 1">
-            <template x-for="(photo, i) in photos" :key="'dot-' + i">
-                <button type="button" @click="go(i)" class="size-2 rounded-full"
-                        :class="index === i ? 'bg-brand scale-125' : 'bg-gray-300'"
-                        :aria-label="'Photo ' + (i + 1)"></button>
-            </template>
+            @if (! empty($durationMonths))
+                <span data-kf-duration-badge class="absolute bottom-8 left-3 z-20 rounded-lg bg-black/60 backdrop-blur text-white text-[11px] font-bold px-2.5 py-1 shadow-sm pointer-events-none">
+                    {{ __('borrower.marketplace.up_to_months', ['months' => (int) $durationMonths]) }}
+                </span>
+            @endif
+            @if (! empty($priceAmount))
+                <span class="absolute bottom-8 right-3 z-20 rounded-lg bg-brand/90 backdrop-blur text-white text-xs font-bold px-2.5 py-1 tabular-nums shadow-sm pointer-events-none">
+                    {{ format_money($priceAmount, false, 0) }}
+                </span>
+            @endif
+            <div class="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center justify-center gap-1.5" x-show="photos.length > 1">
+                <template x-for="(photo, i) in photos" :key="'dot-' + i">
+                    <button type="button" @click="go(i)" class="size-2 rounded-full"
+                            :class="index === i ? 'bg-white scale-125' : 'bg-white/45'"
+                            :aria-label="'Photo ' + (i + 1)"></button>
+                </template>
+            </div>
         </div>
 
         {{-- Desktop: additional images fit the cover width. No empty slots. --}}
@@ -121,13 +137,13 @@
                         <button
                             type="button"
                             @click.stop="prev()"
-                            class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 size-12 rounded-full bg-brand text-white text-3xl font-black grid place-items-center shadow-lg ring-2 ring-white/90 hover:bg-brand-light"
+                            class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 size-10 rounded-full bg-brand text-white text-2xl font-black leading-none grid place-items-center shadow-lg ring-2 ring-white/90 hover:bg-brand-light"
                             aria-label="Previous photo"
                         >‹</button>
                         <button
                             type="button"
                             @click.stop="next()"
-                            class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 size-12 rounded-full bg-brand text-white text-3xl font-black grid place-items-center shadow-lg ring-2 ring-white/90 hover:bg-brand-light"
+                            class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 size-10 rounded-full bg-brand text-white text-2xl font-black leading-none grid place-items-center shadow-lg ring-2 ring-white/90 hover:bg-brand-light"
                             aria-label="Next photo"
                         >›</button>
                     @endif
@@ -153,8 +169,18 @@
         @endif
     </div>
 @else
-    <div class="aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none rounded-2xl bg-gradient-to-br from-brand-muted to-brand/10 grid place-items-center text-6xl ring-1 ring-black/5"
+    <div class="relative w-full aspect-[4/3] max-h-[22rem] sm:max-h-[28rem] lg:max-h-none rounded-2xl bg-gradient-to-br from-brand-muted to-brand/10 grid place-items-center text-6xl ring-1 ring-black/5"
          @if ($share) style="view-transition-name: {{ $share }}" @endif>
         {{ marketplace_category_emoji($category) }}
+        @if (! empty($durationMonths))
+            <span data-kf-duration-badge class="absolute bottom-8 left-3 z-20 rounded-lg bg-black/60 backdrop-blur text-white text-[11px] font-bold px-2.5 py-1 shadow-sm pointer-events-none">
+                {{ __('borrower.marketplace.up_to_months', ['months' => (int) $durationMonths]) }}
+            </span>
+        @endif
+        @if (! empty($priceAmount))
+            <span class="absolute bottom-8 right-3 z-20 rounded-lg bg-brand/90 backdrop-blur text-white text-xs font-bold px-2.5 py-1 tabular-nums shadow-sm pointer-events-none">
+                {{ format_money($priceAmount, false, 0) }}
+            </span>
+        @endif
     </div>
 @endif

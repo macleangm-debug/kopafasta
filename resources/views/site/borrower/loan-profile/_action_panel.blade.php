@@ -147,9 +147,9 @@
             @endif
 
             {{-- Bottom action row: Continue primary + Delete destructive secondary --}}
-            <div class="mt-5 pt-4 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="mt-5 pt-4 border-t border-gray-100 flex flex-row items-stretch gap-3 max-[280px]:flex-col">
                 @if ($canDiscardDraft)
-                    <form method="POST" action="{{ route('site.borrower.draft.discard', $draft) }}" class="w-full sm:w-auto"
+                    <form method="POST" action="{{ route('site.borrower.draft.discard', $draft) }}" class="flex-1 min-w-0"
                           onsubmit="event.preventDefault(); confirmForm(this, {
                               title: @js(__('borrower.policy.discard_draft_confirm_title')),
                               message: @js(__('borrower.policy.discard_draft_confirm_body')),
@@ -158,16 +158,14 @@
                               confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
                           }); return false;">
                         @csrf
-                        <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center text-sm font-semibold text-red-700 bg-white ring-1 ring-red-300 hover:bg-red-50 px-5 py-3 rounded-xl">
+                        <button type="submit" class="w-full inline-flex justify-center items-center text-sm font-semibold text-red-700 bg-white ring-1 ring-red-300 hover:bg-red-50 px-4 py-3 rounded-xl">
                             {{ __('borrower.loan_profile.actions.withdraw') }}
                         </button>
                     </form>
-                @else
-                    <span class="hidden sm:block"></span>
                 @endif
                 @if ($continueUrl)
                     <a href="{{ $continueUrl }}"
-                       class="w-full sm:w-auto inline-flex items-center justify-center font-bold px-8 py-3.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
+                       class="flex-1 min-w-0 inline-flex items-center justify-center font-bold px-4 py-3 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
                         {{ $continueLabel }}
                     </a>
                 @endif

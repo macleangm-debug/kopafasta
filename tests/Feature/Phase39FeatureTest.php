@@ -74,7 +74,7 @@ class Phase39FeatureTest extends TestCase
         $this->get(route('site.marketplace'))
             ->assertOk()
             ->assertSee('Minimal Card Truck', false)
-            ->assertSee(__('borrower.marketplace.duration_range_label', [], 'sw'), false)
+            ->assertSee('data-kf-duration-badge', false)
             ->assertSee(__('borrower.marketplace.up_to_months', [
                 'months' => effective_marketplace_asset_max_tenure($asset),
             ], 'sw'), false)
