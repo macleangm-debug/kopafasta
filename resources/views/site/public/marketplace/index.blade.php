@@ -62,7 +62,7 @@
                 <p class="text-sm mt-2">{{ __('borrower.marketplace.empty_desc') }}</p>
             </div>
         @else
-            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 @foreach ($assets as $asset)
                     @include('site.marketplace._asset-card', [
                         'asset' => $asset,

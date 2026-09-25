@@ -84,7 +84,7 @@
         }
     @endphp
     <div @class([
-        'rounded-2xl ring-1 ring-brand/15 overflow-hidden',
+        'rounded-2xl ring-1 ring-brand/15 overflow-hidden w-full',
         'bg-white' => $isBorrower,
         'bg-brand-muted/20' => ! $isBorrower,
         'h-full flex flex-col' => $layout === 'grid',

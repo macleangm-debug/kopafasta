@@ -9,10 +9,12 @@
 @php
     $photoUrls = marketplace_photo_urls($asset['photos'] ?? []);
     $photoCount = count($photoUrls);
+    $title = marketplace_plain($asset['title'] ?? '');
 @endphp
 
-<article class="glass-card overflow-hidden flex flex-col h-full hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] hover:-translate-y-0.5 transition-all duration-300 group"
+<article class="relative glass-card overflow-hidden flex flex-col h-full w-full hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] hover:-translate-y-0.5 transition-all duration-300 group"
          @if (! empty($asset['id'])) data-kf-share="kf-mp-{{ $asset['id'] }}" @endif>
+    <a href="{{ $showUrl }}" class="absolute inset-0 z-10" aria-label="{{ $title }}"></a>
     <div class="relative overflow-hidden bg-slate-50"
          @if ($photoCount > 0)
          x-data="{
@@ -30,16 +32,16 @@
          }"
          @endif>
         @if ($photoCount > 0)
-            <a href="{{ $showUrl }}" class="block relative aspect-[4/3]"
+            <div class="relative aspect-[4/3]"
                @touchstart.passive="onTouchStart($event)"
                @touchend.passive="onTouchEnd($event)">
                 <div x-show="!imgLoaded" class="absolute inset-0 skeleton z-10"></div>
-                <img :src="photos[index]" alt="{{ $asset['title'] }}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
+                <img :src="photos[index]" alt="{{ $title }}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                      x-on:load="imgLoaded = true"
                      x-on:error="imgLoaded = true"
                      class="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.03] transition-all duration-500"
                      :class="imgLoaded ? 'opacity-100' : 'opacity-0'">
-            </a>
+            </div>
             @if ($photoCount > 1)
                 <button type="button" @click.stop.prevent="prev()"
                         class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-8 rounded-full bg-white/95 shadow ring-1 ring-black/5 grid place-items-center text-gray-800 hover:bg-white text-lg leading-none"
@@ -47,34 +49,26 @@
                 <button type="button" @click.stop.prevent="next()"
                         class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-8 rounded-full bg-white/95 shadow ring-1 ring-black/5 grid place-items-center text-gray-800 hover:bg-white text-lg leading-none"
                         aria-label="Next photo">›</button>
-                <div class="absolute top-2 right-2 z-20 rounded-full bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 tabular-nums"
+                <div class="absolute top-2 right-2 z-20 rounded-full bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 tabular-nums pointer-events-none"
                      x-text="(index + 1) + ' / ' + photos.length"></div>
-                <div class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex gap-1">
-                    <template x-for="(photo, i) in photos" :key="'dot-' + i">
-                        <button type="button" @click.stop.prevent="imgLoaded = false; index = i"
-                                class="size-1.5 rounded-full transition"
-                                :class="i === index ? 'bg-white' : 'bg-white/50'"
-                                :aria-label="'Photo ' + (i + 1)"></button>
-                    </template>
-                </div>
             @endif
         @else
-            <a href="{{ $showUrl }}" class="block aspect-[4/3] bg-gradient-to-br from-brand-muted to-brand/10 grid place-items-center text-5xl">
+            <div class="aspect-[4/3] bg-gradient-to-br from-brand-muted to-brand/10 grid place-items-center text-5xl">
                 {{ marketplace_category_emoji($asset['category'] ?? '') }}
-            </a>
+            </div>
         @endif
-        <span class="absolute top-3 left-3 rounded-full bg-white/95 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand shadow-sm z-20">
-            {{ $categories[$asset['category'] ?? ''] ?? ($asset['category'] ?? '') }}
+        <span class="absolute top-3 left-3 rounded-full bg-white/95 backdrop-blur px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-brand shadow-sm z-20 pointer-events-none">
+            {{ $categories[$asset['category'] ?? ''] ?? ($asset['category_label'] ?? $asset['category'] ?? '') }}
         </span>
         @if (! empty($asset['asset_value']))
-            <span class="absolute bottom-3 right-3 rounded-lg bg-brand/90 backdrop-blur text-white text-xs font-bold px-2.5 py-1 tabular-nums shadow-sm z-20">
+            <span class="absolute bottom-3 right-3 rounded-lg bg-brand/90 backdrop-blur text-white text-xs font-bold px-2.5 py-1 tabular-nums shadow-sm z-20 pointer-events-none">
                 {{ format_money($asset['asset_value'], false, 0) }}
             </span>
         @endif
     </div>
     <div class="p-4 flex-1 flex flex-col gap-2">
         <div class="min-w-0">
-            <a href="{{ $showUrl }}" class="font-bold text-base text-gray-900 leading-snug line-clamp-2 group-hover:text-brand transition">{{ $asset['title'] }}</a>
+            <p class="font-bold text-base text-gray-900 leading-snug line-clamp-2 group-hover:text-brand transition">{{ $title }}</p>
             @if (! empty($asset['vendor']))
                 <p class="text-xs text-gray-500 mt-0.5 truncate">
                     {{ $asset['vendor'] }}
@@ -97,12 +91,10 @@
         </div>
 
         @if (! empty($asset['max_tenure_months']))
-            <p class="text-[11px] text-gray-500">{{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}</p>
+            <div class="rounded-xl bg-brand-gold/20 ring-1 ring-brand-gold/40 px-3 py-2.5 text-center">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.marketplace.duration_range_label') }}</p>
+                <p class="mt-0.5 text-sm font-extrabold text-brand tabular-nums">{{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}</p>
+            </div>
         @endif
-
-        <a href="{{ $showUrl }}" class="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-4 py-2.5 transition-all">
-            {{ __('borrower.marketplace.view_details') }}
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
-        </a>
     </div>
 </article>

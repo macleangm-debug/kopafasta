@@ -65,7 +65,7 @@
                 <div class="overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
                     <div class="flex gap-5 w-max">
                         @foreach ($featuredAssets as $asset)
-                            <div class="snap-start shrink-0 w-[min(320px,calc(100vw-2rem))]">
+                            <div class="snap-start shrink-0 w-[calc(100vw-2rem)] sm:w-[min(320px,calc(100vw-2rem))]">
                                 @include('site.marketplace._asset-card', [
                                     'asset' => $asset,
                                     'categories' => $marketplaceCategories,

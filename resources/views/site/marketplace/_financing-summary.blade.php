@@ -39,6 +39,9 @@
         @endforeach
     </div>
     @if (! empty($asset['max_tenure_months']))
-        <p class="px-4 py-2.5 text-xs text-gray-600 border-t border-gray-200">{{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}</p>
+        <div class="px-4 py-3 border-t border-brand-gold/40 bg-brand-gold/15">
+            <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.marketplace.duration_range_label') }}</p>
+            <p class="mt-0.5 text-base font-extrabold text-brand tabular-nums">{{ __('borrower.marketplace.up_to_months', ['months' => (int) $asset['max_tenure_months']]) }}</p>
+        </div>
     @endif
 </div>

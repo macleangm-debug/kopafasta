@@ -43,7 +43,7 @@
     $personalUrl = route($profileRoute, ['section' => 'personal']);
 @endphp
 
-@if ($active === 'hub' && $portal === 'supplier')
+@if ($active === 'hub')
     <x-site.account-shell-hero
         mode="identity"
         :display-name="$displayName"
@@ -55,15 +55,8 @@
         :completion-percent="$completionPercent"
         :completion-cta-url="$completionCtaUrl"
         :completion-cta-label="$completionCtaLabel"
-        :cta-url="route($profileRoute, ['section' => 'card'])"
-        :cta-label="__('site.supplier_portal.nav_card')"
-    />
-@elseif ($active === 'hub')
-    <x-site.account-shell-hero
-        mode="contextual"
-        :title="__('borrower.membership.my_card')"
-        :cta-url="$personalUrl"
-        :cta-label="__('borrower.profile.panel_profile')"
+        :cta-url="$portal === 'supplier' ? route($profileRoute, ['section' => 'card']) : $personalUrl"
+        :cta-label="$portal === 'supplier' ? __('site.supplier_portal.nav_card') : __('borrower.profile.panel_profile')"
     />
 @elseif ($active === 'membership')
     <x-site.account-shell-hero
@@ -89,12 +82,9 @@
     />
 @endif
 
-@if ($active === 'hub' && $portal === 'supplier')
-    @include('site.partner-account._tabs', ['active' => 'hub', 'partner' => $partner, 'profileRoute' => $profileRoute, 'portal' => $portal])
-    @include('site.partner-account._overview', ['partner' => $partner, 'profileRoute' => $profileRoute, 'compact' => true])
-@elseif ($active === 'hub')
+@if ($active === 'hub')
     @include('site.partner-account._member_card', ['partner' => $partner])
-    @include('site.partner-account._overview', ['partner' => $partner, 'profileRoute' => $profileRoute])
+    @include('site.partner-account._overview', ['partner' => $partner, 'profileRoute' => $profileRoute, 'portal' => $portal])
 @elseif ($active === 'membership')
     {{-- Membership commercial pages render their own body; hero above is contextual. --}}
 @else

@@ -48,11 +48,11 @@
                 @foreach ($assets as $asset)
                     @php $availability = $assetAvailabilities[$asset->id] ?? ['code' => 'available', 'selectable' => false]; @endphp
                     <div @class([
-                        'rounded-xl ring-1 px-4 py-3',
+                        'rounded-xl ring-1 px-4 py-3 w-full cursor-pointer',
                         'bg-amber-50 ring-amber-200' => ($availability['code'] ?? '') === 'pledged_other',
                         'bg-red-50 ring-red-200' => ($availability['code'] ?? '') === 'declined',
                         'bg-white ring-gray-200' => ! in_array($availability['code'] ?? '', ['pledged_other', 'declined'], true),
-                    ])>
+                    ]) @click="openAsset = {{ $asset->id }}; editingAsset = null">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="text-sm font-semibold text-gray-900">{{ $asset->label }}</p>
@@ -61,7 +61,7 @@
                             </div>
                             <div class="flex flex-wrap items-center gap-2 shrink-0">
                                 @if ($availability['selectable'] ?? false)
-                                    <form method="POST" action="{{ route('site.borrower.profile.assets.use', $asset) }}">
+                                    <form method="POST" action="{{ route('site.borrower.profile.assets.use', $asset) }}" @click.stop>
                                         @csrf
                                         <input type="hidden" name="application_id" value="{{ $currentAppId }}">
                                         <button type="submit"
@@ -70,10 +70,6 @@
                                         </button>
                                     </form>
                                 @endif
-                                <button type="button" @click="openAsset = {{ $asset->id }}; editingAsset = null"
-                                        class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-xs font-bold text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40">
-                                    {{ __('borrower.profile.view_asset') }}
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -457,15 +453,13 @@
                                 ]
                             );
                         @endphp
-                        <div class="h-full">
+                        <div class="h-full w-full cursor-pointer" role="button" tabindex="0"
+                             @click="openAsset = {{ $asset->id }}; editingAsset = null"
+                             @keydown.enter.prevent="openAsset = {{ $asset->id }}; editingAsset = null">
                             <x-site.collateral-card :selected="$card" :type-icons="$typeIcons">
                                 <div class="mt-2">
                                     @include('site.borrower.profile._asset_availability', ['availability' => $availability, 'showHint' => false])
                                 </div>
-                                <button type="button" @click="openAsset = {{ $asset->id }}; editingAsset = null"
-                                        class="mt-3 inline-flex items-center justify-center w-full bg-gray-900 hover:bg-black text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                                    {{ __('borrower.profile.view_asset') }}
-                                </button>
                             </x-site.collateral-card>
                         </div>
                     @endforeach

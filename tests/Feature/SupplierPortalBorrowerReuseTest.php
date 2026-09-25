@@ -191,17 +191,25 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertDontSee(__('site.supplier_portal.assets_hero_body'), false);
     }
 
-    public function test_profile_uses_chips_and_card_shows_active_account(): void
+    public function test_profile_hub_links_and_personal_section_render(): void
     {
         [$user] = $this->supplier();
 
-        $this->actingAs($user)
+        $hub = $this->actingAs($user)
             ->get(route('site.supplier.profile'))
+            ->assertOk();
+        $hub->assertSee(__('site.partner_account.personal_section'), false);
+        $hub->assertSee(__('site.partner_account.payment_section'), false);
+        $hub->assertSee(__('site.supplier_portal.nav_card'), false);
+        $hub->assertSee(route('site.supplier.profile', ['section' => 'personal']), false);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.profile', ['section' => 'personal']))
             ->assertOk()
-            ->assertSee(__('site.supplier_portal.tab_overview'), false)
+            ->assertSee(__('site.partner_account.contact_details'), false)
+            ->assertSee(__('site.partner_account.nida_number'), false)
             ->assertSee(__('site.supplier_portal.tab_contact'), false)
-            ->assertSee(__('site.supplier_portal.tab_payment'), false)
-            ->assertSee(__('site.supplier_portal.nav_card'), false);
+            ->assertSee(__('borrower.profile.hub.back'), false);
 
         $this->actingAs($user)
             ->get(route('site.supplier.profile', ['section' => 'card']))

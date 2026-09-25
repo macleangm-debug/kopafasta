@@ -10,9 +10,9 @@
                 <span aria-hidden="true">→</span>
             </a>
         </div>
-        <div class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+        <div class="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory">
             @foreach ($assets as $related)
-                <div class="min-w-[16.5rem] w-[16.5rem] sm:min-w-[18.5rem] sm:w-[18.5rem] snap-start shrink-0">
+                <div class="min-w-[calc(100vw-2rem)] w-[calc(100vw-2rem)] sm:min-w-[18.5rem] sm:w-[18.5rem] snap-start shrink-0">
                     @include('site.marketplace._asset-card', [
                         'asset' => $related,
                         'categories' => config('asset_marketplace.categories', []),

@@ -38,7 +38,7 @@
     @if ($assets->isEmpty())
         <x-site.empty-state icon="🏷️" :title="__('borrower.marketplace.empty_title')" :description="__('borrower.marketplace.empty_desc')" />
     @else
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach ($assets as $asset)
                 @include('site.marketplace._asset-card', [
                     'asset' => $asset,

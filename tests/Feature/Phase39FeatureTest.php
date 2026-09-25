@@ -58,7 +58,7 @@ class Phase39FeatureTest extends TestCase
 
     public function test_public_marketplace_list_uses_minimal_cards_without_breakdown(): void
     {
-        MarketplaceAsset::create([
+        $asset = MarketplaceAsset::create([
             'slug'               => 'p39-truck',
             'title'              => 'Minimal Card Truck',
             'category'           => 'vehicle',
@@ -74,7 +74,12 @@ class Phase39FeatureTest extends TestCase
         $this->get(route('site.marketplace'))
             ->assertOk()
             ->assertSee('Minimal Card Truck', false)
-            ->assertSee(__('borrower.marketplace.view_details'), false)
+            ->assertSee(__('borrower.marketplace.duration_range_label', [], 'sw'), false)
+            ->assertSee(__('borrower.marketplace.up_to_months', [
+                'months' => effective_marketplace_asset_max_tenure($asset),
+            ], 'sw'), false)
+            ->assertDontSee(__('borrower.marketplace.view_details', [], 'en'), false)
+            ->assertDontSee(__('borrower.marketplace.view_details', [], 'sw'), false)
             ->assertDontSee('Deposit breakdown', false)
             ->assertDontSee('Company markup', false);
     }
