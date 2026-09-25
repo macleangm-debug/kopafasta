@@ -44,10 +44,10 @@
             </div>
             @if ($photoCount > 1)
                 <button type="button" @click.stop.prevent="prev()"
-                        class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-8 rounded-full bg-white/95 shadow ring-1 ring-black/5 grid place-items-center text-gray-800 hover:bg-white text-lg leading-none"
+                        class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-10 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-2xl font-black leading-none hover:bg-brand-light pointer-events-auto"
                         aria-label="Previous photo">‹</button>
                 <button type="button" @click.stop.prevent="next()"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-8 rounded-full bg-white/95 shadow ring-1 ring-black/5 grid place-items-center text-gray-800 hover:bg-white text-lg leading-none"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-10 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-2xl font-black leading-none hover:bg-brand-light pointer-events-auto"
                         aria-label="Next photo">›</button>
                 <div class="absolute top-2 right-2 z-20 rounded-full bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 tabular-nums pointer-events-none"
                      x-text="(index + 1) + ' / ' + photos.length"></div>

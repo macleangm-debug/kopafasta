@@ -52,26 +52,24 @@
                 @if ($zoom) @click="zoomed = true" @endif
             >
 
-            <template x-if="photos.length > 1">
-                <div>
-                    <button
-                        type="button"
-                        @click.stop="prev()"
-                        class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-8 rounded-full bg-white/95 shadow ring-1 ring-black/5 grid place-items-center text-gray-800 hover:bg-white text-lg leading-none"
-                        aria-label="Previous photo"
-                    >‹</button>
-                    <button
-                        type="button"
-                        @click.stop="next()"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-8 rounded-full bg-white/95 shadow ring-1 ring-black/5 grid place-items-center text-gray-800 hover:bg-white text-lg leading-none"
-                        aria-label="Next photo"
-                    >›</button>
-                    <div
-                        class="absolute top-2 right-2 z-20 rounded-full bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 tabular-nums"
-                        x-text="(index + 1) + ' / ' + photos.length"
-                    ></div>
-                </div>
-            </template>
+            @if ($count > 1)
+                <button
+                    type="button"
+                    @click.stop="prev()"
+                    class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-11 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-3xl font-black leading-none hover:bg-brand-light"
+                    aria-label="Previous photo"
+                >‹</button>
+                <button
+                    type="button"
+                    @click.stop="next()"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-11 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-3xl font-black leading-none hover:bg-brand-light"
+                    aria-label="Next photo"
+                >›</button>
+                <div
+                    class="absolute top-2 right-2 z-20 rounded-full bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 tabular-nums pointer-events-none"
+                    x-text="(index + 1) + ' / ' + photos.length"
+                ></div>
+            @endif
         </div>
 
         <div class="sm:hidden flex items-center justify-center gap-1.5 pt-1" x-show="photos.length > 1">
@@ -119,22 +117,20 @@
                         @click="zoomed = false"
                         aria-label="Close"
                     >×</button>
-                    <template x-if="photos.length > 1">
-                        <div>
-                            <button
-                                type="button"
-                                @click.stop="prev()"
-                                class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 size-10 rounded-full bg-white/15 text-white text-xl grid place-items-center hover:bg-white/25"
-                                aria-label="Previous photo"
-                            >‹</button>
-                            <button
-                                type="button"
-                                @click.stop="next()"
-                                class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 size-10 rounded-full bg-white/15 text-white text-xl grid place-items-center hover:bg-white/25"
-                                aria-label="Next photo"
-                            >›</button>
-                        </div>
-                    </template>
+                    @if ($count > 1)
+                        <button
+                            type="button"
+                            @click.stop="prev()"
+                            class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 size-12 rounded-full bg-brand text-white text-3xl font-black grid place-items-center shadow-lg ring-2 ring-white/90 hover:bg-brand-light"
+                            aria-label="Previous photo"
+                        >‹</button>
+                        <button
+                            type="button"
+                            @click.stop="next()"
+                            class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 size-12 rounded-full bg-brand text-white text-3xl font-black grid place-items-center shadow-lg ring-2 ring-white/90 hover:bg-brand-light"
+                            aria-label="Next photo"
+                        >›</button>
+                    @endif
                     <img
                         :src="photos[index]"
                         alt=""

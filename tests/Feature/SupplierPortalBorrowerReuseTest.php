@@ -200,8 +200,34 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertOk();
         $hub->assertSee(__('site.partner_account.personal_section'), false);
         $hub->assertSee(__('site.partner_account.payment_section'), false);
-        $hub->assertSee(__('site.supplier_portal.nav_card'), false);
+        $hub->assertSee('data-kf-partner-card-pair', false);
+        $hub->assertSee('md:grid-cols-2', false);
+        $hub->assertSee(__('borrower.membership.status_title'), false);
+        $hub->assertSee(__('site.supplier_portal.title'), false);
+        $hub->assertSee('kf-chrome-sidebar', false);
+        $hub->assertDontSee('data-kf-completion-hero', false);
+        $hub->assertDontSee(route('site.borrower.profile'), false);
+        $hub->assertSee(__('borrower.profile.security'), false);
+        $hub->assertSee(__('site.partner_portal.nav_settings'), false);
+        $hub->assertSee(__('site.partner_portal.nav_support'), false);
+        $hub->assertSee(__('borrower.profile.hub.group_security'), false);
+        $hub->assertSee(__('borrower.profile.hub.group_help'), false);
+        $hub->assertSee(route('site.supplier.settings'), false);
+        $hub->assertSee(route('site.support'), false);
+        $hub->assertSee(__('borrower.layout.sign_out'), false);
+        $hub->assertDontSee(__('borrower.nav.rewards'), false);
+        $hub->assertDontSee(__('borrower.nav.referrals'), false);
         $hub->assertSee(route('site.supplier.profile', ['section' => 'personal']), false);
+
+        $dashboard = $this->actingAs($user)
+            ->get(route('site.supplier.dashboard'))
+            ->assertOk()
+            ->getContent();
+        $this->assertMatchesRegularExpression(
+            '/<a href="'.preg_quote(e(route('site.supplier.profile')), '/').'"[^>]*title="'.preg_quote(__('site.partner_portal.nav_profile'), '/').'"/',
+            $dashboard
+        );
+        $this->assertStringNotContainsString('profileSheet', $dashboard);
 
         $this->actingAs($user)
             ->get(route('site.supplier.profile', ['section' => 'personal']))
@@ -209,7 +235,10 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.partner_account.contact_details'), false)
             ->assertSee(__('site.partner_account.nida_number'), false)
             ->assertSee(__('site.supplier_portal.tab_contact'), false)
-            ->assertSee(__('borrower.profile.hub.back'), false);
+            ->assertSee(__('borrower.profile.hub.back'), false)
+            ->assertSee('kf-chrome-sidebar', false)
+            ->assertDontSee('data-kf-completion-hero', false)
+            ->assertDontSee(route('site.borrower.profile'), false);
 
         $this->actingAs($user)
             ->get(route('site.supplier.profile', ['section' => 'card']))

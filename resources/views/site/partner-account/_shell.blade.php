@@ -6,79 +6,15 @@
 ])
 
 @php
-    use App\Services\PartnerCodeService;
-    use App\Services\PartnerMembershipService;
-    use App\Services\PartnerProfileService;
-
-    $codes = app(PartnerCodeService::class);
-    $membership = app(PartnerMembershipService::class);
-    $profile = app(PartnerProfileService::class);
-
-    $partnerNumber = $codes->ensure($partner);
-    $photoUrl = $profile->frontPhotoUrl($partner);
-    $displayName = (string) ($partner->name ?? '');
-    $initial = strtoupper(substr($displayName !== '' ? $displayName : '?', 0, 1) ?: '?');
-    $category = $partner instanceof \App\Models\Lender ? 'investor' : ($partner->category ?? null);
-    $roleKey = 'site.card_verify.roles.'.($category ?: 'partner');
-    $role = __($roleKey);
-    if ($role === $roleKey) {
-        $role = \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) ($category ?: 'Partner')));
-    }
-    $profileComplete = $profile->isComplete($partner);
-    $completionPercent = $profile->completionPercent($partner);
-    $nextIncompleteSection = collect($profile->sectionsFor($partner))
-        ->first(fn (string $key) => ! ($profile->sectionStatus($partner, $key)['complete'] ?? false));
-    $completionCtaUrl = ($completionPercent < 100 && $nextIncompleteSection)
-        ? route($profileRoute, ['section' => $nextIncompleteSection])
-        : null;
-    $completionCtaLabel = $completionPercent < 100
-        ? __('borrower.profile.hero_completion_cta')
-        : null;
-    $accountActive = ($partner->status ?? '') === 'active' || filled($partner->activated_at);
-    $verified = $accountActive && $membership->isActive($partner) && $profileComplete;
-    $badgeLabel = $accountActive
-        ? __('site.card_verify.status.active')
-        : __('site.card_verify.status.inactive');
     $hubUrl = route($profileRoute);
-    $personalUrl = route($profileRoute, ['section' => 'personal']);
 @endphp
 
-@if ($active === 'hub')
-    <x-site.account-shell-hero
-        mode="identity"
-        :display-name="$displayName"
-        :member-no="$partnerNumber"
-        :photo-url="$photoUrl"
-        :initial="$initial"
-        :show-grade-badge="false"
-        :badge-label="$badgeLabel"
-        :completion-percent="$completionPercent"
-        :completion-cta-url="$completionCtaUrl"
-        :completion-cta-label="$completionCtaLabel"
-        :cta-url="$portal === 'supplier' ? route($profileRoute, ['section' => 'card']) : $personalUrl"
-        :cta-label="$portal === 'supplier' ? __('site.supplier_portal.nav_card') : __('borrower.profile.panel_profile')"
-    />
-@elseif ($active === 'membership')
+@if ($active === 'membership')
     <x-site.account-shell-hero
         mode="contextual"
-        :title="__('borrower.membership.my_card')"
+        :title="__('site.card_verify.my_card_title')"
         :cta-url="$hubUrl"
-        :cta-label="__('borrower.profile.panel_profile')"
-    />
-@else
-    <x-site.account-shell-hero
-        mode="identity"
-        :display-name="$displayName"
-        :member-no="$partnerNumber"
-        :photo-url="$photoUrl"
-        :initial="$initial"
-        :show-grade-badge="false"
-        :badge-label="$badgeLabel"
-        :completion-percent="$completionPercent"
-        :completion-cta-url="$completionCtaUrl"
-        :completion-cta-label="$completionCtaLabel"
-        :cta-url="$portal === 'supplier' ? route($profileRoute, ['section' => 'card']) : $hubUrl"
-        :cta-label="$portal === 'supplier' ? __('site.supplier_portal.nav_card') : __('borrower.membership.my_card')"
+        :cta-label="__('site.partner_portal.nav_profile')"
     />
 @endif
 

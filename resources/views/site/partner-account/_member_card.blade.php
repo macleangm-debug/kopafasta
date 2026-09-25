@@ -72,6 +72,8 @@
     $durationDays = $membership->durationDays();
     $progressPct = $durationDays > 0 ? max(0, min(100, ($daysLeft / $durationDays) * 100)) : 0;
     $needsPay = $membership->requiresPayment($partner) && ! $membershipActive;
+    $showDays = $membershipActive && filled($partner->membership_expires_at);
+    $completionPercent = $profile->completionPercent($partner);
     $payRouteName = ($partner instanceof \App\Models\Partner && $partner->isAffiliate())
         ? 'site.affiliate.membership.pay'
         : 'site.partner.membership.pay';
@@ -121,10 +123,7 @@
         </div>
     @endif
 
-    <div @class([
-             'grid gap-4 items-stretch w-full',
-             'md:grid-cols-2' => ($membershipActive && $partner->membership_expires_at) || $needsPay,
-         ])>
+    <div class="grid gap-4 items-stretch w-full md:grid-cols-2" data-kf-partner-card-pair>
     <div class="relative {{ $panelClass }} rounded-[1.35rem] p-5 sm:p-6 cursor-pointer"
          role="button"
          tabindex="0"
@@ -202,18 +201,21 @@
 
         </div>
 
-    @if (($membershipActive && $partner->membership_expires_at) || $needsPay)
         <div class="relative overflow-hidden rounded-[1.35rem] bg-white p-6 flex flex-col min-h-[280px] shadow-[0_18px_40px_rgba(8,47,39,0.08)] ring-1 ring-brand/10">
             <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand via-brand-gold to-brand pointer-events-none"></div>
             <div class="relative flex items-center justify-between gap-3">
                 <p class="text-[11px] uppercase tracking-[0.16em] text-brand font-semibold">{{ __('borrower.membership.status_title') }}</p>
-                @if ($membershipActive)
-                    <span class="inline-flex items-center rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
-                        {{ $verified ? __('site.card_verify.status.verified') : $role }}
-                    </span>
-                @endif
+                <span class="inline-flex items-center rounded-full bg-brand/10 text-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ring-1 ring-brand/15">
+                    {{ $verified ? __('site.card_verify.status.verified') : $statusLabel }}
+                </span>
             </div>
-            @if ($membershipActive)
+            @if ($needsPay)
+                <p class="relative mt-6 text-sm text-gray-600">{{ __('site.partner_portal.membership_due_title') }}</p>
+                <p class="relative mt-2 text-2xl font-black text-brand tabular-nums">{{ format_money($membership->feeFor($partner)) }}</p>
+                <a href="{{ route($payRouteName) }}" class="relative mt-auto inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5">
+                    {{ __('site.partner_portal.cta_pay_membership') }}
+                </a>
+            @elseif ($showDays)
                 <div class="relative mt-6 flex items-end gap-3">
                     <span class="text-6xl font-black text-brand leading-none tabular-nums tracking-tight">{{ $daysLeft }}</span>
                     <div class="pb-1.5">
@@ -243,14 +245,38 @@
                     </div>
                 </dl>
             @else
-                <p class="relative mt-6 text-sm text-gray-600">{{ __('site.partner_portal.membership_due_title') }}</p>
-                <p class="relative mt-2 text-2xl font-black text-brand tabular-nums">{{ format_money($membership->feeFor($partner)) }}</p>
-                <a href="{{ route($payRouteName) }}" class="relative mt-auto inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand text-sm font-bold px-4 py-2.5">
-                    {{ __('site.partner_portal.cta_pay_membership') }}
-                </a>
+                <div class="relative mt-6 flex items-center gap-3 rounded-2xl bg-brand/5 px-4 py-3.5 ring-1 ring-brand/10">
+                    <span class="size-9 rounded-full bg-brand text-brand-gold grid place-items-center shrink-0" aria-hidden="true">
+                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-brand leading-tight">{{ $statusLabel }}</p>
+                        <p class="mt-0.5 text-xs text-gray-600">{{ $role }}</p>
+                    </div>
+                </div>
+                <div class="relative mt-6">
+                    <div class="flex justify-between text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                        <span>{{ __('site.partner_account.sections_title') }}</span>
+                        <span class="font-semibold tabular-nums text-brand">{{ (int) $completionPercent }}%</span>
+                    </div>
+                    <div class="h-2.5 rounded-full bg-brand-muted overflow-hidden ring-1 ring-brand/5">
+                        <div class="h-full rounded-full bg-brand" style="width: {{ max(0, min(100, (int) $completionPercent)) }}%"></div>
+                    </div>
+                </div>
+                <dl class="relative mt-auto pt-5 grid grid-cols-2 gap-3 text-xs">
+                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
+                        <dt class="text-gray-500">{{ __('site.card_verify.types.partner') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">{{ $role }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-brand-muted/40 px-3 py-2.5 ring-1 ring-brand/10">
+                        <dt class="text-gray-500">{{ __('borrower.membership.access_label') }}</dt>
+                        <dd class="font-semibold text-gray-900 mt-0.5">
+                            {{ $verified ? __('site.card_verify.status.verified') : $statusLabel }}
+                        </dd>
+                    </div>
+                </dl>
             @endif
         </div>
-    @endif
     </div>
 
     <div x-show="expanded" x-cloak

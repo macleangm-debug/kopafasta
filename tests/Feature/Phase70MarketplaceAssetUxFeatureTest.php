@@ -297,6 +297,61 @@ class Phase70MarketplaceAssetUxFeatureTest extends TestCase
             ], 'sw'), false);
     }
 
+    public function test_green_photo_arrows_show_only_when_asset_has_more_than_one_image(): void
+    {
+        $single = MarketplaceAsset::create([
+            'slug' => 'one-photo-truck',
+            'title' => 'One Photo Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Dar Motors',
+            'asset_value' => 5_000_000,
+            'supplier_deposit' => 1_000_000,
+            'customer_deposit' => 1_100_000,
+            'weekly_installment' => 90_000,
+            'max_tenure_months' => 12,
+            'is_active' => true,
+            'availability_status' => 'available',
+            'photos' => ['marketplace/one.jpg'],
+        ]);
+
+        $this->get(route('site.marketplace.show', $single->slug))
+            ->assertOk()
+            ->assertDontSee('aria-label="Previous photo"', false)
+            ->assertDontSee('aria-label="Next photo"', false);
+
+        $multi = MarketplaceAsset::create([
+            'slug' => 'four-photo-truck',
+            'title' => 'Four Photo Truck',
+            'category' => 'vehicle',
+            'supplier_name' => 'Dar Motors',
+            'asset_value' => 6_000_000,
+            'supplier_deposit' => 1_200_000,
+            'customer_deposit' => 1_320_000,
+            'weekly_installment' => 100_000,
+            'max_tenure_months' => 12,
+            'is_active' => true,
+            'availability_status' => 'available',
+            'photos' => [
+                'marketplace/one.jpg',
+                'marketplace/two.jpg',
+                'marketplace/three.jpg',
+                'marketplace/four.jpg',
+            ],
+        ]);
+
+        $this->get(route('site.marketplace.show', $multi->slug))
+            ->assertOk()
+            ->assertSee('aria-label="Previous photo"', false)
+            ->assertSee('aria-label="Next photo"', false)
+            ->assertSee('bg-brand text-white', false);
+
+        $this->get(route('site.marketplace'))
+            ->assertOk()
+            ->assertSee('Four Photo Truck', false)
+            ->assertSee('aria-label="Previous photo"', false)
+            ->assertSee('bg-brand text-white', false);
+    }
+
     public function test_request_asset_opens_application_overview_with_duration_quotes(): void
     {
         $user = User::factory()->create(['role' => 'borrower']);

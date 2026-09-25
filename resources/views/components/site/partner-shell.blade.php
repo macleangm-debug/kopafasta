@@ -48,8 +48,15 @@
     $partnerPreview = (clone $partnerNotificationsQuery)->latest()->limit(8)->get();
     $shellVendor = \App\Models\Vendor::query()->where('user_id', auth()->id())->first();
     $mobileNav = $navService->mobilePrimaryNav($nav, $shellVendor);
-    $mobileNavKeys = array_column($mobileNav, 'key');
-    $overflowNav = array_values(array_filter($nav, fn (array $item) => ! in_array($item['key'], $mobileNavKeys, true)));
+    $profileHubLink = collect($profileLinks)->first(function (array $link) {
+        $route = (string) ($link['route'] ?? '');
+        $section = $link['params']['section'] ?? null;
+
+        return str_contains($route, '.profile') && ($section === null || $section === 'hub');
+    }) ?? collect($profileLinks)->first(fn (array $link) => str_contains((string) ($link['route'] ?? ''), '.profile'));
+    $profileHubHref = $profileHubLink
+        ? route($profileHubLink['route'], $profileHubLink['params'] ?? [])
+        : (Illuminate\Support\Facades\Route::has('site.partner.profile') ? route('site.partner.profile') : route($homeRoute));
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full">
@@ -65,7 +72,7 @@
     @stack('styles')
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false, profileSheet:false}">
+<body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false}">
 <x-site.environment-banner />
 <x-site.kopafasta-launcher />
 
@@ -155,30 +162,17 @@
                         </div>
                     </div>
                 </div>
-                <div class="relative" x-data="{ profileOpen: false }">
-                    <button type="button" @click="profileOpen = !profileOpen"
-                            class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition">
-                        <div class="text-right leading-tight hidden sm:block">
-                            <p class="text-sm font-semibold text-gray-900">{{ $name }}</p>
-                            <p class="text-xs text-gray-500">{{ $subtitle ?? Auth::user()?->email }}</p>
-                        </div>
-                        <div class="size-9 rounded-full bg-brand text-white grid place-items-center font-bold text-sm">
-                            {{ strtoupper(substr($name, 0, 1)) }}
-                        </div>
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                    <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
-                         class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95">
-                        @foreach ($profileLinks as $link)
-                            <a href="{{ route($link['route'], $link['params'] ?? []) }}" data-kf-motion="tab" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $link['label'] }}</a>
-                        @endforeach
-                        <div class="border-t border-gray-100 my-1"></div>
-                        <form method="POST" action="{{ route('site.logout') }}">
-                            @csrf
-                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ __('borrower.layout.sign_out') }}</button>
-                        </form>
+                <a href="{{ $profileHubHref }}" data-kf-motion="tab"
+                   class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition"
+                   title="{{ __('site.partner_portal.nav_profile') }}">
+                    <div class="text-right leading-tight hidden sm:block">
+                        <p class="text-sm font-semibold text-gray-900">{{ $name }}</p>
+                        <p class="text-xs text-gray-500">{{ $subtitle ?? Auth::user()?->email }}</p>
                     </div>
-                </div>
+                    <div class="size-9 rounded-full bg-brand text-white grid place-items-center font-bold text-sm">
+                        {{ strtoupper(substr($name, 0, 1)) }}
+                    </div>
+                </a>
             </div>
         </header>
 
@@ -194,55 +188,13 @@
                         <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $partnerUnread > 9 ? '9+' : $partnerUnread }}</span>
                     @endif
                 </a>
-                <button type="button" @click="profileSheet = true" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('site.partner_portal.nav_profile') }}">
+                <a href="{{ $profileHubHref }}" data-kf-motion="tab" class="p-1.5 rounded-lg hover:bg-brand-muted/60" title="{{ __('site.partner_portal.nav_profile') }}">
                     <div class="size-8 rounded-full bg-brand text-white grid place-items-center font-bold text-xs">
                         {{ strtoupper(substr($name, 0, 1)) }}
                     </div>
-                </button>
+                </a>
             </div>
         </header>
-
-        <template x-teleport="body">
-            <div x-show="profileSheet" x-cloak class="fixed inset-0 z-[10056] lg:hidden" role="dialog" aria-modal="true">
-                <div class="absolute inset-0 bg-black/40" @click="profileSheet = false" x-transition.opacity></div>
-                <div class="absolute inset-x-0 bottom-0 bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] rounded-t-2xl flex flex-col"
-                     style="padding-bottom: env(safe-area-inset-bottom, 0px)"
-                     @click.stop
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="translate-y-full"
-                     x-transition:enter-end="translate-y-0"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="translate-y-0"
-                     x-transition:leave-end="translate-y-full">
-                    <div class="flex justify-center pt-3 pb-1 shrink-0">
-                        <div class="w-10 h-1 rounded-full bg-gray-300"></div>
-                    </div>
-                    <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                        <h2 class="text-base font-bold text-gray-900">{{ $name }}</h2>
-                        <button type="button" @click="profileSheet = false" class="p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Close">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
-                        </button>
-                    </div>
-                    <nav class="px-2 py-2 max-h-[50vh] overflow-y-auto">
-                        @foreach ($profileLinks as $link)
-                            <a href="{{ route($link['route'], $link['params'] ?? []) }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ $link['label'] }}</a>
-                        @endforeach
-                        @foreach ($overflowNav as $item)
-                            <a href="{{ route($item['route']) }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ $item['label'] }}</a>
-                        @endforeach
-                    </nav>
-                    <div class="px-4 pb-4 pt-3 mt-1 border-t border-gray-200">
-                        <form method="POST" action="{{ route('site.logout') }}">
-                            @csrf
-                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 text-red-700 text-sm font-semibold py-3.5 ring-1 ring-red-100 hover:bg-red-100 transition">
-                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                                {{ __('borrower.layout.sign_out') }}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </template>
 
         @if ($banner)
             <div class="mx-4 lg:mx-8 mt-4 px-4 py-3 rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 text-sm text-brand">

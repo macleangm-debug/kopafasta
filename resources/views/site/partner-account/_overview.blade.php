@@ -3,29 +3,37 @@
 @php
     $service = app(\App\Services\PartnerProfileService::class);
     $sections = $service->hubCards($partner, $profileRoute);
-    $extraGroups = [];
-    if ($portal === 'supplier') {
-        $extraGroups[] = [
-            'title' => __('site.supplier_portal.profile_title'),
+    $settingsRoute = match ($portal) {
+        'supplier' => 'site.supplier.settings',
+        'affiliate' => 'site.affiliate.settings',
+        'investor' => 'site.investor.settings',
+        default => 'site.partner.settings',
+    };
+    $supportRoute = match ($portal) {
+        'investor' => 'site.investor.support',
+        'supplier' => \Illuminate\Support\Facades\Route::has('site.supplier.support') ? 'site.supplier.support' : null,
+        'affiliate' => \Illuminate\Support\Facades\Route::has('site.affiliate.support') ? 'site.affiliate.support' : null,
+        default => \Illuminate\Support\Facades\Route::has('site.partner.support') ? 'site.partner.support' : null,
+    };
+    $menuGroups = [
+        [
+            'title' => __('borrower.profile.hub.group_security'),
+            'items' => [
+                ['href' => route($settingsRoute), 'label' => __('borrower.profile.security'), 'icon' => '🔒'],
+                ['href' => route($settingsRoute), 'label' => __('site.partner_portal.nav_settings'), 'icon' => '⚙️'],
+            ],
+        ],
+        [
+            'title' => __('borrower.profile.hub.group_help'),
             'items' => [
                 [
-                    'href' => route($profileRoute, ['section' => 'card']),
-                    'label' => __('site.supplier_portal.nav_card'),
-                    'icon' => '🪪',
-                ],
-                [
-                    'href' => route($profileRoute, ['section' => 'documents']),
-                    'label' => __('site.supplier_portal.tab_documents'),
-                    'icon' => '📁',
-                ],
-                [
-                    'href' => route('site.supplier.settings'),
-                    'label' => __('site.supplier_portal.tab_security'),
-                    'icon' => '⚙️',
+                    'href' => $supportRoute ? route($supportRoute) : route('site.support'),
+                    'label' => __('site.partner_portal.nav_support'),
+                    'icon' => '💬',
                 ],
             ],
-        ];
-    }
+        ],
+    ];
 @endphp
 
 <section class="mb-6">
@@ -69,18 +77,30 @@
     </div>
 </section>
 
-@foreach ($extraGroups as $group)
-    <section class="mb-6">
-        <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ $group['title'] }}</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            @foreach ($group['items'] as $item)
-                <a href="{{ $item['href'] }}"
-                   class="rounded-2xl ring-1 ring-gray-200/80 bg-white px-3.5 py-3 hover:ring-brand/30 hover:shadow-sm transition flex items-center gap-3">
-                    <span class="text-2xl leading-none select-none shrink-0" aria-hidden="true">{{ $item['icon'] }}</span>
-                    <span class="min-w-0 flex-1 font-semibold text-sm text-gray-900 leading-snug">{{ $item['label'] }}</span>
-                    <span class="text-brand shrink-0 text-base font-bold" aria-hidden="true">→</span>
-                </a>
-            @endforeach
+<section class="space-y-5">
+    @foreach ($menuGroups as $group)
+        <div>
+            <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-2">{{ $group['title'] }}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                @foreach ($group['items'] as $item)
+                    <a href="{{ $item['href'] }}"
+                       class="rounded-2xl ring-1 ring-gray-200/80 bg-white px-3.5 py-3 hover:ring-brand/30 hover:shadow-sm transition flex items-center gap-3">
+                        <span class="text-2xl leading-none select-none shrink-0" aria-hidden="true">{{ $item['icon'] }}</span>
+                        <span class="min-w-0 flex-1 font-semibold text-sm text-gray-900 leading-snug">{{ $item['label'] }}</span>
+                        <span class="text-brand shrink-0 text-base font-bold" aria-hidden="true">→</span>
+                    </a>
+                @endforeach
+            </div>
         </div>
-    </section>
-@endforeach
+    @endforeach
+    <form method="POST" action="{{ route('site.logout') }}" class="pt-4 mt-2 border-t border-gray-200">
+        @csrf
+        <button type="submit"
+                class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white ring-1 ring-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-bold py-3.5">
+            <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l3 3m0 0l-3 3m3-3H9"/>
+            </svg>
+            {{ __('borrower.layout.sign_out') }}
+        </button>
+    </form>
+</section>
