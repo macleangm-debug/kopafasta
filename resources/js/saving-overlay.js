@@ -241,4 +241,13 @@ export function registerSavingOverlay(Alpine) {
         }
         window.kfShowSaving(form.getAttribute('data-saving-message') || '');
     }, true);
+
+    // Capture-phase Saving starts before @submit.prevent / confirmForm cancel.
+    // If the submit never proceeds, drop the overlay so it cannot stall at 92%.
+    document.addEventListener('submit', (event) => {
+        if (! (event.target instanceof HTMLFormElement) || ! event.defaultPrevented) {
+            return;
+        }
+        window.kfHideSaving();
+    });
 }

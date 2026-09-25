@@ -10,20 +10,33 @@
     $hostId = 'admin-doc-'.md5($pageName);
 @endphp
 
-<div class="space-y-2">
-    @if ($label)
-        <label class="block text-xs font-semibold text-gray-700">
-            {{ $label }}
-            @if ($required)<span class="text-red-500">*</span>@endif
-        </label>
-    @endif
-    <p class="text-xs text-gray-500">Upload a PDF or photos, or capture pages with the camera. Multiple pages become one PDF.</p>
-    <div id="{{ $hostId }}" class="hidden"></div>
+<div class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 space-y-3" data-document-holder
+     @document-source.window="
+        if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
+        $dispatch($event.detail?.source === 'camera' ? 'document-open-camera' : 'document-open-upload', {
+            hostId: @js($hostId),
+            fresh: true,
+        });
+     ">
+    <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+            @if ($label)
+                <label class="block text-xs font-semibold text-gray-700">
+                    {{ $label }}
+                    @if ($required)<span class="text-red-500">*</span>@endif
+                </label>
+            @endif
+            <p class="text-xs text-gray-500 mt-1">{{ __('borrower.document_upload.guide_document_compact') }}</p>
+        </div>
+        <x-site.document-source-picker :host-id="$hostId" />
+    </div>
     <x-site.multi-page-document-upload
         :name="$pageName"
         :input-host-id="$hostId"
         :max-pages="$maxPages"
         :required="$required"
+        :source-driven="true"
+        :auto-finish-upload="true"
         :labels="[
             'uploadFile' => 'Upload file',
             'capturePage' => 'Capture page',

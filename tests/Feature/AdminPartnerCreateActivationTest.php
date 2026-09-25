@@ -24,6 +24,7 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertSee('partnerCreateConfirm', false)
             ->assertSee('id="admin-create-form"', false)
             ->assertSee('data-partner-confirm-create', false)
+            ->assertSee('data-loading="click"', false)
             ->assertSee('data-loading-label="'.__('site.auth.creating').'"', false)
             ->assertSee('Payment account', false)
             ->assertSee('Mobile money', false)
@@ -32,6 +33,23 @@ class AdminPartnerCreateActivationTest extends TestCase
         $confirmJs = (string) file_get_contents(resource_path('js/partner-create-confirm.js'));
         $this->assertStringContainsString('kfMarkBusy', $confirmJs);
         $this->assertStringContainsString("dataset.kfBusy === '1'", $confirmJs);
+        $this->assertStringContainsString('if (! this.form || this.submitting)', $confirmJs);
+        $this->assertStringContainsString('this.submitting = true', $confirmJs);
+    }
+
+    public function test_affiliate_create_page_shows_configured_commercial_labels(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.partners.create', ['category' => 'affiliate']))
+            ->assertOk()
+            ->assertSee('Application / registration fee:', false)
+            ->assertSee('Annual membership:', false)
+            ->assertSee('Kopafasta Plus customer discount:', false)
+            ->assertSee('plus_discount_percent', false)
+            ->assertSee('data-document-holder', false)
+            ->assertSee('kf-request-add', false);
     }
 
     public function test_admin_can_create_insurance_partner_and_activate_now(): void

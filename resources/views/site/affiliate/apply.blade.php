@@ -1,14 +1,17 @@
 <x-site.layout :title="brand_title(__('site.affiliate_apply.title'))">
-    <section class="bg-brand text-white">
-        <div class="max-w-2xl mx-auto px-4 py-10">
-            <a href="{{ route('site.affiliate') }}" class="text-sm text-white/70 hover:text-white inline-flex items-center gap-1 mb-4">
-                ← {{ __('site.affiliate.title') }}
-            </a>
-            <p class="text-xs uppercase tracking-widest text-brand-gold mb-2">{{ brand_name() }}</p>
-            <h1 class="text-3xl font-bold tracking-tight">{{ __('site.affiliate_apply.title') }}</h1>
-            <p class="text-sm text-white/80 mt-2">{{ __('site.affiliate_apply.subtitle') }}</p>
-        </div>
-    </section>
+    <div class="max-w-2xl mx-auto px-4 pt-8">
+        <a href="{{ route('site.affiliate') }}" class="text-sm text-brand hover:underline inline-flex items-center gap-1 mb-4">
+            ← {{ __('site.affiliate.title') }}
+        </a>
+        <section class="relative overflow-hidden rounded-2xl kf-premium-panel mb-6">
+            <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+            <div class="relative px-5 sm:px-6 py-5 sm:py-6">
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
+                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">{{ __('site.affiliate_apply.title') }}</h1>
+                <p class="mt-2 text-sm text-white/80 max-w-2xl leading-relaxed">{{ __('site.affiliate_apply.subtitle') }}</p>
+            </div>
+        </section>
+    </div>
 
     @php
         $errorStep = 1;
@@ -18,10 +21,24 @@
         if ($errors->hasAny(['acquisition_methods','monthly_reach','first_10_customers'])) {
             $errorStep = 3;
         }
-        if ($errors->hasAny(['declaration_accurate','declaration_standards','declaration_no_fees','declaration_not_employment','doc_brela','doc_tin_certificate','doc_national_id_front','doc_national_id_back','documents'])) {
+        if ($errors->hasAny(['declaration_accepted','declaration_accurate','declaration_standards','declaration_no_fees','declaration_not_employment','doc_brela','doc_tin_certificate','doc_national_id_front','doc_national_id_back','documents'])) {
             $errorStep = 4;
         }
-        $reachOptions = ['1-10','11-30','31-50','51-100','100+'];
+        $reachOptions = collect(['1-10','11-30','31-50','51-100','100+'])
+            ->mapWithKeys(fn ($reach) => [$reach => __('site.affiliate_apply.reach_ranges.'.$reach)])
+            ->all();
+        $occupationOptions = [
+            'shop_owner' => __('site.affiliate_apply.occupations.shop_owner'),
+            'trader' => __('site.affiliate_apply.occupations.trader'),
+            'farmer' => __('site.affiliate_apply.occupations.farmer'),
+            'driver' => __('site.affiliate_apply.occupations.driver'),
+            'teacher' => __('site.affiliate_apply.occupations.teacher'),
+            'agent' => __('site.affiliate_apply.occupations.agent'),
+            'content_creator' => __('site.affiliate_apply.occupations.content_creator'),
+            'professional' => __('site.affiliate_apply.occupations.professional'),
+            'other' => __('site.affiliate_apply.occupations.other'),
+        ];
+        $regionOptions = collect($regions)->mapWithKeys(fn ($region) => [$region => $region])->all();
         $languageOptions = ['sw' => __('site.affiliate_apply.lang_sw'), 'en' => __('site.affiliate_apply.lang_en'), 'other' => __('site.affiliate_apply.lang_other')];
         $acquisitionOptions = [
             'existing_customers' => __('site.affiliate_apply.acq_existing'),
@@ -34,7 +51,7 @@
         ];
     @endphp
 
-    <div class="max-w-2xl mx-auto py-10 px-4 -mt-6"
+    <div class="max-w-2xl mx-auto pb-10 px-4"
          x-data="{
             step: {{ $errorStep }},
             applicant: @js(old('applicant_category', 'individual')),
@@ -54,15 +71,10 @@
             <a href="{{ route('site.partners.apply.tracking') }}" class="font-semibold text-brand hover:underline">{{ __('site.partner_apply.track_title') }}</a>
         </p>
 
-        <form method="POST" action="{{ route('site.affiliate.apply.post') }}" enctype="multipart/form-data" class="glass-card p-6 sm:p-8 space-y-5"
-              @submit.prevent="window.confirmForm($el, {
-                  title: @js(__('site.affiliate_apply.confirm_title')),
-                  message: applicant === 'company'
-                      ? @js(__('site.affiliate_apply.confirm_message_company'))
-                      : @js(__('site.affiliate_apply.confirm_message_individual')),
-                  confirmLabel: @js(__('site.affiliate_apply.confirm_button')),
-                  tone: 'confirm',
-              })">
+        <form method="POST" action="{{ route('site.affiliate.apply.post') }}" enctype="multipart/form-data"
+              class="glass-card p-6 sm:p-8 space-y-5"
+              data-inline-document-progress
+              data-saving-message="{{ __('borrower.document_upload.saving') }}">
             @csrf
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-1 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-1 text-xs sm:text-sm">
@@ -101,13 +113,13 @@
                         input-class="flex-1 min-w-0 w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand" />
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.region') }}</label>
-                    <select name="region" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                        <option value="">{{ __('site.affiliate_apply.select_region') }}</option>
-                        @foreach ($regions as $region)
-                            <option value="{{ $region }}" @selected(old('region') === $region)>{{ $region }}</option>
-                        @endforeach
-                    </select>
+                    <x-site.sheet-select
+                        name="region"
+                        :label="__('site.affiliate_apply.region')"
+                        :options="$regionOptions"
+                        :value="old('region')"
+                        :placeholder="__('site.affiliate_apply.select_region')"
+                    />
                     <p class="mt-1 text-xs text-gray-500">{{ __('site.affiliate_apply.region_hint') }}</p>
                 </div>
                 <div class="grid sm:grid-cols-2 gap-4" x-show="applicant === 'company'" x-cloak>
@@ -137,8 +149,16 @@
 
             <div x-show="step === 2" x-cloak class="space-y-5">
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.occupation') }}</label>
-                    <input name="occupation" value="{{ old('occupation') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    <x-site.sheet-select
+                        name="occupation"
+                        :label="__('site.affiliate_apply.occupation')"
+                        :options="$occupationOptions"
+                        :value="old('occupation')"
+                        :placeholder="__('site.affiliate_apply.select_occupation')"
+                        :required="true"
+                        other-name="occupation_other"
+                        :other-label="__('site.affiliate_apply.occupation_other')"
+                    />
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.sales_experience') }}</label>
@@ -186,13 +206,14 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.monthly_reach') }}</label>
-                    <select name="monthly_reach" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
-                        <option value="">{{ __('site.affiliate_apply.select_reach') }}</option>
-                        @foreach ($reachOptions as $reach)
-                            <option value="{{ $reach }}" @selected(old('monthly_reach') === $reach)>{{ __('site.affiliate_apply.reach_ranges.'.$reach) }}</option>
-                        @endforeach
-                    </select>
+                    <x-site.sheet-select
+                        name="monthly_reach"
+                        :label="__('site.affiliate_apply.monthly_reach')"
+                        :options="$reachOptions"
+                        :value="old('monthly_reach')"
+                        :placeholder="__('site.affiliate_apply.select_reach')"
+                        :required="true"
+                    />
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.first_10') }}</label>
@@ -211,10 +232,7 @@
                         'doc_brela' => \App\Models\PartnerApplicationDocument::DOC_TYPES['brela'],
                         'doc_tin_certificate' => \App\Models\PartnerApplicationDocument::DOC_TYPES['tin_certificate'],
                     ] as $input => $label)
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ $label }} <span class="text-red-500">*</span></label>
-                            <x-site.single-image-document-upload :name="$input" facing="environment" :input-host-id="$input.'-host'" />
-                        </div>
+                        <x-site.form-document-field :name="$input" :label="$label" :required="true" />
                     @endforeach
                 </div>
                 <div class="space-y-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4">
@@ -223,17 +241,15 @@
                         'doc_national_id_front' => \App\Models\PartnerApplicationDocument::DOC_TYPES['national_id_front'],
                         'doc_national_id_back' => \App\Models\PartnerApplicationDocument::DOC_TYPES['national_id_back'],
                     ] as $input => $label)
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ $label }} <span class="text-red-500">*</span></label>
-                            <x-site.single-image-document-upload :name="$input" facing="environment" :input-host-id="$input.'-host'" />
-                        </div>
+                        <x-site.form-document-field :name="$input" :label="$label" :required="true" capture="nida" />
                     @endforeach
                 </div>
                 <div class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4 text-sm">
-                    <label class="flex items-start gap-2"><input type="checkbox" name="declaration_accurate" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('declaration_accurate'))> {{ __('site.affiliate_apply.decl_accurate') }}</label>
-                    <label class="flex items-start gap-2"><input type="checkbox" name="declaration_standards" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('declaration_standards'))> {{ __('site.affiliate_apply.decl_standards') }}</label>
-                    <label class="flex items-start gap-2"><input type="checkbox" name="declaration_no_fees" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('declaration_no_fees'))> {{ __('site.affiliate_apply.decl_no_fees') }}</label>
-                    <label class="flex items-start gap-2"><input type="checkbox" name="declaration_not_employment" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('declaration_not_employment'))> {{ __('site.affiliate_apply.decl_not_employment') }}</label>
+                    <p class="text-sm text-gray-700 leading-relaxed">{{ __('site.affiliate_apply.decl_paragraph') }}</p>
+                    <label class="flex items-start gap-2">
+                        <input type="checkbox" name="declaration_accepted" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('declaration_accepted'))>
+                        <span>{{ __('site.affiliate_apply.decl_agree') }}</span>
+                    </label>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <button type="button" @click="step = 3" class="text-sm font-semibold text-gray-600 hover:text-brand">← {{ __('site.partner_apply.back') }}</button>

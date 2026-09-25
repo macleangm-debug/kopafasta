@@ -73,6 +73,7 @@ class VendorController extends ResourceController
             'registration_discount_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
             'application_discount_percent'   => ['nullable', 'numeric', 'min:0', 'max:100'],
             'affiliate_commission_percent'   => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'plus_discount_percent'          => ['nullable', 'numeric', 'min:0', 'max:100'],
             'recovery_commission_percent'    => ['nullable', 'numeric', 'min:0', 'max:100'],
             'recovery_markup_percent'        => ['nullable', 'numeric', 'min:0', 'max:100'],
             'regions'                        => ['nullable', 'array'],
@@ -531,11 +532,16 @@ class VendorController extends ResourceController
         if ($payout !== []) {
             $meta['payout_account'] = $payout;
         }
+        $canNegotiateRates = app(\App\Services\PartnerStaffService::class)->canNegotiateRates(request()->user());
+        if ($isAffiliate && $canNegotiateRates && array_key_exists('plus_discount_percent', $data) && $data['plus_discount_percent'] !== null && $data['plus_discount_percent'] !== '') {
+            $meta['plus_discount_percent'] = (float) $data['plus_discount_percent'];
+        }
+        unset($data['plus_discount_percent']);
         if ($meta !== []) {
             $data['metadata'] = $meta;
         }
 
-        if (! app(\App\Services\PartnerStaffService::class)->canNegotiateRates(request()->user())) {
+        if (! $canNegotiateRates) {
             foreach ([
                 'partner_cost',
                 'markup_percent',

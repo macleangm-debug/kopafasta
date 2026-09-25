@@ -141,7 +141,7 @@ class Phase17FeatureTest extends TestCase
     {
         \Illuminate\Support\Facades\Storage::fake('public');
 
-        $this->post(route('site.affiliate.apply.post'), [
+        $response =         $response = $this->post(route('site.affiliate.apply.post'), [
             'applicant_category' => 'individual',
             'full_name'     => 'Affiliate Applicant',
             'email'         => 'affiliate@example.com',
@@ -154,17 +154,17 @@ class Phase17FeatureTest extends TestCase
             'acquisition_methods' => ['existing_customers', 'community'],
             'monthly_reach' => '11-30',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
-            'declaration_accurate' => '1',
-            'declaration_standards' => '1',
-            'declaration_no_fees' => '1',
-            'declaration_not_employment' => '1',
+            'declaration_accepted' => '1',
             'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
-        ])->assertRedirect(route('site.partners.apply.tracking', ['phone' => '+255712345800']));
+        ]);
+
+        $response->assertRedirect();
+        $this->assertStringContainsString('/become-affiliate/pay/', (string) $response->headers->get('Location'));
 
         $this->assertDatabaseHas('partner_applications', [
             'email'  => 'affiliate@example.com',
-            'status' => 'pending',
+            'status' => 'awaiting_fee',
             'type'   => 'affiliate',
         ]);
     }

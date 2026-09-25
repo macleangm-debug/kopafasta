@@ -86,7 +86,9 @@ class PartnerActivationRecoveryFeatureTest extends TestCase
             ->get(route('site.partner.setup-pin'))
             ->assertOk()
             ->assertSee(__('site.auth.pin_recovery.recovery_only_title'), false)
-            ->assertSee(__('site.auth.pin_recovery.change_question'), false);
+            ->assertSee(__('site.auth.pin_recovery.change_question'), false)
+            ->assertSee('relative z-10', false)
+            ->assertSee('kf-auth-input relative z-10', false);
 
         $answers = [];
         foreach ($keys as $key) {

@@ -38,14 +38,19 @@ class PartnerConfirmModalsFeatureTest extends TestCase
         $this->assertStringContainsString('dispute_title', $wallet);
     }
 
-    public function test_partner_and_affiliate_apply_views_wire_submit_confirm(): void
+    public function test_partner_and_affiliate_apply_views_use_saving_not_submit_confirm(): void
     {
         $partner = file_get_contents(resource_path('views/site/partners/apply.blade.php'));
         $affiliate = file_get_contents(resource_path('views/site/affiliate/apply.blade.php'));
 
-        $this->assertStringContainsString('window.confirmForm($el', $partner);
-        $this->assertStringContainsString('confirm_message_roles', $partner);
-        $this->assertStringContainsString('window.confirmForm($el', $affiliate);
-        $this->assertStringContainsString('confirm_title', $affiliate);
+        $this->assertStringNotContainsString('window.confirmForm($el', $partner);
+        $this->assertStringNotContainsString('window.confirmForm($el', $affiliate);
+        $this->assertStringContainsString('data-inline-document-progress', $partner);
+        $this->assertStringContainsString('data-inline-document-progress', $affiliate);
+        $this->assertStringContainsString('kf-premium-panel', $affiliate);
+        $this->assertStringContainsString('declaration_accepted', $affiliate);
+        $this->assertStringContainsString('x-site.sheet-select', $affiliate);
+        $this->assertStringContainsString('x-site.form-document-field', $affiliate);
+        $this->assertStringContainsString('x-site.form-document-field', $partner);
     }
 }

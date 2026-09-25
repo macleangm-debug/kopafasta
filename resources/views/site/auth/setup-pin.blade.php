@@ -27,24 +27,11 @@
             <input type="hidden" name="phase" value="questions">
             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('site.auth.pin_recovery.enroll_questions_label') }}</p>
             @foreach ($questions as $index => $question)
-                <div>
-                    <div class="flex items-start justify-between gap-3 mb-1">
-                        <label class="kf-auth-label mb-0">
-                            <span class="text-xs font-semibold text-brand mr-1">{{ $index + 1 }}.</span>
-                            {{ $question['prompt'] }}
-                        </label>
-                        <button
-                            type="submit"
-                            formaction="{{ $secureAccountSwap }}"
-                            formmethod="post"
-                            name="index"
-                            value="{{ $index }}"
-                            formnovalidate
-                            class="shrink-0 text-xs font-semibold text-brand hover:underline"
-                        >
-                            {{ __('site.auth.pin_recovery.change_question') }}
-                        </button>
-                    </div>
+                <div class="relative z-10">
+                    <label class="kf-auth-label">
+                        <span class="text-xs font-semibold text-brand mr-1">{{ $index + 1 }}.</span>
+                        {{ $question['prompt'] }}
+                    </label>
                     <input
                         type="text"
                         name="answers[{{ $question['key'] }}]"
@@ -57,8 +44,19 @@
                             maxlength="{{ $question['digits'] ?? 4 }}"
                             pattern="{{ '\\d{'.($question['digits'] ?? 4).'}' }}"
                         @endif
-                        class="kf-auth-input"
+                        class="kf-auth-input relative z-10"
                     >
+                    <button
+                        type="submit"
+                        formaction="{{ $secureAccountSwap }}"
+                        formmethod="post"
+                        name="index"
+                        value="{{ $index }}"
+                        formnovalidate
+                        class="mt-1.5 text-xs font-semibold text-brand hover:underline"
+                    >
+                        {{ __('site.auth.pin_recovery.change_question') }}
+                    </button>
                     @error('answers.'.$question['key'])
                         <p class="kf-auth-error">{{ $message }}</p>
                     @enderror

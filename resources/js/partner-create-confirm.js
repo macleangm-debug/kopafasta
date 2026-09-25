@@ -7,6 +7,7 @@ export function registerPartnerCreateConfirm(Alpine) {
         pin: '',
         pinConfirm: '',
         formError: '',
+        submitting: false,
         summary: { name: '', category: '', entity: '', phone: '', email: '' },
         categoryLabels,
 
@@ -115,7 +116,7 @@ export function registerPartnerCreateConfirm(Alpine) {
         },
 
         syncAndSubmit() {
-            if (! this.form) {
+            if (! this.form || this.submitting) {
                 return;
             }
             this.formError = '';
@@ -164,6 +165,7 @@ export function registerPartnerCreateConfirm(Alpine) {
             if (confirmBtn?.dataset.kfBusy === '1') {
                 return;
             }
+            this.submitting = true;
             if (confirmBtn && typeof window.kfMarkBusy === 'function') {
                 window.kfMarkBusy(confirmBtn, confirmBtn.dataset.loadingLabel || 'Creating…');
             }

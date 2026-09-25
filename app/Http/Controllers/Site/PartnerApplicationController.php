@@ -44,10 +44,8 @@ class PartnerApplicationController extends Controller
             'acquisition_methods.*' => ['string', 'max:40'],
             'monthly_reach' => ['required', 'in:1-10,11-30,31-50,51-100,100+'],
             'first_10_customers' => ['required', 'string', 'max:2000'],
-            'declaration_accurate' => ['accepted'],
-            'declaration_standards' => ['accepted'],
-            'declaration_no_fees' => ['accepted'],
-            'declaration_not_employment' => ['accepted'],
+            'occupation_other' => ['nullable', 'string', 'max:150', 'required_if:occupation,other'],
+            'declaration_accepted' => ['accepted'],
             'doc_brela' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_tin_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_business_licence' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
@@ -61,6 +59,10 @@ class PartnerApplicationController extends Controller
 
         if ($data['applicant_category'] === 'individual') {
             $data['business_name'] = ($data['business_name'] ?? null) ?: $data['full_name'];
+        }
+
+        if (($data['occupation'] ?? '') === 'other' && filled($data['occupation_other'] ?? null)) {
+            $data['occupation'] = $data['occupation_other'];
         }
 
         $application = app(PartnerEnrollmentService::class)->submitApplication(
@@ -79,6 +81,7 @@ class PartnerApplicationController extends Controller
                     'monthly_reach' => $data['monthly_reach'],
                     'first_10_customers' => $data['first_10_customers'],
                     'declarations' => [
+                        'accepted' => true,
                         'accurate' => true,
                         'standards' => true,
                         'no_unauthorized_fees' => true,

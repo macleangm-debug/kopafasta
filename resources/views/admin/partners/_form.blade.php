@@ -436,15 +436,37 @@
                 </label>
             </div>
             <x-admin.input name="affiliate_code" label="Promo / affiliate code" :value="$r?->affiliate_code" placeholder="Auto-generated for affiliates" />
+            @php
+                $affSettings = app(\App\Services\AffiliateSettingsService::class);
+                $affForm = $affSettings->forForm();
+                $membershipCfg = \App\Services\AffiliateMembershipService::config();
+                $applicationFee = (float) ($affForm['application_fee_amount'] ?? config('affiliates.application_fee_amount', 0));
+                $plusDefault = (float) ($affForm['default_plus_discount_percent'] ?? config('affiliates.default_plus_discount_percent', 10));
+                $plusOverride = old('plus_discount_percent', data_get($r?->metadata, 'plus_discount_percent'));
+                $isPremiumAffiliate = (bool) old('affiliate_premium', $r?->affiliate_premium);
+                $showMembershipFee = (bool) ($membershipCfg['enabled'] ?? false)
+                    && (! $isPremiumAffiliate || $affSettings->premiumMembershipRequired());
+            @endphp
+            <div class="md:col-span-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm text-gray-700 space-y-1">
+                <p><span class="font-semibold">Application / registration fee:</span> {{ $applicationFee > 0 ? format_money($applicationFee) : __('site.affiliate_apply.fee_not_required') }}</p>
+                @if ($showMembershipFee)
+                    <p><span class="font-semibold">Annual membership:</span> {{ format_money((float) ($membershipCfg['fee_amount'] ?? 0)) }} · {{ (int) ($membershipCfg['duration_days'] ?? 365) }} days</p>
+                @else
+                    <p><span class="font-semibold">Annual membership:</span> {{ __('site.affiliate_apply.fee_not_required') }}</p>
+                @endif
+                <p><span class="font-semibold">Kopafasta Plus customer discount:</span> {{ rtrim(rtrim(number_format($plusDefault, 2), '0'), '.') }}%</p>
+            </div>
             @if ($canNegotiateRates)
                 <x-admin.input name="registration_discount_percent" label="Registration discount (%)" type="number" step="0.01" :value="$r?->registration_discount_percent ?? config('affiliates.default_registration_discount_percent')" />
                 <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="$r?->application_discount_percent ?? config('affiliates.default_application_discount_percent')" />
                 <x-admin.input name="affiliate_commission_percent" label="Commission (%)" type="number" step="0.01" :value="$r?->affiliate_commission_percent ?? config('affiliates.default_commission_percent')" />
+                <x-admin.input name="plus_discount_percent" label="Kopafasta Plus discount override (%)" type="number" step="0.1" min="0" max="100" :value="$plusOverride ?? $plusDefault" help="Default is the configured Plus membership discount (10% unless Settings change it)." />
             @else
                 <p class="md:col-span-2 text-xs text-gray-600">
                     Registration discount {{ config('affiliates.default_registration_discount_percent') }}%
                     · Application discount {{ config('affiliates.default_application_discount_percent') }}%
                     · Commission {{ config('affiliates.default_commission_percent') }}%
+                    · Plus {{ rtrim(rtrim(number_format($plusDefault, 2), '0'), '.') }}%
                 </p>
             @endif
         </x-admin.step>

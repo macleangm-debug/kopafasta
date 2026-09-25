@@ -37,18 +37,21 @@
         }
     @endphp
 
-    <section class="bg-brand text-white">
-        <div class="max-w-2xl mx-auto px-4 py-10">
-            <a href="{{ route('site.partners') }}" class="text-sm text-white/70 hover:text-white inline-flex items-center gap-1 mb-4">
-                ← {{ __('site.partners.title') }}
-            </a>
-            <p class="text-xs uppercase tracking-widest text-brand-gold mb-2">{{ brand_name() }}</p>
-            <h1 class="text-3xl font-bold tracking-tight">{{ __('site.partner_apply.track_title') }}</h1>
-            <p class="text-sm text-white/80 mt-2">{{ __('site.partner_apply.track_subtitle') }}</p>
-        </div>
-    </section>
+    <div class="max-w-2xl mx-auto px-4 pt-8">
+        <a href="{{ route('site.partners') }}" class="text-sm text-brand hover:underline inline-flex items-center gap-1 mb-4">
+            ← {{ __('site.partners.title') }}
+        </a>
+        <section class="relative overflow-hidden rounded-2xl kf-premium-panel mb-6">
+            <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+            <div class="relative px-5 sm:px-6 py-5 sm:py-6">
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
+                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">{{ __('site.partner_apply.track_title') }}</h1>
+                <p class="mt-2 text-sm text-white/80 leading-relaxed">{{ __('site.partner_apply.track_subtitle') }}</p>
+            </div>
+        </section>
+    </div>
 
-    <div class="max-w-2xl mx-auto py-10 px-4 -mt-6 space-y-5"
+    <div class="max-w-2xl mx-auto pb-10 px-4 space-y-5"
          x-data="{
             resultOpen: {{ $resultPayload ? 'true' : 'false' }},
             submittedOpen: {{ $showSubmittedModal ? 'true' : 'false' }},

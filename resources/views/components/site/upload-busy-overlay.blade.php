@@ -27,14 +27,17 @@
                     }
                     this.percent = 8;
                     this.timer = setInterval(() => {
-                        if (this.percent < 92) {
-                            this.percent = Math.min(92, this.percent + (this.percent < 45 ? 7 : 2));
+                        if (this.percent < 90) {
+                            this.percent = Math.min(90, this.percent + (this.percent < 45 ? 7 : 2));
                         }
                     }, 260);
                 },
                 stop() {
                     clearInterval(this.timer);
-                    this.percent = 0;
+                    if (this.percent > 0) {
+                        this.percent = 100;
+                    }
+                    this.timer = setTimeout(() => { this.percent = 0; }, 240);
                 },
                 isBusy() {
                     return !!(this.$store.kfSaving?.uploading || (typeof uploading !== 'undefined' && uploading));

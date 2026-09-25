@@ -1,16 +1,19 @@
 <x-site.layout :title="brand_title(__('site.partner_apply.title', ['type' => $categoryLabel]))">
-    <section class="bg-brand text-white">
-        <div class="max-w-2xl mx-auto px-4 py-10">
-            <a href="{{ route('site.partners') }}" class="text-sm text-white/70 hover:text-white inline-flex items-center gap-1 mb-4">
-                ← {{ __('site.partners.title') }}
-            </a>
-            <p class="text-xs uppercase tracking-widest text-brand-gold mb-2">{{ brand_name() }}</p>
-            <h1 class="text-3xl font-bold tracking-tight">{{ __('site.partner_apply.title', ['type' => $categoryLabel]) }}</h1>
-            <p class="text-sm text-white/80 mt-2">{{ __('site.partner_apply.subtitle') }}</p>
-        </div>
-    </section>
+    <div class="max-w-2xl mx-auto px-4 pt-8">
+        <a href="{{ route('site.partners') }}" class="text-sm text-brand hover:underline inline-flex items-center gap-1 mb-4">
+            ← {{ __('site.partners.title') }}
+        </a>
+        <section class="relative overflow-hidden rounded-2xl kf-premium-panel mb-6">
+            <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+            <div class="relative px-5 sm:px-6 py-5 sm:py-6">
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
+                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">{{ __('site.partner_apply.title', ['type' => $categoryLabel]) }}</h1>
+                <p class="mt-2 text-sm text-white/80 max-w-2xl leading-relaxed">{{ __('site.partner_apply.subtitle') }}</p>
+            </div>
+        </section>
+    </div>
 
-    <div class="max-w-2xl mx-auto py-10 px-4 -mt-6"
+    <div class="max-w-2xl mx-auto pb-10 px-4"
          x-data="{
             step: {{ $errors->hasAny(['doc_brela','doc_tin_certificate','doc_business_licence','doc_national_id_front','doc_national_id_back','documents','registration_number','tin']) ? 3 : ($errors->hasAny(['region','coverage_regions']) ? 2 : 1) }},
             category: @js(old('partner_category', $category)),
@@ -54,23 +57,7 @@
         </div>
 
         <form method="POST" action="{{ route('site.partners.apply.post') }}" enctype="multipart/form-data" class="glass-card p-6 sm:p-8 space-y-5"
-              data-inline-document-progress data-saving-message="{{ __('borrower.profile.uploading_documents') }}"
-              @submit.prevent="
-                  const roles = [...$el.querySelectorAll('input[name=\'requested_roles[]\']:checked')].map((el) => el.value);
-                  const caps = [];
-                  if (roles.includes('debt_collector')) caps.push(@js(__('site.partner_apply.capability_repossession')));
-                  if (roles.includes('auctioneer')) caps.push(@js(__('site.partner_apply.capability_auctioning')));
-                  const typeLabel = labels[category] || category;
-                  const message = category === 'debt_collector'
-                      ? (@js(__('site.partner_apply.confirm_message_roles'))).replace(':type', typeLabel).replace(':roles', caps.length ? caps.join(' + ') : @js(__('site.partner_apply.confirm_no_roles')))
-                      : (@js(__('site.partner_apply.confirm_message'))).replace(':type', typeLabel);
-                  window.confirmForm($el, {
-                      title: @js(__('site.partner_apply.confirm_title')),
-                      message,
-                      confirmLabel: @js(__('site.partner_apply.confirm_button')),
-                      tone: 'confirm',
-                  });
-              ">
+              data-inline-document-progress data-saving-message="{{ __('borrower.document_upload.saving') }}">
             @csrf
             <input type="hidden" name="partner_category" :value="category">
 
@@ -228,13 +215,7 @@
                             'doc_tin_certificate' => ['label' => $docTypes['tin_certificate'], 'required' => true],
                             'doc_business_licence' => ['label' => $docTypes['business_licence'], 'required' => false],
                         ] as $input => $meta)
-                            <div class="rounded-2xl ring-1 ring-brand/10 bg-white p-4">
-                                <p class="text-sm font-semibold text-gray-900 mb-3">
-                                    {{ $meta['label'] }}
-                                    @if ($meta['required']) <span class="text-red-500">*</span> @endif
-                                </p>
-                                <x-site.single-image-document-upload :name="$input" :required="$meta['required']" />
-                            </div>
+                            <x-site.form-document-field :name="$input" :label="$meta['label']" :required="$meta['required']" />
                         @endforeach
                     </div>
                 </template>
@@ -245,18 +226,12 @@
                         'doc_national_id_front' => $docTypes['national_id_front'],
                         'doc_national_id_back' => $docTypes['national_id_back'],
                     ] as $input => $label)
-                        <div class="rounded-2xl ring-1 ring-brand/10 bg-white p-4">
-                            <p class="text-sm font-semibold text-gray-900 mb-3">{{ $label }} <span class="text-red-500">*</span></p>
-                            <x-site.single-image-document-upload :name="$input" :required="true" />
-                        </div>
+                        <x-site.form-document-field :name="$input" :label="$label" :required="true" capture="nida" />
                     @endforeach
                 </div>
 
                 <template x-if="!allowsIndividual || applicant === 'company'">
-                    <div class="rounded-2xl ring-1 ring-brand/10 bg-white p-4">
-                        <p class="text-sm font-semibold text-gray-900 mb-3">{{ $docTypes['other'] }}</p>
-                        <x-site.single-image-document-upload name="doc_other" :required="false" />
-                    </div>
+                    <x-site.form-document-field name="doc_other" :label="$docTypes['other']" :required="false" />
                 </template>
 
                 <div class="flex flex-col gap-3 pt-2">

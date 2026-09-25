@@ -69,7 +69,12 @@ class AffiliateGovernanceFeatureTest extends TestCase
             ->assertSee(__('site.affiliate_apply.coverage_online'), false)
             ->assertDontSee('coverage_regions', false)
             ->assertDontSee('application/review fee', false)
-            ->assertDontSee('Application fee', false);
+            ->assertDontSee('Application fee', false)
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee(__('site.affiliate_apply.decl_paragraph'), false)
+            ->assertSee(__('site.affiliate_apply.decl_agree'), false)
+            ->assertDontSee('name="declaration_accurate"', false)
+            ->assertDontSee('window.confirmForm($el', false);
     }
 
     public function test_approval_and_account_activation_do_not_make_promo_operational(): void
@@ -293,10 +298,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'acquisition_methods' => ['existing_customers', 'community'],
             'monthly_reach' => '11-30',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
-            'declaration_accurate' => '1',
-            'declaration_standards' => '1',
-            'declaration_no_fees' => '1',
-            'declaration_not_employment' => '1',
+            'declaration_accepted' => '1',
             'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();
@@ -326,10 +328,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'acquisition_methods' => ['social_media'],
             'monthly_reach' => '100+',
             'first_10_customers' => 'I will share from my existing online audience.',
-            'declaration_accurate' => '1',
-            'declaration_standards' => '1',
-            'declaration_no_fees' => '1',
-            'declaration_not_employment' => '1',
+            'declaration_accepted' => '1',
             'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();
@@ -415,11 +414,13 @@ class AffiliateGovernanceFeatureTest extends TestCase
                 'affiliate_premium' => '1',
                 'coverage_type' => 'regions',
                 'regions' => ['Dar es Salaam'],
+                'plus_discount_percent' => '10',
             ])
             ->assertRedirect(route('admin.partners.show', $affiliate));
 
         $fresh = $affiliate->fresh();
         $this->assertTrue($fresh->isPremiumAffiliate());
+        $this->assertSame(10.0, (float) data_get($fresh->metadata, 'plus_discount_percent'));
         $this->assertSame('nationwide', $fresh->coverage_type);
         $this->assertSame([], $fresh->regions ?? []);
         $this->assertSame(AffiliatePerformanceStatus::PREMIUM, $fresh->affiliate_performance_status);

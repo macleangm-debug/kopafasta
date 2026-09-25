@@ -31,7 +31,7 @@
             <p class="relative text-xs text-white/50">&copy; {{ date('Y') }} {{ brand('legal_name') }}</p>
         </aside>
 
-        <div {{ $attributes->merge(['class' => 'h-full min-h-0 overflow-y-auto overscroll-y-contain flex items-center justify-center px-4 py-6 sm:px-12 sm:py-10 form-scroll-lock']) }}>
+        <div {{ $attributes->merge(['class' => 'h-full min-h-0 overflow-y-auto overscroll-y-contain flex items-start lg:items-center justify-center px-4 py-6 sm:px-12 sm:py-10 form-scroll-lock']) }}>
             <div class="w-full max-w-md glass-card overflow-hidden">
                 <div class="lg:hidden px-5 pt-5">
                     <a href="{{ route('site.home') }}" class="inline-block"><x-site.brand-mark size="md" /></a>
