@@ -15,11 +15,12 @@
             ->values();
     @endphp
     <div x-data="loanProductsPage()">
-        <section class="relative overflow-hidden rounded-2xl premium-gradient border border-gray-100/80 mb-8">
-            <div class="px-6 sm:px-8 py-8 sm:py-10">
-                <p class="text-xs uppercase tracking-widest text-brand font-semibold mb-2">{{ brand_name() }} {{ __('borrower.apply.smart_application') }}</p>
-                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-brand">{{ __('borrower.loan_products_page.title') }}</h1>
-                <p class="mt-2 text-sm sm:text-base text-gray-600 max-w-2xl">{{ __('borrower.loan_products_page.subtitle') }}</p>
+        <section class="relative overflow-hidden rounded-2xl kf-premium-panel mb-6">
+            <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+            <div class="relative px-5 sm:px-6 py-5 sm:py-6">
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }} {{ __('borrower.apply.smart_application') }}</p>
+                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">{{ __('borrower.loan_products_page.title') }}</h1>
+                <p class="mt-2 text-sm text-white/80 max-w-2xl leading-relaxed">{{ __('borrower.loan_products_page.subtitle') }}</p>
             </div>
         </section>
 

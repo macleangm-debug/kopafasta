@@ -144,7 +144,9 @@ class Phase23FeatureTest extends TestCase
             ->get(route('site.borrower.loan-products'))
             ->assertOk()
             ->assertDontSee(__('borrower.apply.kyc_incomplete_hint'), false)
-            ->assertSee('Apply Test Product', false);
+            ->assertSee('Apply Test Product', false)
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee(__('borrower.loan_products_page.title'), false);
     }
 
     public function test_swahili_application_fee_strings_are_available(): void

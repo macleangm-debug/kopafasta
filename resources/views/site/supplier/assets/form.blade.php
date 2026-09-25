@@ -42,7 +42,10 @@
             <input type="hidden" name="_submit_token" value="{{ $submitToken }}">
             <input type="hidden" name="is_active" :value="isActive ? 1 : 0">
 
-            <x-admin.wizard :submit-label="$asset ? __('site.supplier_portal.wizard_save') : __('site.supplier_portal.wizard_publish')" :cancel-url="$asset ? route('site.supplier.assets.show', $asset->id) : route('site.supplier.assets')">
+            <x-admin.wizard
+                :heading="$asset ? __('site.supplier_portal.wizard_save') : __('site.supplier_portal.cta_upload')"
+                :submit-label="$asset ? __('site.supplier_portal.wizard_save') : __('site.supplier_portal.wizard_publish')"
+                :cancel-url="$asset ? route('site.supplier.assets.show', $asset->id) : route('site.supplier.assets')">
                 <x-admin.step :title="__('site.supplier_portal.wizard_type')">
                     <div class="md:col-span-2">
                         <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.supplier_portal.wizard_type') }}</label>

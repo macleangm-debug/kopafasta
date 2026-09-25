@@ -13,11 +13,6 @@
         $isMarketplace => route('site.borrower.marketplace'),
         default => route('site.borrower.apply', ['product' => $product->id, 'intent' => 'apply']),
     };
-    $ctaLabel = match ($status) {
-        'coming_soon' => __('borrower.dashboard.product_coming_soon'),
-        'inactive'    => __('borrower.dashboard.product_inactive'),
-        default       => $isMarketplace ? __('borrower.nav.marketplace') : __('borrower.loan_products_page.apply_now'),
-    };
     $statusBadge = match ($status) {
         'coming_soon' => ['label' => __('borrower.dashboard.product_coming_soon'), 'class' => 'bg-sky-100 text-sky-800 ring-sky-200'],
         'inactive'    => ['label' => __('borrower.dashboard.product_inactive'), 'class' => 'bg-gray-100 text-gray-600 ring-gray-200'],
@@ -31,8 +26,11 @@
     data-product-card
     data-category="{{ $category }}"
     data-search="{{ strtolower($product->code.' '.$productName.' '.$description) }}"
-    class="glass-card overflow-hidden flex flex-col h-full hover:shadow-[0_16px_48px_rgba(0,77,64,0.14)] hover:-translate-y-0.5 transition-all duration-300 group {{ ! $isAvailable ? 'opacity-90' : '' }}"
+    class="relative glass-card overflow-hidden flex flex-col h-full hover:shadow-[0_16px_48px_rgba(0,77,64,0.14)] hover:-translate-y-0.5 transition-all duration-300 group {{ ! $isAvailable ? 'opacity-90' : '' }}"
 >
+    @if ($isAvailable)
+        <a href="{{ $ctaUrl }}" class="absolute inset-0 z-10" aria-label="{{ $productName }}" data-loading="click"></a>
+    @endif
     <div class="relative">
         <x-site.product-illustration :code="$product->code" size="card" class="!rounded-none !size-auto w-full !aspect-[2/1] !max-w-none" />
         <div class="absolute top-2 left-2">
@@ -83,15 +81,8 @@
             </div>
         </dl>
 
-        @if ($isAvailable)
-            <a href="{{ $ctaUrl }}"
-               data-loading="click"
-               class="mt-auto pt-3 inline-flex items-center justify-center gap-2 rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-bold px-4 py-2.5 transition-all duration-300 shadow-sm">
-                {{ $ctaLabel }}
-                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
-            </a>
-        @else
+        @unless ($isAvailable)
             <p class="mt-auto pt-3 text-center text-sm text-gray-500 py-1.5">{{ __('borrower.dashboard.product_unavailable_hint') }}</p>
-        @endif
+        @endunless
     </div>
 </article>

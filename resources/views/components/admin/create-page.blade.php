@@ -17,16 +17,8 @@
     :backUrl="$cancelUrl"
     :backLabel="$backLabel">
 
-    <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand/10">
-        <div class="bg-gradient-to-r from-brand via-brand to-brand-light px-6 py-5 text-white">
-            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ brand_name() }}</p>
-            <h1 class="text-xl font-bold tracking-tight mt-1">{{ $heading }}</h1>
-            @if ($subheading)
-                <p class="text-sm text-white/75 mt-1">{{ $subheading }}</p>
-            @endif
-        </div>
-        <div class="p-6">
-            <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="space-y-6" id="admin-create-form" @if ($alpine) x-data="{!! $alpine !!}" @endif>
+    <div class="mx-auto w-full max-w-3xl">
+            <form method="POST" action="{{ $action }}" @if ($enctype) enctype="{{ $enctype }}" @endif class="glass-card rounded-3xl ring-1 ring-brand/10 p-4 sm:p-8 space-y-6" id="admin-create-form" @if ($alpine) x-data="{!! $alpine !!}" @endif>
                 @csrf
 
                 @if ($errors->any())
@@ -41,12 +33,13 @@
                 @endif
 
                 <x-admin.wizard
+                    :heading="$heading"
+                    :subheading="$subheading"
                     :submitLabel="$submitLabel"
                     :cancelUrl="$cancelUrl"
                     :confirmBeforeSubmit="$confirmBeforeSubmit">
                     {{ $slot }}
                 </x-admin.wizard>
             </form>
-        </div>
     </div>
 </x-admin.layout>

@@ -7,6 +7,8 @@
     'submitLabel' => 'Save',
     'cancelUrl'   => null,
     'confirmBeforeSubmit' => false,
+    'heading' => null,
+    'subheading' => null,
 ])
 
 <div class="admin-wizard space-y-6"
@@ -29,8 +31,15 @@
         }
     </style>
 
-    <div data-wizard-chrome class="hidden rounded-2xl bg-gradient-to-br from-brand via-brand to-brand-light p-4 sm:p-5 text-white shadow-sm ring-1 ring-brand/20">
-        <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+    <div data-wizard-chrome class="hidden rounded-2xl kf-premium-panel p-4 sm:p-5 text-white shadow-sm ring-1 ring-brand/20">
+        @if (filled($heading))
+            <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-semibold">{{ brand_name() }}</p>
+            <h1 class="text-xl font-bold tracking-tight mt-1">{{ $heading }}</h1>
+            @if (filled($subheading))
+                <p class="text-sm text-white/75 mt-1">{{ $subheading }}</p>
+            @endif
+        @endif
+        <div class="flex flex-wrap items-end justify-between gap-3 {{ filled($heading) ? 'mt-4' : 'mb-4' }} mb-4">
             <div class="min-w-0">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-semibold" data-wizard-progress-label>Step 1 of 1</p>
                 <h2 class="text-lg sm:text-xl font-bold tracking-tight mt-1 truncate" data-wizard-current-title>Details</h2>
