@@ -230,6 +230,51 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('borrower.security_tab.change_pin'), false);
     }
 
+    public function test_company_supplier_profile_hub_and_personal_render(): void
+    {
+        [$user] = $this->supplier(['applicant_category' => 'company']);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.profile'))
+            ->assertOk()
+            ->assertSee(__('site.partner_account.personal_section'), false)
+            ->assertSee(__('site.partner_account.company_section'), false)
+            ->assertSee(route('site.supplier.profile', ['section' => 'personal']), false)
+            ->assertSee(route('site.supplier.profile', ['section' => 'company']), false);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.profile', ['section' => 'personal']))
+            ->assertOk()
+            ->assertSee(__('site.partner_account.contact_details'), false);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.profile', ['section' => 'company']))
+            ->assertOk()
+            ->assertSee(__('site.partner_account.company_section'), false);
+    }
+
+    public function test_borrower_hitting_supplier_profile_is_sent_to_borrower_profile(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower']);
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-SUP-WRONG-PORTAL',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Halima',
+            'last_name' => 'Borrower',
+            'phone' => '255600'.random_int(100000, 999999),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.profile'))
+            ->assertRedirect(route('site.borrower.profile'));
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.profile', ['section' => 'personal']))
+            ->assertRedirect(route('site.borrower.profile'));
+    }
+
     public function test_add_asset_uses_existing_wizard(): void
     {
         [$user] = $this->supplier();

@@ -17,10 +17,20 @@ class EnsureSupplierPortal
             return $next($request);
         }
 
+        $redirect = app(PartnerPortalRedirectService::class);
         $vendor = Vendor::query()->where('user_id', $user->id)->first();
-        if ($vendor && ! $vendor->isSupplier()) {
+
+        if (! $vendor) {
+            return redirect()->to(
+                $user->role === 'borrower' && $request->routeIs('*.supplier.profile')
+                    ? route('site.borrower.profile')
+                    : $redirect->homeUrl($user)
+            );
+        }
+
+        if (! $vendor->isSupplier()) {
             return redirect()
-                ->to(app(PartnerPortalRedirectService::class)->homeUrl($user))
+                ->to($redirect->homeUrl($user))
                 ->with('warning', __('site.partner_portal.redirect_from_supplier'));
         }
 

@@ -30,7 +30,16 @@ class SupplierController extends Controller
     protected function supplier(): Vendor
     {
         $vendor = Vendor::where('user_id', Auth::id())->first();
-        abort_unless($vendor, 403, 'Supplier portal access requires an active supplier account.');
+        if (! $vendor) {
+            $user = Auth::user();
+            throw new HttpResponseException(
+                redirect()->to(
+                    $user?->role === 'borrower'
+                        ? route('site.borrower.profile')
+                        : app(PartnerPortalRedirectService::class)->homeUrl($user)
+                )
+            );
+        }
 
         if (! $vendor->isSupplier()) {
             throw new HttpResponseException(
