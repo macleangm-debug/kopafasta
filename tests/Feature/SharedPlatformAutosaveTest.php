@@ -48,6 +48,12 @@ class SharedPlatformAutosaveTest extends TestCase
         $this->assertStringContainsString('2-step', $blade);
         $this->assertStringNotContainsString('Step 3: Password', $blade);
         $this->assertStringNotContainsString('name="password"', $blade);
+        $this->assertStringContainsString('mt-8 space-y-4', $blade);
+        $termsPos = strpos($blade, 'borrower.register.terms_agree');
+        $createPos = strpos($blade, 'borrower.register.create');
+        $this->assertNotFalse($termsPos);
+        $this->assertNotFalse($createPos);
+        $this->assertLessThan($createPos, $termsPos, 'Terms notice must sit above the Create account button');
 
         $auth = file_get_contents(app_path('Http/Controllers/Site/AuthController.php'));
         $this->assertStringContainsString("Hash::make(Str::password(32))", $auth);

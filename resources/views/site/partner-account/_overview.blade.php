@@ -42,8 +42,37 @@
         @foreach ($sections as $section)
             @php
                 $isComplete = ($section['status'] ?? '') === 'complete';
-                $cta = $section['action_label'] ?? ($isComplete ? __('borrower.profile.hub.view_edit') : __('borrower.profile.hub.add'));
-                $ctaTone = $isComplete ? 'done' : 'add';
+                $progress = $section['progress'] ?? null;
+                $remaining = (int) ($progress['remaining'] ?? count($section['missing'] ?? []));
+                $done = (int) ($progress['done'] ?? 0);
+                $isEmpty = $done === 0 && ! $isComplete;
+
+                if ($isComplete) {
+                    $progressLabel = ! empty($progress['total'])
+                        ? __('borrower.profile.hub.of_complete', [
+                            'done' => $progress['total'],
+                            'total' => $progress['total'],
+                        ])
+                        : __('borrower.profile.status.complete');
+                    $cta = __('borrower.profile.status.complete');
+                    $ctaTone = 'done';
+                    $showTick = true;
+                } elseif ($progress && (int) ($progress['total'] ?? 0) > 0) {
+                    $progressLabel = __('borrower.profile.hub.of_complete', [
+                        'done' => $progress['done'],
+                        'total' => $progress['total'],
+                    ]);
+                    $cta = $isEmpty
+                        ? __('borrower.profile.hub.add')
+                        : __('borrower.profile.hub.continue');
+                    $ctaTone = $isEmpty ? 'add' : 'continue';
+                    $showTick = false;
+                } else {
+                    $progressLabel = $section['description'] ?? __('borrower.profile.hub.of_complete', ['done' => 0, 'total' => 1]);
+                    $cta = $section['action_label'] ?? __('borrower.profile.hub.add');
+                    $ctaTone = 'add';
+                    $showTick = false;
+                }
             @endphp
             <a href="{{ $section['url'] }}"
                data-kf-share="kf-psec-{{ $section['key'] }}"
@@ -51,11 +80,14 @@
                 <span class="text-2xl leading-none shrink-0" aria-hidden="true">{{ $section['icon'] ?? '📋' }}</span>
                 <div class="min-w-0 flex-1">
                     <h3 class="font-bold text-gray-900 group-hover:text-brand transition leading-snug">{{ $section['label'] }}</h3>
-                    @if (! empty($section['description']))
-                        <p class="text-xs text-gray-500 mt-0.5 line-clamp-2">{{ $section['description'] }}</p>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ $progressLabel }}</p>
+                    @if (! $isComplete && $remaining > 0)
+                        <p class="mt-0.5 text-xs font-semibold text-amber-800">
+                            {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
+                        </p>
                     @endif
                 </div>
-                @if ($isComplete)
+                @if ($showTick)
                     <span class="size-6 rounded-full grid place-items-center bg-gradient-to-br from-brand to-brand-light text-brand-gold shadow-sm ring-2 ring-brand-gold/40 shrink-0"
                           title="{{ __('borrower.profile.section_complete') }}"
                           aria-label="{{ __('borrower.profile.section_complete') }}">

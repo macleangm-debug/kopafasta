@@ -70,26 +70,24 @@
         </div>
     </section>
 
-    <section class="mb-6">
-        <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('site.supplier_portal.attention_title') }}</p>
-        @if ($attention === [])
-            <div class="rounded-2xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3 text-sm text-gray-600">
-                {{ __('site.supplier_portal.attention_caught_up') }}
-            </div>
-        @else
-            <div class="space-y-2">
+    @if ($attention !== [])
+        <section class="kf-premium-panel rounded-3xl mb-6">
+            <div class="relative p-5 sm:p-6 space-y-3">
                 @foreach ($attention as $item)
-                    <a href="{{ $item['url'] }}" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl bg-amber-50/80 ring-1 ring-amber-200 px-4 py-3">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-900">{{ $item['title'] }}</p>
-                            <p class="text-xs text-gray-600 mt-0.5">{{ $item['body'] }}</p>
+                    <a href="{{ $item['url'] }}"
+                       class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl bg-white/10 ring-1 ring-white/20 px-4 py-3 hover:bg-white/15 transition">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-white">{{ $item['title'] }}</p>
+                            <p class="text-xs text-white/75 mt-0.5">{{ $item['body'] }}</p>
                         </div>
-                        <span class="text-xs font-semibold text-brand shrink-0">{{ $item['cta'] }} →</span>
+                        <span class="inline-flex items-center justify-center rounded-lg bg-brand-gold text-brand font-bold px-3 py-1.5 text-xs shrink-0">
+                            {{ $item['cta'] }} →
+                        </span>
                     </a>
                 @endforeach
             </div>
-        @endif
-    </section>
+        </section>
+    @endif
 
     @php
         $recentPayments = $recentPayments->take(5);
@@ -97,13 +95,22 @@
     @endphp
     <div class="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1 scrollbar-none lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0"
          data-kf-supplier-home-rail>
-        <section class="mb-2 min-w-[85%] snap-center shrink-0 lg:min-w-0 lg:mb-0 glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
-            <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-4">
-                <h2 class="font-bold text-gray-900">{{ __('site.supplier_portal.recent_payments_title') }}</h2>
-                <a href="{{ route('site.supplier.settlements') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.supplier_portal.see_all') }}</a>
+        <section class="mb-2 min-w-[85%] snap-center shrink-0 lg:min-w-0 lg:mb-0 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
+            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
+                <h2 class="font-bold text-white">{{ __('site.supplier_portal.recent_payments_title') }}</h2>
+                <a href="{{ route('site.supplier.settlements') }}"
+                   class="inline-flex items-center rounded-lg bg-brand-gold text-brand font-bold px-3 py-1.5 text-xs shadow-sm">
+                    {{ __('site.supplier_portal.see_all') }}
+                </a>
             </div>
             @if ($recentPayments->isEmpty())
-                <p class="px-4 sm:px-5 pb-5 text-sm text-gray-500">{{ __('site.supplier_portal.recent_payments_empty') }}</p>
+                <x-site.empty-state
+                    class="!shadow-none !ring-0"
+                    compact
+                    icon="💸"
+                    :title="__('site.supplier_portal.recent_payments_empty_title')"
+                    :description="__('site.supplier_portal.recent_payments_empty_desc')"
+                />
             @else
                 <div class="hidden sm:block overflow-x-auto">
                     <table class="min-w-full text-sm">
@@ -141,17 +148,28 @@
             @endif
         </section>
 
-        <section class="mb-2 min-w-[85%] snap-center shrink-0 lg:min-w-0 lg:mb-0 glass-card rounded-2xl ring-1 ring-brand/10 overflow-hidden">
-            <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-4">
-                <h2 class="font-bold text-gray-900">{{ __('site.supplier_portal.asset_activity_title') }}</h2>
-                <a href="{{ route('site.supplier.assets') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('site.supplier_portal.see_all') }}</a>
+        <section class="mb-2 min-w-[85%] snap-center shrink-0 lg:min-w-0 lg:mb-0 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
+            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
+                <h2 class="font-bold text-white">{{ __('site.supplier_portal.asset_activity_title') }}</h2>
+                <a href="{{ route('site.supplier.assets') }}"
+                   class="inline-flex items-center rounded-lg bg-brand-gold text-brand font-bold px-3 py-1.5 text-xs shadow-sm">
+                    {{ __('site.supplier_portal.see_all') }}
+                </a>
             </div>
             @if ($assetActivity->isEmpty())
-                <p class="px-4 sm:px-5 pb-5 text-sm text-gray-500">{{ __('site.supplier_portal.asset_activity_empty') }}</p>
+                <x-site.empty-state
+                    class="!shadow-none !ring-0"
+                    compact
+                    icon="📦"
+                    :title="__('site.supplier_portal.asset_activity_empty_title')"
+                    :description="__('site.supplier_portal.asset_activity_empty_desc')"
+                    :action-label="__('site.supplier_portal.cta_upload')"
+                    :action-url="route('site.supplier.assets.create')"
+                />
             @else
                 <div class="divide-y divide-gray-100">
                     @foreach ($assetActivity as $asset)
-                        <a href="{{ route('site.supplier.assets.edit', $asset) }}"
+                        <a href="{{ route('site.supplier.assets.show', $asset) }}"
                            class="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 hover:bg-brand-muted/20">
                             <p class="font-semibold text-sm text-gray-900 truncate">{{ $asset->title }}</p>
                             <p class="text-xs text-gray-500 shrink-0">

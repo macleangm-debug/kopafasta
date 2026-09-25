@@ -295,22 +295,9 @@
 
                         
 
-                        {{-- Footer nav: Continue always present; disabled until stage is ready (never stranded). --}}
-                        <div class="mt-8 flex items-center justify-between gap-3">
-                            <button type="button" @click="prev()" x-show="step > 1" x-cloak
-                                    class="px-5 py-2.5 rounded-full text-sm font-semibold text-gray-700 hover:bg-gray-100 transition">
-                                {{ __('borrower.register.back') }}
-                            </button>
-                            <div x-show="step === 1"></div>
-
-                            <button type="button" @click="next()" x-show="step === 1" x-cloak
-                                    :disabled="!canContinueStep1 || checkingPhone"
-                                    class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm disabled:opacity-40 disabled:pointer-events-none">
-                                <span x-show="!checkingPhone">{{ __('borrower.register.continue') }}</span>
-                                <span x-cloak x-show="checkingPhone">{{ __('borrower.register.checking') }}</span>
-                                <svg x-show="!checkingPhone" class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
-                            </button>
-                            <div x-show="step === 2" x-cloak class="w-full sm:w-auto sm:ml-auto space-y-3">
+                        {{-- Footer: terms sit full-width above a single Back | action row. --}}
+                        <div class="mt-8 space-y-4">
+                            <div x-show="step === 2" x-cloak class="space-y-3">
                                 <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3.5 text-sm text-gray-800 leading-relaxed">
                                     <p>
                                         {!! __('borrower.register.terms_agree', [
@@ -320,9 +307,24 @@
                                     </p>
                                 </div>
                                 <x-site.turnstile action="register" />
-                                <button type="submit"
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <button type="button" @click="prev()" x-show="step > 1" x-cloak
+                                        class="px-5 py-2.5 rounded-full text-sm font-semibold text-gray-700 hover:bg-gray-100 transition">
+                                    {{ __('borrower.register.back') }}
+                                </button>
+                                <div x-show="step === 1"></div>
+
+                                <button type="button" @click="next()" x-show="step === 1" x-cloak
+                                        :disabled="!canContinueStep1 || checkingPhone"
+                                        class="ml-auto inline-flex items-center gap-2 bg-brand hover:bg-brand-light text-white font-semibold py-3 px-7 rounded-xl transition shadow-sm disabled:opacity-40 disabled:pointer-events-none">
+                                    <span x-show="!checkingPhone">{{ __('borrower.register.continue') }}</span>
+                                    <span x-cloak x-show="checkingPhone">{{ __('borrower.register.checking') }}</span>
+                                    <svg x-show="!checkingPhone" class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
+                                </button>
+                                <button type="submit" x-show="step === 2" x-cloak
                                         :disabled="!canContinueStep2"
-                                        class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 px-7 rounded-xl transition shadow-sm disabled:opacity-40 disabled:pointer-events-none">
+                                        class="inline-flex items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold py-3 px-7 rounded-xl transition shadow-sm disabled:opacity-40 disabled:pointer-events-none">
                                     {{ __('borrower.register.create') }}
                                 </button>
                             </div>

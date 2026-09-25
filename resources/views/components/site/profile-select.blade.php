@@ -17,6 +17,7 @@
 {{-- Shared Profile selector: mobile bottom-sheet + desktop teleported panel (escapes card overflow). --}}
 <div class="w-full min-w-0" x-data="{
     pickerOpen: false,
+    sheetOpen: false,
     selected: @js($selected),
     options: @js($optionsList),
     placeholder: @js($placeholder),
@@ -30,9 +31,10 @@
     },
     openPicker() {
         if (this.isNarrow()) {
-            this.pickerOpen = true;
+            this.sheetOpen = true;
             return;
         }
+        this.sheetOpen = false;
         this.pickerOpen = ! this.pickerOpen;
         if (this.pickerOpen) {
             this.positionDesktop();
@@ -56,6 +58,7 @@
     pick(val) {
         this.selected = String(val ?? '');
         this.pickerOpen = false;
+        this.sheetOpen = false;
         this.$nextTick(() => {
             const input = this.$refs.hiddenInput || this.$el.querySelector('input[type=hidden]');
             if (input) {
@@ -81,13 +84,13 @@
     <input type="hidden" id="profile-select-{{ $name }}" name="{{ $name }}" x-ref="hiddenInput" :value="selected" @if ($required) required @endif>
 
     <div class="lg:hidden">
-        <button type="button" @click="pickerOpen = true"
+        <button type="button" @click="sheetOpen = true"
                 class="w-full inline-flex items-center gap-3 rounded-xl border bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition {{ $hasError ? 'border-rose-400' : 'border-gray-200' }}">
             <span class="flex-1 text-left truncate" :class="!selected ? 'text-gray-400' : ''" x-text="labelFor(selected)"></span>
             <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
         </button>
 
-        <x-site.bottom-sheet :title="$label ?: $placeholder" open="pickerOpen">
+        <x-site.bottom-sheet :title="$label ?: $placeholder" open="sheetOpen">
             <div class="space-y-1 max-h-[60vh] overflow-y-auto">
                 @if (! $required)
                     <button type="button" @click="pick('')"

@@ -102,7 +102,8 @@ class PartnerProfileService
                 'url'          => route($profileRouteName, ['section' => $key]),
                 'required'     => true,
                 'count'        => null,
-                'missing'      => [],
+                'missing'      => $status['missing'] ?? [],
+                'progress'     => $status['progress'] ?? null,
             ];
         })->when(
             $entity instanceof Partner && $entity->isAffiliate(),
@@ -135,7 +136,14 @@ class PartnerProfileService
         )->values()->all();
     }
 
-    /** @return array{status: string, complete: bool} */
+    /**
+     * @return array{
+     *   status: string,
+     *   complete: bool,
+     *   missing: list<array{key: string, label: string}>,
+     *   progress: array{done: int, total: int, remaining: int}
+     * }
+     */
     public function sectionStatus(Partner|Lender $entity, string $key): array
     {
         $meta = $entity->metadata ?? [];
@@ -147,8 +155,16 @@ class PartnerProfileService
             'residence' => $this->residenceStatus($meta),
             'activity'  => $this->activityStatus($meta),
             'payment'   => $this->paymentStatus($meta),
-            default     => ['status' => 'not_started', 'complete' => false],
+            default     => $this->statusFromItems([]),
         };
+    }
+
+    /**
+     * @return list<array{key: string, label: string}>
+     */
+    public function sectionGaps(Partner|Lender $entity, string $key): array
+    {
+        return $this->sectionStatus($entity, $key)['missing'] ?? [];
     }
 
     public function completionPercent(Partner|Lender $entity): int
@@ -422,90 +438,121 @@ class PartnerProfileService
     private function personalStatus(Partner|Lender $entity, array $meta): array
     {
         $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
-        $hasNida = filled($identity['national_id'] ?? null);
         $noPhysicalCard = (bool) ($identity['no_physical_nida_card'] ?? false);
-        $hasUploads = filled($identity['national_id_front'] ?? null) && filled($identity['national_id_back'] ?? null);
-        $identityComplete = $hasNida && ($noPhysicalCard || $hasUploads);
+        $items = [];
 
         if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
-            $hasContact = filled($entity->contactPersonName()) && filled($entity->phone) && filled($entity->email);
-            $complete = $hasContact && $identityComplete;
-
-            return [
-                'status' => $complete ? 'complete' : (($hasContact || $hasNida) ? 'in_progress' : 'not_started'),
-                'complete' => $complete,
-            ];
+            $items[] = ['key' => 'contact_name', 'label' => __('site.partner_account.contact_person_name'), 'filled' => filled($entity->contactPersonName())];
+            $items[] = ['key' => 'phone', 'label' => __('site.partner_account.phone'), 'filled' => filled($entity->phone)];
+            $items[] = ['key' => 'email', 'label' => __('site.partner_account.email'), 'filled' => filled($entity->email)];
+        } else {
+            $items[] = ['key' => 'name', 'label' => __('site.partner_account.display_name'), 'filled' => filled($entity->name)];
+            $items[] = ['key' => 'phone', 'label' => __('site.partner_account.phone'), 'filled' => filled($entity->phone)];
         }
 
-        $hasContact = filled($entity->name) && filled($entity->phone);
-        $complete = $hasContact && $identityComplete;
-        $status = $complete ? 'complete' : (($hasContact || $hasNida) ? 'in_progress' : 'not_started');
+        $items[] = ['key' => 'national_id', 'label' => __('site.partner_account.nida_number'), 'filled' => filled($identity['national_id'] ?? null)];
+        if (! $noPhysicalCard) {
+            $items[] = ['key' => 'nida_front', 'label' => __('site.partner_account.nida_front'), 'filled' => filled($identity['national_id_front'] ?? null)];
+            $items[] = ['key' => 'nida_back', 'label' => __('site.partner_account.nida_back'), 'filled' => filled($identity['national_id_back'] ?? null)];
+        }
 
-        return ['status' => $status, 'complete' => $complete];
+        return $this->statusFromItems($items);
     }
 
     private function companyStatus(Partner|Lender $entity): array
     {
-        $hasLegal = filled($entity->legal_name ?? null) || filled($entity->name);
-        $hasReg = filled($entity->registration_number ?? null) || filled($entity->tin ?? null);
-        $complete = $hasLegal && $hasReg;
-
-        return [
-            'status' => $complete ? 'complete' : ($hasLegal ? 'in_progress' : 'not_started'),
-            'complete' => $complete,
-        ];
+        return $this->statusFromItems([
+            ['key' => 'legal_name', 'label' => __('site.partner_account.legal_name'), 'filled' => filled($entity->legal_name ?? null) || filled($entity->name)],
+            ['key' => 'registration', 'label' => __('site.partner_account.registration'), 'filled' => filled($entity->registration_number ?? null) || filled($entity->tin ?? null)],
+        ]);
     }
 
     /** @param array<string, mixed> $meta */
     private function faceStatus(Partner|Lender $entity, array $meta): array
     {
         if ($entity instanceof Partner && $entity->isCompanyApplicant()) {
-            return ['status' => 'complete', 'complete' => true];
+            return $this->statusFromItems([]);
         }
 
         $faces = is_array($meta['face_captures'] ?? null) ? $meta['face_captures'] : [];
         $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
         $noPhysicalCard = (bool) ($identity['no_physical_nida_card'] ?? false);
 
-        $hasFront = filled($faces['front'] ?? null) || ($entity instanceof Partner && filled($entity->affiliate_selfie_path));
-        $hasLeft = filled($faces['left'] ?? null);
-        $hasRight = filled($faces['right'] ?? null);
-        $hasHoldingId = filled($faces['holding_id'] ?? null);
+        $items = [
+            ['key' => 'face_front', 'label' => __('site.partner_account.face_front'), 'filled' => filled($faces['front'] ?? null) || ($entity instanceof Partner && filled($entity->affiliate_selfie_path))],
+            ['key' => 'face_left', 'label' => __('site.partner_account.face_left'), 'filled' => filled($faces['left'] ?? null)],
+            ['key' => 'face_right', 'label' => __('site.partner_account.face_right'), 'filled' => filled($faces['right'] ?? null)],
+        ];
+        if (! $noPhysicalCard) {
+            $items[] = ['key' => 'face_holding_id', 'label' => __('site.partner_account.face_holding_id'), 'filled' => filled($faces['holding_id'] ?? null)];
+        }
 
-        $complete = $hasFront && $hasLeft && $hasRight && ($noPhysicalCard || $hasHoldingId);
-        $status = $complete ? 'complete' : (($hasFront || $hasLeft || $hasRight) ? 'in_progress' : 'not_started');
-
-        return ['status' => $status, 'complete' => $complete];
+        return $this->statusFromItems($items);
     }
 
     /** @param array<string, mixed> $meta */
     private function residenceStatus(array $meta): array
     {
         $residence = is_array($meta['residence'] ?? null) ? $meta['residence'] : [];
-        $complete = filled($residence['region'] ?? null) && filled($residence['district'] ?? null);
-        $status = $complete ? 'complete' : (filled($residence['street'] ?? null) ? 'in_progress' : 'not_started');
+        $result = $this->statusFromItems([
+            ['key' => 'region', 'label' => __('site.partner_account.region'), 'filled' => filled($residence['region'] ?? null)],
+            ['key' => 'district', 'label' => __('site.partner_account.district'), 'filled' => filled($residence['district'] ?? null)],
+        ]);
+        if (! $result['complete'] && filled($residence['street'] ?? null)) {
+            $result['status'] = 'in_progress';
+        }
 
-        return ['status' => $status, 'complete' => $complete];
+        return $result;
     }
 
     /** @param array<string, mixed> $meta */
     private function activityStatus(array $meta): array
     {
         $activity = is_array($meta['activity'] ?? null) ? $meta['activity'] : [];
-        $complete = filled($activity['type'] ?? null);
-        $status = $complete ? 'complete' : (filled($activity['details'] ?? null) ? 'in_progress' : 'not_started');
+        $result = $this->statusFromItems([
+            ['key' => 'activity_type', 'label' => __('site.partner_account.activity_type'), 'filled' => filled($activity['type'] ?? null)],
+        ]);
+        if (! $result['complete'] && filled($activity['details'] ?? null)) {
+            $result['status'] = 'in_progress';
+        }
 
-        return ['status' => $status, 'complete' => $complete];
+        return $result;
     }
 
     /** @param array<string, mixed> $meta */
     private function paymentStatus(array $meta): array
     {
         $payout = is_array($meta['payout_account'] ?? null) ? $meta['payout_account'] : [];
-        $complete = ! empty($payout) && filled($payout['type'] ?? null);
-        $status = $complete ? 'complete' : 'not_started';
 
-        return ['status' => $status, 'complete' => $complete];
+        return $this->statusFromItems([
+            ['key' => 'payout', 'label' => __('site.partner_account.payment_section'), 'filled' => ! empty($payout) && filled($payout['type'] ?? null)],
+        ]);
+    }
+
+    /**
+     * @param  list<array{key: string, label: string, filled: bool}>  $items
+     * @return array{status: string, complete: bool, missing: list<array{key: string, label: string}>, progress: array{done: int, total: int, remaining: int}}
+     */
+    private function statusFromItems(array $items): array
+    {
+        $total = count($items);
+        $done = count(array_filter($items, fn (array $item) => $item['filled']));
+        $missing = array_values(array_map(
+            fn (array $item) => ['key' => $item['key'], 'label' => $item['label']],
+            array_filter($items, fn (array $item) => ! $item['filled'])
+        ));
+        $complete = $total === 0 || $done === $total;
+
+        return [
+            'status' => $complete ? 'complete' : ($done > 0 ? 'in_progress' : 'not_started'),
+            'complete' => $complete,
+            'missing' => $missing,
+            'progress' => [
+                'done' => $done,
+                'total' => $total,
+                'remaining' => max(0, $total - $done),
+            ],
+        ];
     }
 
     private function statusLabel(string $status): string

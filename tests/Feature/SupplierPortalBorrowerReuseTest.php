@@ -120,6 +120,11 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.supplier_portal.recent_payments_title'), false)
             ->assertSee(__('site.supplier_portal.asset_activity_title'), false)
             ->assertSee(__('site.supplier_portal.see_all'), false)
+            ->assertSee(__('site.supplier_portal.recent_payments_empty_title'), false)
+            ->assertSee(__('site.supplier_portal.asset_activity_empty_title'), false)
+            ->assertSee(__('site.supplier_portal.cta_upload'), false)
+            ->assertSee('kf-premium-panel', false)
+            ->assertDontSee(__('site.supplier_portal.attention_title'), false)
             ->assertSee('data-kf-supplier-home-rail', false)
             ->assertSee('snap-x snap-mandatory', false)
             ->assertSee('lg:grid-cols-2', false)
@@ -218,6 +223,8 @@ class SupplierPortalBorrowerReuseTest extends TestCase
         $hub->assertDontSee(__('borrower.nav.rewards'), false);
         $hub->assertDontSee(__('borrower.nav.referrals'), false);
         $hub->assertSee(route('site.supplier.profile', ['section' => 'personal']), false);
+        $hub->assertSee(__('borrower.profile.hub.of_complete', ['done' => 2, 'total' => 6]), false);
+        $hub->assertSee(trans_choice('borrower.profile.hub.remaining_count', 4, ['count' => 4]), false);
 
         $dashboard = $this->actingAs($user)
             ->get(route('site.supplier.dashboard'))
@@ -235,6 +242,7 @@ class SupplierPortalBorrowerReuseTest extends TestCase
             ->assertSee(__('site.partner_account.contact_details'), false)
             ->assertSee(__('site.partner_account.nida_number'), false)
             ->assertSee(__('site.supplier_portal.tab_contact'), false)
+            ->assertSee(__('borrower.profile.hub.switch_section'), false)
             ->assertSee(__('borrower.profile.hub.back'), false)
             ->assertSee('kf-chrome-sidebar', false)
             ->assertDontSee('data-kf-completion-hero', false)
@@ -302,6 +310,44 @@ class SupplierPortalBorrowerReuseTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.supplier.profile', ['section' => 'personal']))
             ->assertRedirect(route('site.borrower.profile'));
+    }
+
+    public function test_asset_list_shows_activity_and_summary_page(): void
+    {
+        [$user, $vendor] = $this->supplier();
+
+        $asset = MarketplaceAsset::create([
+            'slug' => 'supplier-summary-bike-'.random_int(100, 999),
+            'title' => 'Summary Bajaj',
+            'category' => 'motorbike',
+            'supplier_name' => $vendor->name,
+            'vendor_id' => $vendor->id,
+            'weekly_installment' => 50_000,
+            'max_tenure_months' => 12,
+            'asset_value' => 2_000_000,
+            'supplier_deposit' => 400_000,
+            'customer_deposit' => 500_000,
+            'availability_status' => 'available',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.assets'))
+            ->assertOk()
+            ->assertSee('Summary Bajaj', false)
+            ->assertSee(route('site.supplier.assets.show', $asset), false)
+            ->assertSee(__('site.supplier_portal.col_activity'), false)
+            ->assertSee(__('site.supplier_portal.asset_activity_meta', ['requests' => 0, 'active' => 0]), false);
+
+        $this->actingAs($user)
+            ->get(route('site.supplier.assets.show', $asset))
+            ->assertOk()
+            ->assertSee('Summary Bajaj', false)
+            ->assertSee(__('site.supplier_portal.asset_summary_eyebrow'), false)
+            ->assertSee(__('site.supplier_portal.asset_next_title'), false)
+            ->assertSee(__('site.supplier_portal.asset_next_no_buyers'), false)
+            ->assertSee(__('site.supplier_portal.asset_edit'), false)
+            ->assertSee('kf-premium-panel', false);
     }
 
     public function test_add_asset_uses_existing_wizard(): void

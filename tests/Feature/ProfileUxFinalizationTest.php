@@ -91,6 +91,9 @@ class ProfileUxFinalizationTest extends TestCase
 
         $select = file_get_contents(resource_path('views/components/site/profile-select.blade.php'));
         $this->assertStringContainsString('x-teleport="body"', $select);
+        $this->assertStringContainsString('sheetOpen: false', $select);
+        $this->assertStringContainsString('@click="sheetOpen = true"', $select);
+        $this->assertStringContainsString('open="sheetOpen"', $select);
         $this->assertStringContainsString("dispatch('profile-select'", $select);
         $this->assertStringContainsString('z-[10200]', $select);
         $this->assertStringContainsString('kfMirrorAutosaveFormToView', file_get_contents(resource_path('js/kf-autosave.js')));

@@ -100,9 +100,31 @@ class SupplierController extends Controller
     public function assets(): View
     {
         $vendor = $this->supplier();
-        $assets = MarketplaceAsset::query()->where('partner_id', $vendor->id)->latest()->paginate(20);
+        $commercial = SupplierPortalHomeService::commercialStatuses();
+        $assets = MarketplaceAsset::query()
+            ->where('partner_id', $vendor->id)
+            ->withCount([
+                'reservations as request_count' => fn ($q) => $q->whereIn('status', $commercial),
+                'reservations as active_count' => fn ($q) => $q->whereIn('status', $commercial),
+            ])
+            ->latest()
+            ->paginate(20);
 
         return view('site.supplier.assets.index', compact('vendor', 'assets'));
+    }
+
+    public function showAsset(MarketplaceAsset $asset): View
+    {
+        $vendor = $this->supplier();
+        abort_unless($asset->vendor_id === $vendor->id, 404);
+        $commercial = SupplierPortalHomeService::commercialStatuses();
+        $asset->loadCount([
+            'reservations as request_count' => fn ($q) => $q->whereIn('status', $commercial),
+            'reservations as active_count' => fn ($q) => $q->whereIn('status', $commercial),
+        ]);
+        $quote = app(AssetLendingService::class)->pricingQuoteFromAssetPrice((float) $asset->asset_value);
+
+        return view('site.supplier.assets.show', compact('vendor', 'asset', 'quote'));
     }
 
     public function createAsset(): View

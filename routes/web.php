@@ -619,6 +619,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/assets', [SupplierController::class, 'assets'])->name('assets');
             Route::get('/assets/create', [SupplierController::class, 'createAsset'])->name('assets.create');
             Route::post('/assets', [SupplierController::class, 'storeAsset'])->name('assets.store');
+            Route::get('/assets/{asset}', [SupplierController::class, 'showAsset'])->name('assets.show');
             Route::get('/assets/{asset}/edit', [SupplierController::class, 'editAsset'])->name('assets.edit');
             Route::put('/assets/{asset}', [SupplierController::class, 'updateAsset'])->name('assets.update');
             Route::get('/requests', [SupplierController::class, 'requests'])->name('requests');
