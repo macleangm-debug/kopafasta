@@ -130,7 +130,10 @@
             <x-site.bottom-sheet :title="__('borrower.profile.fields.district')" open="districtPickerOpen">
                 <div class="space-y-1 max-h-[60vh] overflow-y-auto">
                     <p x-show="!region" class="px-1 py-3 text-sm text-gray-500" x-text="labels.selectRegionFirst"></p>
-                    <p x-show="districtStatus === 'loading'" class="px-1 py-3 text-sm text-gray-500" x-text="labels.loadingDistricts"></p>
+                    <div x-show="districtStatus === 'loading'" class="px-1 py-3">
+                        <x-site.skeleton variant="rows" :lines="2" />
+                        <p class="sr-only" x-text="labels.loadingDistricts"></p>
+                    </div>
                     <div x-show="region && (districtStatus === 'empty' || districtStatus === 'error')" class="px-1 py-3 space-y-2">
                         <p class="text-sm text-rose-600" x-text="labels.districtsUnavailable"></p>
                         <button type="button" class="text-sm font-semibold text-brand underline" @click="retryDistricts()" x-text="labels.retryDistricts"></button>
@@ -162,7 +165,10 @@
                 <option :value="d" x-text="d"></option>
             </template>
         </select>
-        <p x-show="districtStatus === 'loading'" class="mt-1 text-xs text-gray-500" x-text="labels.loadingDistricts"></p>
+        <div x-show="districtStatus === 'loading'" class="mt-2">
+            <x-site.skeleton variant="line" width="w-1/2" height="h-3" />
+            <p class="sr-only" x-text="labels.loadingDistricts"></p>
+        </div>
         <div x-show="region && (districtStatus === 'empty' || districtStatus === 'error')" class="mt-1 flex flex-wrap items-center gap-2">
             <p class="text-xs text-rose-600" x-text="labels.districtsUnavailable"></p>
             <button type="button" class="text-xs font-semibold text-brand underline" @click="retryDistricts()" x-text="labels.retryDistricts"></button>

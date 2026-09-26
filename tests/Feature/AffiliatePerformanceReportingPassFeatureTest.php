@@ -265,20 +265,25 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->firstWhere('key', 'paying_members')['actual'] ?? 0);
     }
 
-    public function test_performance_reuses_home_balance_card_and_keeps_withdraw_feedback_inside_it(): void
+    public function test_performance_keeps_balance_and_withdraw_separate(): void
     {
         $performance = file_get_contents(resource_path('views/site/affiliate/performance.blade.php'));
         $dashboard = file_get_contents(resource_path('views/site/affiliate/dashboard.blade.php'));
         $card = file_get_contents(resource_path('views/site/affiliate/_balance-card.blade.php'));
+        $cta = file_get_contents(resource_path('views/site/affiliate/_withdraw-cta.blade.php'));
         $withdraw = file_get_contents(resource_path('views/site/affiliate/_results-withdraw.blade.php'));
 
         $this->assertStringContainsString('site.affiliate._balance-card', $performance);
+        $this->assertStringContainsString('site.affiliate._withdraw-cta', $performance);
         $this->assertStringContainsString('site.affiliate._balance-card', $dashboard);
-        $this->assertStringContainsString('withdrawHint', $card);
-        $this->assertStringContainsString('site.affiliate_portal.remaining_to_withdraw', $card);
+        $this->assertStringContainsString('site.affiliate._withdraw-cta', $dashboard);
+        $this->assertStringNotContainsString('withdrawHint', $card);
+        $this->assertStringNotContainsString('site.affiliate_portal.withdraw', $card);
+        $this->assertStringContainsString('withdrawHint', $cta);
+        $this->assertStringContainsString('payout_not_ready', $cta);
+        $this->assertStringContainsString('cancel_withdraw', $cta);
         $this->assertStringContainsString('lg:justify-self-end', $performance);
         $this->assertStringNotContainsString('payout_not_ready', $withdraw);
-        $this->assertStringNotContainsString('payout_not_ready', $performance);
         $this->assertStringContainsString('site.affiliate._results-withdraw', $performance);
         $this->assertSame(1, substr_count($performance, "site.affiliate._results-withdraw'"));
         $this->assertStringContainsString('review_withdrawal', $withdraw);
@@ -291,15 +296,19 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('site.affiliate_portal.hero_available'), false)
             ->assertSee(__('site.affiliate_portal.withdraw'), false)
+            ->assertSee(__('site.affiliate_portal.payout_not_ready', [
+                'amount' => format_money(50000),
+                'available' => format_money(0),
+            ], 'en'), false)
+            ->assertSee(__('site.affiliate_portal.cancel_withdraw', [], 'en'), false)
             ->assertDontSee('Qualifying members', false)
             ->assertDontSee('Successful members', false)
             ->assertDontSee(__('site.affiliate_portal.report_conversion'), false)
             ->getContent();
 
         $this->assertStringContainsString('withdrawHint', $html);
-        $this->assertStringNotContainsString(__('site.affiliate_portal.payout_not_ready', [
+        $this->assertStringNotContainsString(__('site.affiliate_portal.remaining_to_withdraw', [
             'amount' => format_money(50000),
-            'available' => format_money(0),
         ], 'en'), $html);
     }
 

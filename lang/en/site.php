@@ -2236,7 +2236,7 @@ return [
         'payout_amount' => 'Amount (TZS)',
         'payout_notes' => 'Notes (optional)',
         'submit_payout' => 'Submit payout request',
-        'payout_not_ready' => 'You need at least :amount available to request a payout. Current available: :available.',
+        'payout_not_ready' => 'You need at least :amount available to request a payout. Current balance: :available.',
         'payment_history' => 'Commission transactions',
         'commission_transactions' => 'Commission transactions',
         'withdrawal_requests' => 'Withdrawal requests',

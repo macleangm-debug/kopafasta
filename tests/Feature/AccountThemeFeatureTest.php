@@ -34,10 +34,26 @@ class AccountThemeFeatureTest extends TestCase
         $this->assertStringContainsString('startViewTransition', $engine);
         $this->assertStringContainsString('kf-account-theme', $engine);
         $this->assertStringContainsString('html.kf-account-shell[data-theme="dark"]', $css);
+        $this->assertStringContainsString('--kf-accent-ink', $css);
+        $this->assertStringContainsString('.kf-mobile-bottom-nav', $css);
+        $this->assertStringContainsString('.text-brand\\/70', $css);
+        $this->assertStringContainsString('.kf-skeleton', $css);
+        $this->assertStringContainsString('prefers-reduced-motion', $css);
         $this->assertStringContainsString('.kf-receipt', $css);
         $this->assertStringContainsString('kf-receipt', $receipt);
+        $this->assertStringContainsString('kf-mobile-bottom-nav', $borrowerLayout);
+        $this->assertStringContainsString('kf-mobile-bottom-nav', $partnerShell);
+        $this->assertStringContainsString('site.skeleton', $borrowerLayout);
         $this->assertStringNotContainsString('affiliate-dark-mode', $css);
         $this->assertStringNotContainsString('borrower-dark-mode', $css);
+
+        $boot = file_get_contents(resource_path('views/components/site/account-theme-boot.blade.php'));
+        $this->assertStringContainsString('html.kf-account-shell[data-theme="dark"]', $boot);
+        $this->assertStringContainsString('#0c1110', $boot);
+
+        $skeleton = file_get_contents(resource_path('views/components/site/skeleton.blade.php'));
+        $this->assertStringContainsString("variant === 'hero'", $skeleton);
+        $this->assertStringContainsString("variant === 'asset'", $skeleton);
     }
 
     public function test_theme_persists_for_authenticated_account_and_stays_off_public_site(): void

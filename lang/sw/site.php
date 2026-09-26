@@ -2219,7 +2219,7 @@ return [
         'payout_amount' => 'Kiasi (TZS)',
         'payout_notes' => 'Maelezo (si lazima)',
         'submit_payout' => 'Wasilisha ombi la malipo',
-        'payout_not_ready' => 'Unahitaji angalau :amount ili kuomba malipo. Inapatikana sasa: :available.',
+        'payout_not_ready' => 'Unahitaji angalau :amount ili kuomba malipo. Salio la sasa: :available.',
         'payment_history' => 'Miamala ya kamisheni',
         'commission_transactions' => 'Miamala ya kamisheni',
         'withdrawal_requests' => 'Maombi ya kutoa fedha',

@@ -215,7 +215,10 @@
                                 <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
                             </div>
                             <div class="max-h-80 overflow-y-auto bg-white/90">
-                                <template x-if="items.length === 0">
+                                <template x-if="loading && items.length === 0">
+                                    <div class="p-4"><x-site.skeleton variant="rows" :lines="3" /></div>
+                                </template>
+                                <template x-if="!loading && items.length === 0">
                                     <p class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
                                 </template>
                                 <template x-for="item in items" :key="item.id">
@@ -327,7 +330,10 @@
                                     </div>
                                 </div>
                                 <div class="flex-1 overflow-y-auto overscroll-contain">
-                                    <template x-if="items.length === 0">
+                                    <template x-if="loading && items.length === 0">
+                                        <div class="p-5"><x-site.skeleton variant="rows" :lines="3" /></div>
+                                    </template>
+                                    <template x-if="!loading && items.length === 0">
                                         <p class="px-5 py-10 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
                                     </template>
                                     <template x-for="item in items" :key="item.id">
@@ -565,7 +571,9 @@ document.addEventListener('alpine:init', () => {
         sheetOpen: false,
         unread: {{ $unreadNotifications }},
         items: [],
+        loading: true,
         async load() {
+            this.loading = this.items.length === 0;
             try {
                 const res = await fetch(@js(route('site.borrower.notifications.preview')), {
                     headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -576,6 +584,7 @@ document.addEventListener('alpine:init', () => {
                 this.unread = data.unread ?? 0;
                 this.items = data.items ?? [];
             } catch (e) {}
+            this.loading = false;
         },
         async toggle() {
             const willOpen = !this.sheetOpen;

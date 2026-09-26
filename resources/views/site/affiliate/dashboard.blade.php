@@ -30,12 +30,16 @@
                     </a>
                 @endif
             </div>
-            @include('site.affiliate._balance-card', [
-                'available' => $available ?? 0,
-                'inProgress' => $inProgress ?? 0,
-                'withdrawMode' => 'link',
-                'withdrawHref' => route('site.affiliate.performance', ['tab' => 'withdrawals', 'withdraw' => ($available ?? 0) >= ($minPayout ?? 0) ? 1 : 0]),
-            ])
+            <div class="w-full lg:max-w-sm flex flex-col items-stretch gap-3">
+                @include('site.affiliate._balance-card', [
+                    'available' => $available ?? 0,
+                    'inProgress' => $inProgress ?? 0,
+                ])
+                @include('site.affiliate._withdraw-cta', [
+                    'mode' => 'link',
+                    'withdrawHref' => route('site.affiliate.performance', ['tab' => 'withdrawals', 'withdraw' => ($available ?? 0) >= ($minPayout ?? 0) ? 1 : 0]),
+                ])
+            </div>
         </div>
     </section>
 

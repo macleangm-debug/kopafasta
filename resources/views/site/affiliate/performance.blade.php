@@ -52,17 +52,22 @@
                         @endif
                     </div>
 
-                    <div class="lg:justify-self-end w-full lg:w-auto">
-                        @include('site.affiliate._balance-card', [
-                            'available' => $available ?? 0,
-                            'inProgress' => $inProgress ?? 0,
-                            'withdrawMode' => 'button',
-                            'hasPayoutAccount' => $hasPayoutAccount ?? false,
-                            'remainingToWithdraw' => $remainingToWithdraw ?? 0,
-                        ])
+                    <div class="lg:justify-self-end w-full lg:max-w-sm">
+                        <div class="flex flex-col items-stretch gap-3">
+                            @include('site.affiliate._balance-card', [
+                                'available' => $available ?? 0,
+                                'inProgress' => $inProgress ?? 0,
+                            ])
+                            @include('site.affiliate._withdraw-cta', [
+                                'mode' => 'button',
+                                'hasPayoutAccount' => $hasPayoutAccount ?? false,
+                                'available' => $available ?? 0,
+                                'minPayout' => $minPayout ?? 0,
+                            ])
+                            @include('site.affiliate._results-withdraw')
+                        </div>
                     </div>
                 </div>
-                @include('site.affiliate._results-withdraw')
             </div>
             <div class="absolute top-5 right-5 sm:top-7 sm:right-7 z-30">
                 <button type="button" x-ref="infoBtn"
@@ -87,7 +92,7 @@
         </section>
 
         <div class="glass-card overflow-hidden">
-            <nav class="grid grid-cols-3 gap-1 p-1 m-3 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
+            <nav class="kf-account-tabs grid grid-cols-3 gap-1 p-1 m-3 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
                 <button type="button" @click="tab = 'overview'" role="tab"
                         class="min-w-0 px-2 py-2.5 rounded-xl text-[11px] sm:text-sm font-bold tracking-tight transition text-center"
                         :class="tab === 'overview' ? 'bg-brand text-white shadow-sm' : 'text-brand/70 hover:bg-white hover:text-brand'">
@@ -144,7 +149,7 @@
                              ">
                             @foreach ($metrics as $metric)
                                 <div data-metric-card class="min-w-[78%] snap-center shrink-0 lg:min-w-0 h-auto lg:h-full">
-                                    <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 p-4 h-full">
+                                    <div class="kf-metric-card rounded-xl bg-gray-50 ring-1 ring-gray-100 p-4 h-full">
                                         <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $metric['label'] }}</p>
                                         <p class="text-2xl font-bold mt-1 tabular-nums">
                                             {{ $metric['value'] }}

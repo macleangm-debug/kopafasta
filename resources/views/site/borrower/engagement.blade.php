@@ -7,7 +7,7 @@
     />
 
     <div x-data="{ tab: @js($tab) }">
-        <nav class="mb-5 sm:mb-6 grid grid-cols-4 gap-1 p-1 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
+        <nav class="kf-account-tabs mb-5 sm:mb-6 grid grid-cols-4 gap-1 p-1 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
             @foreach ([
                 'overview' => __('borrower.engagement.tabs_short.overview'),
                 'referrals' => __('borrower.engagement.tabs_short.referrals'),

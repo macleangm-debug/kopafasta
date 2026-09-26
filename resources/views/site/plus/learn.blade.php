@@ -57,7 +57,7 @@
             </div>
         @else
                 <div x-data="{ tab: 'for_you' }" class="space-y-4">
-                    <nav class="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
+                    <nav class="kf-account-tabs grid grid-cols-3 gap-1 p-1 rounded-2xl bg-brand/5 ring-1 ring-brand/10" role="tablist">
                         @foreach ([
                             'for_you' => __('plus.learn.for_you'),
                             'continue' => __('plus.learn.tab_continue'),
