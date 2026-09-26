@@ -17,6 +17,8 @@
     $sectionTitle = $isCompany
         ? __('site.partner_account.company_address_section')
         : __('site.partner_account.residence_section');
+    $residenceComplete = app(\App\Services\PartnerProfileService::class)
+        ->sectionStatus($partner, 'residence')['complete'] ?? false;
 @endphp
 
 <x-dynamic-component :component="$layoutComponent" :title="brand_title($title)" active="profile" :hero="false">
@@ -38,7 +40,7 @@
         section-id="section-residence"
         icon="🏠"
         :title="$sectionTitle"
-        :complete="filled($residence['region'] ?? null) && filled($residence['district'] ?? null)"
+        :complete="$residenceComplete"
         :collapsible="true"
         :default-open="true">
         <x-slot:view>

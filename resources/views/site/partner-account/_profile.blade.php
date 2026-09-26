@@ -69,11 +69,13 @@
         @php
             $residence = $p->metadata['residence'] ?? [];
             $activity = $p->metadata['activity'] ?? [];
+            $residenceComplete = app(\App\Services\PartnerProfileService::class)
+                ->sectionStatus($p, 'residence')['complete'] ?? false;
         @endphp
 
         <x-site.profile-section-card
             :title="__('site.partner_account.residence_section')"
-            :complete="filled($residence['region'] ?? null) && filled($residence['district'] ?? null)"
+            :complete="$residenceComplete"
             :collapsible="true">
             <x-slot:view>
                 <dl class="grid sm:grid-cols-2 gap-4 text-sm">

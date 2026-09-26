@@ -79,7 +79,7 @@ return [
         'ready_body' => 'Fungua kesi zinazohitaji hatua kwanza. Mapato yanaonekana kwenye pochi inapohusika.',
     ],
     'supplier' => [
-        'welcome_title' => 'Karibu kwenye Portal yako ya Msambazaji',
+        'welcome_title' => 'Karibu kwenye Portal yako ya Mtoa bidhaa',
         'welcome_body' => 'Simamia mali, wanunuzi, malipo na akaunti yako kutoka sehemu moja.',
         'assets_title' => 'Ongeza mali zako',
         'assets_body' => 'Orodhesha mali wateja wanaweza kuomba kupitia Kopafasta.',
@@ -88,6 +88,6 @@ return [
         'money_title' => 'Fuatilia pesa zako',
         'money_body' => 'Ona principal iliyolipwa kwako, salio lililobaki, na historia ya malipo.',
         'ready_title' => 'Weka akaunti yako tayari',
-        'ready_body' => 'Kamilisha wasifu wa msambazaji, akaunti ya malipo, na hati zinazohitajika.',
+        'ready_body' => 'Kamilisha wasifu wa mtoa bidhaa, akaunti ya malipo, na hati zinazohitajika.',
     ],
 ];

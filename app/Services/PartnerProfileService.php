@@ -342,27 +342,43 @@ class PartnerProfileService
             $entity instanceof Partner && $entity->isAffiliate(),
             function (Collection $cards) use ($entity, $profileRouteName) {
                 $premium = $entity->isPremiumAffiliate();
-                $active = $premium
-                    ? app(AffiliateMembershipService::class)->hasValidAgreement($entity)
-                    : app(AffiliateMembershipService::class)->isActive($entity);
-
+                $terms = app(AffiliateTermsService::class);
+                $accepted = $terms->hasAccepted($entity);
+                $acceptance = $terms->latestAcceptance($entity);
                 $cards->push([
-                    'key' => $premium ? 'agreement' : 'membership',
+                    'key' => 'agreement',
                     'icon' => '📜',
-                    'label' => $premium
-                        ? __('site.affiliate_portal.premium_agreement')
-                        : __('site.affiliate_portal.membership_title'),
-                    'description' => $premium
-                        ? __('site.affiliate_portal.agreement_hub_hint')
-                        : __('site.affiliate_portal.membership_hub_hint'),
-                    'status' => $active ? 'complete' : 'in_progress',
-                    'status_label' => $this->statusLabel($active ? 'complete' : 'in_progress'),
+                    'label' => __('site.affiliate_portal.agreement_terms_section'),
+                    'description' => $accepted
+                        ? __('site.affiliate_portal.accepted_on', [
+                            'date' => $acceptance?->accepted_at?->format('d M Y') ?: '—',
+                        ])
+                        : __('site.affiliate_portal.lock_terms_body'),
+                    'status' => $accepted ? 'complete' : 'in_progress',
+                    'status_label' => $this->statusLabel($accepted ? 'complete' : 'in_progress'),
                     'action_label' => __('borrower.profile.hub.view_edit'),
-                    'url' => route($profileRouteName, ['section' => $premium ? 'agreement' : 'membership']),
+                    'url' => route($profileRouteName, ['section' => 'agreement']),
                     'required' => true,
                     'count' => null,
                     'missing' => [],
                 ]);
+
+                if (! $premium) {
+                    $active = app(AffiliateMembershipService::class)->isActive($entity);
+                    $cards->push([
+                        'key' => 'membership',
+                        'icon' => '🪪',
+                        'label' => __('site.affiliate_portal.membership_title'),
+                        'description' => __('site.affiliate_portal.membership_hub_hint'),
+                        'status' => $active ? 'complete' : 'in_progress',
+                        'status_label' => $this->statusLabel($active ? 'complete' : 'in_progress'),
+                        'action_label' => __('borrower.profile.hub.view_edit'),
+                        'url' => route($profileRouteName, ['section' => 'membership']),
+                        'required' => true,
+                        'count' => null,
+                        'missing' => [],
+                    ]);
+                }
 
                 return $cards;
             }

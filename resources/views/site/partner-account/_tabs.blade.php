@@ -23,7 +23,7 @@
             : __('site.partner_account.tab_payment'),
         'documents' => __('site.supplier_portal.tab_documents'),
         'settings'  => __('site.supplier_portal.tab_security'),
-        'agreement' => __('site.affiliate_portal.agreement_title'),
+        'agreement' => __('site.affiliate_portal.agreement_terms_section'),
         'membership'=> __('site.affiliate_portal.membership_title'),
     ];
     $tabs = collect($sectionKeys)
@@ -35,9 +35,8 @@
         $tabs['settings'] = $labels['settings'];
     }
     if ($portal === 'affiliate' && $partner instanceof \App\Models\Partner && $partner->isAffiliate()) {
-        if ($partner->isPremiumAffiliate()) {
-            $tabs['agreement'] = $labels['agreement'];
-        } else {
+        $tabs['agreement'] = $labels['agreement'];
+        if (! $partner->isPremiumAffiliate()) {
             $tabs['membership'] = $labels['membership'];
         }
     }
@@ -49,7 +48,9 @@
             : 0;
     }
     $activeLabel = $tabs[$active] ?? __('site.partner_account.sections_title');
-    $activeStatus = ($partner && $active !== 'hub') ? $service->sectionStatus($partner, $active) : null;
+    $activeStatus = ($partner && $active !== 'hub' && in_array($active, $profileKeys, true))
+        ? $service->sectionStatus($partner, $active)
+        : null;
     $activeComplete = (bool) ($activeStatus['complete'] ?? false);
     $activeRemaining = (int) ($tabRemaining[$active] ?? 0);
     $activeGaps = ($partner && in_array($active, $profileKeys, true))

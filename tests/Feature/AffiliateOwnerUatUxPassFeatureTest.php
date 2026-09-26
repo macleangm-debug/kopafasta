@@ -26,7 +26,8 @@ class AffiliateOwnerUatUxPassFeatureTest extends TestCase
         $this->assertStringContainsString('snap-x snap-mandatory', $blade);
         $this->assertStringContainsString('data-kf-matokeo-rail', $blade);
         $this->assertStringContainsString('lg:grid-cols-5', $blade);
-        $this->assertStringContainsString('lg:hidden', $blade);
+        $this->assertStringContainsString('x-teleport="body"', $blade);
+        $this->assertStringContainsString('x-site.bottom-sheet', $blade);
     }
 
     public function test_share_promo_is_inline_and_uses_invitation_builder(): void

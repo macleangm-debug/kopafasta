@@ -4,34 +4,43 @@
         $pipeline = $pipeline ?? collect();
     @endphp
 
-    <section class="kf-premium-panel rounded-2xl p-6 sm:p-8 mb-6 relative overflow-hidden">
-        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
-        <div class="relative">
-            @if ($premium)
-                <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.premium_badge') }}</p>
-            @endif
-            <div class="flex items-start justify-between gap-3">
+    <section class="relative mb-6" x-data="{
+        infoSheet: false,
+        infoMenu: false,
+        pop: { top: 0, left: 0 },
+        place() {
+            const r = this.$refs.infoBtn?.getBoundingClientRect();
+            if (! r) return;
+            this.pop = { top: r.bottom + 8, left: Math.max(12, r.right - 320) };
+        }
+    }">
+        <div class="kf-premium-panel rounded-2xl p-6 sm:p-8 relative overflow-hidden">
+            <div class="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
+            <div class="relative pr-14">
+                @if ($premium)
+                    <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.premium_badge') }}</p>
+                @endif
                 <h1 class="text-2xl sm:text-3xl font-bold mt-2">{{ __('site.affiliate_portal.impact_hero') }}</h1>
-                <div x-data="{ infoSheet: false, infoMenu: false }" class="shrink-0">
-                    <button type="button" @click="infoSheet = true"
-                            class="lg:hidden size-8 rounded-full bg-white/15 ring-1 ring-white/25 text-brand-gold grid place-items-center text-sm font-bold"
-                            aria-label="{{ __('site.affiliate_portal.matokeo_info_title') }}">i</button>
-                    <x-site.bottom-sheet :title="__('site.affiliate_portal.matokeo_info_title')" open="infoSheet">
-                        <p class="text-sm text-gray-700 leading-relaxed">{{ $premium ? __('site.affiliate_portal.matokeo_info_body_premium') : __('site.affiliate_portal.matokeo_info_body_standard') }}</p>
-                    </x-site.bottom-sheet>
-                    <div class="hidden lg:block relative" @click.outside="infoMenu = false">
-                        <button type="button" @click="infoMenu = !infoMenu"
-                                class="size-8 rounded-full bg-white/15 ring-1 ring-white/25 text-brand-gold grid place-items-center text-sm font-bold"
-                                aria-label="{{ __('site.affiliate_portal.matokeo_info_title') }}">i</button>
-                        <div x-show="infoMenu" x-cloak x-transition
-                             class="absolute right-0 z-20 mt-2 w-80 rounded-2xl bg-white shadow-xl ring-1 ring-brand/10 p-4 text-left">
-                            <p class="text-sm font-bold text-gray-900">{{ __('site.affiliate_portal.matokeo_info_title') }}</p>
-                            <p class="text-sm text-gray-700 leading-relaxed mt-2">{{ $premium ? __('site.affiliate_portal.matokeo_info_body_premium') : __('site.affiliate_portal.matokeo_info_body_standard') }}</p>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-sm text-white/80 mt-2 max-w-2xl">{{ $standing['status_label'] ?? '' }}</p>
             </div>
-            <p class="text-sm text-white/80 mt-2 max-w-2xl">{{ $standing['status_label'] ?? '' }}</p>
+        </div>
+        <div class="absolute top-5 right-5 sm:top-7 sm:right-7 z-30">
+            <button type="button" x-ref="infoBtn"
+                    @click="if (window.matchMedia('(min-width: 1024px)').matches) { infoMenu = !infoMenu; place(); } else { infoSheet = true; }"
+                    class="size-9 rounded-full bg-brand-gold text-brand ring-2 ring-white shadow-md grid place-items-center text-sm font-extrabold"
+                    aria-label="{{ __('site.affiliate_portal.matokeo_info_title') }}">i</button>
+            <x-site.bottom-sheet :title="__('site.affiliate_portal.matokeo_info_title')" open="infoSheet">
+                <p class="text-sm text-gray-700 leading-relaxed">{{ $premium ? __('site.affiliate_portal.matokeo_info_body_premium') : __('site.affiliate_portal.matokeo_info_body_standard') }}</p>
+            </x-site.bottom-sheet>
+            <template x-teleport="body">
+                <div x-show="infoMenu" x-cloak x-transition
+                     @click.outside="if (! $refs.infoBtn?.contains($event.target)) infoMenu = false"
+                     class="fixed z-[90] w-80 rounded-2xl bg-white shadow-xl ring-1 ring-brand/10 p-4 text-left"
+                     :style="`top:${pop.top}px;left:${pop.left}px`">
+                    <p class="text-sm font-bold text-gray-900">{{ __('site.affiliate_portal.matokeo_info_title') }}</p>
+                    <p class="text-sm text-gray-700 leading-relaxed mt-2">{{ $premium ? __('site.affiliate_portal.matokeo_info_body_premium') : __('site.affiliate_portal.matokeo_info_body_standard') }}</p>
+                </div>
+            </template>
         </div>
     </section>
 

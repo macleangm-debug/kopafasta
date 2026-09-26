@@ -57,6 +57,28 @@
     $profileHubHref = $profileHubLink
         ? route($profileHubLink['route'], $profileHubLink['params'] ?? [])
         : (Illuminate\Support\Facades\Route::has('site.partner.profile') ? route('site.partner.profile') : route($homeRoute));
+    $profileRouteName = (string) ($profileHubLink['route'] ?? '');
+    $accountMenu = [
+        ['label' => __('site.partner_portal.nav_profile'), 'url' => $profileHubHref],
+    ];
+    if ($profileRouteName !== '' && \Illuminate\Support\Facades\Route::has($profileRouteName)) {
+        $accountMenu[] = [
+            'label' => __('site.card_verify.my_card_title'),
+            'url' => route($profileRouteName, ['section' => 'card']),
+        ];
+    }
+    $settingsRoute = match (true) {
+        str_contains($homeRoute, 'affiliate') => 'site.affiliate.settings',
+        str_contains($homeRoute, 'supplier') => 'site.supplier.settings',
+        str_contains($homeRoute, 'investor') => 'site.investor.settings',
+        default => 'site.partner.settings',
+    };
+    if (\Illuminate\Support\Facades\Route::has($settingsRoute)) {
+        $accountMenu[] = [
+            'label' => __('site.partner_portal.nav_settings'),
+            'url' => route($settingsRoute),
+        ];
+    }
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full">
@@ -162,17 +184,31 @@
                         </div>
                     </div>
                 </div>
-                <a href="{{ $profileHubHref }}" data-kf-motion="tab"
-                   class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition"
-                   title="{{ __('site.partner_portal.nav_profile') }}">
-                    <div class="text-right leading-tight hidden sm:block">
-                        <p class="text-sm font-semibold text-gray-900">{{ $name }}</p>
-                        <p class="text-xs text-gray-500">{{ $subtitle ?? Auth::user()?->email }}</p>
+                <div class="relative" x-data="{ profileOpen: false }">
+                    <button type="button" @click="profileOpen = !profileOpen"
+                            class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition"
+                            title="{{ __('site.partner_portal.nav_profile') }}">
+                        <div class="text-right leading-tight hidden sm:block">
+                            <p class="text-sm font-semibold text-gray-900">{{ $name }}</p>
+                            <p class="text-xs text-gray-500">{{ $subtitle ?? Auth::user()?->email }}</p>
+                        </div>
+                        <div class="size-9 rounded-full bg-brand text-white grid place-items-center font-bold text-sm">
+                            {{ strtoupper(substr($name, 0, 1)) }}
+                        </div>
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="profileOpen" @click.outside="profileOpen = false" x-cloak
+                         class="absolute right-0 mt-2 w-56 rounded-2xl glass-card overflow-hidden z-50 py-1 bg-white/95 shadow-xl">
+                        @foreach ($accountMenu as $item)
+                            <a href="{{ $item['url'] }}" class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">{{ $item['label'] }}</a>
+                        @endforeach
+                        <div class="border-t border-gray-100 my-1"></div>
+                        <form method="POST" action="{{ route('site.logout') }}">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">{{ __('borrower.layout.sign_out') }}</button>
+                        </form>
                     </div>
-                    <div class="size-9 rounded-full bg-brand text-white grid place-items-center font-bold text-sm">
-                        {{ strtoupper(substr($name, 0, 1)) }}
-                    </div>
-                </a>
+                </div>
             </div>
         </header>
 
