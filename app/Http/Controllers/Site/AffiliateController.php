@@ -263,7 +263,7 @@ class AffiliateController extends Controller
         }
 
         try {
-            app(PartnerProfileService::class)->updateSection($vendor, $section, $request);
+            $result = app(PartnerProfileService::class)->updateSection($vendor, $section, $request);
         } catch (\InvalidArgumentException $e) {
             if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
                 return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -272,16 +272,18 @@ class AffiliateController extends Controller
             return back()->withErrors(['affiliate_code' => $e->getMessage()])->withInput();
         }
 
+        $vendor->refresh();
+        $payload = app(PartnerProfileService::class)->jsonSavedPayload(
+            $vendor,
+            $section,
+            (bool) ($result['celebrate'] ?? false)
+        );
+
         if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
-            return response()->json([
-                'ok' => true,
-                'saved' => true,
-                'section' => $section,
-                'message' => __('site.affiliate_portal.profile_saved'),
-            ]);
+            return response()->json($payload);
         }
 
-        return back()->with('status', __('site.affiliate_portal.profile_saved'));
+        return back();
     }
 
     public function updateDocuments(Request $request): RedirectResponse

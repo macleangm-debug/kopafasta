@@ -25,8 +25,8 @@
     $cardLabel = __('site.card_verify.my_card_title');
     $profileLabel = __('site.partner_portal.nav_profile');
     $isAffiliatePortal = $portal === 'affiliate' && $partner instanceof \App\Models\Partner && $partner->isAffiliate();
-    $remainingCount = $isAffiliatePortal ? $profile->remainingItemCount($partner) : null;
-    $firstIncomplete = $isAffiliatePortal ? $profile->firstIncompleteSection($partner) : null;
+    $remainingCount = $profile->remainingItemCount($partner);
+    $firstIncomplete = $profile->firstIncompleteSection($partner);
     $affiliateBadge = $isAffiliatePortal
         ? ($partner->isPremiumAffiliate()
             ? (app(\App\Services\AffiliateSettingsService::class)->premiumBadgeLabel() ?: __('site.affiliate_portal.hero_type_premium'))
@@ -47,8 +47,8 @@
         :remaining-count="$remainingCount"
         :completion-cta-url="$firstIncomplete ? route($profileRoute, ['section' => $firstIncomplete]) : null"
         :completion-cta-label="__('borrower.profile.hero_completion_cta')"
-        :cta-url="$completionPercent >= 100 ? $cardUrl : null"
-        :cta-label="$completionPercent >= 100 ? $cardLabel : null"
+        :cta-url="$cardUrl"
+        :cta-label="$cardLabel"
     />
 @endif
 
@@ -63,6 +63,9 @@
         :show-grade-badge="false"
         :badge-label="$role"
         :completion-percent="$completionPercent"
+        :remaining-count="$remainingCount"
+        :completion-cta-url="$firstIncomplete ? route($profileRoute, ['section' => $firstIncomplete]) : null"
+        :completion-cta-label="__('borrower.profile.hero_completion_cta')"
         :cta-url="$cardUrl"
         :cta-label="$cardLabel"
     />

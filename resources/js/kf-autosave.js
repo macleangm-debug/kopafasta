@@ -340,6 +340,11 @@ window.kfBindAutosaveForm = function (form, options = {}) {
                     bubbles: true,
                     detail: { data },
                 }));
+                if (data && data.celebrate && typeof window.dispatchEvent === 'function') {
+                    window.dispatchEvent(new CustomEvent('open-feedback-default', {
+                        detail: data.celebrate,
+                    }));
+                }
             } catch (e) {
                 if (mySeq !== seq) return;
                 // One retry on auth/CSRF race (stale meta token vs rotated XSRF cookie).

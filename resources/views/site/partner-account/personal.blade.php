@@ -26,7 +26,16 @@
     $hasContact = $isCompany
         ? (filled($personaName) && filled($partner->phone) && filled($partner->email))
         : (filled($partner->name) && filled($partner->phone));
-    $identityComplete = $hasNida && ($noPhysicalCard || (filled($identity['national_id_front'] ?? null) && filled($identity['national_id_back'] ?? null)));
+    $identityTypes = app(\App\Services\PartnerProfileService::class)->allowedIdentityTypes($partner);
+    $identityType = old('identity_document_type', $identity['document_type'] ?? 'nida');
+    if (! isset($identityTypes[$identityType])) {
+        $identityType = array_key_first($identityTypes) ?: 'nida';
+    }
+    $identityComplete = $hasNida && (
+        $identityType !== 'nida'
+            ? filled($identity['national_id_front'] ?? null)
+            : ($noPhysicalCard || (filled($identity['national_id_front'] ?? null) && filled($identity['national_id_back'] ?? null)))
+    );
     $nameLabel = $isCompany
         ? __('site.partner_account.contact_person_name')
         : __('site.partner_account.display_name');
@@ -36,9 +45,6 @@
 
     <x-site.partner-account-tabs active="profile" :tabs="$accountTabs" />
 
-    @if (session('status'))
-        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
-    @endif
     @if ($errors->any())
         <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>
     @endif
@@ -156,10 +162,23 @@
             </x-slot:view>
             <x-slot:form>
                 <form method="POST" action="{{ route($updateRoute, ['section' => 'personal']) }}" enctype="multipart/form-data" class="space-y-4"
-                      x-data="{ noCard: @js($noPhysicalCard) }">
+                      x-data="{ noCard: @js($noPhysicalCard), idType: @js($identityType) }">
                     @csrf @method('PUT')
                     <input type="hidden" name="focus" value="identity">
-                    <div>
+                    @if (count($identityTypes) > 1)
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">{{ __('site.partner_account.identity_type') }}</label>
+                            <select name="identity_document_type" x-model="idType"
+                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                                @foreach ($identityTypes as $code => $label)
+                                    <option value="{{ $code }}" @selected($identityType === $code)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @else
+                        <input type="hidden" name="identity_document_type" value="{{ $identityType }}">
+                    @endif
+                    <div x-show="idType === 'nida'">
                         <label class="block text-xs text-gray-600 mb-1">{{ __('site.partner_account.nida_number') }}</label>
                         @if ($nidaLocked)
                             <input type="text" name="national_id" value="{{ old('national_id', $identity['national_id'] ?? '') }}"
@@ -168,6 +187,11 @@
                         @else
                             <x-site.national-id-input name="national_id" :value="old('national_id', $identity['national_id'] ?? '')" required />
                         @endif
+                    </div>
+                    <div x-show="idType !== 'nida'" x-cloak>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('site.partner_account.document_number') }}</label>
+                        <input name="document_number" value="{{ old('document_number', $identity['document_number'] ?? $identity['national_id'] ?? '') }}"
+                               class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm font-mono uppercase">
                     </div>
                     <label class="flex items-start gap-3 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3 py-3 cursor-pointer">
                         <input type="checkbox" name="no_physical_nida_card" value="1" x-model="noCard"
@@ -243,31 +267,19 @@
                         @csrf @method('PUT')
                         <input type="hidden" name="focus" value="reference">
                         <p class="text-sm text-gray-600">{{ __('site.affiliate_portal.reference_hint') }}</p>
-                        <div>
-                            <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.affiliate_portal.reference_name') }}</label>
-                            <input name="reference_name" value="{{ old('reference_name', $reference['name'] ?? '') }}" required
-                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
-                        </div>
-                        <x-site.sheet-select
-                            name="reference_relationship"
-                            :label="__('site.affiliate_portal.reference_relationship')"
-                            :options="__('borrower.profile.kin_relationship_options')"
-                            :value="old('reference_relationship', $reference['relationship'] ?? '')"
-                            :placeholder="__('borrower.profile.select_relationship')"
-                            :required="true"
+                        <x-site.kin-fields
+                            :show-email="true"
+                            :values="[
+                                'nok_first_name' => $reference['first_name'] ?? null,
+                                'nok_middle_name' => $reference['middle_name'] ?? null,
+                                'nok_last_name' => $reference['last_name'] ?? null,
+                                'nok_name' => $reference['name'] ?? null,
+                                'nok_relationship' => $reference['relationship'] ?? null,
+                                'nok_phone' => $reference['phone'] ?? null,
+                                'nok_email' => $reference['email'] ?? null,
+                            ]"
+                            input-class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand"
                         />
-                        <div class="grid sm:grid-cols-2 gap-3">
-                            <x-site.phone-input name="reference_phone" :label="__('site.affiliate_portal.reference_phone')" :value="old('reference_phone', $reference['phone'] ?? '')" variant="rounded" />
-                            <div>
-                                <label class="block text-xs font-semibold text-brand mb-1">{{ __('site.affiliate_portal.reference_email') }}</label>
-                                <input name="reference_email" type="email" value="{{ old('reference_email', $reference['email'] ?? '') }}"
-                                       class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand focus:border-brand">
-                            </div>
-                        </div>
-                        <label class="flex items-start gap-2 text-sm text-gray-700">
-                            <input type="checkbox" name="reference_consent" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('reference_consent', $reference['consent'] ?? false))>
-                            <span>{{ __('site.affiliate_portal.reference_consent') }}</span>
-                        </label>
                     </form>
                 </x-slot:form>
             </x-site.profile-section-card>

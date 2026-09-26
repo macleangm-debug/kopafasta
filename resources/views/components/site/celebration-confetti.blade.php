@@ -33,12 +33,14 @@
             'remaining' => (int) ($streakPayload['remaining'] ?? 0),
             'points' => number_format((int) ($streakPayload['next_points'] ?? 0)),
         ]),
-        in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete')
-            .(
-                $pointsEarned > 0
-                    ? "\n\n".__('borrower.celebration.profile_complete_points', ['points' => number_format($pointsEarned)])
-                    : ''
-            ),
+        in_array('profile_complete', $reasons, true) => request()->routeIs('site.affiliate.*', 'site.supplier.*', 'site.partner.*', 'site.vendor.*', 'site.investor.*')
+            ? __('site.partner_account.profile_complete_body')
+            : __('borrower.celebration.profile_complete')
+                .(
+                    $pointsEarned > 0
+                        ? "\n\n".__('borrower.celebration.profile_complete_points', ['points' => number_format($pointsEarned)])
+                        : ''
+                ),
         in_array('loan_submitted', $reasons, true) => __('borrower.celebration.loan_submitted'),
         in_array('registration', $reasons, true) => __('borrower.celebration.registration'),
         in_array('application_fee', $reasons, true) => __('borrower.celebration.application_fee'),
@@ -56,7 +58,9 @@
     $modalTitle = match (true) {
         $isStreakMilestone => __('borrower.celebration.streak_milestone_title'),
         $isRepaymentOnTime => __('borrower.celebration.repayment_on_time_title'),
-        in_array('profile_complete', $reasons, true) => __('borrower.celebration.profile_complete_title'),
+        in_array('profile_complete', $reasons, true) => request()->routeIs('site.affiliate.*', 'site.supplier.*', 'site.partner.*', 'site.vendor.*', 'site.investor.*')
+            ? __('site.partner_account.profile_complete_title')
+            : __('borrower.celebration.profile_complete_title'),
         $isPointsProgress => __('borrower.celebration.points_earned_title', ['points' => number_format($pointsEarned)]),
         in_array('loan_submitted', $reasons, true) => __('borrower.apply.success.submitted_title'),
         in_array('membership', $reasons, true) => __('borrower.celebration.membership_title'),
@@ -67,7 +71,7 @@
         default => __('borrower.celebration.default_title'),
     };
     $statusFlash = session('status');
-    $modalMessage = (is_string($statusFlash) && $statusFlash !== '' && ! $isPointsProgress && ! $isRepaymentOnTime && ! $isStreakMilestone)
+    $modalMessage = (is_string($statusFlash) && $statusFlash !== '' && ! $isPointsProgress && ! $isRepaymentOnTime && ! $isStreakMilestone && ! in_array('profile_complete', $reasons, true))
         ? $statusFlash
         : ($message ?? __('borrower.celebration.payment'));
     if ($isPointsProgress && $remainingSections !== []) {
@@ -88,7 +92,9 @@
     $confettiCount = ($isPointsProgress || $isRepaymentOnTime) ? 56 : 160;
     $okLabel = match (true) {
         $forceStreakModal => __('borrower.celebration.cta_streak'),
-        in_array('profile_complete', $reasons, true) => __('borrower.celebration.cta_apply'),
+        in_array('profile_complete', $reasons, true) => request()->routeIs('site.affiliate.*', 'site.supplier.*', 'site.partner.*', 'site.vendor.*', 'site.investor.*')
+            ? __('site.partner_account.profile_complete_cta')
+            : __('borrower.celebration.cta_continue'),
         in_array('reward_redeemed', $reasons, true) => __('borrower.celebration.cta_rewards'),
         $isPointsProgress => __('borrower.celebration.cta_keep_going'),
         default => __('borrower.celebration.cta_continue'),

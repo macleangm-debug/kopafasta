@@ -246,14 +246,16 @@ class AffiliatePortalPresenter
         $reasons = $eligibility['reasons'] ?? [];
         if (in_array('terms_unaccepted', $reasons, true)) {
             return [
+                'kind' => 'terms',
                 'title' => __('site.affiliate_portal.lock_terms_title'),
                 'body' => __('site.affiliate_portal.lock_terms_body'),
                 'cta_label' => __('site.affiliate_portal.lock_terms_cta'),
                 'cta_url' => route('site.affiliate.terms'),
             ];
         }
-        if (in_array('kyc_unverified', $reasons, true)) {
+        if (in_array('profile_incomplete', $reasons, true) || in_array('kyc_unverified', $reasons, true)) {
             return [
+                'kind' => 'profile',
                 'title' => __('site.affiliate_portal.lock_profile_title'),
                 'body' => __('site.affiliate_portal.lock_profile_body'),
                 'cta_label' => __('site.affiliate_portal.lock_profile_cta'),
@@ -263,6 +265,7 @@ class AffiliatePortalPresenter
         if (in_array('agreement_inactive', $reasons, true) || in_array('membership_inactive', $reasons, true)) {
             if ($commercial['premium'] ?? false) {
                 return [
+                    'kind' => 'agreement',
                     'title' => __('site.affiliate_portal.attention_agreement_title'),
                     'body' => __('site.affiliate_portal.attention_agreement_body'),
                     'cta_label' => __('site.affiliate_portal.view_agreement'),
@@ -271,6 +274,7 @@ class AffiliatePortalPresenter
             }
 
             return [
+                'kind' => 'membership',
                 'title' => __('site.affiliate_portal.attention_membership_title'),
                 'body' => __('site.affiliate_portal.attention_membership_body'),
                 'cta_label' => __('site.affiliate_portal.membership_pay'),
@@ -279,6 +283,7 @@ class AffiliatePortalPresenter
         }
         if (in_array('performance_suspended', $reasons, true)) {
             return [
+                'kind' => 'performance',
                 'title' => __('site.affiliate_portal.attention_performance_title'),
                 'body' => __('site.affiliate_portal.attention_performance_body'),
                 'cta_label' => __('site.affiliate_portal.nav_performance'),
@@ -287,6 +292,7 @@ class AffiliatePortalPresenter
         }
 
         return [
+            'kind' => 'generic',
             'title' => __('site.affiliate_portal.attention_generic_title'),
             'body' => __('site.affiliate_portal.eligibility_blocked'),
             'cta_label' => __('site.affiliate_portal.nav_profile'),

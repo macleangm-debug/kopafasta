@@ -560,7 +560,7 @@ class InvestorController extends Controller
             abort(404);
         }
 
-        app(PartnerProfileService::class)->updateSection($lender, $section, $request);
+        $result = app(PartnerProfileService::class)->updateSection($lender, $section, $request);
 
         // Keep the underlying user account in sync when contact details change.
         if ($section === 'personal' && in_array($request->input('focus', 'contact'), ['contact', null], true)) {
@@ -572,16 +572,18 @@ class InvestorController extends Controller
             ], fn ($value) => $value !== null));
         }
 
+        $lender->refresh();
+        $payload = app(PartnerProfileService::class)->jsonSavedPayload(
+            $lender,
+            $section,
+            (bool) ($result['celebrate'] ?? false)
+        );
+
         if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
-            return response()->json([
-                'ok' => true,
-                'saved' => true,
-                'section' => $section,
-                'message' => 'Profile updated.',
-            ]);
+            return response()->json($payload);
         }
 
-        return back()->with('status', 'Profile updated.');
+        return back();
     }
 
     public function support()

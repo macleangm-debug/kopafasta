@@ -24,6 +24,23 @@ class PartnerCodeService
         'legal_partner'  => 'LP',
     ];
 
+    /** @return array<string, string> */
+    public function typeCodes(): array
+    {
+        return self::TYPE_CODES;
+    }
+
+    public function typeCode(string $category): string
+    {
+        return self::TYPE_CODES[$category]
+            ?? strtoupper(substr(preg_replace('/[^a-z]/', '', $category) ?: 'XX', 0, 2));
+    }
+
+    public function prefixFor(string $category): string
+    {
+        return $this->prefix().'-'.$this->typeCode($category).'-'.$this->defaultCountryCode().'-';
+    }
+
     public function prefix(): string
     {
         return strtoupper((string) Setting::get('partners.code_prefix', 'PT'));

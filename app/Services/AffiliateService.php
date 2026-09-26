@@ -116,7 +116,7 @@ class AffiliateService
         $claim = null;
 
         if (filled($code)) {
-            $affiliate = $this->findByCode($code);
+            $affiliate = $this->resolveByPublicCode($code);
             if (! $affiliate) {
                 return;
             }

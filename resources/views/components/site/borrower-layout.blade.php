@@ -248,7 +248,15 @@
                                 class="flex items-center gap-3 rounded-xl hover:bg-brand-muted/60 px-2 py-1.5 transition">
                             <div class="text-right leading-tight hidden sm:block">
                                 <p class="text-sm font-semibold text-gray-900">{{ $displayName }}</p>
-                                <p class="text-xs text-gray-500">{{ Auth::user()->email }}</p>
+                                @php
+                                    $headerMemberNo = $borrowerCustomer
+                                        ? (\App\Support\MemberNumberFormatter::display($borrowerCustomer->member_no)
+                                            ?: (string) ($borrowerCustomer->customer_number ?? ''))
+                                        : '';
+                                @endphp
+                                @if (filled($headerMemberNo))
+                                    <p class="text-xs text-gray-500 font-mono">{{ $headerMemberNo }}</p>
+                                @endif
                             </div>
                             <div class="size-9 rounded-full bg-brand text-white grid place-items-center font-bold text-sm">
                                 {{ strtoupper(substr($displayName, 0, 1)) }}

@@ -10,7 +10,27 @@
             @if ($premium)
                 <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.premium_badge') }}</p>
             @endif
-            <h1 class="text-2xl sm:text-3xl font-bold mt-2">{{ __('site.affiliate_portal.impact_hero') }}</h1>
+            <div class="flex items-start justify-between gap-3">
+                <h1 class="text-2xl sm:text-3xl font-bold mt-2">{{ __('site.affiliate_portal.impact_hero') }}</h1>
+                <div x-data="{ infoSheet: false, infoMenu: false }" class="shrink-0">
+                    <button type="button" @click="infoSheet = true"
+                            class="lg:hidden size-8 rounded-full bg-white/15 ring-1 ring-white/25 text-brand-gold grid place-items-center text-sm font-bold"
+                            aria-label="{{ __('site.affiliate_portal.matokeo_info_title') }}">i</button>
+                    <x-site.bottom-sheet :title="__('site.affiliate_portal.matokeo_info_title')" open="infoSheet">
+                        <p class="text-sm text-gray-700 leading-relaxed">{{ $premium ? __('site.affiliate_portal.matokeo_info_body_premium') : __('site.affiliate_portal.matokeo_info_body_standard') }}</p>
+                    </x-site.bottom-sheet>
+                    <div class="hidden lg:block relative" @click.outside="infoMenu = false">
+                        <button type="button" @click="infoMenu = !infoMenu"
+                                class="size-8 rounded-full bg-white/15 ring-1 ring-white/25 text-brand-gold grid place-items-center text-sm font-bold"
+                                aria-label="{{ __('site.affiliate_portal.matokeo_info_title') }}">i</button>
+                        <div x-show="infoMenu" x-cloak x-transition
+                             class="absolute right-0 z-20 mt-2 w-80 rounded-2xl bg-white shadow-xl ring-1 ring-brand/10 p-4 text-left">
+                            <p class="text-sm font-bold text-gray-900">{{ __('site.affiliate_portal.matokeo_info_title') }}</p>
+                            <p class="text-sm text-gray-700 leading-relaxed mt-2">{{ $premium ? __('site.affiliate_portal.matokeo_info_body_premium') : __('site.affiliate_portal.matokeo_info_body_standard') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <p class="text-sm text-white/80 mt-2 max-w-2xl">{{ $standing['status_label'] ?? '' }}</p>
         </div>
     </section>

@@ -34,7 +34,9 @@ class AffiliateEligibilityService
         $membershipCfg = AffiliateMembershipService::config();
 
         $accountActive = ($affiliate->status ?? '') === 'active';
-        $kycOk = in_array($affiliate->affiliate_kyc_status, ['verified', 'approved'], true)
+        $profileOk = app(PartnerProfileService::class)->isComplete($affiliate);
+        $kycOk = $profileOk
+            || in_array($affiliate->affiliate_kyc_status, ['verified', 'approved'], true)
             || ! app(AffiliateSettingsService::class)->requireKycForVerification();
         $premiumAgreement = $membership->usesPremiumAgreement($affiliate);
         $membershipRequired = $premiumAgreement
@@ -67,6 +69,9 @@ class AffiliateEligibilityService
         if (! $accountActive) {
             $reasons[] = 'account_inactive';
         }
+        if (! $profileOk) {
+            $reasons[] = 'profile_incomplete';
+        }
         if (! $kycOk) {
             $reasons[] = 'kyc_unverified';
         }
@@ -88,15 +93,16 @@ class AffiliateEligibilityService
             $reasons[] = 'fraud_blocked';
         }
 
-        $canAttribute = $accountActive && $kycOk && $membershipOk && $termsOk
+        $canAttribute = $accountActive && $membershipOk && $termsOk
             && $performanceOk && $complianceOk && $fraudOk;
-        $canEarn = $accountActive && $kycOk && ($membershipActive || $commissionAfterExpiry) && $termsOk
+        $canShare = $canAttribute && $profileOk;
+        $canEarn = $accountActive && ($membershipActive || $commissionAfterExpiry) && $termsOk
             && $performanceOk && $complianceOk && $fraudOk;
 
         return [
-            'can_operate' => $canAttribute,
+            'can_operate' => $canShare,
             'can_attribute' => $canAttribute,
-            'can_share' => $canAttribute,
+            'can_share' => $canShare,
             'can_earn_new' => $canEarn,
             'can_access_portal' => $lifecycle->canAccessPortal($affiliate),
             'reasons' => $reasons,

@@ -1,38 +1,38 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.share_title'))" active="share" :hero="false">
 
-    @unless ($eligibility['can_share'] ?? false)
-        <div class="glass-card p-5 mb-6 ring-1 ring-amber-200 bg-amber-50/70">
-            <p class="text-sm font-bold text-gray-900">{{ ($shareLock['title'] ?? null) ?: __('site.affiliate_portal.eligibility_blocked') }}</p>
-            <p class="text-sm text-gray-700 mt-1">{{ $shareLock['body'] ?? __('site.affiliate_portal.eligibility_blocked') }}</p>
-            @if (! empty($shareLock['cta_url']))
-                <a href="{{ $shareLock['cta_url'] }}" class="inline-flex mt-3 justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                    {{ $shareLock['cta_label'] }} →
-                </a>
-            @endif
-        </div>
-    @endunless
-
-    <section class="kf-premium-panel rounded-2xl p-6 sm:p-8 mb-6 relative overflow-hidden">
+    <section class="kf-premium-panel rounded-2xl p-6 sm:p-8 mb-6 relative overflow-hidden" data-kf-share-hero>
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
         <div class="relative grid lg:grid-cols-[1.2fr_0.8fr] gap-6 items-center">
             <div class="space-y-4">
                 <div>
                     <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.promo_code') }}</p>
-                    <p class="text-3xl font-bold font-mono tracking-wide mt-1">{{ $links['affiliate_code'] }}</p>
+                    <p class="text-3xl font-bold font-mono tracking-wide mt-1" data-kf-promo-code>{{ $links['affiliate_code'] }}</p>
                 </div>
                 <div>
                     <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.referral_link') }}</p>
-                    <p class="text-sm text-white/85 break-all mt-1">{{ $links['affiliate_link'] }}</p>
+                    <p class="text-sm text-white/85 break-all mt-1" data-kf-promo-link>{{ $links['affiliate_link'] }}</p>
                 </div>
-                <x-site.referral-share
-                    :link="$links['affiliate_link']"
-                    :code="$links['affiliate_code']"
-                    :message="$shareMessage"
-                    :channels="['copy', 'whatsapp', 'sms', 'native']"
-                />
+                @unless ($eligibility['can_share'] ?? false)
+                    <div class="rounded-2xl bg-white/10 ring-1 ring-white/20 px-4 py-3">
+                        <p class="text-sm font-bold text-white">{{ ($shareLock['title'] ?? null) ?: __('site.affiliate_portal.eligibility_blocked') }}</p>
+                        <p class="text-sm text-white/80 mt-1">{{ $shareLock['body'] ?? __('site.affiliate_portal.eligibility_blocked') }}</p>
+                        @if (! empty($shareLock['cta_url']))
+                            <a href="{{ $shareLock['cta_url'] }}" class="inline-flex mt-3 justify-center bg-brand-gold text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                {{ $shareLock['cta_label'] }} →
+                            </a>
+                        @endif
+                    </div>
+                @else
+                    <x-site.referral-share
+                        :link="$links['affiliate_link']"
+                        :code="$links['affiliate_code']"
+                        :message="$shareMessage"
+                        :channels="['copy', 'whatsapp', 'sms', 'native']"
+                    />
+                @endunless
             </div>
             <div class="flex flex-col items-center justify-center">
-                <img src="{{ $qrUrl }}" alt="{{ __('site.affiliate_portal.qr_alt') }}" class="size-44 rounded-2xl bg-white p-3 ring-1 ring-white/30">
+                <img src="{{ $qrUrl }}" alt="{{ __('site.affiliate_portal.qr_alt') }}" class="size-44 rounded-2xl bg-white p-3 ring-1 ring-white/30" data-kf-promo-qr>
                 <p class="text-xs text-white/70 mt-3 text-center">{{ __('site.affiliate_portal.qr_hint') }}</p>
             </div>
         </div>
@@ -41,7 +41,7 @@
     <div class="grid lg:grid-cols-2 gap-6">
         <section class="glass-card p-6 space-y-3">
             <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.share_message') }}</h2>
-            <p class="text-sm text-gray-800 bg-gray-50 rounded-xl p-4 ring-1 ring-gray-100 whitespace-pre-line">{{ $shareMessage }}</p>
+            <p class="text-sm text-gray-800 bg-gray-50 rounded-xl p-4 ring-1 ring-gray-100 whitespace-pre-line" data-kf-promo-message>{{ $shareMessage }}</p>
             <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.attribution_window_note', ['days' => $attributionWindow]) }}</p>
         </section>
 
@@ -61,7 +61,7 @@
             <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.personalize_code') }}</h2>
             @if ($canChangeCode)
                 <div class="flex flex-wrap items-center gap-3" x-show="!editing">
-                    <p class="text-2xl font-bold font-mono tracking-wide text-gray-900">{{ $vendor->affiliate_code }}</p>
+                    <p class="text-2xl font-bold font-mono tracking-wide text-gray-900" data-kf-promo-code>{{ $vendor->affiliate_code }}</p>
                     <button type="button"
                             class="rounded-xl ring-1 ring-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                             @click="navigator.clipboard.writeText(@js($vendor->affiliate_code))">{{ __('site.affiliate_portal.copy_code') }}</button>
@@ -173,7 +173,21 @@
                         if (typeof window.kfFlashInlineSaved === 'function') {
                             window.kfFlashInlineSaved(this.labels.updated || 'Updated');
                         }
-                        window.location.reload();
+                        const promo = data.promo || {};
+                        const code = promo.code || this.code;
+                        this.code = code;
+                        config.initial = code;
+                        this.editing = false;
+                        document.querySelectorAll('[data-kf-promo-code]').forEach((el) => { el.textContent = code; });
+                        if (promo.link) {
+                            document.querySelectorAll('[data-kf-promo-link]').forEach((el) => { el.textContent = promo.link; });
+                        }
+                        if (promo.message) {
+                            document.querySelectorAll('[data-kf-promo-message]').forEach((el) => { el.textContent = promo.message; });
+                        }
+                        if (promo.qr_url) {
+                            document.querySelectorAll('[data-kf-promo-qr]').forEach((el) => { el.setAttribute('src', promo.qr_url); });
+                        }
                     } catch (e) {
                         if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
                     } finally {

@@ -234,11 +234,14 @@ class PartnerProfileService
         ];
     }
 
-    public function updateSection(Partner|Lender $entity, string $section, Request $request): void
+    /** @return array{celebrate: bool} */
+    public function updateSection(Partner|Lender $entity, string $section, Request $request): array
     {
         if (! in_array($section, $this->sectionsFor($entity), true)) {
             throw new \InvalidArgumentException("Section [{$section}] is not available for this partner.");
         }
+
+        $wasComplete = $this->isComplete($entity);
 
         match ($section) {
             'personal'  => $this->savePersonal($entity, $request),
@@ -251,10 +254,133 @@ class PartnerProfileService
         };
 
         $entity->refresh();
-        if ($this->completionPercent($entity) >= 100) {
-            \App\Support\Celebration::flashOne('profile_complete');
+        $justCompleted = ! $wasComplete && $this->isComplete($entity);
+        if ($justCompleted) {
+            $this->rememberProfileCompleteCelebration($entity);
+            if (! $this->isAutosaveRequest($request)) {
+                \App\Support\Celebration::flashOne('profile_complete');
+            }
             $this->finalizeRegistration($entity);
         }
+
+        return ['celebrate' => $justCompleted];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSavedPayload(Partner|Lender $entity, string $section, bool $celebrate): array
+    {
+        $payload = [
+            'ok' => true,
+            'saved' => true,
+            'section' => $section,
+        ];
+
+        if ($celebrate) {
+            $payload['celebrate'] = $this->profileCompleteCelebrationCopy();
+        }
+
+        if ($entity instanceof Partner && $entity->isAffiliate()) {
+            $affiliates = app(AffiliateService::class);
+            $links = $affiliates->messageContext($entity);
+            $payload['promo'] = [
+                'code' => $links['affiliate_code'],
+                'link' => $links['affiliate_link'],
+                'message' => $affiliates->shareInvitation($entity),
+                'qr_url' => 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='.urlencode($links['affiliate_link']),
+            ];
+        }
+
+        return $payload;
+    }
+
+    /** @return array{tone: string, title: string, message: string, okLabel: string} */
+    public function profileCompleteCelebrationCopy(): array
+    {
+        return [
+            'tone' => 'success',
+            'title' => __('site.partner_account.profile_complete_title'),
+            'message' => __('site.partner_account.profile_complete_body'),
+            'okLabel' => __('site.partner_account.profile_complete_cta'),
+        ];
+    }
+
+    /**
+     * Identity document types allowed for this partner's country.
+     * Tanzania stays NIDA-only unless Settings adds more codes.
+     *
+     * @return array<string, string>
+     */
+    public function allowedIdentityTypes(Partner|Lender $entity): array
+    {
+        $country = strtoupper((string) (
+            $entity->country_code
+            ?? $entity->country
+            ?? session('country')
+            ?? app(PartnerCodeService::class)->defaultCountryCode()
+        ));
+
+        $configured = \App\Models\Setting::get('partners.identity_document_types');
+        $codes = is_array($configured[$country] ?? null)
+            ? array_values(array_filter($configured[$country]))
+            : ($country === 'TZ' ? ['nida'] : ['nida']);
+
+        if ($codes === []) {
+            $codes = ['nida'];
+        }
+
+        $catalog = $this->identityTypeCatalog();
+
+        return array_filter(
+            array_map(fn (string $code) => $catalog[$code] ?? null, array_combine($codes, $codes) ?: []),
+            fn ($label) => filled($label)
+        );
+    }
+
+    /** @return array<string, string> */
+    public function identityTypeCatalog(): array
+    {
+        $labels = [
+            'nida' => __('site.partner_account.identity_type_nida'),
+            'passport' => __('site.partner_account.identity_type_passport'),
+            'driving_license' => __('site.partner_account.identity_type_driving_license'),
+            'voter_id' => __('site.partner_account.identity_type_voter_id'),
+            'other_id' => __('site.partner_account.identity_type_other'),
+            'residence_permit' => __('site.partner_account.identity_type_residence_permit'),
+        ];
+
+        try {
+            $rows = \App\Models\DocumentType::query()
+                ->where('is_active', true)
+                ->whereIn('code', ['passport', 'driving_license', 'voter_id', 'other_id', 'residence_permit'])
+                ->get();
+            foreach ($rows as $row) {
+                $labels[$row->code] = $row->localizedName();
+            }
+        } catch (\Throwable) {
+            // Catalog table may be absent in a fresh test DB — keep lang fallbacks.
+        }
+
+        return $labels;
+    }
+
+    private function isAutosaveRequest(Request $request): bool
+    {
+        return $request->expectsJson()
+            || $request->ajax()
+            || (bool) $request->header('X-KF-Autosave');
+    }
+
+    private function rememberProfileCompleteCelebration(Partner|Lender $entity): void
+    {
+        $meta = is_array($entity->metadata ?? null) ? $entity->metadata : [];
+        if (filled($meta['profile_complete_celebrated_at'] ?? null)) {
+            return;
+        }
+
+        $meta['profile_complete_celebrated_at'] = now()->toIso8601String();
+        $entity->forceFill(['metadata' => $meta])->save();
     }
 
     public function isComplete(Partner|Lender $entity): bool
@@ -478,10 +604,16 @@ class PartnerProfileService
             $items[] = ['key' => 'phone', 'label' => __('site.partner_account.phone'), 'filled' => filled($entity->phone)];
         }
 
-        $items[] = ['key' => 'national_id', 'label' => __('site.partner_account.nida_number'), 'filled' => filled($identity['national_id'] ?? null)];
-        if (! $noPhysicalCard) {
-            $items[] = ['key' => 'nida_front', 'label' => __('site.partner_account.nida_front'), 'filled' => filled($identity['national_id_front'] ?? null)];
-            $items[] = ['key' => 'nida_back', 'label' => __('site.partner_account.nida_back'), 'filled' => filled($identity['national_id_back'] ?? null)];
+        $idType = (string) ($identity['document_type'] ?? 'nida');
+        if ($idType === 'nida') {
+            $items[] = ['key' => 'national_id', 'label' => __('site.partner_account.nida_number'), 'filled' => filled($identity['national_id'] ?? null)];
+            if (! $noPhysicalCard) {
+                $items[] = ['key' => 'nida_front', 'label' => __('site.partner_account.nida_front'), 'filled' => filled($identity['national_id_front'] ?? null)];
+                $items[] = ['key' => 'nida_back', 'label' => __('site.partner_account.nida_back'), 'filled' => filled($identity['national_id_back'] ?? null)];
+            }
+        } else {
+            $items[] = ['key' => 'document_number', 'label' => __('site.partner_account.document_number'), 'filled' => filled($identity['document_number'] ?? $identity['national_id'] ?? null)];
+            $items[] = ['key' => 'document_front', 'label' => __('site.partner_account.document_front'), 'filled' => filled($identity['national_id_front'] ?? null)];
         }
 
         if ($entity instanceof Partner && $entity->isAffiliate() && ! $entity->isCompanyApplicant()) {
@@ -529,15 +661,12 @@ class PartnerProfileService
     private function residenceStatus(array $meta): array
     {
         $residence = is_array($meta['residence'] ?? null) ? $meta['residence'] : [];
-        $result = $this->statusFromItems([
+
+        return $this->statusFromItems([
             ['key' => 'region', 'label' => __('site.partner_account.region'), 'filled' => filled($residence['region'] ?? null)],
             ['key' => 'district', 'label' => __('site.partner_account.district'), 'filled' => filled($residence['district'] ?? null)],
+            ['key' => 'street', 'label' => __('site.partner_account.street'), 'filled' => filled($residence['street'] ?? null)],
         ]);
-        if (! $result['complete'] && filled($residence['street'] ?? null)) {
-            $result['status'] = 'in_progress';
-        }
-
-        return $result;
     }
 
     /** @param array<string, mixed> $meta */
@@ -624,19 +753,50 @@ class PartnerProfileService
 
         if ($focus === 'reference' && $entity instanceof Partner && $entity->isAffiliate() && ! $entity->isCompanyApplicant()) {
             $data = $request->validate([
-                'reference_name' => ['required', 'string', 'max:120'],
-                'reference_relationship' => ['required', 'string', 'max:40'],
-                'reference_phone' => ['required', 'string', 'max:30'],
+                'nok_first_name' => ['nullable', 'string', 'max:80'],
+                'nok_middle_name' => ['nullable', 'string', 'max:80'],
+                'nok_last_name' => ['nullable', 'string', 'max:80'],
+                'nok_relationship' => ['nullable', 'string', 'max:40'],
+                'nok_phone' => ['nullable', 'string', 'max:30'],
+                'nok_email' => ['nullable', 'email', 'max:120'],
+                'reference_name' => ['nullable', 'string', 'max:120'],
+                'reference_relationship' => ['nullable', 'string', 'max:40'],
+                'reference_phone' => ['nullable', 'string', 'max:30'],
                 'reference_email' => ['nullable', 'email', 'max:120'],
-                'reference_consent' => ['accepted'],
             ]);
+            $first = trim((string) ($data['nok_first_name'] ?? ''));
+            $middle = trim((string) ($data['nok_middle_name'] ?? ''));
+            $last = trim((string) ($data['nok_last_name'] ?? ''));
+            $name = trim(implode(' ', array_filter([$first, $middle, $last], fn ($part) => $part !== '')));
+            if ($name === '') {
+                $name = trim((string) ($data['reference_name'] ?? ''));
+            }
+            $relationship = trim((string) ($data['nok_relationship'] ?? $data['reference_relationship'] ?? ''));
+            $phone = trim((string) ($data['nok_phone'] ?? $data['reference_phone'] ?? ''));
+            $email = trim((string) ($data['nok_email'] ?? $data['reference_email'] ?? ''));
+
+            $request->validate([
+                'contact_name' => [filled($name) ? 'nullable' : 'required'],
+            ], [
+                'contact_name.required' => __('site.affiliate_portal.reference_name'),
+            ]);
+            if ($name === '' || $relationship === '' || $phone === '') {
+                throw ValidationException::withMessages(array_filter([
+                    'nok_first_name' => $name === '' ? __('site.affiliate_portal.reference_name') : null,
+                    'nok_relationship' => $relationship === '' ? __('site.affiliate_portal.reference_relationship') : null,
+                    'nok_phone' => $phone === '' ? __('site.affiliate_portal.reference_phone') : null,
+                ]));
+            }
+
             $meta = $entity->metadata ?? [];
             $meta['reference_contact'] = array_filter([
-                'name' => $data['reference_name'],
-                'relationship' => $data['reference_relationship'],
-                'phone' => $data['reference_phone'],
-                'email' => $data['reference_email'] ?? null,
-                'consent' => true,
+                'name' => $name,
+                'first_name' => $first ?: null,
+                'middle_name' => $middle ?: null,
+                'last_name' => $last ?: null,
+                'relationship' => $relationship,
+                'phone' => $phone,
+                'email' => $email !== '' ? $email : null,
             ], fn ($value) => $value !== null && $value !== '');
             $entity->update(['metadata' => $meta]);
 
@@ -689,25 +849,38 @@ class PartnerProfileService
     private function saveIdentity(Partner|Lender $entity, Request $request): void
     {
         $data = $request->validate([
+            'identity_document_type' => ['nullable', 'string', 'max:40'],
             'national_id'           => ['nullable', 'string', 'max:40'],
+            'document_number'       => ['nullable', 'string', 'max:80'],
             'no_physical_nida_card' => ['nullable', 'boolean'],
             'national_id_front'     => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'national_id_back'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        if (filled($data['national_id'] ?? null) && ! \App\Support\NationalIdValidator::isValid($data['national_id'])) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'national_id' => \App\Support\NationalIdValidator::message(),
-            ]);
-        }
-
         $meta = $entity->metadata ?? [];
         $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
+        $allowed = array_keys($this->allowedIdentityTypes($entity));
+        $type = strtolower(trim((string) ($data['identity_document_type'] ?? $identity['document_type'] ?? 'nida')));
+        if (! in_array($type, $allowed, true)) {
+            $type = in_array('nida', $allowed, true) ? 'nida' : ($allowed[0] ?? 'nida');
+        }
+        $identity['document_type'] = $type;
 
-        // National ID is sensitive: allow first entry only, never overwrite once saved.
-        if (filled($data['national_id'] ?? null) && blank($identity['national_id'] ?? null)) {
-            $identity['national_id'] = \App\Support\NationalIdValidator::format($data['national_id'])
-                ?? strtoupper(trim($data['national_id']));
+        if ($type === 'nida') {
+            if (filled($data['national_id'] ?? null) && ! \App\Support\NationalIdValidator::isValid($data['national_id'])) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'national_id' => \App\Support\NationalIdValidator::message(),
+                ]);
+            }
+
+            // National ID is sensitive: allow first entry only, never overwrite once saved.
+            if (filled($data['national_id'] ?? null) && blank($identity['national_id'] ?? null)) {
+                $identity['national_id'] = \App\Support\NationalIdValidator::format($data['national_id'])
+                    ?? strtoupper(trim($data['national_id']));
+            }
+        } elseif (filled($data['document_number'] ?? $data['national_id'] ?? null) && blank($identity['document_number'] ?? $identity['national_id'] ?? null)) {
+            $identity['document_number'] = strtoupper(trim((string) ($data['document_number'] ?? $data['national_id'])));
+            $identity['national_id'] = $identity['document_number'];
         }
 
         $identity['no_physical_nida_card'] = $request->boolean('no_physical_nida_card');

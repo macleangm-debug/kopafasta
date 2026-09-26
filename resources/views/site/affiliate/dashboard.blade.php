@@ -18,7 +18,16 @@
                 <p class="text-sm text-white/70 mt-1 font-mono">{{ $vendor->partner_number ?? $vendor->vendor_number }}</p>
                 <p class="text-sm text-white/80 mt-2 max-w-lg">{{ $standing['status_label'] ?? '' }}</p>
                 @if ($vendor->affiliate_code)
-                    <p class="text-xs text-white/70 mt-1 font-mono">{{ __('site.affiliate_portal.hero_code', ['code' => $vendor->affiliate_code]) }}</p>
+                    <p class="inline-flex items-center gap-2 mt-3 rounded-full bg-white/15 ring-1 ring-white/25 px-3 py-1.5">
+                        <span class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.promo_code') }}</span>
+                        <span class="text-sm font-mono font-bold text-white" data-kf-promo-code>{{ $vendor->affiliate_code }}</span>
+                    </p>
+                @endif
+                @if (($attention['kind'] ?? '') === 'profile' && ! empty($attention['cta_url']))
+                    <a href="{{ $attention['cta_url'] }}"
+                       class="inline-flex mt-4 justify-center bg-brand-gold text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                        {{ $attention['cta_label'] }} →
+                    </a>
                 @endif
             </div>
             <a href="{{ route('site.affiliate.wallet') }}"
@@ -30,7 +39,7 @@
         </div>
     </section>
 
-    @if ($attention ?? null)
+    @if (($attention ?? null) && ($attention['kind'] ?? '') !== 'profile')
         <section class="glass-card p-5 mb-6 ring-1 ring-amber-200 bg-amber-50/70">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>

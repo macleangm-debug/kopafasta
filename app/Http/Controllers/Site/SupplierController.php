@@ -441,17 +441,18 @@ class SupplierController extends Controller
             abort(404);
         }
 
-        app(PartnerProfileService::class)->updateSection($vendor, $section, $request);
+        $result = app(PartnerProfileService::class)->updateSection($vendor, $section, $request);
+        $vendor->refresh();
+        $payload = app(PartnerProfileService::class)->jsonSavedPayload(
+            $vendor,
+            $section,
+            (bool) ($result['celebrate'] ?? false)
+        );
 
         if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
-            return response()->json([
-                'ok' => true,
-                'saved' => true,
-                'section' => $section,
-                'message' => __('site.partner_account.save_profile'),
-            ]);
+            return response()->json($payload);
         }
 
-        return back()->with('status', __('site.partner_account.save_profile').' ✓');
+        return back();
     }
 }

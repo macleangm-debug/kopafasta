@@ -72,7 +72,7 @@ class CardVerificationFeatureTest extends TestCase
                     'national_id' => '19880101123456789012',
                     'no_physical_nida_card' => true,
                 ],
-                'residence' => ['region' => 'Dar es Salaam', 'district' => 'Ilala'],
+                'residence' => ['region' => 'Dar es Salaam', 'district' => 'Ilala', 'street' => 'Samora Avenue'],
                 'payout_account' => ['type' => 'mobile_money', 'mobile_number' => '255712340002'],
             ],
         ]);

@@ -14,7 +14,7 @@ class AffiliateRedirectController extends Controller
 {
     public function __invoke(string $code, Request $request, AffiliateService $affiliates): RedirectResponse
     {
-        $affiliate = $affiliates->findByCode($code);
+        $affiliate = $affiliates->resolveByPublicCode($code);
         if (! $affiliate) {
             $raw = \App\Models\Vendor::query()
                 ->where('category', 'affiliate')
@@ -25,7 +25,7 @@ class AffiliateRedirectController extends Controller
                 })
                 ->first();
 
-            $message = $raw && ! app(\App\Services\AffiliateEligibilityService::class)->canSharePromo($raw)
+            $message = $raw
                 ? __('site.affiliate_portal.link_not_verified')
                 : __('site.affiliate_portal.link_not_recognized');
 

@@ -16,8 +16,7 @@ class CardVerificationService
      */
     public function types(): array
     {
-        $partnerPrefix = app(PartnerCodeService::class)->prefix();
-        $country = app(PartnerCodeService::class)->defaultCountryCode();
+        $codes = app(PartnerCodeService::class);
 
         $partnerTypes = [
             'affiliate' => 'site.card_verify.types.affiliate',
@@ -31,18 +30,6 @@ class CardVerificationService
             'auctioneer' => 'site.card_verify.types.auctioneer',
         ];
 
-        $typeCodes = [
-            'affiliate' => 'AF',
-            'supplier' => 'SP',
-            'debt_collector' => 'DC',
-            'call_center' => 'CC',
-            'legal_partner' => 'LP',
-            'gps_installer' => 'GI',
-            'insurance' => 'IN',
-            'valuer' => 'VL',
-            'auctioneer' => 'AU',
-        ];
-
         $types = [
             'member' => [
                 'label_key' => 'site.card_verify.types.member',
@@ -52,10 +39,9 @@ class CardVerificationService
         ];
 
         foreach ($partnerTypes as $category => $labelKey) {
-            $code = $typeCodes[$category];
             $types[$category] = [
                 'label_key' => $labelKey,
-                'prefix' => "{$partnerPrefix}-{$code}-{$country}-",
+                'prefix' => $codes->prefixFor($category),
                 'kind' => 'partner',
                 'category' => $category,
             ];
@@ -150,7 +136,31 @@ class CardVerificationService
             return $this->lookupMember($id, $type);
         }
 
-        return $this->lookupPartner($id, $type, $meta['category'] ?? null);
+        $result = $this->lookupPartner($id, $type, $meta['category'] ?? null);
+        if ($result['found']) {
+            return $result;
+        }
+
+        $detected = $this->parseScanPayload($number);
+        if ($detected && ($detected['type'] ?? '') !== $type) {
+            $retry = $this->lookup($detected['type'], $detected['number']);
+            if ($retry['found']) {
+                return $retry;
+            }
+        }
+
+        $partner = $this->findPartnerByAnyNumber($number);
+        if ($partner) {
+            $category = (string) ($partner->category ?? 'supplier');
+
+            return $this->lookupPartner(
+                (string) $partner->partner_number,
+                isset($this->types()[$category]) ? $category : $type,
+                $category
+            );
+        }
+
+        return $result;
     }
 
     /**
@@ -291,6 +301,26 @@ class CardVerificationService
         return $this->lookup('supplier', $token);
     }
 
+    private function findPartnerByAnyNumber(string $raw): ?Partner
+    {
+        $normalized = strtoupper(trim($raw));
+        $clean = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $raw) ?? '');
+        if ($normalized === '' && $clean === '') {
+            return null;
+        }
+
+        return Partner::query()
+            ->when($normalized !== '', fn ($q) => $q->where('partner_number', $normalized))
+            ->when($clean !== '', function ($q) use ($clean, $normalized) {
+                if ($normalized !== '') {
+                    $q->orWhereRaw("REPLACE(UPPER(partner_number), '-', '') = ?", [$clean]);
+                } else {
+                    $q->whereRaw("REPLACE(UPPER(partner_number), '-', '') = ?", [$clean]);
+                }
+            })
+            ->first();
+    }
+
     /** @return array<string, mixed> */
     private function lookupMember(string $id, string $type): array
     {
@@ -348,9 +378,14 @@ class CardVerificationService
 
         $membership = app(PartnerMembershipService::class);
         $profileComplete = $partner ? app(PartnerProfileService::class)->isComplete($partner) : false;
+        $membershipOk = $partner && (
+            ! $membership->requiresPayment($partner)
+            || $membership->isActive($partner)
+            || ($partner->isAffiliate() && app(AffiliateMembershipService::class)->isActive($partner))
+        );
         $verified = $partner
             && ($partner->status ?? '') === 'active'
-            && $membership->isActive($partner)
+            && $membershipOk
             && $profileComplete;
 
         $photoUrl = $partner

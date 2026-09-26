@@ -14,7 +14,18 @@
                 <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $vendor->name }}</h1>
                 <p class="text-sm text-white/70 mt-1 font-mono">{{ $vendor->vendor_number ?? $vendor->partner_number ?? 'PTR' }}</p>
                 <p class="text-sm text-white/80 mt-2 max-w-lg">{{ __('site.supplier_portal.hero_blurb') }}</p>
+                @php
+                    $supplierProfile = app(\App\Services\PartnerProfileService::class);
+                    $supplierIncomplete = ! $supplierProfile->isComplete($vendor);
+                    $supplierFirstGap = $supplierProfile->firstIncompleteSection($vendor);
+                @endphp
                 <div class="mt-4 flex flex-wrap gap-2">
+                    @if ($supplierIncomplete)
+                        <a href="{{ route('site.supplier.profile', ['section' => $supplierFirstGap]) }}"
+                           class="inline-flex items-center justify-center rounded-xl bg-white text-brand font-bold px-4 py-2.5 shadow-sm text-sm">
+                            {{ __('borrower.profile.hero_completion_cta') }}
+                        </a>
+                    @endif
                     <a href="{{ route('site.supplier.assets.create') }}"
                        class="inline-flex items-center justify-center rounded-xl bg-brand-gold text-brand font-bold px-4 py-2.5 hover:bg-yellow-400 shadow-md text-sm">
                         {{ __('site.supplier_portal.cta_upload') }}
