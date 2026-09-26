@@ -21,6 +21,8 @@ class AffiliateRedirectController extends Controller
                 ->where(function ($query) use ($code) {
                     $normalized = strtoupper(trim($code));
                     $query->where('affiliate_code', $normalized)
+                        ->orWhere('partner_number', $normalized)
+                        ->orWhere('metadata->referral_token', $normalized)
                         ->orWhere('metadata', 'like', '%'.$normalized.'%');
                 })
                 ->first();
@@ -34,17 +36,43 @@ class AffiliateRedirectController extends Controller
         }
 
         $affiliates->trackClick($affiliate, $request);
-        app(AffiliateAttributionService::class)->establishClaim($request, $affiliate, 'link', $affiliate->affiliate_code);
+        $token = $affiliates->ensureReferralToken($affiliate);
+        app(AffiliateAttributionService::class)->establishClaim($request, $affiliate, 'link', $token);
 
         if ($user = Auth::user()) {
             $customer = Customer::query()->where('user_id', $user->id)->first();
             if ($customer) {
-                $affiliates->attachAffiliate($customer, $affiliate->affiliate_code, $request);
+                $outcome = $affiliates->connectMember($customer, $affiliate, $request, 'link');
+
+                return redirect()
+                    ->route('site.borrower.dashboard')
+                    ->with($this->flashForOutcome($outcome, $affiliate));
             }
         }
 
         return redirect()
-            ->route('site.register.borrower', ['aff' => $affiliate->affiliate_code])
+            ->route('site.register.borrower', ['aff' => $token])
             ->with('status', __('site.affiliate_portal.link_welcome'));
+    }
+
+    /** @return array<string, mixed> */
+    private function flashForOutcome(string $outcome, \App\Models\Vendor $affiliate): array
+    {
+        $name = $affiliate->name;
+        $benefits = app(AffiliateService::class)->configuredBenefitItems($affiliate);
+
+        return [
+            'affiliate_referral_outcome' => $outcome,
+            'affiliate_referral_name' => $name,
+            'affiliate_referral_number' => $affiliate->partner_number ?: $affiliate->vendor_number,
+            'affiliate_referral_benefits' => $benefits,
+            'status' => match ($outcome) {
+                'attached' => __('site.affiliate_portal.referral_connected_body', ['name' => $name]),
+                'already' => __('site.affiliate_portal.referral_already_body', ['name' => $name]),
+                'protected' => __('site.affiliate_portal.referral_protected_body'),
+                'not_allowed' => __('site.affiliate_portal.referral_not_allowed_body'),
+                default => __('site.affiliate_portal.referral_unavailable_body'),
+            },
+        ];
     }
 }

@@ -64,8 +64,10 @@ return [
     'register' => [
         'title' => 'Register as borrower',
         'affiliate_invited' => 'You were invited through :brand',
+        'affiliate_invited_by' => 'You\'ve been invited by',
         'affiliate_brought_by' => 'You were brought by our partner',
         'affiliate_benefit' => 'Your benefit: :benefit',
+        'affiliate_benefits_title' => 'Applicable benefits',
         'aside_eyebrow' => 'Borrower onboarding',
         'aside_title' => 'Create your account in three quick steps.',
         'aside_body' => 'Choose your country, confirm your phone number, then add your details and password.',
@@ -3135,6 +3137,14 @@ return [
             'promo_exhausted_body' => 'This promo can no longer be used.',
             'promo_inactive_title' => 'Promo unavailable',
             'promo_inactive_body' => 'This promo is not available right now.',
+            'referral_protected_title' => 'Referral unchanged',
+            'referral_protected_body' => 'Your current referral relationship remains unchanged.',
+            'referral_not_allowed_title' => 'Referral not attached',
+            'referral_not_allowed_body' => 'This account cannot take a new referral under the current settings.',
+            'referral_blocked_title' => 'Referral not attached',
+            'referral_blocked_body' => 'This referral could not be connected to your account.',
+            'request_failed' => 'This request could not be completed. Please try again.',
+            'application_fee_disclaimer' => 'Payment of this fee does not guarantee loan approval.',
             'promo_required_body' => 'Enter a promo code to apply it.',
             'remove_promo' => 'Remove',
             'or_divider' => 'or',
@@ -3828,6 +3838,7 @@ return [
         'restructure_fee' => 'Restructure Fee',
         'top_up_fee' => 'Top-Up Fee',
         'partner_membership' => 'Partner membership',
+        'kopafasta_plus' => 'Kopafasta Plus',
     ],
 
     'payment_methods' => [

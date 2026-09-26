@@ -104,11 +104,22 @@ class PaymentGateService
             $codeKind = 'invalid';
             $promoReason = 'not_found';
         } elseif (filled($resolvedAffiliate)) {
-            // Explicit affiliate code: attribution only — never a borrower promo discount.
             $appliedPromo = null;
-            $promoValid = false;
             $codeKind = 'affiliate';
-            $promoReason = 'wrong_fee';
+            if ($hasAffiliate) {
+                $promoValid = true;
+                $promoReason = null;
+            } else {
+                $promoValid = false;
+                $existingId = (int) ($customer->affiliate_vendor_id ?? 0);
+                $settings = app(AffiliateSettingsService::class);
+                $attribution = app(AffiliateAttributionService::class);
+                $promoReason = match (true) {
+                    $existingId > 0 => 'attribution_protected',
+                    $attribution->customerIsExistingBorrower($customer) && ! $settings->existingCustomerReferral() => 'existing_not_allowed',
+                    default => 'attribution_blocked',
+                };
+            }
         }
         // Promo / campaign discounts apply only when a code is entered — no silent auto-discount.
 
@@ -158,7 +169,7 @@ class PaymentGateService
             'has_referrer' => $hasReferrer,
             'has_affiliate' => $hasAffiliate,
             'promo_code' => $appliedPromo,
-            'promo_valid' => $promoValid,
+            'promo_valid' => $promoValid || ($hasAffiliate && $affiliateDiscount > 0 && blank($promoReason)),
             'promo_reason' => $promoReason,
             'code_kind' => $codeKind,
             'referrer' => $hasReferrer ? $referrals->referrer($customer) : null,
@@ -210,9 +221,12 @@ class PaymentGateService
         $base = (float) ($quote['base'] ?? 0);
         $typeKey = "borrower.payment_types.{$feeType}";
         $typeLabel = __($typeKey);
+        if ($typeLabel === $typeKey) {
+            $typeLabel = config("payment_types.types.{$feeType}.label", ucfirst(str_replace('_', ' ', $feeType)));
+        }
         $lines[] = [
             'key' => 'base',
-            'label' => $typeLabel !== $typeKey ? $typeLabel : __('borrower.payments_page.show.obligation_line'),
+            'label' => $typeLabel,
             'amount' => $base,
             'kind' => 'base',
             'display' => format_money($base),

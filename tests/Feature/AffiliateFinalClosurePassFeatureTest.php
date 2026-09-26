@@ -99,7 +99,7 @@ class AffiliateFinalClosurePassFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Kitonga Style', false)
             ->assertSee('AFF-UAT-KIT', false)
-            ->assertSee(__('borrower.register.affiliate_brought_by', [], 'sw'), false)
+            ->assertSee(__('borrower.register.affiliate_invited_by', [], 'sw'), false)
             ->assertDontSee('Msambazaji', false)
             ->getContent();
 

@@ -44,7 +44,7 @@
             </div>
 
             <p class="relative text-xs text-white/50">
-                {{ __('borrower.register.already') }} <a href="{{ route('site.login') }}" class="text-brand-gold hover:underline">{{ __('borrower.register.login') }}</a>
+                {{ __('borrower.register.already') }} <a href="{{ route('site.login', array_filter(['aff' => $affiliateCode ?? null])) }}" class="text-brand-gold hover:underline">{{ __('borrower.register.login') }}</a>
                 @if ($isGuarantorRegistration)
                     · <a href="{{ route('site.login', ['clear_guarantor' => 1]) }}" class="text-brand-gold hover:underline">{{ __('borrower.guarantor_invite.login_different_account') }}</a>
                 @elseif ($isGroupInviteRegistration)
@@ -99,25 +99,55 @@
                                     : @js(__('site.auth.shell.register_support'))">{{ $initialStep === 2
                                     ? ($isGuarantorRegistration ? __('borrower.guarantor_invite.register_step_details_hint') : __('borrower.register.details_body'))
                                     : __('site.auth.shell.register_support') }}</p>
+                            @if (! empty($affiliatePartner) && empty($isInviteRegistration))
+                                <div class="mt-3 rounded-xl bg-white/10 ring-1 ring-white/15 px-3 py-2.5" x-data="{
+                                    benefitSheet: false,
+                                    benefitMenu: false,
+                                    pop: { top: 0, left: 0 },
+                                    place() {
+                                        const r = this.$refs.benefitBtn?.getBoundingClientRect();
+                                        if (! r) return;
+                                        this.pop = { top: r.bottom + 8, left: Math.max(12, r.right - 280) };
+                                    }
+                                }">
+                                    <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.register.affiliate_invited_by') }}</p>
+                                    <div class="mt-1 flex items-start justify-between gap-2">
+                                        <p class="text-sm font-semibold text-white leading-snug">
+                                            {{ $affiliatePartner->name }}
+                                            <span class="text-white/70 font-mono text-xs">· {{ $affiliatePartner->partner_number ?? $affiliatePartner->vendor_number }}</span>
+                                        </p>
+                                        @if (! empty($affiliateBenefitItems))
+                                            <button type="button" x-ref="benefitBtn"
+                                                    @click="if (window.matchMedia('(min-width: 1024px)').matches) { benefitMenu = !benefitMenu; place(); } else { benefitSheet = true; }"
+                                                    class="size-7 shrink-0 rounded-full bg-brand-gold text-brand ring-1 ring-white/40 grid place-items-center text-xs font-extrabold"
+                                                    aria-label="{{ __('borrower.register.affiliate_benefits_title') }}">i</button>
+                                            <x-site.bottom-sheet :title="__('borrower.register.affiliate_benefits_title')" open="benefitSheet">
+                                                <ul class="space-y-2 text-sm text-gray-700">
+                                                    @foreach ($affiliateBenefitItems as $item)
+                                                        <li>{{ $item['label'] }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            </x-site.bottom-sheet>
+                                            <template x-teleport="body">
+                                                <div x-show="benefitMenu" x-cloak x-transition
+                                                     @click.outside="if (! $refs.benefitBtn?.contains($event.target)) benefitMenu = false"
+                                                     class="fixed z-[70] w-72 rounded-2xl bg-white shadow-xl ring-1 ring-brand/10 p-4 text-left"
+                                                     :style="`top:${pop.top}px;left:${pop.left}px`">
+                                                    <p class="text-sm font-bold text-gray-900">{{ __('borrower.register.affiliate_benefits_title') }}</p>
+                                                    <ul class="mt-2 space-y-1.5 text-sm text-gray-700">
+                                                        @foreach ($affiliateBenefitItems as $item)
+                                                            <li>{{ $item['label'] }}</li>
+                                                        @endforeach
+                                                    </ul>
+                                                </div>
+                                            </template>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                     <div class="px-5 pt-5 pb-6 sm:px-6 sm:pb-7">
-                    @if (! empty($affiliatePartner) && empty($isInviteRegistration))
-                        <div class="mb-6 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
-                            <div class="kf-premium-panel rounded-none px-4 py-3">
-                                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-bold">{{ brand_name() }}</p>
-                                <p class="text-sm font-bold text-white mt-1">{{ __('borrower.register.affiliate_invited', ['brand' => brand_name()]) }}</p>
-                            </div>
-                            <div class="px-4 py-3 space-y-1">
-                                <p class="text-xs text-gray-500">{{ __('borrower.register.affiliate_brought_by') }}</p>
-                                <p class="text-sm font-bold text-gray-900">{{ $affiliatePartner->name }}</p>
-                                <p class="text-xs font-mono text-gray-600">{{ $affiliatePartner->partner_number ?? $affiliatePartner->vendor_number }}</p>
-                                @if (filled($affiliateBenefit ?? null))
-                                    <p class="text-sm text-brand font-semibold pt-1">{{ __('borrower.register.affiliate_benefit', ['benefit' => $affiliateBenefit]) }}</p>
-                                @endif
-                            </div>
-                        </div>
-                    @endif
                     @if ($isGuarantorRegistration && ! empty($prefill['borrower_name']))
                         <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
                             {{ __('borrower.guarantor_invite.register_banner', ['borrower' => $prefill['borrower_name']]) }}
@@ -354,7 +384,7 @@
                 </div>
 
                 <p class="mt-6 text-center text-sm text-gray-600 lg:hidden">
-                    {{ __('borrower.register.already') }} <a href="{{ route('site.login') }}" class="text-amber-600 font-semibold hover:underline">{{ __('borrower.register.login') }}</a>
+                    {{ __('borrower.register.already') }} <a href="{{ route('site.login', array_filter(['aff' => $affiliateCode ?? null])) }}" class="text-amber-600 font-semibold hover:underline">{{ __('borrower.register.login') }}</a>
                 </p>
                 @if ($isGuarantorRegistration)
                     <p class="mt-3 text-center text-sm text-gray-600 lg:hidden">

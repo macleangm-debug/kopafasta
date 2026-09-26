@@ -30,7 +30,20 @@ class BorrowerPaymentController extends Controller
 
     protected function customer(): Customer
     {
-        return Customer::where('user_id', Auth::id())->firstOrFail();
+        $customer = Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        return $customer;
+    }
+
+    protected function customerForPayment(CustomerPayment $payment): Customer
+    {
+        $customer = $this->customer();
+        abort_unless((int) $payment->customer_id === (int) $customer->id, 403);
+        $bound = $payment->customer;
+        abort_unless($bound, 404);
+
+        return $bound;
     }
 
     public function index(): RedirectResponse
@@ -621,8 +634,7 @@ class BorrowerPaymentController extends Controller
 
     public function adjust(Request $request, CustomerPayment $payment, CustomerPaymentService $payments): JsonResponse|RedirectResponse
     {
-        $customer = $this->customer();
-        abort_unless($payment->customer_id === $customer->id, 403);
+        $this->customerForPayment($payment);
         abort_unless($payment->awaitsCollection() || $payment->status === 'awaiting_payment', 422);
 
         $data = $request->validate([
@@ -725,6 +737,21 @@ class BorrowerPaymentController extends Controller
                 'invalid',
                 __('borrower.payments_page.show.promo_inactive_title'),
                 __('borrower.payments_page.show.promo_inactive_body'),
+            ],
+            'attribution_protected' => [
+                'invalid',
+                __('borrower.payments_page.show.referral_protected_title'),
+                __('borrower.payments_page.show.referral_protected_body'),
+            ],
+            'existing_not_allowed' => [
+                'invalid',
+                __('borrower.payments_page.show.referral_not_allowed_title'),
+                __('borrower.payments_page.show.referral_not_allowed_body'),
+            ],
+            'attribution_blocked' => [
+                'invalid',
+                __('borrower.payments_page.show.referral_blocked_title'),
+                __('borrower.payments_page.show.referral_blocked_body'),
             ],
             default => [
                 'invalid',

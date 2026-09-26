@@ -17,6 +17,7 @@ use App\Models\AuditLog;
 use App\Services\BrokenPageRecorder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -143,6 +144,15 @@ return Application::configure(basePath: dirname(__DIR__))
             try {
                 app(BrokenPageRecorder::class)->record($e);
             } catch (Throwable) {
+            }
+        });
+
+        $exceptions->render(function (ModelNotFoundException $e, $request) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => __('borrower.payments_page.show.request_failed'),
+                ], 404);
             }
         });
 

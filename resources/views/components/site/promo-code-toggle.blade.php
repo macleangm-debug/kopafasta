@@ -13,7 +13,7 @@
 
 @php
     $hasCode = filled($value) || filled(data_get($quote, 'promo_code'));
-    $autoApplied = ($quote['affiliate_auto_applied'] ?? false) && ($quote['has_affiliate'] ?? false) && ($quote['promo_valid'] ?? false);
+    $autoApplied = ($quote['affiliate_auto_applied'] ?? false) && ($quote['has_affiliate'] ?? false);
 @endphp
 
 <div
@@ -23,7 +23,7 @@
 >
     @if ($autoApplied)
         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">
-            {{ __('site.affiliate_portal.promo_auto_applied', ['code' => $quote['promo_code'] ?? '']) }}
+            {{ __('site.affiliate_portal.benefit_applied') }}
             @if (filled($quote['referred_by'] ?? null))
                 <span class="block text-xs mt-1">{{ __('site.affiliate_portal.referred_by', ['name' => $quote['referred_by']]) }}</span>
             @endif

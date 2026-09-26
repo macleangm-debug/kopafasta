@@ -157,6 +157,7 @@
             </div>
         @endif
 
+        <p class="mb-3 text-sm text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-3 py-2.5">{{ __('borrower.payments_page.show.application_fee_disclaimer') }}</p>
         <p class="mb-4 text-sm text-gray-600">{{ __('borrower.apply.application_fee.open_gate_hint') }}</p>
 
         <button type="button"

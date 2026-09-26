@@ -894,22 +894,25 @@ class ApplicationFeePaymentService
             || (bool) data_get($payment->provider_meta, 'pricing.apply_reward', false)
             || filled(data_get($payment->provider_meta, 'pricing.promo_code'));
 
-        if ($hasExplicitBenefit) {
+        $quote = $this->quote($customer, $product);
+        $affiliateDiscount = (float) ($quote['affiliate_discount'] ?? 0);
+        if ($hasExplicitBenefit && $affiliateDiscount <= 0) {
             return (int) round((float) $payment->amount);
         }
 
-        $canonical = (int) round((float) ($this->quote($customer, $product)['cash_due'] ?? 0));
+        $canonical = (int) round((float) ($quote['cash_due'] ?? 0));
         if ($canonical <= 0) {
             return (int) round((float) $payment->amount);
         }
 
-        if ((int) round((float) $payment->amount) !== $canonical) {
+        if ((int) round((float) $payment->amount) !== $canonical || $affiliateDiscount > 0) {
             $meta = is_array($payment->provider_meta) ? $payment->provider_meta : [];
-            data_set($meta, 'pricing.gross', $canonical);
+            $gross = (float) ($quote['base'] ?? $canonical);
+            data_set($meta, 'pricing.gross', $gross);
             data_set($meta, 'pricing.cash_due', $canonical);
-            data_set($meta, 'pricing.affiliate_discount', 0);
-            data_set($meta, 'pricing.promo_discount', 0);
-            data_set($meta, 'apply_context.gross_amount', $canonical);
+            data_set($meta, 'pricing.affiliate_discount', $affiliateDiscount);
+            data_set($meta, 'pricing.promo_discount', (float) ($quote['promo_discount'] ?? 0));
+            data_set($meta, 'apply_context.gross_amount', $gross);
             $payment->update([
                 'amount' => $canonical,
                 'provider_meta' => $meta,

@@ -35,6 +35,56 @@
 
     <x-site.borrower-dashboard-hero :hero="$hero" />
 
+    @if (session('affiliate_referral_outcome'))
+        @php
+            $referralOutcome = session('affiliate_referral_outcome');
+            $referralName = session('affiliate_referral_name');
+            $referralBenefits = session('affiliate_referral_benefits') ?: [];
+            $referralOk = in_array($referralOutcome, ['attached', 'already'], true);
+        @endphp
+        <section class="mb-6 rounded-2xl {{ $referralOk ? 'bg-emerald-50 ring-emerald-200' : 'bg-amber-50 ring-amber-200' }} ring-1 px-4 py-3.5" x-data="{
+            benefitSheet: false,
+            benefitMenu: false,
+            pop: { top: 0, left: 0 },
+            place() {
+                const r = this.$refs.benefitBtn?.getBoundingClientRect();
+                if (! r) return;
+                this.pop = { top: r.bottom + 8, left: Math.max(12, r.right - 280) };
+            }
+        }">
+            <p class="text-[10px] uppercase tracking-widest font-bold {{ $referralOk ? 'text-emerald-800' : 'text-amber-800' }}">{{ __('site.affiliate_portal.referral_connected_title') }}</p>
+            <div class="mt-1 flex items-start justify-between gap-2">
+                <p class="text-sm {{ $referralOk ? 'text-emerald-900' : 'text-amber-900' }}">{{ session('status') }}</p>
+                @if ($referralOk && $referralBenefits !== [])
+                    <button type="button" x-ref="benefitBtn"
+                            @click="if (window.matchMedia('(min-width: 1024px)').matches) { benefitMenu = !benefitMenu; place(); } else { benefitSheet = true; }"
+                            class="size-7 shrink-0 rounded-full bg-brand-gold text-brand ring-1 ring-brand/20 grid place-items-center text-xs font-extrabold"
+                            aria-label="{{ __('borrower.register.affiliate_benefits_title') }}">i</button>
+                    <x-site.bottom-sheet :title="__('borrower.register.affiliate_benefits_title')" open="benefitSheet">
+                        <ul class="space-y-2 text-sm text-gray-700">
+                            @foreach ($referralBenefits as $item)
+                                <li>{{ $item['label'] ?? $item }}</li>
+                            @endforeach
+                        </ul>
+                    </x-site.bottom-sheet>
+                    <template x-teleport="body">
+                        <div x-show="benefitMenu" x-cloak x-transition
+                             @click.outside="if (! $refs.benefitBtn?.contains($event.target)) benefitMenu = false"
+                             class="fixed z-[70] w-72 rounded-2xl bg-white shadow-xl ring-1 ring-brand/10 p-4 text-left"
+                             :style="`top:${pop.top}px;left:${pop.left}px`">
+                            <p class="text-sm font-bold text-gray-900">{{ __('borrower.register.affiliate_benefits_title') }}</p>
+                            <ul class="mt-2 space-y-1.5 text-sm text-gray-700">
+                                @foreach ($referralBenefits as $item)
+                                    <li>{{ $item['label'] ?? $item }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </template>
+                @endif
+            </div>
+        </section>
+    @endif
+
     <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
 
     @if (! empty($financialSnapshot['next_payment']) || ! empty($financialSnapshot['outstanding']))

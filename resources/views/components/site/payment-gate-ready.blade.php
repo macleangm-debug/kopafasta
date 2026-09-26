@@ -23,6 +23,7 @@
 @endphp
 <x-site.psp-payment-gate
     :label="$payment->typeLabel()"
+    :fee-disclaimer="$payment->payment_type === 'application_fee' ? __('borrower.payments_page.show.application_fee_disclaimer') : null"
     :amount="$payment->amount"
     :currency="$payment->currency ?: 'TZS'"
     :reference="$payment->reference"

@@ -49,6 +49,9 @@ Kurudisha kiotomatiki baada ya kusimamishwa kwa utendaji: {{recovery_enabled}}.
 ## 5. Mwenendo
 Usipotoshe {{brand}}, usitoze ada zisizoidhinishwa, wala usitumie utangazaji wa udanganyifu. Masuala ya uzingatiaji au udanganyifu yanaweza kuzuia, kusimamisha, au kusitisha akaunti tofauti na hali ya utendaji.
 
+## 5A. Faida ya rufaa si idhini ya mkopo
+Msambazaji analeta au kurejelea mwanachama na anaweza kutoa tu faida za rufaa zilizopangwa kwenye Mipangilio. Msambazaji haidhinishi mkopo, hawezi kuhakikisha idhini, na hapaswi kuonyesha ada ya maombi kama malipo ya kupata mkopo. Kulipa ada ya maombi hakumaanishi mkopo umeidhinishwa au utatolewa. Uamuzi wa kukopesha unabaki katika tathmini, ustahiki, na mchakato wa idhini wa {{brand}}.
+
 ## 6. Mabadiliko
 Thamani zinazobadilika katika Masharti haya zinatokana na Kitovu cha Mipangilio. Mabadiliko muhimu yanaweza kuhitaji kukubali upya au kutumika wakati wa kuhuisha, kulingana na Mipangilio. Toleo unalokubali linahifadhiwa na halibadilishwi Mipangilio inapobadilika baadaye.
 TEXT,

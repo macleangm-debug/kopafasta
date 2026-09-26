@@ -44,12 +44,35 @@ class AffiliateService
             return $direct;
         }
 
+        $byToken = Vendor::query()
+            ->where('category', 'affiliate')
+            ->where('status', 'active')
+            ->where('metadata->referral_token', $code)
+            ->first();
+
+        if ($byToken) {
+            return $byToken;
+        }
+
+        $byPartnerNumber = Vendor::query()
+            ->where('category', 'affiliate')
+            ->where('status', 'active')
+            ->where(function ($query) use ($code) {
+                $query->where('partner_number', $code)
+                    ->orWhere('vendor_number', $code);
+            })
+            ->first();
+
+        if ($byPartnerNumber) {
+            return $byPartnerNumber;
+        }
+
         return $this->resolveByAlias($code);
     }
 
     public function affiliateLink(Vendor $affiliate): string
     {
-        $code = $this->ensureCode($affiliate);
+        $code = $this->ensureReferralToken($affiliate);
         $base = rtrim(app(ReferralService::class)->appBaseUrl(), '/');
 
         return $base.'/aff/'.$code;
@@ -57,32 +80,65 @@ class AffiliateService
 
     public function registrationLink(Vendor $affiliate): string
     {
-        $code = $this->ensureCode($affiliate);
+        $code = $this->ensureReferralToken($affiliate);
 
         return rtrim(app(ReferralService::class)->appBaseUrl(), '/').'/register/borrower?aff='.urlencode($code);
+    }
+
+    /**
+     * Stable referral URL token. Promo codes may change; this token must not.
+     */
+    public function ensureReferralToken(Vendor $affiliate): string
+    {
+        $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
+        $token = strtoupper(trim((string) ($meta['referral_token'] ?? '')));
+        if ($token !== '') {
+            return $token;
+        }
+
+        $current = strtoupper(trim((string) ($affiliate->affiliate_code ?? '')));
+        if ($current !== '' && ! $this->looksLikePersonOrCompanyName($affiliate, $current)) {
+            $token = $current;
+        } else {
+            $token = $this->mintPublicCode($affiliate->id);
+        }
+
+        $meta['referral_token'] = $token;
+        $affiliate->update(['metadata' => $meta]);
+
+        return $token;
     }
 
     public function ensureCode(Vendor $affiliate): string
     {
         if (filled($affiliate->affiliate_code)) {
-            return $affiliate->affiliate_code;
+            $this->ensureReferralToken($affiliate);
+
+            return (string) $affiliate->affiliate_code;
         }
 
-        $fromName = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $affiliate->name) ?? '');
-        if (strlen($fromName) >= 3 && $this->codeIsUnique($fromName)) {
-            $affiliate->update(['affiliate_code' => $fromName]);
-
-            return $fromName;
-        }
-
-        $prefix = config('affiliates.code_prefix', 'KPA');
-        do {
-            $code = $prefix.'-'.strtoupper(Str::random(6));
-        } while (! $this->codeIsUnique($code));
-
+        $code = $this->mintPublicCode($affiliate->id);
         $affiliate->update(['affiliate_code' => $code]);
+        $this->ensureReferralToken($affiliate->fresh() ?? $affiliate);
 
         return $code;
+    }
+
+    private function mintPublicCode(?int $exceptVendorId = null): string
+    {
+        $prefix = preg_replace('/[^A-Z0-9]/', '', strtoupper((string) config('affiliates.code_prefix', 'KPA'))) ?: 'KPA';
+        do {
+            $code = $prefix.strtoupper(Str::random(4));
+        } while (! $this->codeIsUnique($code, $exceptVendorId));
+
+        return $code;
+    }
+
+    private function looksLikePersonOrCompanyName(Vendor $affiliate, string $code): bool
+    {
+        $name = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $affiliate->name) ?? '');
+
+        return $name !== '' && strlen($name) >= 3 && $code === $name;
     }
 
     public function trackClick(Vendor $affiliate, Request $request): void
@@ -170,6 +226,87 @@ class AffiliateService
         $attribution->clearSession();
 
         app(AffiliateFraudDetectionService::class)->scanAndPersist($affiliate);
+    }
+
+    /**
+     * Existing-member attribution through the canonical persist path.
+     *
+     * @return 'attached'|'already'|'protected'|'not_allowed'|'ineligible'|'none'
+     */
+    public function connectMember(Customer $customer, Vendor $affiliate, ?Request $request = null, string $source = 'link'): string
+    {
+        $settings = app(AffiliateSettingsService::class);
+        $attribution = app(AffiliateAttributionService::class);
+        $existingId = (int) ($customer->affiliate_vendor_id ?? 0);
+
+        if ($existingId === (int) $affiliate->id) {
+            return 'already';
+        }
+
+        if ($existingId > 0) {
+            if ($attribution->isLocked($customer) && ! $settings->allowOverrideAfterLock()) {
+                return 'protected';
+            }
+            if ($settings->attributionModel() === 'first_valid' && ! $settings->allowReplacementBeforeLock()) {
+                return 'protected';
+            }
+        }
+
+        if ($existingId === 0 && $attribution->customerIsExistingBorrower($customer) && ! $settings->existingCustomerReferral()) {
+            return 'not_allowed';
+        }
+
+        if (! app(AffiliateEligibilityService::class)->canAttributeNewReferral($affiliate)) {
+            return 'ineligible';
+        }
+
+        $this->attachAffiliate($customer, $affiliate->affiliate_code ?: $this->ensureReferralToken($affiliate), $request);
+        $customer->refresh();
+
+        return (int) $customer->affiliate_vendor_id === (int) $affiliate->id ? 'attached' : 'none';
+    }
+
+    public function connectFromPendingClaim(Customer $customer, ?Request $request = null): ?array
+    {
+        $pending = app(AffiliateAttributionService::class)->pendingAffiliate($request);
+        if (! $pending) {
+            return null;
+        }
+
+        $outcome = $this->connectMember($customer, $pending, $request, 'login');
+
+        return [
+            'outcome' => $outcome,
+            'affiliate' => $pending,
+        ];
+    }
+
+    /** @return list<array{key: string, label: string}> */
+    public function configuredBenefitItems(Vendor $affiliate, ?string $locale = null): array
+    {
+        $locale = $locale ?: app()->getLocale();
+        $settings = app(AffiliateSettingsService::class);
+        $items = [];
+
+        $map = [
+            'application_fee' => [$this->applicationDiscountPercent($affiliate), 'benefit_application_discount'],
+            'registration_fee' => [$this->registrationDiscountPercent($affiliate), 'benefit_registration_discount'],
+            'kopafasta_plus' => [$this->plusDiscountPercent($affiliate), 'benefit_plus_discount'],
+        ];
+
+        foreach ($map as $feeType => [$percent, $key]) {
+            if (! $settings->appliesToFeeType($feeType) || $percent <= 0) {
+                continue;
+            }
+            $items[] = [
+                'key' => $feeType,
+                'label' => __('site.affiliate_portal.'.$key, [
+                    'percent' => rtrim(rtrim(number_format((float) $percent, 1, '.', ''), '0'), '.'),
+                ], $locale),
+            ];
+        }
+
+        return $items;
     }
 
     public function trackApplication(LoanApplication $application): void
@@ -288,6 +425,7 @@ class AffiliateService
             'code' => $context['affiliate_code'] ?? '',
             'link' => $context['affiliate_link'] ?? '',
             'benefit' => $benefit,
+            'name' => $affiliate->name,
         ];
 
         if ($benefit !== '') {
@@ -522,8 +660,13 @@ class AffiliateService
 
         $taken = Vendor::query()
             ->where('category', 'affiliate')
-            ->where('affiliate_code', $code)
             ->when($exceptVendorId, fn ($q) => $q->where('id', '!=', $exceptVendorId))
+            ->where(function ($query) use ($code) {
+                $query->where('affiliate_code', $code)
+                    ->orWhere('partner_number', $code)
+                    ->orWhere('vendor_number', $code)
+                    ->orWhere('metadata->referral_token', $code);
+            })
             ->exists();
 
         if ($taken) {

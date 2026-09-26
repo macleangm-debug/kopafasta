@@ -49,6 +49,9 @@ Automatic recovery after a performance suspension: {{recovery_enabled}}.
 ## 5. Conduct
 You must not misrepresent {{brand}}, collect unauthorised customer fees, or use deceptive marketing. Compliance or fraud concerns may result in restriction, suspension, or termination separate from performance status.
 
+## 5A. Referral benefit is not loan approval
+An Affiliate introduces or refers a member and may provide only the referral benefits configured in Settings. An Affiliate does not approve the loan, cannot guarantee approval, and must not represent an application fee as payment for obtaining a loan. Paying an application fee does not mean that a loan has been approved or will be granted. The lending decision remains under {{brand}}'s assessment, eligibility requirements and approval process.
+
 ## 6. Changes
 Configurable values in these Terms come from Settings Hub. Material changes may require re-acceptance or apply on renewal, according to Settings. The version you accept is snapshotted and is not rewritten when Settings later change.
 TEXT,

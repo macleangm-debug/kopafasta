@@ -219,6 +219,10 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
         return redirect()->route('site.card.verify', ['type' => 'affiliate', 'number' => $code], 301);
     })->name('affiliate.verify');
 
+    // Guests and logged-in members both use the same referral resolver.
+    Route::get('/aff/{code}', AffiliateRedirectController::class)->name('affiliate.redirect');
+    Route::get('/ref/{code}', AffiliateRedirectController::class)->name('affiliate.ref');
+
     // Public guarantor invitation (guest + logged-in users must both reach this page)
     Route::get('/guarantor-request/{token}', [PublicGuarantorController::class, 'show'])->name('guarantor.show');
     Route::get('/guarantor-request/{token}/declined', [PublicGuarantorController::class, 'declined'])->name('guarantor.declined');
@@ -239,9 +243,6 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
         Route::post('/forgot-pin/start', [App\Http\Controllers\Site\AuthController::class, 'startPinRecovery'])->name('forgot-pin.start');
         Route::post('/forgot-pin/verify-challenge', [App\Http\Controllers\Site\AuthController::class, 'verifyPinRecoveryAnswers'])->name('forgot-pin.verify-challenge');
         Route::post('/forgot-pin/reset-challenge', [App\Http\Controllers\Site\AuthController::class, 'resetPinWithChallenge'])->name('forgot-pin.reset-challenge');
-
-        Route::get('/aff/{code}', AffiliateRedirectController::class)->name('affiliate.redirect');
-        Route::get('/ref/{code}', AffiliateRedirectController::class)->name('affiliate.ref');
 
         Route::get('/register', fn () => redirect()->route('site.register.borrower'))->name('register');
         Route::get('/register/options', fn () => view('site.auth.register-choose'))->name('register.options');

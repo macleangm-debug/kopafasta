@@ -100,8 +100,10 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
         );
 
         $this->assertTrue($quote['has_affiliate']);
-        $this->assertTrue($quote['promo_valid']);
-        $this->assertSame('LINK001', $quote['promo_code']);
+        $this->assertTrue($quote['affiliate_auto_applied']);
+        $this->assertSame(1000.0, (float) $quote['affiliate_discount']);
+        $this->assertSame(9000.0, (float) $quote['cash_due']);
+        $this->assertNull($quote['promo_code']);
     }
 
     public function test_promo_code_change_preserves_customer_attribution(): void

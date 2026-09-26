@@ -867,7 +867,9 @@ class CustomerPaymentService
             'state' => $state,
             'status' => $payment->status,
             'reference' => $payment->reference,
-            'title' => $celebration['title'] ?? null,
+            'title' => $state === 'paid'
+                ? ($celebration['title'] ?? $payment->typeLabel())
+                : $payment->typeLabel(),
             'message' => $message,
             'amount_label' => $amountLabel,
             'type_label' => $payment->typeLabel(),

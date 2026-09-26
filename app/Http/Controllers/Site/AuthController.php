@@ -70,6 +70,15 @@ class AuthController extends Controller
             $request->session()->put('login_redirect', $redirect);
         }
 
+        if ($aff = $request->query('aff')) {
+            $affiliate = app(AffiliateService::class)->resolveByPublicCode((string) $aff);
+            if ($affiliate) {
+                $request->session()->put('affiliate_code', strtoupper(trim((string) $aff)));
+                app(AffiliateAttributionService::class)
+                    ->establishClaim($request, $affiliate, 'login', $affiliate->affiliate_code);
+            }
+        }
+
         $partnerPortal = $request->query('portal') === 'partner';
         if ($partnerPortal) {
             $request->session()->put('login_portal', 'partner');
@@ -770,6 +779,21 @@ class AuthController extends Controller
         }
 
         if ($user->role === 'borrower' && $user->customer) {
+            $connected = app(AffiliateService::class)->connectFromPendingClaim($user->customer, $request);
+            if (is_array($connected)) {
+                $affiliate = $connected['affiliate'];
+                $request->session()->flash('affiliate_referral_outcome', $connected['outcome']);
+                $request->session()->flash('affiliate_referral_name', $affiliate->name);
+                $request->session()->flash('affiliate_referral_number', $affiliate->partner_number ?: $affiliate->vendor_number);
+                $request->session()->flash('affiliate_referral_benefits', app(AffiliateService::class)->configuredBenefitItems($affiliate));
+                $request->session()->flash('status', match ($connected['outcome']) {
+                    'attached' => __('site.affiliate_portal.referral_connected_body', ['name' => $affiliate->name]),
+                    'already' => __('site.affiliate_portal.referral_already_body', ['name' => $affiliate->name]),
+                    'protected' => __('site.affiliate_portal.referral_protected_body'),
+                    'not_allowed' => __('site.affiliate_portal.referral_not_allowed_body'),
+                    default => __('site.affiliate_portal.referral_unavailable_body'),
+                });
+            }
             if ($guarantorRedirect = app(PortalOnboardingResumeService::class)->redirectIfPending($request, $user->customer)) {
                 return $guarantorRedirect;
             }
@@ -975,9 +999,9 @@ class AuthController extends Controller
             'referralCode' => $request->query('ref'),
             'affiliateCode' => $affiliateCode,
             'affiliatePartner' => $affiliatePartner,
-            'affiliateBenefit' => $affiliatePartner
-                ? app(AffiliateService::class)->configuredMemberBenefit($affiliatePartner)
-                : '',
+            'affiliateBenefitItems' => $affiliatePartner
+                ? app(AffiliateService::class)->configuredBenefitItems($affiliatePartner)
+                : [],
             'guarantorRegistration' => $guarantorRegistration,
             'isGuarantorRegistration' => $guarantorRegistration !== null && ! $isGroupInviteRegistration,
             'isGroupInviteRegistration' => $isGroupInviteRegistration,

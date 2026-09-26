@@ -99,9 +99,9 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->postJson(route('site.borrower.payments.adjust', $payment), [
                 'promo_code' => 'KITONGA',
             ])
-            ->assertStatus(422)
-            ->assertJsonPath('ok', false)
-            ->assertJsonPath('promo_valid', false)
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('promo_valid', true)
             ->assertJsonPath('quote.has_affiliate', true)
             ->assertJsonPath('quote.affiliate_discount', 1000)
             ->assertJsonPath('quote.cash_due', 9000)
@@ -268,7 +268,7 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->assertJsonFragment(['message' => __('borrower.payments_page.show.promo_not_found_body')]);
     }
 
-    public function test_kitonga_affiliate_code_does_not_discount_existing_borrower(): void
+    public function test_kitonga_affiliate_code_discounts_existing_borrower_when_settings_allow(): void
     {
         (new \Database\Seeders\StagingUatSeeder)->run();
 
@@ -295,9 +295,9 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->postJson(route('site.borrower.payments.adjust', $payment), [
                 'promo_code' => 'KITONGA',
             ])
-            ->assertStatus(422)
-            ->assertJsonPath('ok', false)
-            ->assertJsonPath('promo_valid', false)
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('promo_valid', true)
             ->assertJsonPath('quote.affiliate_discount', 1000)
             ->assertJsonPath('quote.cash_due', 9000);
     }

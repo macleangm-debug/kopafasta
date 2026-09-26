@@ -31,6 +31,7 @@
     'hidden' => [],
     'formAttributes' => null,
     'cancelUrl' => null,
+    'feeDisclaimer' => null,
 ])
 
 @php
@@ -66,6 +67,9 @@
             @if ($reference)
                 <p class="mt-4 text-xs text-white/70">{{ __('borrower.membership.payment_reference_label') }}</p>
                 <p class="mt-1 font-mono text-sm bg-white/15 inline-block px-3 py-1.5 rounded-lg">{{ $reference }}</p>
+            @endif
+            @if (! empty($feeDisclaimer))
+                <p class="mt-4 text-xs text-white/80 leading-relaxed">{{ $feeDisclaimer }}</p>
             @endif
         </div>
         {{ $amountFooter ?? '' }}
@@ -128,6 +132,13 @@
 
                     @if (isset($promo))
                         <div x-show="stackWithPromo || !applyReward">{{ $promo }}</div>
+                    @elseif ($showPromo && ($quote['has_affiliate'] ?? false))
+                        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">
+                            {{ __('site.affiliate_portal.benefit_applied') }}
+                            @if (filled($quote['referred_by'] ?? null))
+                                <span class="block text-xs mt-1">{{ __('site.affiliate_portal.referred_by', ['name' => $quote['referred_by']]) }}</span>
+                            @endif
+                        </div>
                     @elseif ($showPromo)
                         <div x-show="stackWithPromo || !applyReward" class="rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 space-y-2">
                             <p class="text-[10px] uppercase tracking-widest text-brand font-bold">{{ __('borrower.membership.promo_section_title') }}</p>

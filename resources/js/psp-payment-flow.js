@@ -95,6 +95,14 @@ export function registerPspPaymentFlow(Alpine) {
             }
         },
 
+        publicMessage(message) {
+            const text = String(message || '');
+            if (/App\\Models|No query results|SQLSTATE|stack trace|Illuminate\\/i.test(text)) {
+                return this.copy.promoUnavailableBody || this.copy.retry || '';
+            }
+            return text;
+        },
+
         async applyPromo() {
             const code = String(this.promoCode || '').trim().toUpperCase();
             if (!code) {
@@ -122,7 +130,7 @@ export function registerPspPaymentFlow(Alpine) {
                 this.promoValid = false;
                 this.promoStatus = result.data.promo_status || 'invalid';
                 this.promoTitle = result.data.promo_title || this.copy.promoUnavailableTitle || '';
-                this.promoBody = result.data.promo_body || result.data.message || this.copy.promoInvalid || '';
+                this.promoBody = this.publicMessage(result.data.promo_body || result.data.message || this.copy.promoInvalid || '');
                 this.promoMessage = this.promoBody;
             } else {
                 this.applyReward = false;
