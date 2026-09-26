@@ -106,7 +106,7 @@
                 @else
                     <div class="grid sm:grid-cols-2 gap-3">
                         @foreach ($standing['kpi_results'] ?? [] as $kpi)
-                            @if ($kpi['enabled'] ?? false)
+                            @if (($kpi['enabled'] ?? false) && ! (($kpi['key'] ?? '') === 'qualified_referrals' && collect($standing['kpi_results'] ?? [])->contains(fn ($row) => ($row['key'] ?? '') === 'paying_members' && ($row['enabled'] ?? false))))
                                 <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
                                     <p class="text-xs text-gray-500">{{ $kpi['label'] }}</p>
                                     <p class="text-lg font-bold tabular-nums">

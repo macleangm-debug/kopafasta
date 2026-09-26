@@ -9,6 +9,7 @@ use App\Models\PartnerApplication;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\AffiliateAttributionService;
 use App\Services\AffiliateEligibilityService;
 use App\Services\AffiliateEvaluationService;
 use App\Services\AffiliateLifecycleService;
@@ -20,6 +21,7 @@ use App\Services\PartnerEnrollmentService;
 use App\Support\AffiliatePerformanceStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -52,7 +54,8 @@ class AffiliateGovernanceFeatureTest extends TestCase
         $this->assertSame(90, $settings->volumeMinActiveDays());
         $this->assertSame(25000.0, AffiliateMembershipService::config()['fee_amount_individual']);
         $this->assertSame(50000.0, AffiliateMembershipService::config()['fee_amount_company']);
-        $this->assertTrue($settings->kpiCatalog()['qualified_referrals']['enabled']);
+        $this->assertTrue($settings->kpiCatalog()['paying_members']['enabled']);
+        $this->assertFalse($settings->kpiCatalog()['qualified_referrals']['enabled']);
         $this->assertFalse($settings->kpiCatalog()['applications']['enabled']);
     }
 
@@ -133,7 +136,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
 
         $this->get('/aff/GOVPAID1')
             ->assertRedirect()
-            ->assertSessionHas(\App\Services\AffiliateAttributionService::CLAIM_SESSION_KEY);
+            ->assertSessionHas(AffiliateAttributionService::CLAIM_SESSION_KEY);
 
         $customer = Customer::create([
             'customer_number' => 'C-GOV-1',
@@ -247,14 +250,26 @@ class AffiliateGovernanceFeatureTest extends TestCase
         $this->assertSame('suspended', $first->action_taken);
         $this->assertSame(AffiliatePerformanceStatus::SUSPENDED, $affiliate->fresh()->affiliate_performance_status);
         $this->assertSame(AffiliateLifecycleService::ACTIVE, $affiliate->fresh()->affiliate_lifecycle_status);
-        $this->assertStringContainsString('Required qualified referrals: 10', (string) $affiliate->fresh()->affiliate_lifecycle_note);
+        $this->assertStringContainsString('Required paying members: 10', (string) $affiliate->fresh()->affiliate_lifecycle_note);
         $this->assertStringContainsString('Actual: 0', (string) $affiliate->fresh()->affiliate_lifecycle_note);
         $this->assertNull(app(AffiliateService::class)->findByCode('GOVEVAL1'));
 
         foreach (range(1, 10) as $i) {
+            $member = Customer::create([
+                'user_id' => User::factory()->create(['role' => 'borrower'])->id,
+                'customer_number' => 'CU-PAY-'.$i.random_int(100, 999),
+                'first_name' => 'Pay',
+                'last_name' => 'Member'.$i,
+                'phone' => '25570000'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'type' => 'individual',
+                'status' => 'active',
+                'country_code' => 'TZ',
+            ]);
             AffiliateEvent::create([
                 'vendor_id' => $affiliate->id,
-                'event_type' => 'registration',
+                'event_type' => 'commission_application_fee',
+                'customer_id' => $member->id,
+                'commission_amount' => 90,
             ]);
         }
 
@@ -265,7 +280,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
         $this->assertNotNull(app(AffiliateService::class)->findByCode('GOVEVAL1'));
         $this->assertDatabaseHas('affiliate_events', [
             'partner_id' => $affiliate->id,
-            'event_type' => 'registration',
+            'event_type' => 'commission_application_fee',
         ]);
     }
 
@@ -302,8 +317,8 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'monthly_reach' => '11-30',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
             'declaration_accepted' => '1',
-            'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
-            'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
+            'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
+            'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();
 
         $application = PartnerApplication::query()->where('email', 'gov-apply@example.com')->first();
@@ -333,8 +348,8 @@ class AffiliateGovernanceFeatureTest extends TestCase
                 'monthly_reach' => '100+',
                 'first_10_customers' => 'I will share from my existing online audience.',
                 'declaration_accepted' => '1',
-                'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
-                'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
+                'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
+                'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
             ])->assertRedirect(route('site.affiliate.apply'))
             ->assertSessionHasErrors('region');
 
@@ -352,8 +367,8 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'monthly_reach' => '100+',
             'first_10_customers' => 'I will share from my existing online audience.',
             'declaration_accepted' => '1',
-            'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
-            'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
+            'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
+            'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();
 
         $application = PartnerApplication::query()->where('email', 'online-aff@example.com')->first();

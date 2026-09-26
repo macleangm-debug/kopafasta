@@ -52,7 +52,7 @@
         <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
             <h2 class="font-bold text-white">{{ __('site.affiliate_portal.report_earnings') }}</h2>
         </div>
-        <div class="p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="p-4 sm:p-5 grid grid-cols-2 gap-3">
             <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.funnel_earned') }}</p>
                 <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['commission_earned']) }}</p>
@@ -60,15 +60,6 @@
             <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.report_withdrawn') }}</p>
                 <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['withdrawn']) }}</p>
-            </div>
-            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
-                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.report_available') }}</p>
-                <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['available']) }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.report_available_hint') }}</p>
-            </div>
-            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
-                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.report_pending') }}</p>
-                <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['pending']) }}</p>
             </div>
         </div>
     </section>
@@ -81,12 +72,12 @@
             <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $comparison['previous_label'] ?? $comparison['previous_month'] }}</p>
                 <p class="text-xl font-extrabold tabular-nums mt-1">{{ $comparison['previous_registered'] ?? 0 }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.funnel_registered') }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.funnel_paying') }}</p>
             </div>
             <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $comparison['current_label'] ?? $comparison['current_month'] }}</p>
                 <p class="text-xl font-extrabold tabular-nums mt-1">{{ $comparison['current_registered'] ?? 0 }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.funnel_registered') }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.funnel_paying') }}</p>
                 @if ($comparison['delta_percent'] !== null)
                     <p class="text-sm font-extrabold text-brand mt-2 tabular-nums">
                         {{ ($comparison['delta_percent'] > 0 ? '+' : '').$comparison['delta_percent'] }}%

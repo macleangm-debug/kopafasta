@@ -32,10 +32,15 @@
                         @endif
                         <h1 class="text-2xl sm:text-3xl font-bold mt-2">{{ __('site.affiliate_portal.impact_title') }}</h1>
                         <p class="text-sm text-white/80 mt-1">{{ __('site.affiliate_portal.impact_hero') }}</p>
-                        <p class="text-xs uppercase tracking-widest text-white/70 font-semibold mt-3">{{ __('site.affiliate_portal.results_this_month') }}</p>
+                        <p class="text-xs uppercase tracking-widest text-white/70 font-semibold mt-3">{{ __('site.affiliate_portal.progress_title') }}</p>
                         @if (! $premium && ! empty($kpiCard))
                             <p class="text-lg sm:text-xl font-semibold text-white mt-2">{{ __('site.affiliate_portal.kpi_of', ['achieved' => rtrim(rtrim(number_format($kpiCard['achieved'], 1, '.', ''), '0'), '.'), 'target' => rtrim(rtrim(number_format($kpiCard['target'], 1, '.', ''), '0'), '.')]) }}</p>
-                            <p class="text-xs text-white/75 mt-1">{{ __('site.affiliate_portal.kpi_percent', ['percent' => $kpiCard['percent']]) }}</p>
+                            <p class="text-xs text-white/75 mt-1">
+                                {{ __('site.affiliate_portal.kpi_percent', ['percent' => $kpiCard['percent']]) }}
+                                @if (($kpiCard['remaining'] ?? 0) > 0)
+                                    · {{ __('site.affiliate_portal.more_needed', ['count' => (int) ceil($kpiCard['remaining'])]) }}
+                                @endif
+                            </p>
                             <div class="mt-3 h-3 max-w-md rounded-full bg-white/15 overflow-hidden" role="progressbar" aria-valuenow="{{ $kpiCard['percent'] }}" aria-valuemin="0" aria-valuemax="100">
                                 <div class="h-full rounded-full bg-brand-gold" style="width: {{ $kpiCard['percent'] }}%"></div>
                             </div>
@@ -46,12 +51,8 @@
 
                     <div class="lg:text-right lg:justify-self-end">
                         <div>
-                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.funnel_earned') }}</p>
-                            <p class="text-2xl font-extrabold tabular-nums mt-1">{{ format_money($funnel['earned'] ?? 0) }}</p>
-                        </div>
-                        <div class="mt-3">
-                            <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('site.affiliate_portal.figure_available') }}</p>
-                            <p class="text-xl font-bold tabular-nums mt-1">{{ format_money($available ?? 0) }}</p>
+                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.hero_available') }}</p>
+                            <p class="text-2xl font-extrabold tabular-nums mt-1">{{ format_money($available ?? 0) }}</p>
                         </div>
                         <div class="mt-5 flex flex-wrap items-center gap-3 lg:justify-end">
                             <button type="button" @click="withdrawing = true; step = 'form'; tab = 'withdrawals'"
@@ -116,6 +117,10 @@
                             'value' => (string) ($funnel[$key] ?? 0),
                         ];
                     }
+                    $metrics[] = [
+                        'label' => __('site.affiliate_portal.funnel_earned'),
+                        'value' => format_money($funnel['earned'] ?? 0),
+                    ];
                     $metricCount = count($metrics);
                     $lgCols = match ($metricCount) {
                         1 => 'lg:grid-cols-1',

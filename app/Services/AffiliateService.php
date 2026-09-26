@@ -382,8 +382,9 @@ class AffiliateService
             'kopafasta_plus' => [$this->plusDiscountPercent($affiliate), 'benefit_plus_discount'],
         ];
 
+        $country = $settings->assessmentCountry($affiliate);
         foreach ($map as $feeType => [$percent, $key]) {
-            if (! $settings->appliesToFeeType($feeType) || $percent <= 0) {
+            if (! $settings->benefitAppliesInTerritory($feeType, $country) || $percent <= 0) {
                 continue;
             }
             $items[] = [
@@ -528,38 +529,9 @@ class AffiliateService
 
     public function configuredMemberBenefit(Vendor $affiliate, ?string $locale = null): string
     {
-        $locale = $locale ?: app()->getLocale();
-        $settings = app(AffiliateSettingsService::class);
-        $parts = [];
-
-        if ($settings->appliesToFeeType('application_fee')) {
-            $percent = $this->applicationDiscountPercent($affiliate);
-            if ($percent > 0) {
-                $parts[] = __('site.affiliate_portal.benefit_application_discount', [
-                    'percent' => rtrim(rtrim(number_format($percent, 1, '.', ''), '0'), '.'),
-                ], $locale);
-            }
-        }
-
-        if ($settings->appliesToFeeType('registration_fee')) {
-            $percent = $this->registrationDiscountPercent($affiliate);
-            if ($percent > 0) {
-                $parts[] = __('site.affiliate_portal.benefit_registration_discount', [
-                    'percent' => rtrim(rtrim(number_format($percent, 1, '.', ''), '0'), '.'),
-                ], $locale);
-            }
-        }
-
-        if ($settings->appliesToFeeType('kopafasta_plus')) {
-            $percent = $this->plusDiscountPercent($affiliate);
-            if ($percent > 0) {
-                $parts[] = __('site.affiliate_portal.benefit_plus_discount', [
-                    'percent' => rtrim(rtrim(number_format($percent, 1, '.', ''), '0'), '.'),
-                ], $locale);
-            }
-        }
-
-        return implode(' · ', $parts);
+        return collect($this->configuredBenefitItems($affiliate, $locale))
+            ->pluck('label')
+            ->implode(' · ');
     }
 
     public function affiliate(Customer $customer): ?Vendor

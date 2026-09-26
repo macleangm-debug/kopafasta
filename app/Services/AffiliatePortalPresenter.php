@@ -158,10 +158,10 @@ class AffiliatePortalPresenter
         $prevPeriod = $this->referralFunnel($vendor, $prevStart, $prevEnd);
         $standing = $this->evaluation->currentStanding($vendor);
         $wallet = $this->wallet($vendor);
-        $registeredNow = (int) ($thisPeriod['registered'] ?? 0);
-        $registeredPrev = (int) ($prevPeriod['registered'] ?? 0);
-        $delta = $registeredPrev > 0
-            ? round(100 * ($registeredNow - $registeredPrev) / $registeredPrev, 1)
+        $payingNow = (int) ($thisPeriod['paying'] ?? 0);
+        $payingPrev = (int) ($prevPeriod['paying'] ?? 0);
+        $delta = $payingPrev > 0
+            ? round(100 * ($payingNow - $payingPrev) / $payingPrev, 1)
             : null;
 
         return [
@@ -189,10 +189,10 @@ class AffiliatePortalPresenter
             'comparison' => [
                 'previous_month' => $prevStart->translatedFormat('F'),
                 'previous_label' => $prevStart->translatedFormat('F Y'),
-                'previous_registered' => $registeredPrev,
+                'previous_registered' => $payingPrev,
                 'current_month' => $start->translatedFormat('F'),
                 'current_label' => $start->translatedFormat('F Y'),
-                'current_registered' => $registeredNow,
+                'current_registered' => $payingNow,
                 'delta_percent' => $delta,
             ],
             'months' => $this->availableReportMonths($vendor),
@@ -390,8 +390,14 @@ class AffiliatePortalPresenter
     /** @return array{label: string, achieved: float, target: float, percent: int, remaining: float, key: string}|null */
     private function kpiCard(array $standing): ?array
     {
-        $kpi = collect($standing['kpi_results'] ?? [])
-            ->first(fn ($row) => ($row['enabled'] ?? false) && (float) ($row['target'] ?? 0) > 0);
+        $rows = collect($standing['kpi_results'] ?? []);
+        $kpi = $rows->first(fn ($row) => ($row['key'] ?? '') === 'paying_members'
+            && ($row['enabled'] ?? false)
+            && (float) ($row['target'] ?? 0) > 0)
+            ?? $rows->first(fn ($row) => ($row['enabled'] ?? false)
+                && (float) ($row['target'] ?? 0) > 0
+                && ($row['key'] ?? '') !== 'qualified_referrals')
+            ?? $rows->first(fn ($row) => ($row['enabled'] ?? false) && (float) ($row['target'] ?? 0) > 0);
         if (! is_array($kpi)) {
             return null;
         }
@@ -472,6 +478,8 @@ class AffiliatePortalPresenter
             'registered' => $funnel['registered'],
             'applied' => $funnel['applied'],
             'qualifying' => $funnel['qualifying'],
+            'paying' => $funnel['paying'] ?? 0,
+            'completed' => $funnel['completed'] ?? 0,
             'earned' => $earned,
             'visits_this_month' => $visitsNow,
             'apps_this_month' => $appsNow,
@@ -483,13 +491,13 @@ class AffiliatePortalPresenter
     /** @return list<string> */
     public function visibleFunnelKeys(): array
     {
-        return ['visited', 'registered', 'applied'];
+        return ['visited', 'registered', 'paying', 'completed'];
     }
 
     /** @return list<string> */
     public function overviewFunnelKeys(): array
     {
-        return ['visited', 'applied'];
+        return ['visited', 'registered', 'paying', 'completed'];
     }
 
     /** @return array<string, mixed> */
@@ -549,6 +557,11 @@ class AffiliatePortalPresenter
             'applied' => (clone $events)->where('event_type', 'application')->count(),
             'approved' => $approvedQuery?->count() ?? 0,
             'qualifying' => $registered,
+            'paying' => (clone $commissionEvents)
+                ->whereNotNull('customer_id')
+                ->distinct()
+                ->count('customer_id'),
+            'completed' => (clone $commissionEvents)->count(),
             'commission' => (clone $commissionEvents)->count(),
             'commission_transactions' => (clone $commissionEvents)->count(),
             'earned' => (float) (clone $commissionEvents)->sum('commission_amount'),
@@ -742,10 +755,11 @@ class AffiliatePortalPresenter
     /** @return array<string, mixed> */
     private function earningsExplanation(Vendor $vendor): array
     {
+        $country = $this->settings->assessmentCountry($vendor);
         $applies = collect($this->settings->appliesTo())
             ->filter()
             ->keys()
-            ->reject(fn ($key) => $key === 'registration_fee')
+            ->filter(fn ($key) => $this->settings->benefitAppliesInTerritory((string) $key, $country))
             ->map(fn ($key) => __('site.affiliate_portal.fee_'.$key))
             ->values()
             ->all();

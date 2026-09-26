@@ -10,6 +10,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\AffiliateAttributionService;
+use App\Services\AffiliateEvaluationService;
 use App\Services\AffiliatePortalPresenter;
 use App\Services\AffiliateService;
 use App\Services\AffiliateTermsService;
@@ -36,10 +37,14 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $this->assertSame('Commission earned', data_get($en, 'affiliate_portal.funnel_earned'));
         $this->assertSame('Registered members', data_get($en, 'affiliate_portal.funnel_registered'));
         $this->assertSame('Wanachama waliosajiliwa', data_get($sw, 'affiliate_portal.funnel_registered'));
-        $this->assertSame('Available to withdraw', data_get($en, 'affiliate_portal.figure_available'));
-        $this->assertSame('Inayoweza kutolewa', data_get($sw, 'affiliate_portal.figure_available'));
-        $this->assertSame(':achieved of :target registered members', data_get($en, 'affiliate_portal.kpi_of'));
-        $this->assertSame(':achieved kati ya wanachama :target waliosajiliwa', data_get($sw, 'affiliate_portal.kpi_of'));
+        $this->assertSame('Balance', data_get($en, 'affiliate_portal.figure_available'));
+        $this->assertSame('Salio', data_get($sw, 'affiliate_portal.figure_available'));
+        $this->assertSame('Balance', data_get($en, 'affiliate_portal.hero_available'));
+        $this->assertSame(':achieved of :target paying members', data_get($en, 'affiliate_portal.kpi_of'));
+        $this->assertSame(':achieved kati ya wanachama :target wanaolipa', data_get($sw, 'affiliate_portal.kpi_of'));
+        $this->assertSame('Paying members', data_get($en, 'affiliate_portal.funnel_paying'));
+        $this->assertSame('Completed transactions', data_get($en, 'affiliate_portal.funnel_completed'));
+        $this->assertStringNotContainsString('Available to withdraw', (string) data_get($en, 'affiliate_portal.figure_available'));
         $this->assertStringNotContainsString('qualifying members', strtolower((string) data_get($en, 'affiliate_portal.kpi_of')));
         $this->assertSame('Member', data_get($en, 'affiliate_portal.col_member'));
         $this->assertSame('Mwanachama', data_get($sw, 'affiliate_portal.col_member'));
@@ -64,11 +69,12 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $funnel = app(AffiliatePortalPresenter::class)->performance($affiliate)['funnel'];
         $this->assertSame(0, $funnel['registered']);
         $this->assertSame(0, $funnel['applied']);
-        $this->assertSame(0, $funnel['qualifying']);
+        $this->assertSame(1, $funnel['paying']);
+        $this->assertSame(1, $funnel['completed']);
         $this->assertSame(90.0, $funnel['earned']);
         $this->assertSame(1, $funnel['commission_transactions']);
-        $this->assertSame(['visited', 'registered', 'applied'], app(AffiliatePortalPresenter::class)->visibleFunnelKeys());
-        $this->assertSame(['visited', 'applied'], app(AffiliatePortalPresenter::class)->overviewFunnelKeys());
+        $this->assertSame(['visited', 'registered', 'paying', 'completed'], app(AffiliatePortalPresenter::class)->visibleFunnelKeys());
+        $this->assertSame(['visited', 'registered', 'paying', 'completed'], app(AffiliatePortalPresenter::class)->overviewFunnelKeys());
         $this->assertNotContains('qualifying', app(AffiliatePortalPresenter::class)->visibleFunnelKeys());
         $this->assertNotContains('successful', app(AffiliatePortalPresenter::class)->visibleFunnelKeys());
 
@@ -118,7 +124,7 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->assertSee('KPF-TZ-WLN5', false)
             ->assertSee(__('site.affiliate_portal.funnel_earned'), false)
             ->assertSee(__('site.affiliate_portal.figure_available'), false)
-            ->assertSee(__('site.affiliate_portal.funnel_applied'), false)
+            ->assertSee(__('site.affiliate_portal.funnel_paying'), false)
             ->assertSee('lg:text-right', false)
             ->assertDontSee('Qualifying members', false)
             ->assertDontSee('Successful customers', false)
@@ -152,8 +158,10 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->assertSee(__('site.affiliate_portal.report_activity'), false)
             ->assertSee(__('site.affiliate_portal.funnel_earned'), false)
             ->assertSee(__('site.affiliate_portal.funnel_registered'), false)
-            ->assertSee(__('site.affiliate_portal.report_available'), false)
-            ->assertSee(__('site.affiliate_portal.report_pending'), false)
+            ->assertSee(__('site.affiliate_portal.funnel_paying'), false)
+            ->assertSee(__('site.affiliate_portal.funnel_completed'), false)
+            ->assertDontSee(__('site.affiliate_portal.report_available'), false)
+            ->assertDontSee(__('site.affiliate_portal.report_pending'), false)
             ->assertSee('name="month"', false)
             ->assertSee('monthSheet', false)
             ->assertDontSee(__('site.affiliate_portal.report_conversion'), false)
@@ -180,8 +188,57 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             config('affiliates.applies_to'),
             ['registration_fee' => true]
         ));
+        $stillHiddenInTanzania = app(AffiliateService::class)->shareInvitation($affiliate->fresh(), 'en');
+        $this->assertStringNotContainsString('registration fee', strtolower($stillHiddenInTanzania));
+
+        Setting::set('country.tz.borrower_membership_allowed', true);
         $withRegistration = app(AffiliateService::class)->shareInvitation($affiliate->fresh(), 'en');
         $this->assertStringContainsString('registration fee', strtolower($withRegistration));
+    }
+
+    public function test_paying_members_count_distinct_verified_payments_not_registrations(): void
+    {
+        $affiliate = $this->affiliate();
+        $memberA = $this->customer(['member_no' => 'KPF-TZ-PAYA']);
+        $memberB = $this->customer(['member_no' => 'KPF-TZ-PAYB']);
+
+        AffiliateEvent::create([
+            'vendor_id' => $affiliate->id,
+            'event_type' => 'registration',
+            'customer_id' => $memberA->id,
+        ]);
+        foreach (range(1, 3) as $i) {
+            AffiliateEvent::create([
+                'vendor_id' => $affiliate->id,
+                'event_type' => 'commission_application_fee',
+                'customer_id' => $memberA->id,
+                'commission_amount' => 90,
+                'landing_page' => 'payment:a'.$i,
+            ]);
+        }
+        AffiliateEvent::create([
+            'vendor_id' => $affiliate->id,
+            'event_type' => 'commission_kopafasta_plus',
+            'customer_id' => $memberB->id,
+            'commission_amount' => 90,
+            'landing_page' => 'payment:b1',
+        ]);
+
+        $funnel = app(AffiliatePortalPresenter::class)->performance($affiliate)['funnel'];
+        $this->assertSame(1, $funnel['registered']);
+        $this->assertSame(2, $funnel['paying']);
+        $this->assertSame(4, $funnel['completed']);
+
+        $metrics = app(AffiliateEvaluationService::class)->metricsForPeriod(
+            $affiliate,
+            now()->subDay(),
+            now()->addDay(),
+        );
+        $this->assertSame(2, $metrics['paying_members']);
+        $this->assertSame(4, $metrics['completed_transactions']);
+        $this->assertSame(1, $metrics['registrations']);
+        $this->assertSame(2.0, collect(app(AffiliateEvaluationService::class)->kpiResults($metrics))
+            ->firstWhere('key', 'paying_members')['actual'] ?? 0);
     }
 
     public function test_checkout_benefits_cannot_recreate_a_member_relationship_from_a_leftover_claim(): void

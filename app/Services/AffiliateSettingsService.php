@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\CustomerPayment;
 use App\Models\Setting;
+use App\Models\Vendor;
+use App\Services\Plus\PlusService;
 
 class AffiliateSettingsService
 {
@@ -21,9 +24,45 @@ class AffiliateSettingsService
 
     public function appliesToFeeType(string $feeType): bool
     {
-        $feeType = \App\Models\CustomerPayment::canonicalType($feeType);
+        $feeType = CustomerPayment::canonicalType($feeType);
 
         return (bool) ($this->appliesTo()[$feeType] ?? false);
+    }
+
+    /**
+     * Affiliate benefit is offered only when Settings enable it and the
+     * territory/product actually charges that fee. Do not hide fees by country name.
+     */
+    public function benefitAppliesInTerritory(string $feeType, ?string $countryCode = null): bool
+    {
+        $feeType = CustomerPayment::canonicalType($feeType);
+        if (! $this->appliesToFeeType($feeType)) {
+            return false;
+        }
+
+        $code = strtoupper($countryCode ?: app(CountrySettingsService::class)->defaultCountryCode());
+
+        return match ($feeType) {
+            'registration_fee' => MembershipService::isRequiredForCountry($code),
+            'kopafasta_plus' => $this->plusOfferedInCountry($code),
+            default => true,
+        };
+    }
+
+    public function plusOfferedInCountry(string $countryCode): bool
+    {
+        $prices = data_get(app(PlusService::class)->config(), 'plans.monthly.prices', []);
+        $amount = (float) data_get($prices, strtoupper($countryCode).'.amount', 0);
+
+        return $amount > 0;
+    }
+
+    public function assessmentCountry(?Vendor $affiliate = null): string
+    {
+        $fromAffiliate = data_get($affiliate?->metadata, 'country')
+            ?: data_get($affiliate?->metadata, 'country_code');
+
+        return strtoupper((string) ($fromAffiliate ?: app(CountrySettingsService::class)->defaultCountryCode()));
     }
 
     public function commissionCalculationBase(): string
@@ -66,12 +105,12 @@ class AffiliateSettingsService
         return $stored;
     }
 
-    public function hybridFixedAmount(?\App\Models\Vendor $affiliate = null): float
+    public function hybridFixedAmount(?Vendor $affiliate = null): float
     {
         return (float) Setting::get('affiliates.hybrid_fixed_amount', config('affiliates.hybrid_fixed_amount', 0));
     }
 
-    public function hybridPercent(?\App\Models\Vendor $affiliate = null): float
+    public function hybridPercent(?Vendor $affiliate = null): float
     {
         return (float) Setting::get('affiliates.hybrid_percent', config('affiliates.hybrid_percent', 0));
     }
@@ -82,38 +121,38 @@ class AffiliateSettingsService
         $messages = $this->messages();
 
         return [
-            'code_prefix'                         => Setting::get('affiliates.code_prefix', config('affiliates.code_prefix')),
+            'code_prefix' => Setting::get('affiliates.code_prefix', config('affiliates.code_prefix')),
             'default_registration_discount_percent' => Setting::get('affiliates.default_registration_discount_percent', config('affiliates.default_registration_discount_percent')),
-            'default_application_discount_percent'  => Setting::get('affiliates.default_application_discount_percent', config('affiliates.default_application_discount_percent')),
-            'default_plus_discount_percent'         => Setting::get('affiliates.default_plus_discount_percent', config('affiliates.default_plus_discount_percent', 10)),
-            'default_commission_percent'          => Setting::get('affiliates.default_commission_percent', config('affiliates.default_commission_percent')),
-            'commission_mode'                     => $this->commissionMode(),
-            'fixed_commission_amounts'            => $this->fixedCommissionAmounts(),
-            'commission_tiers'                    => $this->commissionTiers(),
-            'hybrid_fixed_amount'               => $this->hybridFixedAmount(),
-            'hybrid_percent'                    => $this->hybridPercent(),
-            'evaluation'                        => $this->evaluationSettings(),
-            'fraud'                             => $this->fraudSettings(),
-            'commission_calculation_base'         => $this->commissionCalculationBase(),
-            'applies_to'                          => $this->appliesTo(),
-            'message_share_template'              => $messages['share_template'],
-            'message_referral_sms'                => $messages['referral_sms'],
-            'message_verification_notice'         => $messages['verification_notice'],
-            'message_welcome_partner'             => $messages['welcome_partner'],
-            'require_kyc_for_verification'        => $this->requireKycForVerification(),
-            'minimum_payout_amount'               => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
-            'application_fee_amount'              => (float) Setting::get('affiliates.application_fee_amount', config('affiliates.application_fee_amount', 10000)),
-            'membership'                          => AffiliateMembershipService::config(),
-            'premium'                             => $this->premiumSettings(),
-            'attribution'                         => $this->attributionSettings(),
-            'notifications'                       => $this->notificationSettings(),
-            'promo_code'                          => $this->promoCodeSettings(),
-            'terms_body_en'                       => (string) Setting::get('affiliates.terms.body_en', ''),
-            'terms_body_sw'                       => (string) Setting::get('affiliates.terms.body_sw', ''),
-            'message_share_template_sw'           => $this->localizedMessage('share_template', 'sw'),
-            'message_referral_sms_sw'             => $this->localizedMessage('referral_sms', 'sw'),
-            'message_verification_notice_sw'      => $this->localizedMessage('verification_notice', 'sw'),
-            'message_welcome_partner_sw'          => $this->localizedMessage('welcome_partner', 'sw'),
+            'default_application_discount_percent' => Setting::get('affiliates.default_application_discount_percent', config('affiliates.default_application_discount_percent')),
+            'default_plus_discount_percent' => Setting::get('affiliates.default_plus_discount_percent', config('affiliates.default_plus_discount_percent', 10)),
+            'default_commission_percent' => Setting::get('affiliates.default_commission_percent', config('affiliates.default_commission_percent')),
+            'commission_mode' => $this->commissionMode(),
+            'fixed_commission_amounts' => $this->fixedCommissionAmounts(),
+            'commission_tiers' => $this->commissionTiers(),
+            'hybrid_fixed_amount' => $this->hybridFixedAmount(),
+            'hybrid_percent' => $this->hybridPercent(),
+            'evaluation' => $this->evaluationSettings(),
+            'fraud' => $this->fraudSettings(),
+            'commission_calculation_base' => $this->commissionCalculationBase(),
+            'applies_to' => $this->appliesTo(),
+            'message_share_template' => $messages['share_template'],
+            'message_referral_sms' => $messages['referral_sms'],
+            'message_verification_notice' => $messages['verification_notice'],
+            'message_welcome_partner' => $messages['welcome_partner'],
+            'require_kyc_for_verification' => $this->requireKycForVerification(),
+            'minimum_payout_amount' => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
+            'application_fee_amount' => (float) Setting::get('affiliates.application_fee_amount', config('affiliates.application_fee_amount', 10000)),
+            'membership' => AffiliateMembershipService::config(),
+            'premium' => $this->premiumSettings(),
+            'attribution' => $this->attributionSettings(),
+            'notifications' => $this->notificationSettings(),
+            'promo_code' => $this->promoCodeSettings(),
+            'terms_body_en' => (string) Setting::get('affiliates.terms.body_en', ''),
+            'terms_body_sw' => (string) Setting::get('affiliates.terms.body_sw', ''),
+            'message_share_template_sw' => $this->localizedMessage('share_template', 'sw'),
+            'message_referral_sms_sw' => $this->localizedMessage('referral_sms', 'sw'),
+            'message_verification_notice_sw' => $this->localizedMessage('verification_notice', 'sw'),
+            'message_welcome_partner_sw' => $this->localizedMessage('welcome_partner', 'sw'),
         ];
     }
 
@@ -271,7 +310,7 @@ class AffiliateSettingsService
         $weights = $this->evaluationSettings()['weights'] ?? [];
 
         return [
-            'volume'     => (float) ($weights['volume'] ?? 0.3),
+            'volume' => (float) ($weights['volume'] ?? 0.3),
             'conversion' => (float) ($weights['conversion'] ?? 0.4),
             'commission' => (float) ($weights['commission'] ?? 0.3),
         ];
@@ -321,6 +360,16 @@ class AffiliateSettingsService
         $kpis = $this->kpiCatalog();
 
         return max(0, (int) ($kpis['qualified_referrals']['target'] ?? 10));
+    }
+
+    public function payingMembersTarget(): int
+    {
+        return max(0, (int) ($this->kpiCatalog()['paying_members']['target'] ?? 10));
+    }
+
+    public function payingMembersEnabled(): bool
+    {
+        return (bool) ($this->kpiCatalog()['paying_members']['enabled'] ?? false);
     }
 
     public function policyVersion(): int

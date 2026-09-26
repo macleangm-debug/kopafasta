@@ -70,35 +70,35 @@ class AffiliateEvaluationService
         $this->storeVolumeMetadata($affiliate->fresh(), $volume);
 
         $evaluation = AffiliateEvaluation::create([
-            'partner_id'     => $affiliate->id,
-            'period_start'   => $periodStart->toDateString(),
-            'period_end'     => $periodEnd->toDateString(),
-            'kpi_score'      => $kpiScore,
-            'risk_score'     => $riskScore,
-            'fraud_score'    => $fraudScore,
+            'partner_id' => $affiliate->id,
+            'period_start' => $periodStart->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
+            'kpi_score' => $kpiScore,
+            'risk_score' => $riskScore,
+            'fraud_score' => $fraudScore,
             'recommendation' => $recommendation,
-            'action_taken'   => $actionTaken,
-            'metrics'        => $metrics,
-            'notes'          => $this->notesFor($recommendation, $metrics),
-            'evaluated_at'   => now(),
+            'action_taken' => $actionTaken,
+            'metrics' => $metrics,
+            'notes' => $this->notesFor($recommendation, $metrics),
+            'evaluated_at' => now(),
         ]);
 
         $affiliate->update([
             'affiliate_evaluation_snapshot' => [
-                'evaluation_id'  => $evaluation->id,
-                'period_start'   => $periodStart->toDateString(),
-                'period_end'     => $periodEnd->toDateString(),
-                'kpi_score'      => $kpiScore,
-                'risk_score'     => $riskScore,
-                'fraud_score'    => $fraudScore,
+                'evaluation_id' => $evaluation->id,
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
+                'kpi_score' => $kpiScore,
+                'risk_score' => $riskScore,
+                'fraud_score' => $fraudScore,
                 'recommendation' => $recommendation,
-                'volume_target'  => $volume['target'],
+                'volume_target' => $volume['target'],
                 'volume_registrations' => $volume['registrations'],
                 'volume_consecutive_misses' => $volume['consecutive_misses'],
                 'performance_status' => $performanceStatus,
                 'policy_version' => $metrics['policy_version'],
                 'kpi_results' => $metrics['kpi_results'],
-                'evaluated_at'   => now()->toIso8601String(),
+                'evaluated_at' => now()->toIso8601String(),
             ],
         ]);
 
@@ -153,8 +153,8 @@ class AffiliateEvaluationService
 
             match ($evaluation->action_taken) {
                 'watchlisted' => $counts['watchlisted']++,
-                'suspended'   => $counts['suspended']++,
-                default       => $counts['skipped']++,
+                'suspended' => $counts['suspended']++,
+                default => $counts['skipped']++,
             };
         }
 
@@ -176,9 +176,13 @@ class AffiliateEvaluationService
         $registrations = (int) (clone $events)->where('event_type', 'registration')->count();
         $applications = (int) (clone $events)->where('event_type', 'application')->count();
 
-        $commissionsTotal = (float) (clone $events)
-            ->where('event_type', 'like', 'commission_%')
-            ->sum('commission_amount');
+        $commissionEvents = (clone $events)->where('event_type', 'like', 'commission_%');
+        $commissionsTotal = (float) (clone $commissionEvents)->sum('commission_amount');
+        $completedTransactions = (int) (clone $commissionEvents)->count();
+        $payingMembers = (int) (clone $commissionEvents)
+            ->whereNotNull('customer_id')
+            ->distinct()
+            ->count('customer_id');
 
         $paymentsBase = PartnerPayment::query()
             ->where('partner_id', $affiliate->id)
@@ -207,19 +211,21 @@ class AffiliateEvaluationService
         $loanFacts = $this->loanFactsForPeriod($affiliate, $start, $end);
 
         return [
-            'clicks'                     => $clicks,
-            'registrations'              => $registrations,
-            'applications'               => $applications,
-            'approved_loans'             => $loanFacts['approved_loans'],
-            'disbursed_loans'            => $loanFacts['disbursed_loans'],
-            'disbursed_value'            => $loanFacts['disbursed_value'],
-            'commissions_total'        => $commissionsTotal,
-            'commission_payments'      => $commissionPayments,
-            'disputed_payments'          => $disputedPayments,
-            'dispute_rate'               => $disputeRate,
+            'clicks' => $clicks,
+            'registrations' => $registrations,
+            'applications' => $applications,
+            'approved_loans' => $loanFacts['approved_loans'],
+            'disbursed_loans' => $loanFacts['disbursed_loans'],
+            'disbursed_value' => $loanFacts['disbursed_value'],
+            'commissions_total' => $commissionsTotal,
+            'paying_members' => $payingMembers,
+            'completed_transactions' => $completedTransactions,
+            'commission_payments' => $commissionPayments,
+            'disputed_payments' => $disputedPayments,
+            'dispute_rate' => $disputeRate,
             'duplicate_ip_registrations' => $duplicateIpRegistrations,
-            'click_to_reg_rate'          => $clickToRegRate,
-            'reg_to_app_rate'            => $regToAppRate,
+            'click_to_reg_rate' => $clickToRegRate,
+            'reg_to_app_rate' => $regToAppRate,
         ];
     }
 
@@ -317,14 +323,20 @@ class AffiliateEvaluationService
     {
         $periodEnd ??= $periodStart->copy()->addDays($this->settings()->evaluationPeriodDays());
         $periodKey = $periodEnd->toDateString();
-        $target = $this->settings()->monthlyRegistrationTarget();
+        $payingEnabled = $this->settings()->payingMembersEnabled();
+        $target = $payingEnabled
+            ? $this->settings()->payingMembersTarget()
+            : $this->settings()->monthlyRegistrationTarget();
+        $actual = $payingEnabled
+            ? (int) ($metrics['paying_members'] ?? 0)
+            : (int) ($metrics['registrations'] ?? 0);
         $registrations = (int) ($metrics['registrations'] ?? 0);
         $minActiveDays = $this->settings()->volumeMinActiveDays();
         $anchor = $affiliate->membership_started_at ?: $affiliate->created_at;
         $onboarding = $minActiveDays > 0
             && $anchor
             && $anchor->gt(now()->subDays($minActiveDays));
-        $missed = $target > 0 && ! $onboarding && $registrations < $target;
+        $missed = $target > 0 && ! $onboarding && $actual < $target;
         if ($affiliate->isPremiumAffiliate()) {
             $missed = false;
         }
@@ -340,6 +352,8 @@ class AffiliateEvaluationService
         return [
             'target' => $target,
             'registrations' => $registrations,
+            'actual' => $actual,
+            'paying_members' => (int) ($metrics['paying_members'] ?? 0),
             'missed' => $missed,
             'consecutive_misses' => $consecutive,
             'onboarding' => $onboarding,
@@ -358,7 +372,7 @@ class AffiliateEvaluationService
         $volume['consecutive_misses'] = (int) (data_get($meta, 'affiliate_volume.consecutive_misses') ?? 0);
         $volume['missed'] = $affiliate->isPremiumAffiliate()
             ? false
-            : ($volume['target'] > 0 && ! $volume['onboarding'] && $volume['registrations'] < $volume['target']);
+            : ($volume['target'] > 0 && ! $volume['onboarding'] && (int) ($volume['actual'] ?? $volume['registrations']) < $volume['target']);
 
         return $volume;
     }
@@ -502,11 +516,12 @@ class AffiliateEvaluationService
     /** @param  array{target?: int, registrations?: int, consecutive_misses?: int}  $volume */
     protected function applyPerformanceSuspend(Vendor $affiliate, array $volume): string
     {
-        $required = (int) ($volume['target'] ?? $this->settings()->monthlyRegistrationTarget());
-        $actual = (int) ($volume['registrations'] ?? 0);
+        $required = (int) ($volume['target'] ?? $this->settings()->payingMembersTarget());
+        $actual = (int) ($volume['actual'] ?? $volume['registrations'] ?? 0);
         $misses = (int) ($volume['consecutive_misses'] ?? 0);
+        $metric = $this->settings()->payingMembersEnabled() ? 'paying members' : 'qualified referrals';
         $reason = 'Suspended — Quarterly performance requirement not met for '.$misses
-            .' consecutive assessment periods. Required qualified referrals: '.$required
+            .' consecutive assessment periods. Required '.$metric.': '.$required
             .'. Actual: '.$actual.'. Policy v'.$this->settings()->policyVersion().'.';
 
         $affiliate->update([
@@ -619,7 +634,7 @@ class AffiliateEvaluationService
         $results = $this->kpiResults($metrics);
         $needed = $affiliate->isPremiumAffiliate()
             ? 0
-            : max(0, (int) $volume['target'] - (int) $volume['registrations']);
+            : max(0, (int) $volume['target'] - (int) ($volume['actual'] ?? $volume['registrations']));
 
         return [
             'status' => $status,
@@ -643,12 +658,14 @@ class AffiliateEvaluationService
     public function kpiResults(array $metrics): array
     {
         $actuals = [
+            'paying_members' => (float) ($metrics['paying_members'] ?? 0),
             'qualified_referrals' => (float) ($metrics['registrations'] ?? 0),
             'applications' => (float) ($metrics['applications'] ?? 0),
             'disbursed_loans' => (float) ($metrics['disbursed_loans'] ?? 0),
             'conversion' => (float) ($metrics['reg_to_app_rate'] ?? 0),
         ];
         $labels = [
+            'paying_members' => __('site.affiliate_portal.kpi_paying_members'),
             'qualified_referrals' => __('site.affiliate_portal.kpi_qualified_referrals'),
             'applications' => __('site.affiliate_portal.kpi_applications'),
             'disbursed_loans' => __('site.affiliate_portal.kpi_disbursed'),

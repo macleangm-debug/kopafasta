@@ -1873,6 +1873,9 @@ class SettingsController extends Controller
             'eval_volume_misses_before_nudge'     => ['nullable', 'integer', 'min:1', 'max:12'],
             'eval_volume_misses_before_watchlist' => ['nullable', 'integer', 'min:1', 'max:12'],
             'eval_volume_misses_before_suspend'   => ['nullable', 'integer', 'min:1', 'max:12'],
+            'kpi_paying_members_enabled'          => ['nullable', 'boolean'],
+            'kpi_paying_members_target'           => ['nullable', 'numeric', 'min:0'],
+            'kpi_paying_members_weight'           => ['nullable', 'numeric', 'min:0'],
             'kpi_qualified_referrals_enabled'     => ['nullable', 'boolean'],
             'kpi_qualified_referrals_target'      => ['nullable', 'numeric', 'min:0'],
             'kpi_qualified_referrals_weight'      => ['nullable', 'numeric', 'min:0'],
@@ -1973,6 +1976,11 @@ class SettingsController extends Controller
                 'volume_misses_before_watchlist'      => (int) ($data['eval_volume_misses_before_watchlist'] ?? 2),
                 'volume_misses_before_suspend'        => (int) ($data['eval_volume_misses_before_suspend'] ?? 3),
                 'kpis' => [
+                    'paying_members' => [
+                        'enabled' => $request->boolean('kpi_paying_members_enabled'),
+                        'target' => (float) ($data['kpi_paying_members_target'] ?? 10),
+                        'weight' => (float) ($data['kpi_paying_members_weight'] ?? 1),
+                    ],
                     'qualified_referrals' => [
                         'enabled' => $request->boolean('kpi_qualified_referrals_enabled'),
                         'target' => (float) ($data['kpi_qualified_referrals_target'] ?? $data['eval_monthly_registration_target'] ?? 10),

@@ -459,7 +459,7 @@
                                    :value="$eval['min_events_for_scoring'] ?? 3" />
                     <x-admin.input name="eval_high_click_threshold" label="High click threshold" type="number" min="1"
                                    :value="$eval['high_click_threshold'] ?? 50" />
-                    <x-admin.input name="eval_monthly_registration_target" label="Qualified referrals (target)" type="number" min="0"
+                    <x-admin.input name="eval_monthly_registration_target" label="Registered members (reporting target)" type="number" min="0"
                                    :value="$eval['monthly_registration_target'] ?? ($kpis['qualified_referrals']['target'] ?? 10)" />
                     <x-admin.input name="eval_volume_min_active_days" label="Ramp-up days before enforcement" type="number" min="0"
                                    :value="$eval['volume_min_active_days'] ?? 90" />
@@ -495,12 +495,13 @@
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @foreach ([
-                                'qualified_referrals' => 'Registered members',
+                                'paying_members' => 'Paying members',
+                                'qualified_referrals' => 'Registered members (reporting)',
                                 'applications' => 'Applications generated',
                                 'disbursed_loans' => 'Loans disbursed',
                                 'conversion' => 'Conversion % (reg → application)',
                             ] as $key => $label)
-                                @php $row = $kpis[$key] ?? ['enabled' => $key === 'qualified_referrals', 'target' => $key === 'conversion' ? 30 : 10, 'weight' => 1]; @endphp
+                                @php $row = $kpis[$key] ?? ['enabled' => $key === 'paying_members', 'target' => $key === 'conversion' ? 30 : 10, 'weight' => 1]; @endphp
                                 <tr>
                                     <td class="py-2">
                                         <input type="hidden" name="kpi_{{ $key }}_enabled" value="0">
