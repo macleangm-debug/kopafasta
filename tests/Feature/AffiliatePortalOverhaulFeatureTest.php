@@ -364,18 +364,21 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             ->assertSee('GOLD PARTNER', false)
             ->assertDontSee('2-year', false);
 
+        $affiliates = app(\App\Services\AffiliateService::class);
         $this->actingAs($user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
             ->get(route('site.affiliate.share'))
             ->assertOk()
-            ->assertSee('HELLO ', false);
+            ->assertSee('SET001', false)
+            ->assertSee($affiliates->shareInvitation($affiliate, 'en'), false);
 
         $this->actingAs($user)
             ->withSession(['locale' => 'sw', 'country' => 'TZ'])
             ->get(route('site.affiliate.share'))
             ->assertOk()
-            ->assertSee('HABARI ', false)
-            ->assertDontSee('HELLO ', false);
+            ->assertSee('SET001', false)
+            ->assertSee($affiliates->shareInvitation($affiliate, 'sw'), false)
+            ->assertDontSee($affiliates->shareInvitation($affiliate, 'en'), false);
 
         $this->expectException(\InvalidArgumentException::class);
         app(\App\Services\AffiliateService::class)->updateCode($affiliate, 'ADMIN');

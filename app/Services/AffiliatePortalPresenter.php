@@ -78,7 +78,7 @@ class AffiliatePortalPresenter
         return [
             'vendor' => $vendor,
             'links' => $links,
-            'shareMessage' => $this->affiliates->renderMessage($vendor, 'share_template'),
+            'shareMessage' => $this->affiliates->shareInvitation($vendor),
             'smsMessage' => $this->settings->message('referral_sms', $links, $locale),
             'attributionWindow' => $this->settings->attributionWindowDays(),
             'eligibility' => $eligibility,
@@ -148,6 +148,7 @@ class AffiliatePortalPresenter
             'available' => $available,
             'minPayout' => $this->settings->minimumPayoutAmount(),
             'pending' => (int) ($summary['pending'] ?? 0),
+            'hasPayoutAccount' => app(PartnerProfileService::class)->hasPayoutAccount($vendor),
             'totals' => [
                 'available' => $available,
                 'pending' => (int) ($summary['pending'] ?? 0),
@@ -256,7 +257,7 @@ class AffiliatePortalPresenter
                 'title' => __('site.affiliate_portal.lock_profile_title'),
                 'body' => __('site.affiliate_portal.lock_profile_body'),
                 'cta_label' => __('site.affiliate_portal.lock_profile_cta'),
-                'cta_url' => route('site.affiliate.profile'),
+                'cta_url' => $this->profileCompletionUrl($vendor),
             ];
         }
         if (in_array('agreement_inactive', $reasons, true) || in_array('membership_inactive', $reasons, true)) {
@@ -289,8 +290,17 @@ class AffiliatePortalPresenter
             'title' => __('site.affiliate_portal.attention_generic_title'),
             'body' => __('site.affiliate_portal.eligibility_blocked'),
             'cta_label' => __('site.affiliate_portal.nav_profile'),
-            'cta_url' => route('site.affiliate.profile'),
+            'cta_url' => $this->profileCompletionUrl($vendor),
         ];
+    }
+
+    private function profileCompletionUrl(Vendor $vendor): string
+    {
+        $section = app(PartnerProfileService::class)->firstIncompleteSection($vendor);
+
+        return $section
+            ? route('site.affiliate.profile', ['section' => $section])
+            : route('site.affiliate.profile');
     }
 
     /** @param  array<string, mixed>  $standing */

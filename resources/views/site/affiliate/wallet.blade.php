@@ -16,8 +16,21 @@
             </button>
         </div>
 
-        <div x-show="withdrawing" x-cloak class="relative mt-6 rounded-2xl bg-white/95 text-gray-900 p-5 ring-1 ring-white/40">
-            @if ($available >= $minPayout)
+        <div x-show="withdrawing" x-cloak class="relative mt-6 rounded-2xl bg-white text-gray-900 p-5 ring-1 ring-brand/15 shadow-sm">
+            @if (! ($hasPayoutAccount ?? false))
+                <p class="text-sm font-bold text-gray-900">{{ __('site.affiliate_portal.withdraw_need_account_title') }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ __('site.affiliate_portal.withdraw_need_account_body') }}</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <a href="{{ route('site.affiliate.profile', ['section' => 'payment']) }}"
+                       class="inline-flex justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                        {{ __('site.affiliate_portal.withdraw_need_account_cta') }} →
+                    </a>
+                    <button type="button" @click="withdrawing = false"
+                            class="inline-flex justify-center rounded-xl ring-1 ring-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">
+                        {{ __('site.affiliate_portal.cancel_withdraw') }}
+                    </button>
+                </div>
+            @elseif ($available >= $minPayout)
                 <form id="payout-form" method="POST" action="{{ route('site.affiliate.wallet.payout-request') }}" class="space-y-4"
                       @submit.prevent="window.confirmForm($el, {
                           title: @js(__('site.affiliate_portal.withdraw_confirm_title')),
@@ -26,7 +39,7 @@
                           tone: 'confirm',
                       })">
                     @csrf
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.withdraw') }}</h2>
+                    <h2 class="text-sm font-bold text-gray-900">{{ __('site.affiliate_portal.withdraw') }}</h2>
                     <p class="text-sm text-gray-600">{{ __('site.affiliate_portal.available_balance', ['amount' => format_money($available)]) }}</p>
                     <div class="grid sm:grid-cols-2 gap-4">
                         <div>
@@ -41,14 +54,17 @@
                                    class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:border-brand focus:ring-brand/10 outline-none">
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-3">
+                    <div class="flex flex-wrap gap-2">
                         <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('site.affiliate_portal.submit_payout') }}</button>
-                        <button type="button" @click="withdrawing = false" class="text-sm font-semibold text-gray-600">{{ __('site.affiliate_portal.cancel_withdraw') }}</button>
+                        <button type="button" @click="withdrawing = false"
+                                class="inline-flex justify-center rounded-xl ring-1 ring-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">{{ __('site.affiliate_portal.cancel_withdraw') }}</button>
                     </div>
                 </form>
             @else
-                <p class="text-sm text-gray-700">{{ __('site.affiliate_portal.payout_not_ready', ['amount' => format_money($minPayout), 'available' => format_money($available)]) }}</p>
-                <button type="button" @click="withdrawing = false" class="mt-3 text-sm font-semibold text-brand">{{ __('site.affiliate_portal.cancel_withdraw') }}</button>
+                <p class="text-sm font-bold text-gray-900">{{ __('site.affiliate_portal.withdraw') }}</p>
+                <p class="text-sm text-gray-700 mt-1">{{ __('site.affiliate_portal.payout_not_ready', ['amount' => format_money($minPayout), 'available' => format_money($available)]) }}</p>
+                <button type="button" @click="withdrawing = false"
+                        class="mt-4 inline-flex justify-center rounded-xl ring-1 ring-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">{{ __('site.affiliate_portal.cancel_withdraw') }}</button>
             @endif
         </div>
     </section>

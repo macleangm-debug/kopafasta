@@ -589,6 +589,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
         Route::prefix('affiliate-portal')->name('affiliate.')->middleware(['two_factor:partner', 'partner.pin'])->group(function () {
             Route::get('/', [AffiliateController::class, 'dashboard'])->name('dashboard');
             Route::get('/share', [AffiliateController::class, 'share'])->name('share');
+            Route::post('/share/promo-check', [AffiliateController::class, 'checkPromoCode'])->name('share.promo-check');
             Route::get('/performance', [AffiliateController::class, 'performance'])->name('performance');
             Route::get('/agreement', [AffiliateController::class, 'agreement'])->name('agreement');
             Route::get('/referrals', [AffiliateController::class, 'referrals'])->name('referrals');

@@ -39,8 +39,8 @@ class AffiliateProfileHubTest extends TestCase
             ->assertSee(__('site.partner_account.residence_section'), false)
             ->assertSee(__('site.partner_account.payment_section'), false)
             ->assertSee('data-kf-completion-hero', false)
-            ->assertSee(__('site.card_verify.my_card_title'), false)
-            ->assertSee(route('site.affiliate.profile', ['section' => 'card']), false)
+            ->assertSee(__('borrower.profile.hero_completion_cta'), false)
+            ->assertSee(route('site.affiliate.profile', ['section' => 'personal']), false)
             ->assertDontSee('data-kf-partner-card-pair', false);
     }
 

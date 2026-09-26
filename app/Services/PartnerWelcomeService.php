@@ -69,7 +69,17 @@ class PartnerWelcomeService
             'affiliate' => [
                 'subject' => __('account_welcome.affiliate.welcome_title'),
                 'body' => __('site.affiliate_portal.notify_welcome_body', ['name' => $name, 'brand' => $brand]),
-                'url' => route('site.affiliate.dashboard'),
+                'url' => route('site.affiliate.share'),
+            ],
+            'supplier' => [
+                'subject' => __('account_welcome.supplier.welcome_title'),
+                'body' => __('site.supplier_portal.notify_welcome_body', ['name' => $name, 'brand' => $brand]),
+                'url' => route('site.supplier.dashboard'),
+            ],
+            'insurance' => [
+                'subject' => __('account_welcome.insurance.welcome_title'),
+                'body' => __('site.partner_portal.notify_welcome_insurance', ['name' => $name, 'brand' => $brand]),
+                'url' => route('site.partner.dashboard'),
             ],
             'valuer' => [
                 'subject' => __('account_welcome.valuer.welcome_title'),

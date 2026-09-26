@@ -13,6 +13,7 @@
     'ctaUrl' => null,
     'ctaLabel' => null,
     'completionPercent' => null, // identity hero only; canonical ProfileCompletionService percent
+    'remainingCount' => null,
     'completionCtaUrl' => null,
     'completionCtaLabel' => null,
 ])
@@ -76,6 +77,9 @@
                                 {{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}
                             @endif
                         </p>
+                        @if ($remainingCount !== null && (int) $remainingCount > 0 && $pct < 100)
+                            <p class="text-xs sm:text-sm text-white/75">{{ trans_choice('borrower.profile.hub.remaining_count', (int) $remainingCount, ['count' => (int) $remainingCount]) }}</p>
+                        @endif
                         <div class="h-3.5 rounded-full bg-white/20 overflow-hidden ring-1 ring-white/10"
                              role="progressbar"
                              aria-valuenow="{{ $pct }}"

@@ -274,6 +274,65 @@ class AffiliateService
         return app(AffiliateSettingsService::class)->message($key, $this->messageContext($affiliate));
     }
 
+    /**
+     * Canonical Share & Earn invitation. Reads the configured member benefit;
+     * never invents a discount.
+     */
+    public function shareInvitation(Vendor $affiliate, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        $context = $this->messageContext($affiliate);
+        $benefit = $this->configuredMemberBenefit($affiliate, $locale);
+        $params = [
+            'brand' => $context['brand'] ?? brand_name(),
+            'code' => $context['affiliate_code'] ?? '',
+            'link' => $context['affiliate_link'] ?? '',
+            'benefit' => $benefit,
+        ];
+
+        if ($benefit !== '') {
+            return __('site.affiliate_portal.share_invite_with_benefit', $params, $locale);
+        }
+
+        return __('site.affiliate_portal.share_invite_neutral', $params, $locale);
+    }
+
+    public function configuredMemberBenefit(Vendor $affiliate, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        $settings = app(AffiliateSettingsService::class);
+        $parts = [];
+
+        if ($settings->appliesToFeeType('application_fee')) {
+            $percent = $this->applicationDiscountPercent($affiliate);
+            if ($percent > 0) {
+                $parts[] = __('site.affiliate_portal.benefit_application_discount', [
+                    'percent' => rtrim(rtrim(number_format($percent, 1, '.', ''), '0'), '.'),
+                ], $locale);
+            }
+        }
+
+        if ($settings->appliesToFeeType('registration_fee')) {
+            $percent = $this->registrationDiscountPercent($affiliate);
+            if ($percent > 0) {
+                $parts[] = __('site.affiliate_portal.benefit_registration_discount', [
+                    'percent' => rtrim(rtrim(number_format($percent, 1, '.', ''), '0'), '.'),
+                ], $locale);
+            }
+        }
+
+        if ($settings->appliesToFeeType('kopafasta_plus')) {
+            $percent = $this->plusDiscountPercent($affiliate);
+            if ($percent > 0) {
+                $parts[] = __('site.affiliate_portal.benefit_plus_discount', [
+                    'percent' => rtrim(rtrim(number_format($percent, 1, '.', ''), '0'), '.'),
+                ], $locale);
+            }
+        }
+
+        return implode(' · ', $parts);
+    }
+
     public function affiliate(Customer $customer): ?Vendor
     {
         if (! $customer->affiliate_vendor_id) {
@@ -338,27 +397,7 @@ class AffiliateService
     {
         abort_unless($affiliate->isAffiliate(), 403);
 
-        $rules = app(AffiliateSettingsService::class)->promoCodeSettings();
-        $code = strtoupper(trim($code));
-        $pattern = (string) ($rules['allowed_pattern'] ?? 'A-Z0-9_-');
-        $code = preg_replace('/[^'.$pattern.']/', '', $code) ?? '';
-
-        $min = max(2, (int) ($rules['min_length'] ?? 3));
-        $max = max($min, (int) ($rules['max_length'] ?? 24));
-
-        if (strlen($code) < $min || strlen($code) > $max) {
-            throw new \InvalidArgumentException(__('site.affiliate_portal.code_length', [
-                'min' => $min,
-                'max' => $max,
-            ]));
-        }
-
-        $reserved = $rules['reserved'] ?? [];
-        foreach ($reserved as $word) {
-            if ($code === $word || str_contains($code, $word)) {
-                throw new \InvalidArgumentException(__('site.affiliate_portal.code_reserved'));
-            }
-        }
+        $code = $this->assertPromoCodeShape($code);
 
         $current = strtoupper((string) ($affiliate->affiliate_code ?? ''));
         if ($code === $current) {
@@ -415,6 +454,33 @@ class AffiliateService
             'event_type' => 'promo_code_changed',
             'referral_code' => $code,
         ]);
+
+        return $code;
+    }
+
+    public function assertPromoCodeShape(string $code): string
+    {
+        $rules = app(AffiliateSettingsService::class)->promoCodeSettings();
+        $code = strtoupper(trim($code));
+        $pattern = (string) ($rules['allowed_pattern'] ?? 'A-Z0-9_-');
+        $code = preg_replace('/[^'.$pattern.']/', '', $code) ?? '';
+
+        $min = max(2, (int) ($rules['min_length'] ?? 3));
+        $max = max($min, (int) ($rules['max_length'] ?? 24));
+
+        if (strlen($code) < $min || strlen($code) > $max) {
+            throw new \InvalidArgumentException(__('site.affiliate_portal.code_length', [
+                'min' => $min,
+                'max' => $max,
+            ]));
+        }
+
+        $reserved = $rules['reserved'] ?? [];
+        foreach ($reserved as $word) {
+            if ($code === $word || str_contains($code, $word)) {
+                throw new \InvalidArgumentException(__('site.affiliate_portal.code_reserved'));
+            }
+        }
 
         return $code;
     }

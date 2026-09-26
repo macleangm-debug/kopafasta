@@ -15,36 +15,85 @@
         </div>
     </section>
 
-    <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-        @foreach ($funnelKeys as $key)
-            <div class="glass-card p-4">
-                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.funnel_'.$key) }}</p>
-                <p class="text-2xl font-bold mt-1 tabular-nums">{{ $funnel[$key] ?? 0 }}</p>
-            </div>
-        @endforeach
-        @if ($premium)
-            <div class="glass-card p-4">
-                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.impact_earned') }}</p>
-                <p class="text-2xl font-bold mt-1 tabular-nums">{{ format_money($impact['earned'] ?? 0) }}</p>
-            </div>
-        @endif
-    </div>
+    @php
+        $metrics = [];
+        foreach ($funnelKeys as $key) {
+            $metrics[] = [
+                'label' => __('site.affiliate_portal.funnel_'.$key),
+                'value' => (string) ($funnel[$key] ?? 0),
+            ];
+        }
+        if ($premium) {
+            $metrics[] = [
+                'label' => __('site.affiliate_portal.impact_earned'),
+                'value' => format_money($impact['earned'] ?? 0),
+            ];
+        } else {
+            foreach ($standing['kpi_results'] ?? [] as $kpi) {
+                if (! ($kpi['enabled'] ?? false)) {
+                    continue;
+                }
+                $actual = $kpi['key'] === 'conversion'
+                    ? number_format($kpi['actual'], 1).'%'
+                    : number_format($kpi['actual'], 0);
+                $target = $kpi['key'] === 'conversion'
+                    ? number_format($kpi['target'], 0).'%'
+                    : number_format($kpi['target'], 0);
+                $metrics[] = [
+                    'label' => $kpi['label'],
+                    'value' => $actual,
+                    'hint' => '/ '.$target,
+                ];
+            }
+        }
+        $metricCount = count($metrics);
+        $lgCols = match ($metricCount) {
+            1 => 'lg:grid-cols-1',
+            2 => 'lg:grid-cols-2',
+            4 => 'lg:grid-cols-4',
+            5 => 'lg:grid-cols-5',
+            default => 'lg:grid-cols-3',
+        };
+    @endphp
 
-    @unless ($premium)
-        <div class="grid sm:grid-cols-2 gap-4 mb-6">
-            @foreach ($standing['kpi_results'] ?? [] as $kpi)
-                @if ($kpi['enabled'] ?? false)
-                    <div class="glass-card p-5">
-                        <p class="text-xs uppercase tracking-widest text-gray-500">{{ $kpi['label'] }}</p>
-                        <p class="text-2xl font-bold tabular-nums mt-2">
-                            {{ $kpi['key'] === 'conversion' ? number_format($kpi['actual'], 1).'%' : number_format($kpi['actual'], 0) }}
-                            <span class="text-base font-medium text-gray-500">/ {{ $kpi['key'] === 'conversion' ? number_format($kpi['target'], 0).'%' : number_format($kpi['target'], 0) }}</span>
-                        </p>
+    @if ($metrics !== [])
+        <div class="mb-6" x-data="{ active: 0 }" data-kf-matokeo-rail>
+            <div class="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 scrollbar-none lg:grid {{ $lgCols }} lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-3"
+                 @scroll.passive="
+                    const cards = $event.target.querySelectorAll('[data-metric-card]');
+                    if (!cards.length) return;
+                    const left = $event.target.scrollLeft;
+                    let best = 0, bestDist = Infinity;
+                    cards.forEach((card, i) => {
+                        const dist = Math.abs(card.offsetLeft - left);
+                        if (dist < bestDist) { bestDist = dist; best = i; }
+                    });
+                    active = best;
+                 ">
+                @foreach ($metrics as $metric)
+                    <div data-metric-card class="min-w-[78%] snap-center shrink-0 lg:min-w-0 h-auto lg:h-full">
+                        <div class="glass-card p-4 h-full">
+                            <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $metric['label'] }}</p>
+                            <p class="text-2xl font-bold mt-1 tabular-nums">
+                                {{ $metric['value'] }}
+                                @if (! empty($metric['hint']))
+                                    <span class="text-base font-medium text-gray-500">{{ $metric['hint'] }}</span>
+                                @endif
+                            </p>
+                        </div>
                     </div>
-                @endif
-            @endforeach
+                @endforeach
+            </div>
+            @if ($metricCount > 1)
+                <div class="flex justify-center gap-1.5 mt-2 lg:hidden" aria-hidden="true">
+                    @foreach ($metrics as $i => $metric)
+                        <span class="size-1.5 rounded-full transition"
+                              :class="active === {{ $i }} ? 'bg-brand' : 'bg-gray-300'"></span>
+                    @endforeach
+                </div>
+            @endif
         </div>
-    @endunless
+    @endif
 
     @if ($pipeline->isEmpty())
         <x-site.empty-state

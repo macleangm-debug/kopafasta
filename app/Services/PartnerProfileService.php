@@ -180,6 +180,34 @@ class PartnerProfileService
         return (int) round(((float) $complete->avg()) * 100);
     }
 
+    public function remainingItemCount(Partner|Lender $entity): int
+    {
+        $count = 0;
+        foreach ($this->sectionsFor($entity) as $key) {
+            $count += count($this->sectionGaps($entity, $key));
+        }
+
+        return $count;
+    }
+
+    public function firstIncompleteSection(Partner|Lender $entity): ?string
+    {
+        foreach ($this->sectionsFor($entity) as $key) {
+            if (! ($this->sectionStatus($entity, $key)['complete'] ?? false)) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
+    public function hasPayoutAccount(Partner|Lender $entity): bool
+    {
+        $meta = is_array($entity->metadata ?? null) ? $entity->metadata : [];
+
+        return (bool) ($this->paymentStatus($meta)['complete'] ?? false);
+    }
+
     /**
      * Document upload types for the documents tab (company vs personal).
      *

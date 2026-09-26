@@ -38,6 +38,31 @@ class AffiliateController extends Controller
         return view('site.affiliate.share', app(AffiliatePortalPresenter::class)->share($this->affiliate()));
     }
 
+    public function checkPromoCode(Request $request)
+    {
+        $vendor = $this->affiliate();
+        $code = strtoupper(trim((string) $request->input('affiliate_code', '')));
+        $affiliates = app(AffiliateService::class);
+
+        if ($code === '' || strtoupper((string) $vendor->affiliate_code) === $code) {
+            return response()->json(['ok' => true, 'available' => true]);
+        }
+
+        try {
+            $affiliates->assertPromoCodeShape($code);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'available' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        $available = $affiliates->codeIsUnique($code, $vendor->id);
+
+        return response()->json([
+            'ok' => $available,
+            'available' => $available,
+            'message' => $available ? null : __('site.affiliate_portal.code_taken'),
+        ], $available ? 200 : 422);
+    }
+
     public function performance(): View
     {
         return view('site.affiliate.performance', app(AffiliatePortalPresenter::class)->performance($this->affiliate()));
