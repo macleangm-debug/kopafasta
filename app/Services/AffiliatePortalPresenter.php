@@ -141,18 +141,25 @@ class AffiliatePortalPresenter
         $available = $this->payouts->availableBalance($vendor, 'affiliate_commission');
         $approved = (int) ($summary['approved'] ?? 0);
         $paid = (int) ($summary['paid'] ?? 0);
+        $reserved = $this->wallet->reservedAmount($vendor);
+        $profile = app(PartnerProfileService::class);
 
         return [
             'vendor' => $vendor,
             'summary' => $summary,
             'payments' => $this->wallet->paginated($vendor),
+            'commissions' => $this->wallet->ledgerRows($vendor, $reserved),
+            'withdrawals' => $this->wallet->withdrawals($vendor),
             'available' => $available,
             'minPayout' => $this->settings->minimumPayoutAmount(),
             'pending' => (int) ($summary['pending'] ?? 0),
-            'hasPayoutAccount' => app(PartnerProfileService::class)->hasPayoutAccount($vendor),
+            'inProgress' => $reserved,
+            'payoutAccountLabel' => $profile->payoutAccountLabel($vendor),
+            'hasPayoutAccount' => $profile->hasPayoutAccount($vendor),
             'totals' => [
                 'available' => $available,
                 'pending' => (int) ($summary['pending'] ?? 0),
+                'in_progress' => $reserved,
                 'earned' => $approved + $paid + (int) ($summary['pending'] ?? 0),
                 'withdrawn' => $paid,
             ],

@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\CustomerPayment;
 use App\Models\PartnerPayment;
 use App\Models\PartnerPayoutRequest;
 use App\Models\Vendor;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class PartnerPayoutRequestService
 {
@@ -48,22 +50,45 @@ class PartnerPayoutRequestService
             }
         }
 
+        $sourceColumn = Schema::hasColumn('partner_payout_requests', 'source_type')
+            ? 'source_type'
+            : 'wallet_type';
+
+        $open = PartnerPayoutRequest::query()
+            ->where('partner_id', $vendor->id)
+            ->where($sourceColumn, $sourceType)
+            ->where('status', 'pending')
+            ->exists();
+        if ($open) {
+            throw new \InvalidArgumentException(__('site.affiliate_portal.payout_already_pending'));
+        }
+
         $available = $this->availableBalance($vendor, $sourceType);
         if ($amount > $available) {
             throw new \InvalidArgumentException(__('site.affiliate_portal.payout_exceeds_balance', ['available' => format_money($available)]));
         }
 
-        $sourceColumn = Schema::hasColumn('partner_payout_requests', 'source_type')
-            ? 'source_type'
-            : 'wallet_type';
-
-        return PartnerPayoutRequest::create([
+        $payload = [
             'partner_id'   => $vendor->id,
             $sourceColumn  => $sourceType,
             'amount'       => $amount,
             'status'       => 'pending',
             'notes'        => filled($notes) ? trim($notes) : null,
-        ]);
+        ];
+        if ($sourceColumn !== 'wallet_type' && Schema::hasColumn('partner_payout_requests', 'wallet_type')) {
+            $payload['wallet_type'] = $sourceType;
+        }
+        if ($sourceColumn !== 'source_type' && Schema::hasColumn('partner_payout_requests', 'source_type')) {
+            $payload['source_type'] = $sourceType;
+        }
+        if (Schema::hasColumn('partner_payout_requests', 'request_number')) {
+            $payload['request_number'] = $this->uniqueRequestNumber();
+        }
+        if (Schema::hasColumn('partner_payout_requests', 'payout_account_label')) {
+            $payload['payout_account_label'] = app(PartnerProfileService::class)->payoutAccountLabel($vendor);
+        }
+
+        return PartnerPayoutRequest::create($payload);
     }
 
     public function approve(PartnerPayoutRequest $request, ?\App\Models\User $actor = null): PartnerPayoutRequest
@@ -127,6 +152,9 @@ class PartnerPayoutRequestService
             ];
             if (Schema::hasColumn('partner_payout_requests', 'paid_at')) {
                 $payload['paid_at'] = now();
+            }
+            if (Schema::hasColumn('partner_payout_requests', 'payment_reference') && blank($request->payment_reference)) {
+                $payload['payment_reference'] = $this->uniquePayoutPaymentReference();
             }
 
             $request->update($payload);
@@ -211,7 +239,7 @@ class PartnerPayoutRequestService
                     ['account_id' => $payableId, 'debit' => $amount, 'credit' => 0, 'description' => 'Partner payout'],
                     ['account_id' => $cashId, 'debit' => 0, 'credit' => $amount, 'description' => 'Cash/bank'],
                 ],
-                'Partner payout #'.$request->id,
+                'Partner payout '.($request->payment_reference ?: '#'.$request->id),
                 $request,
                 now()->toDateString(),
                 'Partner payout request marked paid',
@@ -241,5 +269,27 @@ class PartnerPayoutRequestService
         return \Illuminate\Support\Facades\Route::has('site.partner.payments')
             ? route('site.partner.payments')
             : null;
+    }
+
+    private function uniqueRequestNumber(): string
+    {
+        do {
+            $number = 'WDR-'.strtoupper(Str::random(6));
+        } while (PartnerPayoutRequest::query()->where('request_number', $number)->exists());
+
+        return $number;
+    }
+
+    private function uniquePayoutPaymentReference(): string
+    {
+        do {
+            $ref = 'PAY-'.strtoupper(Str::random(6));
+        } while (
+            CustomerPayment::query()->where('reference', $ref)->exists()
+            || (Schema::hasColumn('partner_payout_requests', 'payment_reference')
+                && PartnerPayoutRequest::query()->where('payment_reference', $ref)->exists())
+        );
+
+        return $ref;
     }
 }

@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\AffiliateEvent;
 use App\Models\Customer;
+use App\Models\CustomerPayment;
 use App\Models\LoanApplication;
+use App\Models\PartnerPayment;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -847,12 +849,39 @@ class AffiliateService
             return null;
         }
 
-        return DB::transaction(function () use ($quote, $customer, $feeType, $refType, $refId): AffiliateEvent {
+        $payment = ($refType === CustomerPayment::class && $refId)
+            ? CustomerPayment::query()->find($refId)
+            : null;
+        $paymentKey = $payment ? 'payment:'.$payment->id : null;
+
+        if ($payment?->reference) {
+            $existingWallet = PartnerPayment::query()
+                ->where('source_type', 'affiliate_commission')
+                ->where('reference', $payment->reference)
+                ->first();
+            if ($existingWallet) {
+                return AffiliateEvent::query()->find($existingWallet->source_id);
+            }
+        }
+
+        if ($paymentKey) {
+            $existingEvent = AffiliateEvent::query()
+                ->where('customer_id', $customer->id)
+                ->where('event_type', 'commission_'.$feeType)
+                ->where('landing_page', $paymentKey)
+                ->first();
+            if ($existingEvent) {
+                return $existingEvent;
+            }
+        }
+
+        return DB::transaction(function () use ($quote, $customer, $feeType, $payment, $paymentKey): AffiliateEvent {
             $event = AffiliateEvent::create([
                 'vendor_id'           => $quote['affiliate']->id,
                 'event_type'          => 'commission_'.$feeType,
                 'customer_id'         => $customer->id,
                 'commission_amount'   => $quote['commission'],
+                'landing_page'        => $paymentKey,
             ]);
 
             app(PartnerSettlementService::class)->accrue(
@@ -861,6 +890,8 @@ class AffiliateService
                 'affiliate_commission',
                 $event->id,
                 'Affiliate commission on '.str_replace('_', ' ', $feeType),
+                null,
+                $payment?->reference,
             );
 
             app(NotificationService::class)->notifyPartnerOnce($quote['affiliate'], 'affiliate_commission_earned', [

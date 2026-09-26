@@ -132,7 +132,7 @@
 
                     @if (isset($promo))
                         <div x-show="stackWithPromo || !applyReward">{{ $promo }}</div>
-                    @elseif ($showPromo && ($quote['has_affiliate'] ?? false))
+                    @elseif ($showPromo && ($quote['has_affiliate'] ?? false) && ($quote['affiliate_discount'] ?? 0) > 0)
                         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">
                             {{ __('site.affiliate_portal.benefit_applied') }}
                             @if (filled($quote['referred_by'] ?? null))

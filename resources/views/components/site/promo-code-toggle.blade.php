@@ -13,7 +13,9 @@
 
 @php
     $hasCode = filled($value) || filled(data_get($quote, 'promo_code'));
-    $autoApplied = ($quote['affiliate_auto_applied'] ?? false) && ($quote['has_affiliate'] ?? false);
+    $autoApplied = ($quote['affiliate_auto_applied'] ?? false)
+        && ($quote['has_affiliate'] ?? false)
+        && (float) ($quote['affiliate_discount'] ?? 0) > 0;
 @endphp
 
 <div

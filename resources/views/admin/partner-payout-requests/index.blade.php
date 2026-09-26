@@ -20,18 +20,21 @@
         <table class="min-w-full text-sm">
             <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
+                    <th class="px-4 py-3">Request ID</th>
                     <th class="px-4 py-3">Partner</th>
                     <th class="px-4 py-3">Type</th>
                     <th class="px-4 py-3">Amount</th>
                     <th class="px-4 py-3">Status</th>
                     <th class="px-4 py-3">Notes</th>
                     <th class="px-4 py-3">Requested</th>
+                    <th class="px-4 py-3">Payment ID</th>
                     <th class="px-4 py-3">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse ($requests as $row)
                     <tr class="align-top">
+                        <td class="px-4 py-3 font-mono text-xs">{{ $row->requestNumber() }}</td>
                         <td class="px-4 py-3">
                             <p class="font-semibold text-gray-900">{{ $row->partner?->name ?? '—' }}</p>
                             <p class="text-xs text-gray-500 font-mono">{{ $row->partner?->partner_number ?? $row->partner?->vendor_number }}</p>
@@ -41,6 +44,7 @@
                         <td class="px-4 py-3">{{ ucfirst($row->status) }}</td>
                         <td class="px-4 py-3 text-xs text-gray-600 max-w-xs">{{ $row->notes ?: '—' }}</td>
                         <td class="px-4 py-3 text-xs text-gray-500">{{ $row->created_at?->format('d M Y H:i') }}</td>
+                        <td class="px-4 py-3 font-mono text-xs">{{ $row->payoutPaymentId() }}</td>
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap gap-2">
                                 @if ($row->status === 'pending')

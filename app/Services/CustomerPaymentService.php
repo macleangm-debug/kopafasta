@@ -1439,7 +1439,13 @@ class CustomerPaymentService
             'wallet_applied' => 0,
         ];
 
-        app(PaymentGateService::class)->settle($customer, $quote, $payment->payment_type);
+        app(PaymentGateService::class)->settle(
+            $customer,
+            $quote,
+            $payment->payment_type,
+            CustomerPayment::class,
+            $payment->id,
+        );
 
         $meta = (array) ($payment->provider_meta ?? []);
         $meta['pricing'] = array_merge($pricing, [

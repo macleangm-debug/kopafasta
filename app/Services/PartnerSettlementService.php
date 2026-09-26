@@ -20,6 +20,7 @@ class PartnerSettlementService
         ?int $sourceId = null,
         ?string $description = null,
         ?int $vendorTaskId = null,
+        ?string $reference = null,
     ): VendorPayment {
         if ($amount <= 0) {
             throw new \InvalidArgumentException('Settlement amount must be positive.');
@@ -34,6 +35,7 @@ class PartnerSettlementService
             'source_type'     => $sourceType,
             'source_id'       => $sourceId,
             'description'     => $description,
+            'reference'       => $reference,
         ]);
 
         if ($this->shouldAutoApprove($vendor, $sourceType, $amount)) {

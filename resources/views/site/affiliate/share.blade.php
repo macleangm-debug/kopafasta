@@ -38,8 +38,8 @@
         </div>
     </section>
 
-    <div class="grid lg:grid-cols-[3fr_2fr] gap-4 lg:gap-5 items-start">
-        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white" x-data="{
+    <div class="grid lg:grid-cols-[3fr_2fr] gap-4 lg:gap-5 items-start lg:items-stretch">
+        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white lg:h-full flex flex-col" x-data="{
             referralSheet: false,
             referralMenu: false,
             pop: { top: 0, left: 0 },
@@ -58,7 +58,7 @@
                             aria-label="{{ __('site.affiliate_portal.how_referrals_work') }}">i</button>
                 </div>
             </div>
-            <div class="px-4 sm:px-5 py-4">
+            <div class="px-4 sm:px-5 py-4 flex-1">
                 <p class="text-sm text-gray-800 whitespace-pre-line leading-relaxed" data-kf-promo-message>{{ $shareMessage }}</p>
             </div>
             <x-site.bottom-sheet :title="__('site.affiliate_portal.how_referrals_work')" open="referralSheet">
@@ -75,7 +75,7 @@
             </template>
         </section>
 
-        <section class="kf-premium-panel rounded-2xl relative overflow-hidden"
+        <section class="kf-premium-panel rounded-2xl relative overflow-hidden lg:h-full"
                  x-data="affiliatePromoEditor({
                     initial: @js(old('affiliate_code', $vendor->affiliate_code)),
                     startEditing: @js((bool) old('affiliate_code')),

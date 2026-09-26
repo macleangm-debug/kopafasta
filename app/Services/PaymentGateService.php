@@ -176,7 +176,7 @@ class PaymentGateService
             'code_kind' => $codeKind,
             'referrer' => $hasReferrer ? $referrals->referrer($customer) : null,
             'referred_by' => $hasAffiliate ? $affiliates->affiliate($customer)?->name : null,
-            'affiliate_auto_applied' => $hasAffiliate,
+            'affiliate_auto_applied' => $hasAffiliate && $affiliateDiscount > 0,
             'affiliate_locked' => $hasAffiliate && app(AffiliateAttributionService::class)->isLocked($customer),
             'streak_discount' => 0.0,
         ], $feeType);

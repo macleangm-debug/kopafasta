@@ -457,6 +457,27 @@ class PartnerProfileService
         return (bool) ($this->paymentStatus($meta)['complete'] ?? false);
     }
 
+    public function payoutAccountLabel(Partner|Lender $entity): string
+    {
+        $meta = is_array($entity->metadata ?? null) ? $entity->metadata : [];
+        $payout = is_array($meta['payout_account'] ?? null) ? $meta['payout_account'] : [];
+        $type = (string) ($payout['type'] ?? '');
+        if ($type === 'mobile_money') {
+            $number = (string) ($payout['mobile_number'] ?? '');
+            $tail = $number !== '' ? substr($number, -4) : '';
+
+            return trim(($payout['mobile_provider'] ?? __('site.affiliate_portal.payout_account')).($tail !== '' ? ' · ···'.$tail : ''));
+        }
+        if ($type === 'bank') {
+            $number = (string) ($payout['account_number'] ?? '');
+            $tail = $number !== '' ? substr($number, -4) : '';
+
+            return trim(($payout['bank_name'] ?? __('site.affiliate_portal.payout_account')).($tail !== '' ? ' · ···'.$tail : ''));
+        }
+
+        return $this->payoutAccountName($entity) ?: '—';
+    }
+
     /**
      * Document upload types for the documents tab (company vs personal).
      *
