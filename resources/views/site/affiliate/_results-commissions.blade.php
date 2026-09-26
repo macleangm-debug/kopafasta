@@ -18,8 +18,8 @@
                     <th class="px-5 py-3">{{ __('site.affiliate_portal.col_date') }}</th>
                     <th class="px-5 py-3">{{ __('site.affiliate_portal.col_member') }}</th>
                     <th class="px-5 py-3">{{ __('site.affiliate_portal.col_paid_for') }}</th>
-                    <th class="px-5 py-3">{{ __('site.affiliate_portal.col_payment_amount') }}</th>
-                    <th class="px-5 py-3">{{ __('site.affiliate_portal.col_your_commission') }}</th>
+                    <th class="px-5 py-3 lg:text-right">{{ __('site.affiliate_portal.col_payment_amount') }}</th>
+                    <th class="px-5 py-3 lg:text-right">{{ __('site.affiliate_portal.col_your_commission') }}</th>
                     <th class="px-5 py-3">{{ __('site.affiliate_portal.col_commission_status') }}</th>
                 </tr>
             </thead>
@@ -30,8 +30,8 @@
                         <td class="px-5 py-3 text-xs text-gray-600">{{ optional($row['date'])->timezone(config('app.timezone'))->translatedFormat('d M Y') }}</td>
                         <td class="px-5 py-3 font-mono text-xs">{{ $row['member_no'] }}</td>
                         <td class="px-5 py-3">{{ $row['paid_for'] }}</td>
-                        <td class="px-5 py-3 tabular-nums">{{ $row['payment_amount'] !== null ? format_money($row['payment_amount']) : '—' }}</td>
-                        <td class="px-5 py-3 font-semibold tabular-nums">{{ format_money($row['commission']) }}</td>
+                        <td class="px-5 py-3 tabular-nums lg:text-right">{{ $row['payment_amount'] !== null ? format_money($row['payment_amount']) : '—' }}</td>
+                        <td class="px-5 py-3 font-semibold tabular-nums lg:text-right">{{ format_money($row['commission']) }}</td>
                         <td class="px-5 py-3">
                             <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1
                                 {{ match($row['status']) {

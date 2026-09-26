@@ -895,6 +895,13 @@ return [
         'country_coming_soon' => ':country is not available for this licensed digital lending entity yet.',
     ],
 
+    'account_theme' => [
+        'toggle' => 'Light or dark',
+        'light' => 'Light',
+        'dark' => 'Dark',
+        'hint' => 'Applies to your borrower and partner account.',
+    ],
+
     'help_hub' => [
         'title' => 'Help & feedback',
         'ask_question' => 'Get instant answers',
@@ -2048,8 +2055,10 @@ return [
         'conversion_visits_to_apps' => 'Applications / visits',
         'conversion_apps_to_qualifying' => 'Registered members / applications',
         'report_withdrawn' => 'Withdrawn',
-        'report_available' => 'Balance',
-        'report_available_hint' => 'Completed commission currently held',
+        'report_available' => 'Current balance',
+        'report_available_hint' => 'Wallet now, not this month’s earnings',
+        'report_balance' => 'Current balance',
+        'report_balance_hint' => 'Wallet now, not this month’s earnings',
         'report_requested' => 'Requested',
         'report_processing' => 'Processing',
         'report_paid' => 'Paid',

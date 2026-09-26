@@ -14,7 +14,9 @@ use App\Http\Middleware\PreventNonProductionIndexing;
 use App\Http\Middleware\QuietBrowserNotifications;
 use App\Http\Middleware\RestrictConsoleSettings;
 use App\Models\AuditLog;
+use App\Services\AccountThemeService;
 use App\Services\BrokenPageRecorder;
+use App\Support\BorrowerRegistrationGate;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -39,6 +41,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->validateCsrfTokens(except: [
             'webhooks/payin',
+        ]);
+
+        $middleware->encryptCookies(except: [
+            AccountThemeService::COOKIE,
         ]);
 
         $middleware->alias([
@@ -84,7 +90,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             // Incomplete borrower registration must not hijack Login / Register START CTAs.
             // Release happens on site.auth.entry, then the real guest page is shown.
-            if ($user && \App\Support\BorrowerRegistrationGate::isIncomplete($user)) {
+            if ($user && BorrowerRegistrationGate::isIncomplete($user)) {
                 if ($request->is('login')) {
                     return route('site.auth.entry', ['to' => 'login'] + $request->query());
                 }

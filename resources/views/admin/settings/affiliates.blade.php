@@ -436,7 +436,7 @@
         <x-admin.settings-panel id="evaluation">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
                 <h3 class="text-sm font-semibold text-gray-900 mb-1">Affiliate performance &amp; automation</h3>
-                <p class="text-xs text-gray-500">Used by <span class="font-mono">php artisan affiliate:evaluate</span>. The formal assessment period defaults to 90 days (quarterly) and is Settings-owned. Qualified referrals use existing registration events. First miss warns; repeated misses move to At risk then Suspended. Fraud still suspends compliance immediately. Field partners use <a href="{{ route('admin.settings.partner-performance') }}" class="font-semibold text-brand hover:underline">Partner performance</a>.</p>
+                <p class="text-xs text-gray-500">Used by <span class="font-mono">php artisan affiliate:evaluate</span>. Assessment KPI is Paying members (Settings-owned target and period). Registered members stays a funnel/reporting metric and is not reused as payments. First miss warns; repeated misses move to At risk then Suspended. Fraud still suspends compliance immediately. Field partners use <a href="{{ route('admin.settings.partner-performance') }}" class="font-semibold text-brand hover:underline">Partner performance</a>.</p>
                 @php $eval = $values['evaluation'] ?? []; $kpis = $eval['kpis'] ?? config('affiliates.evaluation.kpis', []); @endphp
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800 mb-2">
                     <input type="hidden" name="eval_auto_apply_actions" value="0">
@@ -483,6 +483,7 @@
                                    :value="$eval['suspend_fraud_score'] ?? 75" />
                 </div>
                 <h4 class="text-xs font-semibold uppercase tracking-widest text-gray-500 pt-2">KPI catalogue (only enabled metrics are enforced)</h4>
+                <p class="text-xs text-gray-500">Paying members is the commercial assessment KPI. Registered members stays a reporting metric and must not be reused to mean payments.</p>
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead class="text-xs uppercase text-gray-500">

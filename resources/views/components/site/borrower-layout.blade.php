@@ -89,7 +89,8 @@
     $plusMoreItems = $plusWorkspace ? $mobileNavService->plusMoreItems() : [];
 @endphp
 <!doctype html>
-<html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full"
+<html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full kf-account-shell"
+      data-theme="{{ app(\App\Services\AccountThemeService::class)->resolved(auth()->user()) }}"
       data-kf-draft-owner="{{ $borrowerCustomer?->id ? 'customer:'.$borrowerCustomer->id : (auth()->id() ? 'user:'.auth()->id() : 'guest') }}">
 <head>
     <meta charset="UTF-8">
@@ -97,6 +98,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="kf-draft-owner" content="{{ $borrowerCustomer?->id ? 'customer:'.$borrowerCustomer->id : (auth()->id() ? 'user:'.auth()->id() : 'guest') }}">
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
+    <x-site.account-theme-boot />
     <x-site.seo :document="$seoDocument" />
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
@@ -200,6 +202,7 @@
                     ← {{ brand_name() }}
                 </a>
                 <div class="flex items-center gap-3 ml-auto shrink-0">
+                    <x-site.theme-toggle variant="header" />
                     <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                     <div class="relative" x-data="notificationBell()" x-init="load()">
                         <button type="button" @click="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
@@ -293,6 +296,7 @@
                 </a>
             @endif
             <div class="flex items-center gap-0.5 shrink-0">
+                <x-site.theme-toggle variant="compact" />
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <div class="relative" x-data="notificationBell()" x-init="load()">
                     <button type="button" @click="toggle()" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
@@ -391,6 +395,7 @@
                         @endforeach
                     </nav>
                     <div class="px-4 pb-4 pt-1 border-t border-white/15 space-y-3">
+                        <x-site.theme-toggle variant="mobile" />
                         <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                         <form method="POST" action="{{ route('site.logout') }}">
                             @csrf

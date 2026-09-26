@@ -890,6 +890,13 @@ return [
         'language' => 'Lugha',
         'country_coming_soon' => ':country bado haipatikani kwa huluki hii ya mikopo ya kidijitali iliyoidhinishwa.',
     ],
+
+    'account_theme' => [
+        'toggle' => 'Mwanga au giza',
+        'light' => 'Mwanga',
+        'dark' => 'Giza',
+        'hint' => 'Inatumika kwa akaunti yako ya mkopaji na mshirika.',
+    ],
     'help_hub' => [
         'title' => 'Msaada na maoni',
         'ask_question' => 'Pata majibu papo hapo',
@@ -2030,8 +2037,10 @@ return [
         'conversion_visits_to_apps' => 'Maombi / ziara',
         'conversion_apps_to_qualifying' => 'Wanachama waliosajiliwa / maombi',
         'report_withdrawn' => 'Iliyotolewa',
-        'report_available' => 'Salio',
-        'report_available_hint' => 'Kamisheni iliyokamilika inayoshikiliwa sasa',
+        'report_available' => 'Salio la sasa',
+        'report_available_hint' => 'Salio la pochi sasa, si mapato ya mwezi huu',
+        'report_balance' => 'Salio la sasa',
+        'report_balance_hint' => 'Salio la pochi sasa, si mapato ya mwezi huu',
         'report_requested' => 'Imeombwa',
         'report_processing' => 'Inachakatwa',
         'report_paid' => 'Imelipwa',

@@ -8,11 +8,15 @@ use App\Models\PartnerPayment;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Models\VendorPayment;
 use App\Services\AffiliateService;
+use App\Services\AffiliateSettingsService;
 use App\Services\AffiliateTermsService;
 use App\Services\CustomerPaymentService;
 use App\Services\PartnerPayoutRequestService;
 use App\Services\PaymentGateService;
+use App\Services\PinRecoveryChallengeService;
+use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Tests\TestCase;
@@ -100,7 +104,8 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
             ->assertSee('KPF-TZ-WLN5', false)
             ->assertSee('Kopafasta Plus', false)
             ->assertSee(__('site.affiliate_portal.commission_status_complete', [], 'en'), false)
-            ->assertSee(__('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money(49910)], 'en'), false)
+            ->assertSee(__('site.affiliate_portal.hero_available', [], 'en'), false)
+            ->assertSee('withdrawHint', false)
             ->assertDontSee('INV-', false)
             ->getContent();
 
@@ -128,7 +133,7 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
         $payouts = app(PartnerPayoutRequestService::class);
         $this->assertSame(90.0, $payouts->availableBalance($affiliate, 'affiliate_commission'));
 
-        $line = \App\Models\VendorPayment::query()->where('reference', 'PAY-AVL001')->first();
+        $line = VendorPayment::query()->where('reference', 'PAY-AVL001')->first();
         $this->assertNotNull($line);
         $this->assertSame('approved', $line->status);
 
@@ -180,7 +185,7 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
 
     public function test_settings_do_not_define_a_one_time_benefit_cap(): void
     {
-        $settings = app(\App\Services\AffiliateSettingsService::class)->forForm();
+        $settings = app(AffiliateSettingsService::class)->forForm();
 
         $this->assertTrue($settings['applies_to']['application_fee']);
         $this->assertTrue($settings['applies_to']['kopafasta_plus']);
@@ -231,8 +236,8 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
 
     private function borrowerPin(User $user): void
     {
-        app(\App\Services\PinService::class)->setPin($user, '1234');
-        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+        app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
             'mother_first_name' => 'Amina',
             'birth_village' => 'Moshi',
             'primary_school' => 'Uhuru',

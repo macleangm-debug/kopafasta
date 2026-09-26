@@ -781,3 +781,168 @@ body.kf-camera-open .kf-mobile-bottom-nav {
         transform: none;
     }
 }
+
+/*
+ * Shared Light/Dark tokens for authenticated Borrower + Partner account shells.
+ * One engine. Pages inherit; do not restyle public/admin unless they already share these classes.
+ */
+html.kf-account-shell {
+    --kf-page: #faf8f5;
+    --kf-ink: #111827;
+    --kf-muted: #6b7280;
+    --kf-surface: #ffffff;
+    --kf-line: rgba(17, 24, 39, 0.08);
+    color-scheme: light;
+}
+
+html.kf-account-shell[data-theme="dark"] {
+    --kf-page: #0c1110;
+    --kf-ink: #f3f4f6;
+    --kf-muted: #9ca3af;
+    --kf-surface: #161c1a;
+    --kf-line: rgba(255, 255, 255, 0.1);
+    --color-brand-muted: #14352f;
+    color-scheme: dark;
+}
+
+html.kf-account-shell[data-theme="dark"] body {
+    background-color: var(--kf-page) !important;
+    color: var(--kf-ink);
+}
+
+html.kf-account-shell[data-theme="dark"] .kf-theme-icon-sun { display: none; }
+html.kf-account-shell:not([data-theme="dark"]) .kf-theme-icon-moon { display: none; }
+html.kf-account-shell[data-theme="dark"] .kf-theme-icon-moon { display: block; }
+
+html.kf-account-shell[data-theme="dark"] .glass-card {
+    background-color: rgba(22, 28, 26, 0.82);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+}
+
+html.kf-account-shell[data-theme="dark"] .glass-nav {
+    background-color: rgba(12, 17, 16, 0.86);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.kf-account-shell[data-theme="dark"] .premium-gradient {
+    background: linear-gradient(135deg, #0c1110 0%, #14352f 50%, #0c1110 100%);
+}
+
+html.kf-account-shell[data-theme="dark"] .bg-\[\#faf8f5\],
+html.kf-account-shell[data-theme="dark"] .bg-white,
+html.kf-account-shell[data-theme="dark"] .bg-white\/70,
+html.kf-account-shell[data-theme="dark"] .bg-white\/80,
+html.kf-account-shell[data-theme="dark"] .bg-white\/90,
+html.kf-account-shell[data-theme="dark"] .bg-white\/95 {
+    background-color: var(--kf-surface) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .bg-gray-50,
+html.kf-account-shell[data-theme="dark"] .bg-gray-50\/80,
+html.kf-account-shell[data-theme="dark"] .bg-gray-100,
+html.kf-account-shell[data-theme="dark"] .hover\:bg-gray-50:hover,
+html.kf-account-shell[data-theme="dark"] .hover\:bg-white:hover {
+    background-color: #1d2422 !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .text-gray-900,
+html.kf-account-shell[data-theme="dark"] .text-gray-800,
+html.kf-account-shell[data-theme="dark"] .text-gray-700 {
+    color: var(--kf-ink) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .text-gray-600,
+html.kf-account-shell[data-theme="dark"] .text-gray-500 {
+    color: var(--kf-muted) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .border-gray-50,
+html.kf-account-shell[data-theme="dark"] .border-gray-100,
+html.kf-account-shell[data-theme="dark"] .border-gray-200,
+html.kf-account-shell[data-theme="dark"] .divide-gray-50 > :not([hidden]) ~ :not([hidden]),
+html.kf-account-shell[data-theme="dark"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.kf-account-shell[data-theme="dark"] .ring-gray-200,
+html.kf-account-shell[data-theme="dark"] .ring-brand\/10 {
+    border-color: var(--kf-line) !important;
+    --tw-ring-color: var(--kf-line);
+}
+
+html.kf-account-shell[data-theme="dark"] .bg-brand-muted,
+html.kf-account-shell[data-theme="dark"] .bg-brand-muted\/30,
+html.kf-account-shell[data-theme="dark"] .bg-brand-muted\/40,
+html.kf-account-shell[data-theme="dark"] .bg-brand-muted\/50,
+html.kf-account-shell[data-theme="dark"] .bg-brand-muted\/60,
+html.kf-account-shell[data-theme="dark"] .bg-brand\/\[0\.04\],
+html.kf-account-shell[data-theme="dark"] .hover\:bg-brand-muted:hover,
+html.kf-account-shell[data-theme="dark"] .hover\:bg-brand-muted\/30:hover,
+html.kf-account-shell[data-theme="dark"] .hover\:bg-brand-muted\/60:hover {
+    background-color: rgba(20, 53, 47, 0.85) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .kf-field,
+html.kf-account-shell[data-theme="dark"] .kf-auth-input,
+html.kf-account-shell[data-theme="dark"] .kf-auth-pin,
+html.kf-account-shell[data-theme="dark"] main input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):not([type='range']):not([type='submit']):not([type='button']),
+html.kf-account-shell[data-theme="dark"] main select,
+html.kf-account-shell[data-theme="dark"] main textarea {
+    background-color: #121816 !important;
+    color: var(--kf-ink) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .kf-field-readonly {
+    background-color: #1d2422 !important;
+    color: var(--kf-muted) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] svg:not([fill="none"]) path[fill="#111"],
+html.kf-account-shell[data-theme="dark"] svg:not([fill="none"]) path[fill="#000"],
+html.kf-account-shell[data-theme="dark"] svg:not([fill="none"]) path[fill="#111827"] {
+    fill: currentColor;
+}
+
+/* Branded heroes, partner chrome, and paper receipts stay as authored. */
+html.kf-account-shell[data-theme="dark"] :is(.kf-premium-panel, .kf-premium-panel-orange, .kf-premium-panel-red, .kf-premium-panel-slate, .kf-premium-panel-bronze, .kf-chrome-sidebar) .bg-white {
+    background-color: #fff !important;
+}
+
+html.kf-account-shell[data-theme="dark"] :is(.kf-premium-panel, .kf-premium-panel-orange, .kf-premium-panel-red, .kf-premium-panel-slate, .kf-premium-panel-bronze) .text-white,
+html.kf-account-shell[data-theme="dark"] :is(.kf-premium-panel, .kf-premium-panel-orange, .kf-premium-panel-red, .kf-premium-panel-slate, .kf-premium-panel-bronze) .text-white\/70,
+html.kf-account-shell[data-theme="dark"] :is(.kf-premium-panel, .kf-premium-panel-orange, .kf-premium-panel-red, .kf-premium-panel-slate, .kf-premium-panel-bronze) .text-white\/80,
+html.kf-account-shell[data-theme="dark"] :is(.kf-premium-panel, .kf-premium-panel-orange, .kf-premium-panel-red, .kf-premium-panel-slate, .kf-premium-panel-bronze) .text-white\/85 {
+    color: inherit !important;
+}
+
+.kf-receipt {
+    background: #fffbf5;
+    color: #111827;
+}
+
+html.kf-account-shell[data-theme="dark"] .kf-receipt,
+html.kf-account-shell[data-theme="dark"] .kf-receipt * {
+    color: #111827 !important;
+    background-color: #fffbf5 !important;
+    border-color: #e7e0d4 !important;
+}
+
+html.kf-account-shell::view-transition-old(root),
+html.kf-account-shell::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+html.kf-account-shell::view-transition-old(root) {
+    z-index: 1;
+}
+
+html.kf-account-shell::view-transition-new(root) {
+    z-index: 2147483646;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.kf-account-shell::view-transition-old(root),
+    html.kf-account-shell::view-transition-new(root) {
+        animation: none !important;
+    }
+}

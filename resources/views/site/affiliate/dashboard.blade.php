@@ -30,16 +30,12 @@
                     </a>
                 @endif
             </div>
-            <a href="{{ route('site.affiliate.performance', ['tab' => 'withdrawals', 'withdraw' => ($available ?? 0) >= ($minPayout ?? 0) ? 1 : 0]) }}"
-               class="rounded-2xl bg-white/10 ring-1 ring-white/20 px-5 py-4 min-w-[12rem] shrink-0">
-                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.hero_available') }}</p>
-                <p class="text-2xl font-extrabold tabular-nums mt-1" title="{{ $hero['amount'] ?? format_money($available ?? 0) }}">{{ $hero['amount_compact'] ?? format_money_compact($available ?? 0) }}</p>
-                @if (($inProgress ?? 0) > 0)
-                    <p class="text-xs text-white/70 mt-1">{{ __('site.affiliate_portal.hero_in_progress', ['amount' => format_money($inProgress)]) }}</p>
-                @elseif (($remainingToWithdraw ?? 0) > 0)
-                    <p class="text-xs text-white/70 mt-1">{{ __('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money($remainingToWithdraw)]) }}</p>
-                @endif
-            </a>
+            @include('site.affiliate._balance-card', [
+                'available' => $available ?? 0,
+                'inProgress' => $inProgress ?? 0,
+                'withdrawMode' => 'link',
+                'withdrawHref' => route('site.affiliate.performance', ['tab' => 'withdrawals', 'withdraw' => ($available ?? 0) >= ($minPayout ?? 0) ? 1 : 0]),
+            ])
         </div>
     </section>
 

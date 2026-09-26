@@ -11,7 +11,10 @@
 
     <div x-data="{
         tab: @js($tab),
-        withdrawing: {{ $openWithdraw ? 'true' : 'false' }},
+        withdrawing: {{ $openWithdraw && ($available ?? 0) >= ($minPayout ?? 0) && ($hasPayoutAccount ?? false) ? 'true' : 'false' }},
+        withdrawHint: {{ $openWithdraw && (($available ?? 0) < ($minPayout ?? 0) || ! ($hasPayoutAccount ?? false)) ? 'true' : 'false' }},
+        belowMinimum: {{ ($available ?? 0) < ($minPayout ?? 0) ? 'true' : 'false' }},
+        needsAccount: {{ ($hasPayoutAccount ?? false) ? 'false' : 'true' }},
         step: 'form',
         infoSheet: false,
         infoMenu: false,
@@ -49,22 +52,17 @@
                         @endif
                     </div>
 
-                    <div class="lg:text-right lg:justify-self-end">
-                        <div>
-                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.hero_available') }}</p>
-                            <p class="text-2xl font-extrabold tabular-nums mt-1">{{ format_money($available ?? 0) }}</p>
-                        </div>
-                        <div class="mt-5 flex flex-wrap items-center gap-3 lg:justify-end">
-                            <button type="button" @click="withdrawing = true; step = 'form'; tab = 'withdrawals'"
-                                    class="inline-flex justify-center bg-white text-brand font-semibold px-6 py-3 rounded-xl text-sm hover:bg-brand-gold transition">
-                                {{ __('site.affiliate_portal.withdraw') }}
-                            </button>
-                            @if (($remainingToWithdraw ?? 0) > 0)
-                                <p class="text-sm text-white/70">{{ __('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money($remainingToWithdraw)]) }}</p>
-                            @endif
-                        </div>
+                    <div class="lg:justify-self-end w-full lg:w-auto">
+                        @include('site.affiliate._balance-card', [
+                            'available' => $available ?? 0,
+                            'inProgress' => $inProgress ?? 0,
+                            'withdrawMode' => 'button',
+                            'hasPayoutAccount' => $hasPayoutAccount ?? false,
+                            'remainingToWithdraw' => $remainingToWithdraw ?? 0,
+                        ])
                     </div>
                 </div>
+                @include('site.affiliate._results-withdraw')
             </div>
             <div class="absolute top-5 right-5 sm:top-7 sm:right-7 z-30">
                 <button type="button" x-ref="infoBtn"
@@ -86,7 +84,6 @@
                     </div>
                 </template>
             </div>
-            @include('site.affiliate._results-withdraw')
         </section>
 
         <div class="glass-card overflow-hidden">
@@ -195,6 +192,7 @@
                                         <th class="px-4 py-3">{{ __('site.affiliate_portal.col_source') }}</th>
                                         <th class="px-4 py-3">{{ __('site.affiliate_portal.col_milestone') }}</th>
                                         <th class="px-4 py-3">{{ __('site.affiliate_portal.col_date') }}</th>
+                                        <th class="px-4 py-3 lg:text-right">{{ __('site.affiliate_portal.col_commission') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
@@ -204,6 +202,7 @@
                                             <td class="px-4 py-3">{{ $referral['source'] }}</td>
                                             <td class="px-4 py-3 text-brand font-medium">{{ $referral['stage'] }}</td>
                                             <td class="px-4 py-3 text-gray-500">{{ $referral['date']?->format('d M Y') }}</td>
+                                            <td class="px-4 py-3 tabular-nums lg:text-right">{{ format_money($referral['commission_amount'] ?? 0) }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>

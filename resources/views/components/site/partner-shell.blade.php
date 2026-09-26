@@ -81,12 +81,14 @@
     }
 @endphp
 <!doctype html>
-<html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full">
+<html lang="{{ str_replace('_', '-', $siteLocale) }}" translate="no" class="notranslate h-full kf-account-shell"
+      data-theme="{{ app(\App\Services\AccountThemeService::class)->resolved(auth()->user()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(), geolocation=(), notifications=(), push=()">
+    <x-site.account-theme-boot />
     <title>{{ $pageTitle }}</title>
     <link rel="icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}" type="image/png">
     <link rel="apple-touch-icon" href="{{ asset(ltrim((string) brand('logo_mark_url', 'images/brand/kopafasta-mark.png'), '/')) }}">
@@ -158,6 +160,7 @@
                 ← {{ brand_name() }}
             </a>
             <div class="flex items-center gap-3">
+                <x-site.theme-toggle variant="header" />
                 <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <div class="relative" x-data="{ open: false }">
                     <button type="button" @click="open = !open" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
@@ -217,6 +220,7 @@
                 <x-site.brand-mark size="sm" />
             </a>
             <div class="flex items-center gap-0.5 shrink-0">
+                <x-site.theme-toggle variant="compact" />
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <a href="{{ $notificationsHref }}" data-kf-motion="tab" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $navService->iconSvg('bell') !!}</svg>

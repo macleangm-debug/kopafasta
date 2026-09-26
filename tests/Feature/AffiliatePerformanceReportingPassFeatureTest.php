@@ -13,6 +13,7 @@ use App\Services\AffiliateAttributionService;
 use App\Services\AffiliateEvaluationService;
 use App\Services\AffiliatePortalPresenter;
 use App\Services\AffiliateService;
+use App\Services\AffiliateSettingsService;
 use App\Services\AffiliateTermsService;
 use App\Services\CustomerPaymentService;
 use App\Services\Messaging\TransactionalMessagingService;
@@ -23,6 +24,28 @@ use Tests\TestCase;
 class AffiliatePerformanceReportingPassFeatureTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_paying_members_kpi_is_settings_owned(): void
+    {
+        $settings = app(AffiliateSettingsService::class);
+
+        $this->assertTrue($settings->payingMembersEnabled());
+        $this->assertSame(10, $settings->payingMembersTarget());
+        $this->assertSame(90, $settings->evaluationPeriodDays());
+        $this->assertSame(30, $settings->attributionWindowDays());
+        $this->assertSame(50000.0, (float) $settings->minimumPayoutAmount());
+
+        Setting::set('affiliates.evaluation', array_merge(
+            $settings->evaluationSettings(),
+            ['kpis' => array_merge($settings->kpiCatalog(), [
+                'paying_members' => ['enabled' => true, 'target' => 7, 'weight' => 1],
+            ])],
+        ));
+
+        $fresh = app(AffiliateSettingsService::class);
+        $this->assertSame(7, $fresh->payingMembersTarget());
+        $this->assertTrue($fresh->payingMembersEnabled());
+    }
 
     public function test_labels_are_performance_and_utendaji(): void
     {
@@ -160,7 +183,8 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->assertSee(__('site.affiliate_portal.funnel_registered'), false)
             ->assertSee(__('site.affiliate_portal.funnel_paying'), false)
             ->assertSee(__('site.affiliate_portal.funnel_completed'), false)
-            ->assertDontSee(__('site.affiliate_portal.report_available'), false)
+            ->assertSee(__('site.affiliate_portal.report_balance'), false)
+            ->assertSee(__('site.affiliate_portal.report_balance_hint'), false)
             ->assertDontSee(__('site.affiliate_portal.report_pending'), false)
             ->assertSee('name="month"', false)
             ->assertSee('monthSheet', false)
@@ -239,6 +263,44 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $this->assertSame(1, $metrics['registrations']);
         $this->assertSame(2.0, collect(app(AffiliateEvaluationService::class)->kpiResults($metrics))
             ->firstWhere('key', 'paying_members')['actual'] ?? 0);
+    }
+
+    public function test_performance_reuses_home_balance_card_and_keeps_withdraw_feedback_inside_it(): void
+    {
+        $performance = file_get_contents(resource_path('views/site/affiliate/performance.blade.php'));
+        $dashboard = file_get_contents(resource_path('views/site/affiliate/dashboard.blade.php'));
+        $card = file_get_contents(resource_path('views/site/affiliate/_balance-card.blade.php'));
+        $withdraw = file_get_contents(resource_path('views/site/affiliate/_results-withdraw.blade.php'));
+
+        $this->assertStringContainsString('site.affiliate._balance-card', $performance);
+        $this->assertStringContainsString('site.affiliate._balance-card', $dashboard);
+        $this->assertStringContainsString('withdrawHint', $card);
+        $this->assertStringContainsString('site.affiliate_portal.remaining_to_withdraw', $card);
+        $this->assertStringContainsString('lg:justify-self-end', $performance);
+        $this->assertStringNotContainsString('payout_not_ready', $withdraw);
+        $this->assertStringNotContainsString('payout_not_ready', $performance);
+        $this->assertStringContainsString('site.affiliate._results-withdraw', $performance);
+        $this->assertSame(1, substr_count($performance, "site.affiliate._results-withdraw'"));
+        $this->assertStringContainsString('review_withdrawal', $withdraw);
+        $this->assertStringContainsString('confirm_withdrawal', $withdraw);
+
+        $affiliate = $this->affiliate();
+        $html = $this->actingAs($affiliate->user)
+            ->withSession(['locale' => 'en', 'country' => 'TZ'])
+            ->get(route('site.affiliate.performance'))
+            ->assertOk()
+            ->assertSee(__('site.affiliate_portal.hero_available'), false)
+            ->assertSee(__('site.affiliate_portal.withdraw'), false)
+            ->assertDontSee('Qualifying members', false)
+            ->assertDontSee('Successful members', false)
+            ->assertDontSee(__('site.affiliate_portal.report_conversion'), false)
+            ->getContent();
+
+        $this->assertStringContainsString('withdrawHint', $html);
+        $this->assertStringNotContainsString(__('site.affiliate_portal.payout_not_ready', [
+            'amount' => format_money(50000),
+            'available' => format_money(0),
+        ], 'en'), $html);
     }
 
     public function test_checkout_benefits_cannot_recreate_a_member_relationship_from_a_leftover_claim(): void

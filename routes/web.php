@@ -92,6 +92,7 @@ use App\Http\Controllers\Admin\WriteOffRequestController;
 use App\Http\Controllers\Admin\WriteOffRuleController;
 use App\Http\Controllers\Auth\WebTwoFactorController;
 use App\Http\Controllers\PayInWebhookController;
+use App\Http\Controllers\Site\AccountThemeController;
 use App\Http\Controllers\Site\AccountWelcomeController;
 use App\Http\Controllers\Site\AffiliateApplicationFeeController;
 use App\Http\Controllers\Site\AffiliateController;
@@ -289,6 +290,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     // Authenticated public area (explicit web guard)
     Route::middleware('auth:web')->group(function () {
         Route::post('/logout', [App\Http\Controllers\Site\AuthController::class, 'logout'])->name('logout');
+        Route::post('/account/theme', [AccountThemeController::class, 'update'])->name('account.theme');
         Route::get('/account-welcome', [AccountWelcomeController::class, 'show'])->name('account-welcome.show');
         Route::post('/account-welcome/complete', [AccountWelcomeController::class, 'complete'])->name('account-welcome.complete');
 

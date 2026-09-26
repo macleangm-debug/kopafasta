@@ -52,7 +52,7 @@
         <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
             <h2 class="font-bold text-white">{{ __('site.affiliate_portal.report_earnings') }}</h2>
         </div>
-        <div class="p-4 sm:p-5 grid grid-cols-2 gap-3">
+        <div class="p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-3 gap-3">
             <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.funnel_earned') }}</p>
                 <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['commission_earned']) }}</p>
@@ -60,6 +60,11 @@
             <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.report_withdrawn') }}</p>
                 <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['withdrawn']) }}</p>
+            </div>
+            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
+                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.report_balance') }}</p>
+                <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['available']) }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.report_balance_hint') }}</p>
             </div>
         </div>
     </section>

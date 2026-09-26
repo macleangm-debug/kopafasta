@@ -84,6 +84,13 @@
                 />
                 <button type="submit" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('site.partner_account.settings_locale_save') }}</button>
             </form>
+            <div class="flex items-center justify-between gap-3 rounded-xl ring-1 ring-gray-200 px-4 py-3">
+                <div>
+                    <p class="text-sm font-medium text-gray-800">{{ __('site.account_theme.toggle') }}</p>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ __('site.account_theme.hint') }}</p>
+                </div>
+                <x-site.theme-toggle variant="header" />
+            </div>
         </div>
     @else
         <div class="rounded-2xl bg-gray-50 ring-1 ring-gray-100 px-4 py-4 text-sm text-gray-600 space-y-2">
