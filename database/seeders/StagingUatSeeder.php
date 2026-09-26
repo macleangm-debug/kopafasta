@@ -158,6 +158,88 @@ class StagingUatSeeder extends Seeder
                 'accepted_at' => now(),
             ]);
         }
+
+        $this->seedLoginableAffiliate([
+            'email' => 'uat.affiliate.standard@staging.kopafasta.com',
+            'phone' => '255700000011',
+            'name' => 'UAT Standard Affiliate',
+            'partner_number' => 'AFF-UAT-STD',
+            'affiliate_code' => 'UATSTD01',
+            'applicant_category' => 'individual',
+            'affiliate_premium' => false,
+        ]);
+        $this->seedLoginableAffiliate([
+            'email' => 'uat.affiliate.premium@staging.kopafasta.com',
+            'phone' => '255700000012',
+            'name' => 'UAT Premium Affiliate',
+            'partner_number' => 'AFF-UAT-PREM',
+            'affiliate_code' => 'UATPREM1',
+            'applicant_category' => 'individual',
+            'affiliate_premium' => true,
+        ]);
+        $this->seedLoginableAffiliate([
+            'email' => 'uat.affiliate.company@staging.kopafasta.com',
+            'phone' => '255700000013',
+            'name' => 'UAT Company Affiliate Ltd',
+            'legal_name' => 'UAT Company Affiliate Ltd',
+            'partner_number' => 'AFF-UAT-CO',
+            'affiliate_code' => 'UATCO001',
+            'applicant_category' => 'company',
+            'affiliate_premium' => false,
+        ]);
+    }
+
+    /** @param array<string, mixed> $row */
+    private function seedLoginableAffiliate(array $row): void
+    {
+        $user = User::query()->updateOrCreate(
+            ['email' => $row['email']],
+            [
+                'name' => $row['name'],
+                'phone' => $row['phone'],
+                'role' => 'vendor',
+                'is_active' => true,
+                'password' => Hash::make('StagingUat!2026'),
+                'email_verified_at' => now(),
+            ]
+        );
+        app(PinService::class)->setPin($user, '1234');
+        $this->enrollUatRecovery($user);
+
+        $prefs = is_array($user->preferences) ? $user->preferences : [];
+        $prefs['account_welcome_completed_at'] = now()->toIso8601String();
+        $user->forceFill(['preferences' => $prefs])->save();
+
+        $affiliate = Vendor::query()->updateOrCreate(
+            ['partner_number' => $row['partner_number']],
+            [
+                'user_id' => $user->id,
+                'vendor_number' => $row['partner_number'],
+                'name' => $row['name'],
+                'legal_name' => $row['legal_name'] ?? $row['name'],
+                'category' => 'affiliate',
+                'roles' => ['affiliate'],
+                'status' => 'active',
+                'phone' => $row['phone'],
+                'email' => $row['email'],
+                'applicant_category' => $row['applicant_category'],
+                'affiliate_premium' => (bool) $row['affiliate_premium'],
+                'affiliate_code' => $row['affiliate_code'],
+                'affiliate_kyc_status' => 'submitted',
+                'affiliate_lifecycle_status' => 'active',
+                'membership_status' => 'active',
+                'membership_started_at' => now()->subMonth(),
+                'membership_expires_at' => now()->addYear(),
+                'activated_at' => now(),
+                'address' => 'UAT staging residence, Kinondoni',
+                'coverage_type' => 'nationwide',
+            ]
+        );
+
+        $terms = app(\App\Services\AffiliateTermsService::class);
+        if (! $terms->hasAccepted($affiliate)) {
+            $terms->accept($affiliate, \Illuminate\Http\Request::create('/uat-seed', 'POST'));
+        }
     }
 
     private function enrollUatRecovery(User $user): void

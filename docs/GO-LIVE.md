@@ -27,6 +27,9 @@ After `StagingUatSeeder`:
 
 - Admin: `uat.admin@staging.kopafasta.com` / `StagingUat!2026` / PIN `1234`
 - Borrower: `uat.borrower@staging.kopafasta.com` / `StagingUat!2026` / PIN `1234` (500 loyalty points for reward tests)
+- Standard Affiliate: partner `AFF-UAT-STD` / phone `255700000011` / PIN `1234`
+- Premium Affiliate: partner `AFF-UAT-PREM` / phone `255700000012` / PIN `1234`
+- Company Affiliate: partner `AFF-UAT-CO` / phone `255700000013` / PIN `1234`
 
 Never copy production customer or payment data onto staging.
 

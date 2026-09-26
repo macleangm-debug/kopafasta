@@ -358,6 +358,9 @@
                         count: this.pages.length,
                         outputMode: this.outputMode,
                     });
+                    if (this.$el.closest('[data-document-attach-only]') && typeof window.kfFlashInlineSaved === 'function') {
+                        window.kfFlashInlineSaved(this.labels.saved || @js(__('borrower.document_upload.saved')));
+                    }
                 },
                 stopStream() {
                     if (this.stream) {

@@ -36,7 +36,7 @@ class ProfileCaptureAutosaveRewardMicroPassTest extends TestCase
         $single = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));
         $picker = file_get_contents(resource_path('views/components/site/document-source-picker.blade.php'));
 
-        $this->assertStringContainsString('captureOpen: false', $holder);
+        $this->assertStringContainsString('captureOpen: @js($startOpen && ! $document)', $holder);
         $this->assertStringContainsString('document-source-picker', $holder);
         $this->assertStringContainsString('take_photo', $picker);
         $this->assertStringContainsString("matchMedia('(min-width: 1024px)')", $picker);

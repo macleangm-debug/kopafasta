@@ -12,6 +12,7 @@
 
 <div class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 shadow-sm"
      data-document-holder
+     data-document-attach-only
      x-data="{
         captureOpen: false,
         fileName: '',

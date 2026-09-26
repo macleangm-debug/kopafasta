@@ -45,6 +45,7 @@
     }
     if ($sourceDriven || $cameraOnly) {
         $labelDefaults['saving'] = $labelDefaults['saving'] ?? __('borrower.document_upload.saving');
+        $labelDefaults['saved'] = $labelDefaults['saved'] ?? __('borrower.document_upload.saved');
     }
     $mergedLabels = array_merge($labelDefaults, $labels);
     $inlinePreview = $autoSubmit && $cameraOnly;
@@ -277,9 +278,24 @@
                     }
                 },
                 markSaved() {
-                    if (this.saveState === 'saving') {
+                    if (this.saveState === 'saving' || this.saveState === '') {
                         this.saveState = 'saved';
+                        this.submitting = false;
                         this.closeCamera();
+                    }
+                },
+                markAttachedLocally() {
+                    this.submitting = false;
+                    this.saveState = 'saved';
+                    this.closeCamera();
+                    const form = this.$el.closest('form');
+                    if (form) {
+                        delete form.dataset.kfSubmitting;
+                    }
+                    if (typeof window.kfFlashInlineSaved === 'function') {
+                        window.kfFlashInlineSaved(this.labels.saved || @js(__('borrower.document_upload.saved')));
+                    } else if (typeof window.kfHideSaving === 'function') {
+                        window.kfHideSaving();
                     }
                 },
                 markSaveError() {
@@ -508,6 +524,13 @@
                         }
                         const form = this.$el.closest('form');
                         const isApply = !!(form && (form.id === 'apply-wizard-form' || form.hasAttribute('data-apply-wizard-form')));
+                        const attachOnly = !!this.$el.closest('[data-document-attach-only]');
+                        if (attachOnly) {
+                            // Public/admin apply holders keep the file on the parent form.
+                            // Never requestSubmit() the unfinished application — that stalls on Saving….
+                            this.markAttachedLocally();
+                            return;
+                        }
                         if (form && ! isApply) {
                             this.submitClosestForm();
                         } else if (isApply) {

@@ -27,6 +27,7 @@ class AffiliateEconomicPassFeatureTest extends TestCase
         $this->assertStringContainsString('document-source-picker', $adminUpload);
         $this->assertStringContainsString('document-open-camera', $adminUpload);
         $this->assertStringContainsString('data-document-holder', $formDoc);
+        $this->assertStringContainsString('data-document-attach-only', $formDoc);
         $this->assertStringContainsString('document-source-picker', $formDoc);
         $this->assertStringContainsString('site.borrower.payments._show_body', $feePay);
         $this->assertStringContainsString('kf-premium-panel', $feePay);

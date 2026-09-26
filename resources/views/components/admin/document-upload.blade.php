@@ -10,7 +10,7 @@
     $hostId = 'admin-doc-'.md5($pageName);
 @endphp
 
-<div class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 space-y-3" data-document-holder
+<div class="rounded-2xl bg-white ring-1 ring-gray-200 px-4 py-3.5 space-y-3" data-document-holder data-document-attach-only
      @document-source.window="
         if ($event.detail?.hostId && $event.detail.hostId !== @js($hostId)) return;
         $dispatch($event.detail?.source === 'camera' ? 'document-open-camera' : 'document-open-upload', {

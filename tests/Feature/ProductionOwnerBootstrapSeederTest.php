@@ -55,6 +55,9 @@ class ProductionOwnerBootstrapSeederTest extends TestCase
     {
         $source = file_get_contents(database_path('seeders/StagingUatSeeder.php'));
         $this->assertStringContainsString("where('affiliate_code', 'KITONGA')", $source);
-        $this->assertStringContainsString('leaving the migrated affiliate unchanged', $source);
+        $this->assertStringContainsString("updateOrCreate", $source);
+        $this->assertStringContainsString('AFF-UAT-STD', $source);
+        $this->assertStringContainsString('AFF-UAT-PREM', $source);
+        $this->assertStringContainsString('AFF-UAT-CO', $source);
     }
 }

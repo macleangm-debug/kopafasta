@@ -33,7 +33,7 @@ class MicroPassP0DocContinueFeatureTest extends TestCase
 
         $this->assertStringContainsString('confirmUse()', $blade);
         $this->assertStringContainsString('document_upload.use_photo', $blade);
-        $this->assertStringContainsString('if (! this.sourceDriven || this.autoSubmit || ! this.fromCamera)', $blade);
+        $this->assertStringContainsString('if (! this.sourceDriven || this.autoSubmit || ! this.fromCamera || this.cameraOnly)', $blade);
         $this->assertStringContainsString('commitFile', $blade);
     }
 
