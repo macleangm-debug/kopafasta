@@ -6,6 +6,8 @@ use App\Http\Controllers\Site\PartnerMembershipPaymentController;
 use App\Http\Controllers\Site\VendorController;
 use Illuminate\Support\Facades\Route;
 
+require_once base_path('routes/partner_face_verification.php');
+
 /** @param 'vendor'|'partner' $prefix */
 return function (string $prefix, string $namePrefix, bool $registerDashboard = true): void {
     Route::prefix($prefix)->name($namePrefix)->group(function () use ($registerDashboard): void {
@@ -41,6 +43,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/notifications', [VendorController::class, 'notifications'])->name('notifications');
         Route::get('/profile/{section?}', [VendorController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|card');
         Route::put('/profile/{section}', [VendorController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
+        kopafasta_register_partner_face_verification_routes();
         Route::get('/membership/pay', [VendorController::class, 'membershipPayForm'])->name('membership.pay');
         Route::post('/membership/pay', [VendorController::class, 'membershipPay'])->name('membership.pay.post');
         Route::post('/membership/checkout/{payment}/pay', [PartnerMembershipPaymentController::class, 'pay'])->name('membership.checkout.pay');

@@ -26,17 +26,18 @@ use App\Http\Controllers\Admin\CreditTeamController;
 use App\Http\Controllers\Admin\CreditTeamWorkspaceController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerKycController;
-use App\Http\Controllers\Admin\DuplicateMemberController;
 use App\Http\Controllers\Admin\CustomerProfileOpsController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\DisbursementMethodController;
 use App\Http\Controllers\Admin\DocumentTemplateController;
+use App\Http\Controllers\Admin\DuplicateMemberController;
 use App\Http\Controllers\Admin\EngagementSettingsController;
 use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\FaceVerificationController;
 use App\Http\Controllers\Admin\FinanceReportsController;
 use App\Http\Controllers\Admin\FundingPoolController;
+use App\Http\Controllers\Admin\GovernancePolicyController;
 use App\Http\Controllers\Admin\GradeSettingsController;
 use App\Http\Controllers\Admin\GrowthController;
 use App\Http\Controllers\Admin\GrowthOfferController;
@@ -95,7 +96,6 @@ use App\Http\Controllers\Site\AccountWelcomeController;
 use App\Http\Controllers\Site\AffiliateApplicationFeeController;
 use App\Http\Controllers\Site\AffiliateController;
 use App\Http\Controllers\Site\AffiliateRedirectController;
-use App\Http\Controllers\Site\AffiliateVerificationController;
 use App\Http\Controllers\Site\ApplyController;
 use App\Http\Controllers\Site\AssetMarketplaceController;
 use App\Http\Controllers\Site\BorrowerController;
@@ -128,6 +128,7 @@ use App\Http\Controllers\Site\PartnerMembershipPaymentController;
 use App\Http\Controllers\Site\PartnerPortalController;
 use App\Http\Controllers\Site\PlusController;
 use App\Http\Controllers\Site\PublicGuarantorController;
+use App\Http\Controllers\Site\PublicPolicyController;
 use App\Http\Controllers\Site\SeoController;
 use App\Http\Controllers\Site\ShortLinkController;
 use App\Http\Controllers\Site\SupplierController;
@@ -174,12 +175,12 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/legal', [PageController::class, 'legalIndex'])->name('legal');
     Route::get('/legal/terms', [PageController::class, 'terms'])->name('legal.terms');
     Route::get('/legal/privacy', [PageController::class, 'privacy'])->name('legal.privacy');
-    Route::get('/legal/aml', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('aml'))->name('legal.aml');
-    Route::get('/legal/kyc', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('kyc'))->name('legal.kyc');
+    Route::get('/legal/aml', fn (PublicPolicyController $c) => $c->show('aml'))->name('legal.aml');
+    Route::get('/legal/kyc', fn (PublicPolicyController $c) => $c->show('kyc'))->name('legal.kyc');
     Route::get('/legal/aml-kyc', fn () => redirect()->route('site.legal.aml', [], 301));
-    Route::get('/legal/complaints', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('complaints'))->name('legal.complaints');
-    Route::get('/legal/cookies', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('cookies'))->name('legal.cookies');
-    Route::get('/responsible-lending', fn (\App\Http\Controllers\Site\PublicPolicyController $c) => $c->show('responsible_lending'))->name('responsible-lending');
+    Route::get('/legal/complaints', fn (PublicPolicyController $c) => $c->show('complaints'))->name('legal.complaints');
+    Route::get('/legal/cookies', fn (PublicPolicyController $c) => $c->show('cookies'))->name('legal.cookies');
+    Route::get('/responsible-lending', fn (PublicPolicyController $c) => $c->show('responsible_lending'))->name('responsible-lending');
     Route::get('/support', [SupportCenterController::class, 'index'])->name('support');
     Route::get('/feedback', [FeedbackController::class, 'index'])->name('feedback');
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.post');
@@ -528,6 +529,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
         });
 
         $registerPartnerPortal = require base_path('routes/partner_portal.php');
+        require_once base_path('routes/partner_face_verification.php');
 
         // ---- Partner portal (/partner primary, /vendor legacy) ----
         Route::middleware(['two_factor:partner', 'partner.pin'])->group(function () use ($registerPartnerPortal) {
@@ -553,6 +555,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
                 Route::get('/settlements', [SupplierController::class, 'settlements'])->name('settlements');
                 Route::get('/profile/{section?}', [SupplierController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|card|documents|settings');
                 Route::put('/profile/{section}', [SupplierController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
+                kopafasta_register_partner_face_verification_routes();
                 Route::get('/documents', [SupplierController::class, 'documents'])->name('documents');
                 Route::post('/documents', [SupplierController::class, 'uploadDocument'])->name('documents.store');
                 Route::get('/settings', [SupplierController::class, 'settings'])->name('settings');
@@ -570,6 +573,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
                 Route::post('/wallet/payout-request', [AffiliateController::class, 'requestPayout'])->name('wallet.payout-request');
                 Route::get('/profile/{section?}', [AffiliateController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|card|agreement|membership');
                 Route::put('/profile/{section}', [AffiliateController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
+                kopafasta_register_partner_face_verification_routes();
                 Route::get('/documents', [AffiliateController::class, 'documents'])->name('documents');
                 Route::put('/documents', [AffiliateController::class, 'updateDocuments'])->name('documents.update');
                 Route::get('/settings', [AffiliateController::class, 'settings'])->name('settings');
@@ -599,6 +603,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/notifications', [AffiliateController::class, 'notifications'])->name('notifications');
             Route::get('/profile/{section?}', [AffiliateController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|card|agreement|membership');
             Route::put('/profile/{section}', [AffiliateController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
+            kopafasta_register_partner_face_verification_routes();
             Route::get('/documents', [AffiliateController::class, 'documents'])->name('documents');
             Route::put('/documents', [AffiliateController::class, 'updateDocuments'])->name('documents.update');
             Route::get('/settings', [AffiliateController::class, 'settings'])->name('settings');
@@ -633,6 +638,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/notifications', [SupplierController::class, 'notifications'])->name('notifications');
             Route::get('/profile/{section?}', [SupplierController::class, 'profile'])->name('profile')->where('section', 'hub|personal|company|face|residence|activity|payment|card|documents|settings');
             Route::put('/profile/{section}', [SupplierController::class, 'updateProfile'])->name('profile.update')->where('section', 'personal|company|face|residence|activity|payment');
+            kopafasta_register_partner_face_verification_routes();
             Route::get('/documents', [SupplierController::class, 'documents'])->name('documents');
             Route::post('/documents', [SupplierController::class, 'uploadDocument'])->name('documents.store');
             Route::get('/settings', [SupplierController::class, 'settings'])->name('settings');
@@ -660,6 +666,9 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/investor/notifications', [InvestorController::class, 'notifications'])->name('investor.notifications');
             Route::get('/investor/profile/{section?}', [InvestorController::class, 'profile'])->name('investor.profile')->where('section', 'hub|personal|face|residence|activity|payment|card');
             Route::put('/investor/profile/{section}', [InvestorController::class, 'updateProfile'])->name('investor.profile.update')->where('section', 'personal|face|residence|activity|payment');
+            Route::prefix('investor')->name('investor.')->group(function () {
+                kopafasta_register_partner_face_verification_routes();
+            });
             Route::get('/investor/settings', [InvestorController::class, 'settings'])->name('investor.settings');
             Route::put('/investor/settings/pin', [PartnerAccountController::class, 'updatePin'])->name('investor.settings.pin');
             Route::put('/investor/settings/preferences', [PartnerAccountController::class, 'updatePreferences'])->name('investor.settings.preferences');
@@ -1289,10 +1298,10 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
         Route::put('settings/underwriting', [SettingsController::class, 'saveUnderwriting'])->name('settings.underwriting.save');
         Route::get('settings/legal', [SettingsController::class, 'legal'])->name('settings.legal');
         Route::put('settings/legal', [SettingsController::class, 'saveLegal'])->name('settings.legal.save');
-        Route::get('settings/governance', [\App\Http\Controllers\Admin\GovernancePolicyController::class, 'index'])->name('settings.governance');
-        Route::get('settings/governance/lending-policy', [\App\Http\Controllers\Admin\GovernancePolicyController::class, 'lendingPolicy'])->name('settings.governance.lending-policy');
-        Route::post('settings/governance/lending-policy/approve', [\App\Http\Controllers\Admin\GovernancePolicyController::class, 'approveLendingPolicy'])->name('settings.governance.lending-policy.approve');
-        Route::put('settings/governance/social', [\App\Http\Controllers\Admin\GovernancePolicyController::class, 'saveSocial'])->name('settings.governance.social.save');
+        Route::get('settings/governance', [GovernancePolicyController::class, 'index'])->name('settings.governance');
+        Route::get('settings/governance/lending-policy', [GovernancePolicyController::class, 'lendingPolicy'])->name('settings.governance.lending-policy');
+        Route::post('settings/governance/lending-policy/approve', [GovernancePolicyController::class, 'approveLendingPolicy'])->name('settings.governance.lending-policy.approve');
+        Route::put('settings/governance/social', [GovernancePolicyController::class, 'saveSocial'])->name('settings.governance.social.save');
         Route::get('settings/signatories', [SignatoryController::class, 'index'])->name('settings.signatories.index');
         Route::get('settings/signatories/create', [SignatoryController::class, 'create'])->name('settings.signatories.create');
         Route::post('settings/signatories', [SignatoryController::class, 'store'])->name('settings.signatories.store');

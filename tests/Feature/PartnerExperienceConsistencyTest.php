@@ -45,10 +45,13 @@ class PartnerExperienceConsistencyTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('valuationCamera', $html);
-        $this->assertStringContainsString(__('site.partner_account.face_start'), $html);
-        $this->assertStringContainsString('guideFrame', $html);
-        $this->assertStringContainsString('oval', $html);
+        $this->assertStringContainsString('faceVerificationWizard', $html);
+        $this->assertStringContainsString(__('borrower.face_verification_page.start_cta'), $html);
+        $this->assertStringContainsString('rounded-[50%]', $html);
+        $this->assertStringContainsString('face-verification', $html);
+        $this->assertStringContainsString('holding_nida', $html);
+        $this->assertStringNotContainsString('partner-face-camera', $html);
+        $this->assertStringNotContainsString('valuationCamera', $html);
         $this->assertStringNotContainsString('single-image-document-upload', $html);
     }
 

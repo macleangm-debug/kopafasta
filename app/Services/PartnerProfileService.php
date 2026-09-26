@@ -2,10 +2,17 @@
 
 namespace App\Services;
 
+use App\Models\DocumentType;
 use App\Models\Lender;
 use App\Models\Partner;
+use App\Models\Setting;
+use App\Support\Celebration;
+use App\Support\NationalIdValidator;
+use App\Support\PartnerPerformanceStatus;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -61,19 +68,245 @@ class PartnerProfileService
         return $path ? asset('storage/'.$path) : null;
     }
 
+    /**
+     * Borrower face-wizard payload for a partner, using FaceVerificationService
+     * angle keys/copy and partner metadata persistence.
+     *
+     * @return array{
+     *   customer: object,
+     *   angles: array<string, mixed>,
+     *   wizard: array{order: list<string>, current_index: int, current_angle: string|null, complete: bool, total: int},
+     *   photos: Collection,
+     *   steps: list<array<string, mixed>>,
+     *   complete: bool
+     * }
+     */
+    public function faceWizardViewData(Partner|Lender $entity): array
+    {
+        $faces = app(FaceVerificationService::class);
+        $keys = $this->requiredFaceAngleKeys($entity);
+        $steps = $this->faceWizardSteps($entity);
+        $wizard = $this->faceWizardState($entity, $steps);
+
+        return [
+            'customer' => (object) [
+                'face_verification_status' => $wizard['complete'] ? 'pending' : 'incomplete',
+            ],
+            'angles' => collect($faces->angles())->only($keys)->all(),
+            'wizard' => $wizard,
+            'photos' => collect(),
+            'steps' => $steps,
+            'complete' => $wizard['complete'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function storeFaceAngle(Partner|Lender $entity, string $angle, UploadedFile $file): array
+    {
+        $this->assertFaceSectionAvailable($entity);
+        $angle = $this->normalizeFaceAngleKey($angle);
+        if (! in_array($angle, $this->requiredFaceAngleKeys($entity), true)) {
+            throw new \InvalidArgumentException('Invalid face capture angle.');
+        }
+
+        $storageKey = $this->faceStorageKey($angle);
+        $meta = is_array($entity->metadata ?? null) ? $entity->metadata : [];
+        $captures = is_array($meta['face_captures'] ?? null) ? $meta['face_captures'] : [];
+        $previous = $captures[$storageKey] ?? null;
+        $path = $file->store($this->storageFolder($entity), 'public');
+
+        if (filled($previous) && $previous !== $path) {
+            Storage::disk('public')->delete($previous);
+        }
+
+        $captures[$storageKey] = $path;
+        $meta['face_captures'] = $captures;
+        $updates = array_merge(['metadata' => $meta], $this->derivedFaceUpdates($entity, $captures, $meta));
+        $entity->update($updates);
+        $entity->refresh();
+
+        $steps = $this->faceWizardSteps($entity);
+        $wizard = $this->faceWizardState($entity, $steps);
+        $uploaded = collect($steps)->where('done', true)->count();
+        $progress = [
+            'required' => $wizard['total'],
+            'uploaded' => $uploaded,
+            'percent' => $wizard['total'] > 0 ? (int) round(($uploaded / $wizard['total']) * 100) : 0,
+            'complete' => $wizard['complete'],
+        ];
+
+        return [
+            'ok' => true,
+            'angle' => $angle,
+            'previewUrl' => asset('storage/'.$path),
+            'progress' => $progress,
+            'wizard' => $wizard,
+            'status' => $wizard['complete'] ? 'pending' : 'incomplete',
+            'message' => __('borrower.document_upload.saved'),
+            'complete' => $wizard['complete'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function removeFaceAngle(Partner|Lender $entity, string $angle): array
+    {
+        $this->assertFaceSectionAvailable($entity);
+        $angle = $this->normalizeFaceAngleKey($angle);
+        if (! in_array($angle, $this->requiredFaceAngleKeys($entity), true)) {
+            throw new \InvalidArgumentException('Invalid face capture angle.');
+        }
+
+        $storageKey = $this->faceStorageKey($angle);
+        $meta = is_array($entity->metadata ?? null) ? $entity->metadata : [];
+        $captures = is_array($meta['face_captures'] ?? null) ? $meta['face_captures'] : [];
+        $previous = $captures[$storageKey] ?? null;
+
+        if ($angle === 'front' && blank($previous) && $entity instanceof Partner) {
+            $previous = $entity->affiliate_selfie_path;
+        }
+
+        if (blank($previous)) {
+            throw new \InvalidArgumentException('No photo found for this angle.');
+        }
+
+        Storage::disk('public')->delete($previous);
+        unset($captures[$storageKey]);
+        $meta['face_captures'] = $captures;
+        $updates = ['metadata' => $meta];
+        if ($entity instanceof Partner && $angle === 'front') {
+            $updates['affiliate_selfie_path'] = null;
+        }
+        $entity->update($updates);
+        $entity->refresh();
+
+        $wizard = $this->faceWizardState($entity);
+        $uploaded = collect($this->faceWizardSteps($entity))->where('done', true)->count();
+
+        return [
+            'ok' => true,
+            'angle' => $angle,
+            'progress' => [
+                'required' => $wizard['total'],
+                'uploaded' => $uploaded,
+                'percent' => $wizard['total'] > 0 ? (int) round(($uploaded / $wizard['total']) * 100) : 0,
+                'complete' => $wizard['complete'],
+            ],
+            'wizard' => $wizard,
+            'status' => $wizard['complete'] ? 'pending' : 'incomplete',
+            'message' => 'Photo removed.',
+            'complete' => $wizard['complete'],
+        ];
+    }
+
+    /** @return array{celebrate: bool} */
+    public function submitFace(Partner|Lender $entity): array
+    {
+        $this->assertFaceSectionAvailable($entity);
+        $wizard = $this->faceWizardState($entity);
+        if (! $wizard['complete']) {
+            throw new \InvalidArgumentException('Upload all required face photos before submitting.');
+        }
+
+        $alreadyCelebrated = filled(($entity->metadata ?? [])['profile_complete_celebrated_at'] ?? null);
+        $justCompleted = $this->isComplete($entity) && ! $alreadyCelebrated;
+        if ($justCompleted) {
+            $this->rememberProfileCompleteCelebration($entity);
+            Celebration::flashOne('profile_complete');
+            $this->finalizeRegistration($entity);
+        }
+
+        return ['celebrate' => $justCompleted];
+    }
+
+    /** @return list<string> */
+    public function requiredFaceAngleKeys(Partner|Lender $entity): array
+    {
+        $keys = app(FaceVerificationService::class)->requiredAngleKeys();
+        $meta = is_array($entity->metadata ?? null) ? $entity->metadata : [];
+        $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
+
+        if ((bool) ($identity['no_physical_nida_card'] ?? false)) {
+            return array_values(array_filter($keys, fn (string $key) => $key !== 'holding_nida'));
+        }
+
+        return $keys;
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function faceWizardSteps(Partner|Lender $entity): array
+    {
+        $captures = $this->faceCaptures($entity);
+
+        return collect($this->requiredFaceAngleKeys($entity))->map(function (string $key) use ($entity, $captures) {
+            $path = $captures[$this->faceStorageKey($key)] ?? null;
+            if ($key === 'front' && blank($path)) {
+                $path = $this->frontPhotoPath($entity);
+            }
+
+            return [
+                'key' => $key,
+                'label' => __('borrower.face_verification_page.angles.'.$key.'.label'),
+                'step_title' => __('borrower.face_verification_page.angles.'.$key.'.label'),
+                'instruction' => __('borrower.face_verification_page.angles.'.$key.'.instruction'),
+                'pose' => match ($key) {
+                    'left' => 'left',
+                    'right' => 'right',
+                    default => 'front',
+                },
+                'done' => filled($path),
+                'previewUrl' => filled($path) ? asset('storage/'.$path) : null,
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>|null  $steps
+     * @return array{order: list<string>, current_index: int, current_angle: string|null, complete: bool, total: int}
+     */
+    public function faceWizardState(Partner|Lender $entity, ?array $steps = null): array
+    {
+        $steps ??= $this->faceWizardSteps($entity);
+        $order = array_values(array_map(fn (array $step) => $step['key'], $steps));
+        $total = count($order);
+        $currentIndex = 0;
+
+        foreach ($steps as $index => $step) {
+            if (! ($step['done'] ?? false)) {
+                $currentIndex = $index;
+                break;
+            }
+            $currentIndex = $index + 1;
+        }
+
+        $complete = $total > 0 && collect($steps)->every(fn (array $step) => (bool) ($step['done'] ?? false));
+        $activeIndex = min($currentIndex, max($total - 1, 0));
+
+        return [
+            'order' => $order,
+            'current_index' => $activeIndex,
+            'current_angle' => $order[$activeIndex] ?? null,
+            'complete' => $complete,
+            'total' => $total,
+        ];
+    }
+
     /** @return list<array<string, mixed>> */
     public function hubCards(Partner|Lender $entity, string $profileRouteName): array
     {
         $meta = [
-            'personal'  => [
+            'personal' => [
                 'icon' => '👤',
                 'label' => __('site.partner_account.personal_section'),
                 'hint' => ($entity instanceof Partner && $entity->isCompanyApplicant())
                     ? __('site.partner_account.hint_personal_company')
                     : __('site.partner_account.hint_personal'),
             ],
-            'company'   => ['icon' => '🏢', 'label' => __('site.partner_account.company_section'), 'hint' => __('site.partner_account.hint_company')],
-            'face'      => ['icon' => '🤳', 'label' => __('site.partner_account.face_section'), 'hint' => __('site.partner_account.hint_face')],
+            'company' => ['icon' => '🏢', 'label' => __('site.partner_account.company_section'), 'hint' => __('site.partner_account.hint_company')],
+            'face' => ['icon' => '🤳', 'label' => __('site.partner_account.face_section'), 'hint' => __('site.partner_account.hint_face')],
             'residence' => [
                 'icon' => '🏠',
                 'label' => ($entity instanceof Partner && $entity->isCompanyApplicant())
@@ -83,8 +316,8 @@ class PartnerProfileService
                     ? __('site.partner_account.hint_company_address')
                     : __('site.partner_account.hint_residence'),
             ],
-            'activity'  => ['icon' => '💼', 'label' => __('site.partner_account.activity_section'), 'hint' => __('site.partner_account.hint_activity')],
-            'payment'   => ['icon' => '💳', 'label' => __('site.partner_account.payment_section'), 'hint' => __('site.partner_account.hint_payment')],
+            'activity' => ['icon' => '💼', 'label' => __('site.partner_account.activity_section'), 'hint' => __('site.partner_account.hint_activity')],
+            'payment' => ['icon' => '💳', 'label' => __('site.partner_account.payment_section'), 'hint' => __('site.partner_account.hint_payment')],
         ];
 
         return collect($this->sectionsFor($entity))->map(function (string $key) use ($meta, $entity, $profileRouteName) {
@@ -92,18 +325,18 @@ class PartnerProfileService
             $info = $meta[$key];
 
             return [
-                'key'          => $key,
-                'icon'         => $info['icon'],
-                'label'        => $info['label'],
-                'description'  => $status['complete'] ? null : $info['hint'],
-                'status'       => $status['status'],
+                'key' => $key,
+                'icon' => $info['icon'],
+                'label' => $info['label'],
+                'description' => $status['complete'] ? null : $info['hint'],
+                'status' => $status['status'],
                 'status_label' => $this->statusLabel($status['status']),
                 'action_label' => $status['complete'] ? __('borrower.profile.hub.view_edit') : __('borrower.profile.hub.add'),
-                'url'          => route($profileRouteName, ['section' => $key]),
-                'required'     => true,
-                'count'        => null,
-                'missing'      => $status['missing'] ?? [],
-                'progress'     => $status['progress'] ?? null,
+                'url' => route($profileRouteName, ['section' => $key]),
+                'required' => true,
+                'count' => null,
+                'missing' => $status['missing'] ?? [],
+                'progress' => $status['progress'] ?? null,
             ];
         })->when(
             $entity instanceof Partner && $entity->isAffiliate(),
@@ -114,21 +347,21 @@ class PartnerProfileService
                     : app(AffiliateMembershipService::class)->isActive($entity);
 
                 $cards->push([
-                    'key'          => $premium ? 'agreement' : 'membership',
-                    'icon'         => '📜',
-                    'label'        => $premium
+                    'key' => $premium ? 'agreement' : 'membership',
+                    'icon' => '📜',
+                    'label' => $premium
                         ? __('site.affiliate_portal.premium_agreement')
                         : __('site.affiliate_portal.membership_title'),
-                    'description'  => $premium
+                    'description' => $premium
                         ? __('site.affiliate_portal.agreement_hub_hint')
                         : __('site.affiliate_portal.membership_hub_hint'),
-                    'status'       => $active ? 'complete' : 'in_progress',
+                    'status' => $active ? 'complete' : 'in_progress',
                     'status_label' => $this->statusLabel($active ? 'complete' : 'in_progress'),
                     'action_label' => __('borrower.profile.hub.view_edit'),
-                    'url'          => route($profileRouteName, ['section' => $premium ? 'agreement' : 'membership']),
-                    'required'     => true,
-                    'count'        => null,
-                    'missing'      => [],
+                    'url' => route($profileRouteName, ['section' => $premium ? 'agreement' : 'membership']),
+                    'required' => true,
+                    'count' => null,
+                    'missing' => [],
                 ]);
 
                 return $cards;
@@ -149,13 +382,13 @@ class PartnerProfileService
         $meta = $entity->metadata ?? [];
 
         return match ($key) {
-            'personal'  => $this->personalStatus($entity, $meta),
-            'company'   => $this->companyStatus($entity),
-            'face'      => $this->faceStatus($entity, $meta),
+            'personal' => $this->personalStatus($entity, $meta),
+            'company' => $this->companyStatus($entity),
+            'face' => $this->faceStatus($entity, $meta),
             'residence' => $this->residenceStatus($meta),
-            'activity'  => $this->activityStatus($meta),
-            'payment'   => $this->paymentStatus($meta),
-            default     => $this->statusFromItems([]),
+            'activity' => $this->activityStatus($meta),
+            'payment' => $this->paymentStatus($meta),
+            default => $this->statusFromItems([]),
         };
     }
 
@@ -244,13 +477,13 @@ class PartnerProfileService
         $wasComplete = $this->isComplete($entity);
 
         match ($section) {
-            'personal'  => $this->savePersonal($entity, $request),
-            'company'   => null, // admin-managed; read-only in portal
-            'face'      => $this->saveFace($entity, $request),
+            'personal' => $this->savePersonal($entity, $request),
+            'company' => null, // admin-managed; read-only in portal
+            'face' => $this->saveFace($entity, $request),
             'residence' => $this->saveResidence($entity, $request),
-            'activity'  => $this->saveActivity($entity, $request),
-            'payment'   => $this->savePayment($entity, $request),
-            default     => throw new \InvalidArgumentException("Unknown partner profile section [{$section}]."),
+            'activity' => $this->saveActivity($entity, $request),
+            'payment' => $this->savePayment($entity, $request),
+            default => throw new \InvalidArgumentException("Unknown partner profile section [{$section}]."),
         };
 
         $entity->refresh();
@@ -258,7 +491,7 @@ class PartnerProfileService
         if ($justCompleted) {
             $this->rememberProfileCompleteCelebration($entity);
             if (! $this->isAutosaveRequest($request)) {
-                \App\Support\Celebration::flashOne('profile_complete');
+                Celebration::flashOne('profile_complete');
             }
             $this->finalizeRegistration($entity);
         }
@@ -321,7 +554,7 @@ class PartnerProfileService
             ?? app(PartnerCodeService::class)->defaultCountryCode()
         ));
 
-        $configured = \App\Models\Setting::get('partners.identity_document_types');
+        $configured = Setting::get('partners.identity_document_types');
         $codes = is_array($configured[$country] ?? null)
             ? array_values(array_filter($configured[$country]))
             : ($country === 'TZ' ? ['nida'] : ['nida']);
@@ -351,7 +584,7 @@ class PartnerProfileService
         ];
 
         try {
-            $rows = \App\Models\DocumentType::query()
+            $rows = DocumentType::query()
                 ->where('is_active', true)
                 ->whereIn('code', ['passport', 'driving_license', 'voter_id', 'other_id', 'residence_permit'])
                 ->get();
@@ -404,7 +637,7 @@ class PartnerProfileService
 
         $canonical = trim((string) ($identity['national_id'] ?? $entity->getAttribute('national_id') ?? ''));
         if ($canonical !== '' && blank($identity['national_id'] ?? null)) {
-            $identity['national_id'] = \App\Support\NationalIdValidator::format($canonical) ?? $canonical;
+            $identity['national_id'] = NationalIdValidator::format($canonical) ?? $canonical;
             $changed = true;
         }
 
@@ -458,7 +691,7 @@ class PartnerProfileService
                 default => 'suspended',
             };
         }
-        if (($partner->performance_status ?? '') === \App\Support\PartnerPerformanceStatus::SUSPENDED) {
+        if (($partner->performance_status ?? '') === PartnerPerformanceStatus::SUSPENDED) {
             return 'performance';
         }
 
@@ -585,7 +818,7 @@ class PartnerProfileService
     }
 
     /* ------------------------------------------------------------------ */
-    /* Status calculators                                                  */
+    /* Status calculators */
     /* ------------------------------------------------------------------ */
 
     /** @param array<string, mixed> $meta */
@@ -722,14 +955,14 @@ class PartnerProfileService
     private function statusLabel(string $status): string
     {
         return match ($status) {
-            'complete'    => __('borrower.profile.status.complete'),
+            'complete' => __('borrower.profile.status.complete'),
             'in_progress' => __('borrower.profile.status.in_progress'),
-            default       => __('borrower.profile.status.not_started'),
+            default => __('borrower.profile.status.not_started'),
         };
     }
 
     /* ------------------------------------------------------------------ */
-    /* Section updaters                                                    */
+    /* Section updaters */
     /* ------------------------------------------------------------------ */
 
     private function savePersonal(Partner|Lender $entity, Request $request): void
@@ -806,21 +1039,21 @@ class PartnerProfileService
         if ($focus === 'preferences' && $entity instanceof Lender) {
             $data = $request->validate([
                 'risk_preference' => ['nullable', 'in:low,medium,high'],
-                'auto_invest'     => ['nullable', 'boolean'],
+                'auto_invest' => ['nullable', 'boolean'],
             ]);
 
             $entity->update([
                 'risk_preference' => $data['risk_preference'] ?? $entity->risk_preference,
-                'auto_invest'     => $request->boolean('auto_invest'),
+                'auto_invest' => $request->boolean('auto_invest'),
             ]);
 
             return;
         }
 
         $data = $request->validate([
-            'name'    => ['nullable', 'string', 'max:120'],
-            'phone'   => ['nullable', 'string', 'max:30'],
-            'email'   => ['nullable', 'email', 'max:120'],
+            'name' => ['nullable', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'email' => ['nullable', 'email', 'max:120'],
             'address' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -839,9 +1072,9 @@ class PartnerProfileService
         }
 
         $entity->update(array_filter([
-            'name'    => $data['name'] ?? null,
-            'phone'   => $data['phone'] ?? null,
-            'email'   => $data['email'] ?? null,
+            'name' => $data['name'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'email' => $data['email'] ?? null,
             'address' => $data['address'] ?? null,
         ], fn ($value) => $value !== null));
     }
@@ -850,11 +1083,11 @@ class PartnerProfileService
     {
         $data = $request->validate([
             'identity_document_type' => ['nullable', 'string', 'max:40'],
-            'national_id'           => ['nullable', 'string', 'max:40'],
-            'document_number'       => ['nullable', 'string', 'max:80'],
+            'national_id' => ['nullable', 'string', 'max:40'],
+            'document_number' => ['nullable', 'string', 'max:80'],
             'no_physical_nida_card' => ['nullable', 'boolean'],
-            'national_id_front'     => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'national_id_back'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         $meta = $entity->metadata ?? [];
@@ -867,15 +1100,15 @@ class PartnerProfileService
         $identity['document_type'] = $type;
 
         if ($type === 'nida') {
-            if (filled($data['national_id'] ?? null) && ! \App\Support\NationalIdValidator::isValid($data['national_id'])) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'national_id' => \App\Support\NationalIdValidator::message(),
+            if (filled($data['national_id'] ?? null) && ! NationalIdValidator::isValid($data['national_id'])) {
+                throw ValidationException::withMessages([
+                    'national_id' => NationalIdValidator::message(),
                 ]);
             }
 
             // National ID is sensitive: allow first entry only, never overwrite once saved.
             if (filled($data['national_id'] ?? null) && blank($identity['national_id'] ?? null)) {
-                $identity['national_id'] = \App\Support\NationalIdValidator::format($data['national_id'])
+                $identity['national_id'] = NationalIdValidator::format($data['national_id'])
                     ?? strtoupper(trim($data['national_id']));
             }
         } elseif (filled($data['document_number'] ?? $data['national_id'] ?? null) && blank($identity['document_number'] ?? $identity['national_id'] ?? null)) {
@@ -906,12 +1139,64 @@ class PartnerProfileService
         $entity->update($updates);
     }
 
+    private function assertFaceSectionAvailable(Partner|Lender $entity): void
+    {
+        if (! in_array('face', $this->sectionsFor($entity), true)) {
+            throw new \InvalidArgumentException('Face capture is not available for this partner.');
+        }
+    }
+
+    /** @return array<string, string|null> */
+    private function faceCaptures(Partner|Lender $entity): array
+    {
+        $meta = is_array($entity->metadata ?? null) ? $entity->metadata : [];
+
+        return is_array($meta['face_captures'] ?? null) ? $meta['face_captures'] : [];
+    }
+
+    private function normalizeFaceAngleKey(string $angle): string
+    {
+        return $angle === 'holding_id' ? 'holding_nida' : $angle;
+    }
+
+    private function faceStorageKey(string $angle): string
+    {
+        return $angle === 'holding_nida' ? 'holding_id' : $angle;
+    }
+
+    /**
+     * @param  array<string, mixed>  $captures
+     * @param  array<string, mixed>  $meta
+     * @return array<string, mixed>
+     */
+    private function derivedFaceUpdates(Partner|Lender $entity, array $captures, array $meta): array
+    {
+        if (! $entity instanceof Partner || blank($captures['front'] ?? null)) {
+            return [];
+        }
+
+        $updates = ['affiliate_selfie_path' => $captures['front']];
+        $identity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
+        $noPhysicalCard = (bool) ($identity['no_physical_nida_card'] ?? false);
+        $facesReady = filled($captures['front'] ?? null)
+            && filled($captures['left'] ?? null)
+            && filled($captures['right'] ?? null)
+            && ($noPhysicalCard || filled($captures['holding_id'] ?? null));
+        $idDoc = $entity->affiliate_id_path;
+
+        if ($facesReady && $idDoc) {
+            $updates['affiliate_kyc_status'] = 'submitted';
+        }
+
+        return $updates;
+    }
+
     private function saveFace(Partner|Lender $entity, Request $request): void
     {
         $request->validate([
-            'face_front'      => ['nullable', 'image', 'max:5120'],
-            'face_left'       => ['nullable', 'image', 'max:5120'],
-            'face_right'      => ['nullable', 'image', 'max:5120'],
+            'face_front' => ['nullable', 'image', 'max:5120'],
+            'face_left' => ['nullable', 'image', 'max:5120'],
+            'face_right' => ['nullable', 'image', 'max:5120'],
             'face_holding_id' => ['nullable', 'image', 'max:5120'],
         ]);
 
@@ -920,9 +1205,9 @@ class PartnerProfileService
         $folder = $this->storageFolder($entity);
 
         foreach ([
-            'face_front'      => 'front',
-            'face_left'       => 'left',
-            'face_right'      => 'right',
+            'face_front' => 'front',
+            'face_left' => 'left',
+            'face_right' => 'right',
             'face_holding_id' => 'holding_id',
         ] as $field => $key) {
             if ($request->hasFile($field)) {
@@ -957,18 +1242,18 @@ class PartnerProfileService
     private function saveResidence(Partner|Lender $entity, Request $request): void
     {
         $data = $request->validate([
-            'residence_region'   => ['nullable', 'string', 'max:80'],
+            'residence_region' => ['nullable', 'string', 'max:80'],
             'residence_district' => ['nullable', 'string', 'max:80'],
-            'residence_ward'     => ['nullable', 'string', 'max:80'],
-            'residence_street'   => ['nullable', 'string', 'max:160'],
+            'residence_ward' => ['nullable', 'string', 'max:80'],
+            'residence_street' => ['nullable', 'string', 'max:160'],
         ]);
 
         $meta = $entity->metadata ?? [];
         $residence = array_filter([
-            'region'   => $data['residence_region'] ?? null,
+            'region' => $data['residence_region'] ?? null,
             'district' => $data['residence_district'] ?? null,
-            'ward'     => $data['residence_ward'] ?? null,
-            'street'   => $data['residence_street'] ?? null,
+            'ward' => $data['residence_ward'] ?? null,
+            'street' => $data['residence_street'] ?? null,
         ]);
         $meta['residence'] = $residence;
 
@@ -988,13 +1273,13 @@ class PartnerProfileService
     private function saveActivity(Partner|Lender $entity, Request $request): void
     {
         $data = $request->validate([
-            'activity_type'    => ['nullable', 'string', 'max:80'],
+            'activity_type' => ['nullable', 'string', 'max:80'],
             'activity_details' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $meta = $entity->metadata ?? [];
         $meta['activity'] = array_filter([
-            'type'    => $data['activity_type'] ?? null,
+            'type' => $data['activity_type'] ?? null,
             'details' => $data['activity_details'] ?? null,
         ]);
 
@@ -1004,22 +1289,22 @@ class PartnerProfileService
     private function savePayment(Partner|Lender $entity, Request $request): void
     {
         $data = $request->validate([
-            'payout_type'            => ['nullable', 'in:mobile_money,bank'],
-            'payout_account_name'    => ['nullable', 'string', 'max:120'],
+            'payout_type' => ['nullable', 'in:mobile_money,bank'],
+            'payout_account_name' => ['nullable', 'string', 'max:120'],
             'payout_mobile_provider' => ['nullable', 'string', 'max:40'],
-            'payout_mobile_number'   => ['nullable', 'string', 'max:30'],
-            'payout_bank_name'       => ['nullable', 'string', 'max:120'],
-            'payout_account_number'  => ['nullable', 'string', 'max:60'],
+            'payout_mobile_number' => ['nullable', 'string', 'max:30'],
+            'payout_bank_name' => ['nullable', 'string', 'max:120'],
+            'payout_account_number' => ['nullable', 'string', 'max:60'],
         ]);
 
         $meta = $entity->metadata ?? [];
         $meta['payout_account'] = array_filter([
-            'type'             => $data['payout_type'] ?? null,
-            'account_name'     => $this->payoutAccountName($entity),
-            'mobile_provider'  => $data['payout_mobile_provider'] ?? null,
-            'mobile_number'    => $data['payout_mobile_number'] ?? null,
-            'bank_name'        => $data['payout_bank_name'] ?? null,
-            'account_number'   => $data['payout_account_number'] ?? null,
+            'type' => $data['payout_type'] ?? null,
+            'account_name' => $this->payoutAccountName($entity),
+            'mobile_provider' => $data['payout_mobile_provider'] ?? null,
+            'mobile_number' => $data['payout_mobile_number'] ?? null,
+            'bank_name' => $data['payout_bank_name'] ?? null,
+            'account_number' => $data['payout_account_number'] ?? null,
         ]);
 
         $entity->update(['metadata' => $meta]);
