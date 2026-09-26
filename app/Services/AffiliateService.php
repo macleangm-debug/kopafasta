@@ -929,7 +929,7 @@ class AffiliateService
                 '_fallback_body' => __('site.affiliate_portal.notify_commission_body', [
                     'amount' => format_money($quote['commission']),
                 ]),
-            ], route('site.affiliate.wallet'), 'evt:'.$event->id);
+            ], route('site.affiliate.performance', ['tab' => 'commissions']), 'evt:'.$event->id);
 
             return $event;
         });

@@ -30,11 +30,15 @@
                     </a>
                 @endif
             </div>
-            <a href="{{ route('site.affiliate.wallet') }}"
+            <a href="{{ route('site.affiliate.performance', ['tab' => 'withdrawals', 'withdraw' => ($available ?? 0) >= ($minPayout ?? 0) ? 1 : 0]) }}"
                class="rounded-2xl bg-white/10 ring-1 ring-white/20 px-5 py-4 min-w-[12rem] shrink-0">
                 <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.hero_available') }}</p>
                 <p class="text-2xl font-extrabold tabular-nums mt-1" title="{{ $hero['amount'] ?? format_money($available ?? 0) }}">{{ $hero['amount_compact'] ?? format_money_compact($available ?? 0) }}</p>
-                <p class="text-xs text-white/70 mt-1">{{ __('site.affiliate_portal.hero_pending', ['amount' => format_money($pending ?? 0)]) }}</p>
+                @if (($inProgress ?? 0) > 0)
+                    <p class="text-xs text-white/70 mt-1">{{ __('site.affiliate_portal.hero_in_progress', ['amount' => format_money($inProgress)]) }}</p>
+                @elseif (($remainingToWithdraw ?? 0) > 0)
+                    <p class="text-xs text-white/70 mt-1">{{ __('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money($remainingToWithdraw)]) }}</p>
+                @endif
             </a>
         </div>
     </section>
@@ -59,8 +63,8 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             @foreach ([
                 [__('site.affiliate_portal.quick_share'), $shareUrl, '🔗'],
-                [__('site.affiliate_portal.quick_results'), route('site.affiliate.performance'), '📊'],
-                [__('site.affiliate_portal.quick_wallet'), route('site.affiliate.wallet'), '💰'],
+                [__('site.affiliate_portal.quick_results'), route('site.affiliate.performance', ['tab' => 'overview']), '📊'],
+                [__('site.affiliate_portal.withdraw'), route('site.affiliate.performance', ['tab' => 'withdrawals', 'withdraw' => 1]), '💰'],
                 [__('site.affiliate_portal.quick_profile'), route('site.affiliate.profile'), '👤'],
             ] as [$label, $url, $icon])
                 <a href="{{ $url }}"
@@ -76,7 +80,7 @@
         <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
             <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
                 <h2 class="font-bold text-white">{{ ($progress['premium'] ?? false) ? __('site.affiliate_portal.impact_title') : __('site.affiliate_portal.progress_title') }}</h2>
-                <a href="{{ route('site.affiliate.performance') }}"
+                <a href="{{ route('site.affiliate.performance', ['tab' => 'overview']) }}"
                    class="inline-flex items-center rounded-lg bg-brand-gold text-brand font-bold px-3 py-1.5 text-xs shadow-sm">
                     {{ ($progress['premium'] ?? false) ? __('site.affiliate_portal.view_impact') : __('site.affiliate_portal.view_performance') }}
                 </a>
@@ -126,7 +130,7 @@
         <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
             <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
                 <h2 class="font-bold text-white">{{ __('site.affiliate_portal.funnel_title') }}</h2>
-                <a href="{{ route('site.affiliate.performance') }}"
+                <a href="{{ route('site.affiliate.performance', ['tab' => 'overview']) }}"
                    class="inline-flex items-center rounded-lg bg-brand-gold text-brand font-bold px-3 py-1.5 text-xs shadow-sm">
                     {{ __('site.affiliate_portal.view_referrals') }}
                 </a>
@@ -147,9 +151,9 @@
     <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white mb-6">
         <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
             <h2 class="font-bold text-white">{{ __('site.affiliate_portal.recent_activity') }}</h2>
-            <a href="{{ route('site.affiliate.performance') }}"
+            <a href="{{ route('site.affiliate.performance', ['tab' => 'commissions']) }}"
                class="inline-flex items-center rounded-lg bg-brand-gold text-brand font-bold px-3 py-1.5 text-xs shadow-sm">
-                {{ __('site.affiliate_portal.view_referrals') }}
+                {{ __('site.affiliate_portal.tab_commissions') }}
             </a>
         </div>
         <div class="p-5 space-y-3">

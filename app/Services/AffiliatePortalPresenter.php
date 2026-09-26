@@ -34,6 +34,8 @@ class AffiliatePortalPresenter
         $links = $this->affiliates->messageContext($vendor);
         $walletSummary = $this->wallet->summary($vendor);
         $available = $this->payouts->availableBalance($vendor, 'affiliate_commission');
+        $reserved = $this->wallet->reservedAmount($vendor);
+        $minPayout = $this->settings->minimumPayoutAmount();
         $eligibility = $this->eligibility->for($vendor);
         $standing = $this->evaluation->currentStanding($vendor);
         $commercial = $this->membership->summary($vendor);
@@ -50,7 +52,9 @@ class AffiliatePortalPresenter
             'wallet' => $walletSummary,
             'available' => $available,
             'pending' => (int) ($walletSummary['pending'] ?? 0),
-            'minPayout' => $this->settings->minimumPayoutAmount(),
+            'inProgress' => $reserved,
+            'minPayout' => $minPayout,
+            'remainingToWithdraw' => max(0, $minPayout - $available),
             'eligibility' => $eligibility,
             'standing' => $standing,
             'commercial' => $commercial,
@@ -97,7 +101,7 @@ class AffiliatePortalPresenter
         $premium = $vendor->isPremiumAffiliate();
         $periodDays = $this->settings->evaluationPeriodDays();
 
-        return [
+        return array_merge($this->wallet($vendor), [
             'vendor' => $vendor,
             'premium' => $premium,
             'standing' => $standing,
@@ -121,7 +125,7 @@ class AffiliatePortalPresenter
                 : __('site.affiliate_portal.recovery_disabled'),
             'rampUpDays' => $this->settings->volumeMinActiveDays(),
             'nextAssessment' => $standing['period_end'] ?? now()->endOfDay(),
-        ];
+        ]);
     }
 
     /** @return array<string, mixed> */
@@ -299,7 +303,7 @@ class AffiliatePortalPresenter
                 'title' => __('site.affiliate_portal.attention_performance_title'),
                 'body' => __('site.affiliate_portal.attention_performance_body'),
                 'cta_label' => __('site.affiliate_portal.nav_performance'),
-                'cta_url' => route('site.affiliate.performance'),
+                'cta_url' => route('site.affiliate.performance', ['tab' => 'overview']),
             ];
         }
 

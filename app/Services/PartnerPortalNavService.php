@@ -105,8 +105,6 @@ class PartnerPortalNavService
             ['key' => 'dashboard', 'label' => __('site.affiliate_portal.nav_dashboard'), 'route' => 'site.affiliate.dashboard', 'icon' => 'home'],
             ['key' => 'performance', 'label' => __('site.affiliate_portal.nav_performance'), 'route' => 'site.affiliate.performance', 'icon' => 'chart'],
             ['key' => 'share', 'label' => __('site.affiliate_portal.nav_share'), 'route' => 'site.affiliate.share', 'icon' => 'share'],
-            ['key' => 'wallet', 'label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet', 'icon' => 'wallet'],
-            ['key' => 'notifications', 'label' => __('site.partner_portal.nav_notifications'), 'route' => 'site.affiliate.notifications', 'icon' => 'bell'],
             ['key' => 'profile', 'label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile', 'icon' => 'user'],
         ];
     }
@@ -150,12 +148,14 @@ class PartnerPortalNavService
      */
     public function mobilePrimaryNav(array $nav, ?Vendor $vendor = null): array
     {
+        $max = 5;
         $prefer = ['dashboard', 'tasks', 'recovery', 'payments', 'recovery_wallet', 'notifications', 'profile'];
         if ($vendor && app(RecoveryPartnerService::class)->isRecoveryPartner($vendor)) {
             $prefer = ['dashboard', 'recovery', 'recovery_wallet', 'notifications', 'profile'];
         }
         if (($nav[0]['route'] ?? null) === 'site.affiliate.dashboard') {
-            $prefer = ['dashboard', 'performance', 'share', 'wallet', 'profile'];
+            $prefer = ['dashboard', 'performance', 'share', 'profile'];
+            $max = 4;
         }
         if (($nav[0]['route'] ?? null) === 'site.supplier.dashboard') {
             $prefer = ['dashboard', 'assets', 'requests', 'settlements', 'profile'];
@@ -171,23 +171,23 @@ class PartnerPortalNavService
             if (isset($byKey[$key])) {
                 $picked[] = $byKey[$key];
             }
-            if (count($picked) >= 5) {
+            if (count($picked) >= $max) {
                 break;
             }
         }
 
-        if (count($picked) < 5) {
+        if (count($picked) < $max) {
             foreach ($nav as $item) {
                 if (! in_array($item['key'], array_column($picked, 'key'), true)) {
                     $picked[] = $item;
                 }
-                if (count($picked) >= 5) {
+                if (count($picked) >= $max) {
                     break;
                 }
             }
         }
 
-        return array_slice($picked, 0, 5);
+        return array_slice($picked, 0, $max);
     }
 
     public function portalSubtitle(?Vendor $vendor): string

@@ -106,10 +106,14 @@ class PartnerPremiumShellFeatureTest extends TestCase
         $affiliate = User::query()->where('email', 'affiliate@kopafasta.local')->firstOrFail();
         $this->actingAs($affiliate)
             ->get(route('site.affiliate.wallet'))
+            ->assertRedirect(route('site.affiliate.performance', ['tab' => 'commissions']));
+
+        $this->actingAs($affiliate)
+            ->get(route('site.affiliate.performance'))
             ->assertOk()
             ->assertSee('kf-premium-panel', false)
-            ->assertSee(__('site.affiliate_portal.wallet_title'), false)
-            ->assertSee(__('site.affiliate_portal.wallet_subtitle'), false);
+            ->assertSee(__('site.affiliate_portal.impact_title'), false)
+            ->assertSee(__('site.affiliate_portal.tab_commissions'), false);
     }
 
     public function test_footer_includes_service_partners_link(): void

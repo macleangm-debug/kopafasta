@@ -25,7 +25,7 @@
     :hero="$resolvedHero"
     :profile-links="[
         ['label' => __('site.affiliate_portal.nav_dashboard'), 'route' => 'site.affiliate.dashboard'],
-        ['label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet'],
+        ['label' => __('site.affiliate_portal.nav_performance'), 'route' => 'site.affiliate.performance'],
         ['label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile'],
     ]"
 >

@@ -174,7 +174,6 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
         $routes = [
             'site.affiliate.dashboard',
             'site.affiliate.share',
-            'site.affiliate.wallet',
             'site.affiliate.performance',
             'site.affiliate.notifications',
             'site.affiliate.profile',
@@ -447,7 +446,6 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             $pages = [
                 $this->actingAs($user)->withSession($session)->get(route('site.affiliate.dashboard'))->assertOk()->getContent(),
                 $this->actingAs($user)->withSession($session)->get(route('site.affiliate.share'))->assertOk()->getContent(),
-                $this->actingAs($user)->withSession($session)->get(route('site.affiliate.wallet'))->assertOk()->getContent(),
                 $this->actingAs($user)->withSession($session)->get(route('site.affiliate.performance'))->assertOk()->getContent(),
             ];
 

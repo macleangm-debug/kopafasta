@@ -88,12 +88,17 @@ class AffiliateController extends Controller
 
     public function referrals(): RedirectResponse
     {
-        return redirect()->route('site.affiliate.performance');
+        return redirect()->route('site.affiliate.performance', ['tab' => 'overview']);
     }
 
-    public function wallet(): View
+    public function wallet(Request $request): RedirectResponse
     {
-        return view('site.affiliate.wallet', app(AffiliatePortalPresenter::class)->wallet($this->affiliate()));
+        $tab = (string) $request->query('tab', 'commissions');
+        if (! in_array($tab, ['overview', 'commissions', 'withdrawals'], true)) {
+            $tab = 'commissions';
+        }
+
+        return redirect()->route('site.affiliate.performance', ['tab' => $tab]);
     }
 
     public function agreement(): View

@@ -5,7 +5,6 @@
         'dashboard' => ['label' => __('site.affiliate_portal.nav_dashboard'), 'route' => 'site.affiliate.dashboard'],
         'performance' => ['label' => __('site.affiliate_portal.nav_performance'), 'route' => 'site.affiliate.performance'],
         'share' => ['label' => __('site.affiliate_portal.nav_share'), 'route' => 'site.affiliate.share'],
-        'wallet'    => ['label' => __('site.affiliate_portal.nav_wallet'), 'route' => 'site.affiliate.wallet'],
         'profile'   => ['label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile'],
     ];
 @endphp

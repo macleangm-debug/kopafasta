@@ -96,9 +96,13 @@ class PartnerExperienceConsistencyTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('site.affiliate.wallet'))
+            ->assertRedirect(route('site.affiliate.performance', ['tab' => 'commissions']));
+
+        $this->actingAs($user)
+            ->get(route('site.affiliate.performance', ['tab' => 'commissions']))
             ->assertOk()
             ->assertSee(__('site.affiliate_portal.withdraw'), false)
-            ->assertSee(__('site.affiliate_portal.payment_history'), false)
+            ->assertSee(__('site.affiliate_portal.commission_transactions'), false)
             ->assertDontSee(__('site.affiliate_portal.how_i_earn'), false)
             ->assertDontSee(__('site.affiliate_portal.fee_registration_fee'), false)
             ->assertDontSee(__('site.affiliate_portal.eligible_business'), false);

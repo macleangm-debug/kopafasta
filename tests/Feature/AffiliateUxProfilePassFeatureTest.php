@@ -38,9 +38,11 @@ class AffiliateUxProfilePassFeatureTest extends TestCase
         $controller = file_get_contents(app_path('Http/Controllers/Site/AffiliateController.php'));
 
         $this->assertStringNotContainsString("'key' => 'referrals'", $nav);
-        $this->assertStringContainsString("return redirect()->route('site.affiliate.performance')", $controller);
+        $this->assertStringNotContainsString("'key' => 'wallet', 'label' => __('site.affiliate_portal.nav_wallet')", $nav);
+        $this->assertStringContainsString("return redirect()->route('site.affiliate.performance'", $controller);
         $this->assertStringContainsString(':hero="false"', $wallet);
         $this->assertStringContainsString(':hero="false"', $performance);
+        $this->assertStringContainsString('tab_overview', $performance);
         $this->assertStringContainsString('quick_actions_title', $dashboard);
         $this->assertStringContainsString(':required="true"', $apply);
         $this->assertStringContainsString('reference_contact', file_get_contents(app_path('Services/PartnerProfileService.php')));

@@ -92,7 +92,7 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
 
         $html = $this->actingAs($affiliate->user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
-            ->get(route('site.affiliate.wallet'))
+            ->get(route('site.affiliate.performance', ['tab' => 'commissions']))
             ->assertOk()
             ->assertSee(__('site.affiliate_portal.commission_transactions', [], 'en'), false)
             ->assertSee(__('site.affiliate_portal.tab_withdrawals', [], 'en'), false)
@@ -101,7 +101,6 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
             ->assertSee('Kopafasta Plus', false)
             ->assertSee(__('site.affiliate_portal.commission_status_complete', [], 'en'), false)
             ->assertSee(__('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money(49910)], 'en'), false)
-            ->assertDontSee(__('site.affiliate_portal.commission_status_pending', [], 'en'), false)
             ->assertDontSee('INV-', false)
             ->getContent();
 
@@ -141,7 +140,7 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
 
         $this->actingAs($affiliate->user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
-            ->get(route('site.affiliate.wallet'))
+            ->get(route('site.affiliate.performance', ['tab' => 'commissions']))
             ->assertOk()
             ->assertSee(__('site.affiliate_portal.review_withdrawal', [], 'en'), false);
 
@@ -165,7 +164,7 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
 
         $this->actingAs($affiliate->user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
-            ->get(route('site.affiliate.wallet'))
+            ->get(route('site.affiliate.performance', ['tab' => 'commissions']))
             ->assertOk()
             ->assertSee($paid->requestNumber(), false)
             ->assertSee($paid->payoutPaymentId(), false);
