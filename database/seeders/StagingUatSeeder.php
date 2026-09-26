@@ -210,31 +210,44 @@ class StagingUatSeeder extends Seeder
         $prefs['account_welcome_completed_at'] = now()->toIso8601String();
         $user->forceFill(['preferences' => $prefs])->save();
 
-        $affiliate = Vendor::query()->updateOrCreate(
-            ['partner_number' => $row['partner_number']],
-            [
-                'user_id' => $user->id,
-                'vendor_number' => $row['partner_number'],
-                'name' => $row['name'],
-                'legal_name' => $row['legal_name'] ?? $row['name'],
-                'category' => 'affiliate',
-                'roles' => ['affiliate'],
-                'status' => 'active',
-                'phone' => $row['phone'],
-                'email' => $row['email'],
-                'applicant_category' => $row['applicant_category'],
-                'affiliate_premium' => (bool) $row['affiliate_premium'],
-                'affiliate_code' => $row['affiliate_code'],
-                'affiliate_kyc_status' => 'submitted',
-                'affiliate_lifecycle_status' => 'active',
-                'membership_status' => 'active',
-                'membership_started_at' => now()->subMonth(),
-                'membership_expires_at' => now()->addYear(),
-                'activated_at' => now(),
-                'address' => 'UAT staging residence, Kinondoni',
-                'coverage_type' => 'nationwide',
-            ]
-        );
+        $affiliate = Vendor::query()
+            ->where(function ($query) use ($user, $row) {
+                $query->where('user_id', $user->id)
+                    ->orWhere('affiliate_code', $row['affiliate_code'])
+                    ->orWhere('partner_number', $row['partner_number']);
+            })
+            ->first();
+
+        $payload = [
+            'user_id' => $user->id,
+            'name' => $row['name'],
+            'legal_name' => $row['legal_name'] ?? $row['name'],
+            'category' => 'affiliate',
+            'roles' => ['affiliate'],
+            'status' => 'active',
+            'phone' => $row['phone'],
+            'email' => $row['email'],
+            'applicant_category' => $row['applicant_category'],
+            'affiliate_premium' => (bool) $row['affiliate_premium'],
+            'affiliate_code' => $row['affiliate_code'],
+            'affiliate_kyc_status' => 'submitted',
+            'affiliate_lifecycle_status' => 'active',
+            'membership_status' => 'active',
+            'membership_started_at' => now()->subMonth(),
+            'membership_expires_at' => now()->addYear(),
+            'activated_at' => now(),
+            'address' => 'UAT staging residence, Kinondoni',
+            'coverage_type' => 'nationwide',
+        ];
+
+        if ($affiliate) {
+            $affiliate->fill($payload)->save();
+        } else {
+            $payload['partner_number'] = $row['partner_number'];
+            $affiliate = Vendor::query()->create($payload);
+        }
+
+        $affiliate = app(\App\Services\AffiliateService::class)->canonicalizeIdentity($affiliate->fresh());
 
         $terms = app(\App\Services\AffiliateTermsService::class);
         if (! $terms->hasAccepted($affiliate)) {

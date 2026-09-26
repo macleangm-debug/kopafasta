@@ -40,12 +40,13 @@ class AffiliateFinalClosurePassFeatureTest extends TestCase
         $affiliate = $this->affiliate(['partner_number' => 'AFF-UAT-STD', 'vendor_number' => 'AFF-UAT-STD']);
         $cards = app(CardVerificationService::class);
 
-        $this->assertSame('AFF-UAT-STD', $cards->composeId('affiliate', 'AFF-UAT-STD'));
         $result = $cards->lookup('affiliate', 'AFF-UAT-STD');
         $this->assertTrue($result['found']);
         $this->assertTrue($result['verified']);
-        $this->assertSame('AFF-UAT-STD', $result['id_display']);
+        $this->assertMatchesRegularExpression('/^PT-AF-TZ-[A-Z0-9]{4}$/', (string) $result['id_display']);
         $this->assertSame($affiliate->id, $result['partner']?->id);
+        $this->assertSame($result['id_display'], $cards->composeId('affiliate', 'AFF-UAT-STD'));
+        $this->assertSame($affiliate->id, app(\App\Services\AffiliateService::class)->resolveByPublicCode('AFF-UAT-STD')?->id);
     }
 
     public function test_active_partner_stays_active_when_profile_incomplete(): void
@@ -98,10 +99,13 @@ class AffiliateFinalClosurePassFeatureTest extends TestCase
             ->get(route('site.register.borrower', ['aff' => 'MAPROSO']))
             ->assertOk()
             ->assertSee('Kitonga Style', false)
-            ->assertSee('AFF-UAT-KIT', false)
+            ->assertSee($affiliate->fresh()->partner_number, false)
             ->assertSee(__('borrower.register.affiliate_invited_by', [], 'sw'), false)
             ->assertDontSee('Msambazaji', false)
             ->getContent();
+
+        $this->assertMatchesRegularExpression('/^PT-AF-TZ-[A-Z0-9]{4}$/', (string) $affiliate->fresh()->partner_number);
+        $this->assertSame($affiliate->id, app(\App\Services\AffiliateService::class)->resolveByPublicCode('AFF-UAT-KIT')?->id);
 
         $this->assertStringContainsString(brand_name(), $html);
         $this->assertSame($affiliate->affiliate_code, 'MAPROSO');

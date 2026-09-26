@@ -80,12 +80,14 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
 
     public function test_referral_token_stays_when_promo_changes(): void
     {
-        $affiliate = $this->affiliate(['affiliate_code' => 'UATSTD01']);
+        $affiliate = $this->affiliate(['affiliate_code' => 'UATSTD01', 'partner_number' => 'PT-AF-TZ-51SC']);
         $service = app(AffiliateService::class);
         $token = $service->ensureReferralToken($affiliate);
 
-        $this->assertSame('UATSTD01', $token);
-        $this->assertStringContainsString('/aff/UATSTD01', $service->affiliateLink($affiliate));
+        $this->assertNotSame('UATSTD01', $token);
+        $this->assertNotSame('PT-AF-TZ-51SC', $token);
+        $this->assertMatchesRegularExpression('/^[A-Z0-9]{8}$/', $token);
+        $this->assertStringContainsString('/aff/'.$token, $service->affiliateLink($affiliate));
 
         Setting::set('affiliates.promo_code', [
             'affiliate_can_edit' => true,
@@ -94,11 +96,14 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
         ]);
         $service->updateCode($affiliate->fresh(), 'MAPROSO2');
 
-        $this->assertSame('MAPROSO2', $affiliate->fresh()->affiliate_code);
-        $this->assertSame('UATSTD01', $service->ensureReferralToken($affiliate->fresh()));
+        $fresh = $affiliate->fresh();
+        $this->assertSame('MAPROSO2', $fresh->affiliate_code);
+        $this->assertSame('PT-AF-TZ-51SC', $fresh->partner_number);
+        $this->assertSame($token, $service->ensureReferralToken($fresh));
         $this->assertSame($affiliate->id, $service->resolveByPublicCode('UATSTD01')?->id);
         $this->assertSame($affiliate->id, $service->resolveByPublicCode('MAPROSO2')?->id);
-        $this->assertNotSame($affiliate->name, $affiliate->fresh()->affiliate_code);
+        $this->assertSame($affiliate->id, $service->resolveByPublicCode($token)?->id);
+        $this->assertNotSame($affiliate->name, $fresh->affiliate_code);
     }
 
     public function test_partner_code_uses_compact_suffix_not_a_name(): void
@@ -130,6 +135,22 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
 
         $this->assertStringContainsString(brand_name(), $html);
         $this->assertStringNotContainsString(__('borrower.register.affiliate_invited', ['brand' => brand_name()], 'sw'), $html);
+        $this->assertStringNotContainsString(__('site.affiliate_portal.link_welcome', [], 'sw'), $html);
+    }
+
+    public function test_affiliate_link_does_not_flash_duplicate_welcome(): void
+    {
+        $this->affiliate([
+            'name' => 'UAT Standard Affiliate',
+            'affiliate_code' => 'UATSTD01',
+            'partner_number' => 'PT-AF-TZ-51SC',
+        ]);
+
+        $this->withSession(['locale' => 'sw'])
+            ->get('/aff/UATSTD01')
+            ->assertRedirect();
+
+        $this->assertNull(session('status'));
     }
 
     public function test_manual_promo_does_not_expose_customer_exception(): void
@@ -218,14 +239,101 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
         $this->assertNotSame('UATSTD01', $result['id_display']);
     }
 
+    public function test_plus_payment_uses_plus_benefit_not_application_fee_label(): void
+    {
+        $affiliate = $this->affiliate([
+            'affiliate_code' => 'UATSTD01',
+            'partner_number' => 'PT-AF-TZ-51SC',
+        ]);
+        $customer = $this->customer(['affiliate_vendor_id' => $affiliate->id]);
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'payment_type' => 'kopafasta_plus',
+            'payment_method' => 'mobile_money',
+            'status' => 'awaiting_payment',
+            'amount' => 1000,
+            'currency' => 'TZS',
+            'reference' => 'PAY-PLUS148',
+            'provider_meta' => [
+                'pricing' => ['gross' => 1000],
+            ],
+        ]);
+
+        $html = $this->actingAs($customer->user)
+            ->withSession(['locale' => 'sw'])
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee('Kopafasta Plus', false)
+            ->assertSee(__('site.affiliate_portal.benefit_applied', [], 'sw'), false)
+            ->assertDontSee(__('borrower.payments_page.show.obligation_line', [], 'sw'), false)
+            ->assertDontSee(__('borrower.membership.apply_promo_link', [], 'sw'), false)
+            ->getContent();
+
+        $this->assertStringNotContainsString(__('borrower.payment_types.application_fee', [], 'sw'), $html);
+
+        $quote = app(PaymentGateService::class)->quote($customer, 1000, 'kopafasta_plus');
+        $this->assertTrue($quote['has_affiliate']);
+        $this->assertSame(1000.0, (float) $quote['base']);
+        $this->assertSame(100.0, (float) $quote['affiliate_discount']);
+        $this->assertSame(900.0, (float) $quote['cash_due']);
+        $this->assertSame('Kopafasta Plus', $quote['lines'][0]['label'] ?? null);
+
+        $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.payments.adjust', $payment), [
+                'promo_code' => 'UATSTD01',
+            ])
+            ->assertOk()
+            ->assertJsonPath('quote.cash_due', 900);
+
+        $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
+    }
+
+    public function test_manual_promo_is_fallback_when_unattributed(): void
+    {
+        $affiliate = $this->affiliate(['affiliate_code' => 'UATSTD01']);
+        $customer = $this->customer();
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'payment_type' => 'kopafasta_plus',
+            'payment_method' => 'mobile_money',
+            'status' => 'awaiting_payment',
+            'amount' => 1000,
+            'currency' => 'TZS',
+            'reference' => 'PAY-PLUSFB',
+            'provider_meta' => ['pricing' => ['gross' => 1000]],
+        ]);
+
+        $html = $this->actingAs($customer->user)
+            ->withSession(['locale' => 'sw'])
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(__('borrower.membership.apply_promo_link', [], 'sw'), $html);
+
+        $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.payments.adjust', $payment), [
+                'promo_code' => 'UATSTD01',
+            ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('promo_valid', true)
+            ->assertJsonPath('quote.cash_due', 900)
+            ->assertJsonPath('quote.lines.0.label', 'Kopafasta Plus');
+
+        $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
+    }
+
     public function test_guest_redirect_preserves_referral_and_opens_register(): void
     {
         $affiliate = $this->affiliate(['affiliate_code' => 'GUEST1']);
 
-        $this->get('/aff/GUEST1')
-            ->assertRedirect(route('site.register.borrower', ['aff' => 'GUEST1']));
+        $response = $this->get('/aff/GUEST1');
+        $token = app(AffiliateService::class)->ensureReferralToken($affiliate->fresh());
 
+        $response->assertRedirect(route('site.register.borrower', ['aff' => $token]));
         $this->assertSame($affiliate->id, session('affiliate_claim')['affiliate_id'] ?? null);
+        $this->assertNull(session('status'));
     }
 
     private function affiliate(array $overrides = []): Vendor

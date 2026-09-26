@@ -502,7 +502,9 @@ class ApplicationFeePaymentService
 
         $code = strtoupper(trim((string) $code));
 
-        if ($affiliates->findByCode($code)) {
+        // Resolve the commercial code to the Affiliate record. New-attribution
+        // eligibility is decided later — do not treat an existing promo as unknown.
+        if ($affiliates->resolveByPublicCode($code)) {
             return [null, $code];
         }
 

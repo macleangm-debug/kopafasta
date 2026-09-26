@@ -92,15 +92,27 @@ class CustomerPayment extends Model
         return $this->morphTo();
     }
 
+    public static function canonicalType(?string $type): string
+    {
+        $type = strtolower(trim((string) $type));
+
+        return match ($type) {
+            'plus', 'plus_subscription', 'plus_membership', 'kopafasta_plus' => 'kopafasta_plus',
+            'application_fee', 'origination_fee' => 'application_fee',
+            default => $type,
+        };
+    }
+
     public function typeLabel(): string
     {
-        $key = "borrower.payment_types.{$this->payment_type}";
+        $type = self::canonicalType((string) $this->payment_type);
+        $key = "borrower.payment_types.{$type}";
         $translated = __($key);
         if ($translated !== $key) {
             return $translated;
         }
 
-        return config("payment_types.types.{$this->payment_type}.label", ucfirst(str_replace('_', ' ', $this->payment_type)));
+        return config("payment_types.types.{$type}.label", ucfirst(str_replace('_', ' ', $type)));
     }
 
     public function methodLabel(): string

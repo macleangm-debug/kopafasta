@@ -21,6 +21,8 @@ class AffiliateSettingsService
 
     public function appliesToFeeType(string $feeType): bool
     {
+        $feeType = \App\Models\CustomerPayment::canonicalType($feeType);
+
         return (bool) ($this->appliesTo()[$feeType] ?? false);
     }
 

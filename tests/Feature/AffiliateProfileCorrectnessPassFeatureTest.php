@@ -61,8 +61,9 @@ class AffiliateProfileCorrectnessPassFeatureTest extends TestCase
         $this->assertSame('MAPROSO', $affiliate->affiliate_code);
         $this->assertSame($affiliate->id, $affiliates->resolveByPublicCode('MAPROSO')?->id);
 
+        $token = $affiliates->ensureReferralToken($affiliate->fresh());
         $this->get('/aff/MAPROSO')
-            ->assertRedirect(route('site.register.borrower', ['aff' => 'MAPROSO']));
+            ->assertRedirect(route('site.register.borrower', ['aff' => $token]));
 
         $user = User::factory()->create(['role' => 'customer']);
         $customer = Customer::create([

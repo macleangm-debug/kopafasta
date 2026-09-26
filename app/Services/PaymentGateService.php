@@ -35,6 +35,8 @@ class PaymentGateService
         ?string $affiliateCode = null,
         bool $applyLoyalty = false,
     ): array {
+        $feeType = \App\Models\CustomerPayment::canonicalType($feeType);
+
         [$resolvedPromo, $resolvedAffiliate] = app(ApplicationFeePaymentService::class)
             ->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 

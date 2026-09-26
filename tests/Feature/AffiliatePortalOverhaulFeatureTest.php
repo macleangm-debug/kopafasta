@@ -508,11 +508,13 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
         $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
         $this->assertNotNull(app(\App\Services\AffiliateService::class)->resolveByPublicCode('HTTPOLD1'));
 
+        $token = app(\App\Services\AffiliateService::class)->ensureReferralToken($affiliate->fresh());
         $this->actingAs($user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
             ->get(route('site.affiliate.share'))
             ->assertOk()
-            ->assertSee('/aff/HTTPNEW1', false)
+            ->assertSee('/aff/'.$token, false)
+            ->assertDontSee('/aff/HTTPNEW1', false)
             ->assertDontSee('/aff/HTTPOLD1', false);
 
         $this->actingAs($user)

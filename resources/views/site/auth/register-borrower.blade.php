@@ -114,7 +114,7 @@
                                     <div class="mt-1 flex items-start justify-between gap-2">
                                         <p class="text-sm font-semibold text-white leading-snug">
                                             {{ $affiliatePartner->name }}
-                                            <span class="text-white/70 font-mono text-xs">· {{ $affiliatePartner->partner_number ?? $affiliatePartner->vendor_number }}</span>
+                                            <span class="text-white/70 font-mono text-xs">· {{ $affiliatePartner->partner_number }}</span>
                                         </p>
                                         @if (! empty($affiliateBenefitItems))
                                             <button type="button" x-ref="benefitBtn"

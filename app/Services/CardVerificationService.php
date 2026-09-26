@@ -314,7 +314,7 @@ class CardVerificationService
             return null;
         }
 
-        return Partner::query()
+        $partner = Partner::query()
             ->when($normalized !== '', fn ($q) => $q->where('partner_number', $normalized))
             ->when($clean !== '', function ($q) use ($clean, $normalized) {
                 if ($normalized !== '') {
@@ -324,6 +324,35 @@ class CardVerificationService
                 }
             })
             ->first();
+
+        if ($partner) {
+            return $this->canonicalPartnerIdentity($partner);
+        }
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        $legacy = Partner::query()
+            ->where('category', 'affiliate')
+            ->where(function ($query) use ($normalized) {
+                $query->where('metadata->legacy_partner_number', $normalized)
+                    ->orWhere('affiliate_code', $normalized)
+                    ->orWhere('metadata->referral_token', $normalized)
+                    ->orWhere('metadata->legacy_referral_token', $normalized);
+            })
+            ->first();
+
+        return $legacy ? $this->canonicalPartnerIdentity($legacy) : null;
+    }
+
+    private function canonicalPartnerIdentity(Partner $partner): Partner
+    {
+        if ($partner->category === 'affiliate') {
+            return app(AffiliateService::class)->canonicalizeIdentity($partner);
+        }
+
+        return $partner;
     }
 
     /** @return array<string, mixed> */

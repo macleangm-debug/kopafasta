@@ -994,6 +994,9 @@ class AuthController extends Controller
         $affiliatePartner = filled($affiliateCode)
             ? app(AffiliateService::class)->resolveByPublicCode((string) $affiliateCode)
             : null;
+        if ($affiliatePartner) {
+            $affiliatePartner = app(AffiliateService::class)->canonicalizeIdentity($affiliatePartner);
+        }
 
         return view('site.auth.register-borrower', [
             'referralCode' => $request->query('ref'),
@@ -1293,6 +1296,9 @@ class AuthController extends Controller
                 $data['affiliate_code'] ?? session('affiliate_code'),
                 $request
             );
+            if (blank($customer->fresh()->affiliate_vendor_id)) {
+                app(AffiliateService::class)->connectFromPendingClaim($customer, $request);
+            }
 
             $guarantorOnboarding = app(GuarantorOnboardingService::class);
             if ($token = request()->session()->get('guarantor_invite_token')) {

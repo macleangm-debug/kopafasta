@@ -65,14 +65,42 @@ class PartnerCodeService
         return $code;
     }
 
+    public function isCanonical(?string $code, ?string $category = null): bool
+    {
+        $code = strtoupper(trim((string) $code));
+        $prefix = preg_quote($this->prefix(), '/');
+        $country = preg_quote($this->defaultCountryCode(), '/');
+        $type = $category
+            ? preg_quote($this->typeCode($category), '/')
+            : '[A-Z]{2}';
+
+        return (bool) preg_match("/^{$prefix}-{$type}-{$country}-[A-Z0-9]{4}$/", $code);
+    }
+
     public function ensure(Partner $partner): string
     {
-        if (filled($partner->partner_number)) {
+        $current = strtoupper(trim((string) ($partner->partner_number ?? '')));
+        if ($current !== '' && $this->isCanonical($current, (string) $partner->category)) {
+            return $partner->partner_number;
+        }
+
+        if ($current !== '' && $partner->category !== 'affiliate') {
             return $partner->partner_number;
         }
 
         $code = $this->generate((string) $partner->category);
-        $partner->update(['partner_number' => $code]);
+        $meta = is_array($partner->metadata ?? null) ? $partner->metadata : [];
+        if ($current !== '') {
+            $legacy = is_array($meta['legacy_partner_numbers'] ?? null) ? $meta['legacy_partner_numbers'] : [];
+            $legacy[] = $current;
+            $meta['legacy_partner_numbers'] = array_values(array_unique(array_filter($legacy)));
+            $meta['legacy_partner_number'] = $current;
+        }
+
+        $partner->update([
+            'partner_number' => $code,
+            'metadata' => $meta,
+        ]);
 
         return $code;
     }

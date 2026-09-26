@@ -41,17 +41,20 @@ class AffiliateService
             ->first();
 
         if ($direct) {
-            return $direct;
+            return $this->canonicalizeIdentity($direct);
         }
 
         $byToken = Vendor::query()
             ->where('category', 'affiliate')
             ->where('status', 'active')
-            ->where('metadata->referral_token', $code)
+            ->where(function ($query) use ($code) {
+                $query->where('metadata->referral_token', $code)
+                    ->orWhere('metadata->legacy_referral_token', $code);
+            })
             ->first();
 
         if ($byToken) {
-            return $byToken;
+            return $this->canonicalizeIdentity($byToken);
         }
 
         $byPartnerNumber = Vendor::query()
@@ -59,15 +62,32 @@ class AffiliateService
             ->where('status', 'active')
             ->where(function ($query) use ($code) {
                 $query->where('partner_number', $code)
-                    ->orWhere('vendor_number', $code);
+                    ->orWhere('metadata->legacy_partner_number', $code)
+                    ->orWhere('metadata->referral_token', $code);
             })
             ->first();
 
         if ($byPartnerNumber) {
-            return $byPartnerNumber;
+            return $this->canonicalizeIdentity($byPartnerNumber);
         }
 
-        return $this->resolveByAlias($code);
+        $byLegacy = $this->resolveByLegacyIdentity($code);
+        if ($byLegacy) {
+            return $this->canonicalizeIdentity($byLegacy);
+        }
+
+        $alias = $this->resolveByAlias($code);
+
+        return $alias ? $this->canonicalizeIdentity($alias) : null;
+    }
+
+    public function canonicalizeIdentity(Vendor|\App\Models\Partner $affiliate): Vendor|\App\Models\Partner
+    {
+        $affiliate = $affiliate->fresh() ?? $affiliate;
+        app(PartnerCodeService::class)->ensure($affiliate);
+        $this->ensureReferralToken($affiliate);
+
+        return $affiliate->fresh() ?? $affiliate;
     }
 
     public function affiliateLink(Vendor $affiliate): string
@@ -88,25 +108,72 @@ class AffiliateService
     /**
      * Stable referral URL token. Promo codes may change; this token must not.
      */
-    public function ensureReferralToken(Vendor $affiliate): string
+    public function ensureReferralToken(Vendor|\App\Models\Partner $affiliate): string
     {
+        $affiliate->refresh();
         $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
         $token = strtoupper(trim((string) ($meta['referral_token'] ?? '')));
-        if ($token !== '') {
+        $promo = strtoupper(trim((string) ($affiliate->affiliate_code ?? '')));
+        $partnerNumber = strtoupper(trim((string) ($affiliate->partner_number ?? '')));
+
+        $coupled = $token !== '' && (
+            $token === $promo
+            || $token === $partnerNumber
+            || $this->looksLikePersonOrCompanyName($affiliate, $token)
+        );
+
+        if ($token !== '' && ! $coupled) {
             return $token;
         }
 
-        $current = strtoupper(trim((string) ($affiliate->affiliate_code ?? '')));
-        if ($current !== '' && ! $this->looksLikePersonOrCompanyName($affiliate, $current)) {
-            $token = $current;
-        } else {
-            $token = $this->mintPublicCode($affiliate->id);
+        $fresh = $this->mintReferralToken($affiliate->id);
+        if ($token !== '') {
+            $legacy = is_array($meta['legacy_referral_tokens'] ?? null) ? $meta['legacy_referral_tokens'] : [];
+            $legacy[] = $token;
+            $meta['legacy_referral_tokens'] = array_values(array_unique(array_filter($legacy)));
+            $meta['legacy_referral_token'] = $token;
         }
-
-        $meta['referral_token'] = $token;
+        $meta['referral_token'] = $fresh;
         $affiliate->update(['metadata' => $meta]);
 
+        return $fresh;
+    }
+
+    private function mintReferralToken(?int $exceptVendorId = null): string
+    {
+        do {
+            $token = strtoupper(Str::random(8));
+        } while (! $this->codeIsUnique($token, $exceptVendorId));
+
         return $token;
+    }
+
+    private function resolveByLegacyIdentity(string $code): ?Vendor
+    {
+        $candidates = Vendor::query()
+            ->where('category', 'affiliate')
+            ->where('status', 'active')
+            ->where(function ($query) use ($code) {
+                $query->where('metadata->legacy_partner_number', $code)
+                    ->orWhere('metadata->legacy_referral_token', $code)
+                    ->orWhere('metadata', 'like', '%"'.$code.'"%');
+            })
+            ->limit(20)
+            ->get();
+
+        foreach ($candidates as $affiliate) {
+            $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
+            $legacyNumbers = is_array($meta['legacy_partner_numbers'] ?? null) ? $meta['legacy_partner_numbers'] : [];
+            $legacyTokens = is_array($meta['legacy_referral_tokens'] ?? null) ? $meta['legacy_referral_tokens'] : [];
+            if (strtoupper((string) ($meta['legacy_partner_number'] ?? '')) === $code
+                || strtoupper((string) ($meta['legacy_referral_token'] ?? '')) === $code
+                || in_array($code, array_map('strtoupper', $legacyNumbers), true)
+                || in_array($code, array_map('strtoupper', $legacyTokens), true)) {
+                return $affiliate;
+            }
+        }
+
+        return null;
     }
 
     public function ensureCode(Vendor $affiliate): string
@@ -134,7 +201,7 @@ class AffiliateService
         return $code;
     }
 
-    private function looksLikePersonOrCompanyName(Vendor $affiliate, string $code): bool
+    private function looksLikePersonOrCompanyName(Vendor|\App\Models\Partner $affiliate, string $code): bool
     {
         $name = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $affiliate->name) ?? '');
 
@@ -664,8 +731,9 @@ class AffiliateService
             ->where(function ($query) use ($code) {
                 $query->where('affiliate_code', $code)
                     ->orWhere('partner_number', $code)
-                    ->orWhere('vendor_number', $code)
-                    ->orWhere('metadata->referral_token', $code);
+                    ->orWhere('metadata->referral_token', $code)
+                    ->orWhere('metadata->legacy_partner_number', $code)
+                    ->orWhere('metadata->legacy_referral_token', $code);
             })
             ->exists();
 
@@ -711,6 +779,7 @@ class AffiliateService
      */
     public function quoteFee(Customer $customer, float $baseAmount, string $feeType): array
     {
+        $feeType = \App\Models\CustomerPayment::canonicalType($feeType);
         $affiliate = $this->affiliate($customer);
 
         if (! $affiliate || $baseAmount <= 0 || ! app(AffiliateSettingsService::class)->appliesToFeeType($feeType)) {

@@ -16,14 +16,14 @@ class AffiliateRedirectController extends Controller
     {
         $affiliate = $affiliates->resolveByPublicCode($code);
         if (! $affiliate) {
+            $normalized = strtoupper(trim($code));
             $raw = \App\Models\Vendor::query()
                 ->where('category', 'affiliate')
-                ->where(function ($query) use ($code) {
-                    $normalized = strtoupper(trim($code));
+                ->where(function ($query) use ($normalized) {
                     $query->where('affiliate_code', $normalized)
                         ->orWhere('partner_number', $normalized)
                         ->orWhere('metadata->referral_token', $normalized)
-                        ->orWhere('metadata', 'like', '%'.$normalized.'%');
+                        ->orWhere('metadata->legacy_partner_number', $normalized);
                 })
                 ->first();
 
@@ -51,8 +51,7 @@ class AffiliateRedirectController extends Controller
         }
 
         return redirect()
-            ->route('site.register.borrower', ['aff' => $token])
-            ->with('status', __('site.affiliate_portal.link_welcome'));
+            ->route('site.register.borrower', ['aff' => $token]);
     }
 
     /** @return array<string, mixed> */
