@@ -3,27 +3,45 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
-use App\Models\AffiliateEvent;
+use App\Models\NotificationLog;
 use App\Models\PartnerPayment;
 use App\Models\Vendor;
+use App\Services\AffiliateCommissionWalletService;
+use App\Services\AffiliateMembershipService;
 use App\Services\AffiliatePortalPresenter;
 use App\Services\AffiliateService;
 use App\Services\AffiliateSettingsService;
+use App\Services\AffiliateTermsService;
+use App\Services\PartnerMembershipPaymentService;
 use App\Services\PartnerPayoutRequestService;
+use App\Services\PartnerPortalRedirectService;
 use App\Services\PartnerProfileService;
+use App\Services\PaymentAccountService;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class AffiliateController extends Controller
 {
     protected function affiliate(): Vendor
     {
-        $vendor = Vendor::where('user_id', Auth::id())->first();
-        abort_unless($vendor && $vendor->isAffiliate(), 403);
+        $user = Auth::user();
+        $vendor = $user ? Vendor::where('user_id', $user->id)->first() : null;
+        if ($vendor && $vendor->isAffiliate()) {
+            return $vendor;
+        }
 
-        return $vendor;
+        throw new HttpResponseException(
+            redirect()->to(
+                $user
+                    ? app(PartnerPortalRedirectService::class)->homeUrl($user)
+                    : route('site.login.partner')
+            )
+        );
     }
 
     public function dashboard(Request $request): View
@@ -107,19 +125,19 @@ class AffiliateController extends Controller
         $accountTabs = [];
 
         $common = [
-            'partner'         => $vendor,
-            'portal'          => 'affiliate',
-            'profileRoute'    => 'site.affiliate.profile',
-            'updateRoute'     => 'site.affiliate.profile.update',
+            'partner' => $vendor,
+            'portal' => 'affiliate',
+            'profileRoute' => 'site.affiliate.profile',
+            'updateRoute' => 'site.affiliate.profile.update',
             'layoutComponent' => 'site.affiliate-layout',
-            'eyebrow'         => __('site.affiliate_portal.title'),
-            'accountTabs'     => $accountTabs,
-            'commercial'      => app(\App\Services\AffiliateMembershipService::class)->summary($vendor),
+            'eyebrow' => __('site.affiliate_portal.title'),
+            'accountTabs' => $accountTabs,
+            'commercial' => app(AffiliateMembershipService::class)->summary($vendor),
         ];
 
         if ($section === 'hub') {
             return view('site.partner-account.hub', $common + [
-                'title'    => __('site.partner_account.hub_title'),
+                'title' => __('site.partner_account.hub_title'),
                 'subtitle' => __('site.partner_account.hub_subtitle'),
             ]);
         }
@@ -148,7 +166,7 @@ class AffiliateController extends Controller
         }
 
         return view('site.partner-account.'.$section, $common + [
-            'title'         => __('site.partner_account.'.$section.'_section'),
+            'title' => __('site.partner_account.'.$section.'_section'),
             'canChangeCode' => app(AffiliateService::class)->canChangeCode($vendor),
             'nextCodeChangeAt' => app(AffiliateService::class)->nextCodeChangeAt($vendor),
         ]);
@@ -169,7 +187,7 @@ class AffiliateController extends Controller
     public function terms(Request $request): View|RedirectResponse
     {
         $vendor = $this->affiliate();
-        $terms = app(\App\Services\AffiliateTermsService::class);
+        $terms = app(AffiliateTermsService::class);
         $document = app(AffiliatePortalPresenter::class)->agreementDocument($vendor);
 
         return view('site.affiliate.terms', $document + [
@@ -182,7 +200,7 @@ class AffiliateController extends Controller
     public function acceptTerms(Request $request): RedirectResponse
     {
         $vendor = $this->affiliate();
-        $terms = app(\App\Services\AffiliateTermsService::class);
+        $terms = app(AffiliateTermsService::class);
 
         $request->validate([
             'affiliate_terms_accepted' => ['accepted'],
@@ -207,8 +225,8 @@ class AffiliateController extends Controller
     public function membershipPayForm(Request $request): View|RedirectResponse
     {
         $vendor = $this->affiliate();
-        $service = app(\App\Services\AffiliateMembershipService::class);
-        $cfg = \App\Services\AffiliateMembershipService::config();
+        $service = app(AffiliateMembershipService::class);
+        $cfg = AffiliateMembershipService::config();
 
         if ($vendor->isPremiumAffiliate() && ! app(AffiliateSettingsService::class)->premiumMembershipRequired()) {
             return redirect()->route('site.affiliate.agreement');
@@ -219,7 +237,7 @@ class AffiliateController extends Controller
         }
 
         if (($cfg['require_terms_before_activation'] ?? true)
-            && ! app(\App\Services\AffiliateTermsService::class)->hasAccepted($vendor)
+            && ! app(AffiliateTermsService::class)->hasAccepted($vendor)
             && ! $service->isActive($vendor)) {
             return redirect()->route('site.affiliate.terms')
                 ->with('error', __('affiliate_terms.required_before_membership'));
@@ -230,8 +248,8 @@ class AffiliateController extends Controller
                 ->with('status', __('site.affiliate_portal.membership_active'));
         }
 
-        $payment = app(\App\Services\PartnerMembershipPaymentService::class)->open($vendor);
-        $accounts = app(\App\Services\PaymentAccountService::class);
+        $payment = app(PartnerMembershipPaymentService::class)->open($vendor);
+        $accounts = app(PaymentAccountService::class);
         $bankAccounts = $accounts->bankAccountsForDisplay('partner_membership', $payment->reference);
         $canSwitchToBank = (bool) $accounts->resolveBankAccount('partner_membership');
 
@@ -254,7 +272,7 @@ class AffiliateController extends Controller
         return redirect()->route('site.affiliate.membership.pay');
     }
 
-    public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
+    public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse|JsonResponse
     {
         $vendor = $this->affiliate();
 
@@ -291,11 +309,11 @@ class AffiliateController extends Controller
         $vendor = $this->affiliate();
 
         $request->validate([
-            'affiliate_id'      => ['nullable', 'image', 'max:5120'],
-            'face_front'        => ['nullable', 'image', 'max:5120'],
-            'face_left'         => ['nullable', 'image', 'max:5120'],
-            'face_right'        => ['nullable', 'image', 'max:5120'],
-            'face_holding_id'   => ['nullable', 'image', 'max:5120'],
+            'affiliate_id' => ['nullable', 'image', 'max:5120'],
+            'face_front' => ['nullable', 'image', 'max:5120'],
+            'face_left' => ['nullable', 'image', 'max:5120'],
+            'face_right' => ['nullable', 'image', 'max:5120'],
+            'face_holding_id' => ['nullable', 'image', 'max:5120'],
         ]);
 
         $data = [];
@@ -349,7 +367,7 @@ class AffiliateController extends Controller
         $request->validate(['reason' => ['required', 'string', 'max:500']]);
 
         try {
-            app(\App\Services\AffiliateCommissionWalletService::class)->dispute($payment, $vendor, $request->input('reason'));
+            app(AffiliateCommissionWalletService::class)->dispute($payment, $vendor, $request->input('reason'));
         } catch (\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -360,9 +378,9 @@ class AffiliateController extends Controller
     public function notifications(): View
     {
         $vendor = $this->affiliate();
-        $notifications = \App\Models\NotificationLog::query()
+        $notifications = NotificationLog::query()
             ->when(
-                \Illuminate\Support\Facades\Schema::hasColumn('notification_logs', 'user_id'),
+                Schema::hasColumn('notification_logs', 'user_id'),
                 fn ($q) => $q->where('user_id', Auth::id()),
                 fn ($q) => $q->where(function ($inner) {
                     $inner->where('recipient', Auth::user()?->email)
@@ -382,7 +400,7 @@ class AffiliateController extends Controller
 
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:'.$minPayout],
-            'notes'  => ['nullable', 'string', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         try {

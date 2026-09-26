@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\PartnerProfileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,12 +17,12 @@ class AffiliateProfileHubTest extends TestCase
         $user ??= User::factory()->create(['role' => 'vendor']);
 
         return Vendor::create([
-            'user_id'       => $user->id,
+            'user_id' => $user->id,
             'vendor_number' => 'AFF-HUB-1',
-            'name'          => 'Hub Affiliate',
-            'category'      => 'affiliate',
-            'status'        => 'active',
-            'phone'         => '255712340001',
+            'name' => 'Hub Affiliate',
+            'category' => 'affiliate',
+            'status' => 'active',
+            'phone' => '255712340001',
             'applicant_category' => 'individual',
         ]);
     }
@@ -42,6 +43,30 @@ class AffiliateProfileHubTest extends TestCase
             ->assertSee(__('borrower.profile.hero_completion_cta'), false)
             ->assertSee(route('site.affiliate.profile', ['section' => 'personal']), false)
             ->assertDontSee('data-kf-partner-card-pair', false);
+    }
+
+    public function test_affiliate_home_redirects_non_affiliate_instead_of_error_page(): void
+    {
+        $borrower = User::factory()->create(['role' => 'customer']);
+
+        $this->actingAs($borrower)
+            ->get(route('site.affiliate.dashboard'))
+            ->assertRedirect(route('site.borrower.dashboard'));
+    }
+
+    public function test_profile_autosave_returns_json_instead_of_type_error(): void
+    {
+        $user = User::factory()->create(['role' => 'vendor']);
+        $this->affiliatePartner($user);
+
+        $this->actingAs($user)
+            ->putJson(route('site.affiliate.profile.update', ['section' => 'personal']), [
+                'focus' => 'identity',
+                'national_id' => '19900101123456789012',
+                'no_physical_nida_card' => '1',
+            ])
+            ->assertOk()
+            ->assertJson(['ok' => true, 'saved' => true, 'section' => 'personal']);
     }
 
     public function test_unknown_section_slug_is_rejected_by_route_constraint(): void
@@ -66,9 +91,9 @@ class AffiliateProfileHubTest extends TestCase
 
         $this->actingAs($user)
             ->put(route('site.affiliate.profile.update', ['section' => 'personal']), [
-                'focus'                  => 'identity',
-                'national_id'            => '19900101123456789012',
-                'no_physical_nida_card'  => '1',
+                'focus' => 'identity',
+                'national_id' => '19900101123456789012',
+                'no_physical_nida_card' => '1',
             ])
             ->assertRedirect();
 
@@ -91,7 +116,7 @@ class AffiliateProfileHubTest extends TestCase
         $vendor->refresh();
         $this->assertSame('Amina Juma', data_get($vendor->metadata, 'reference_contact.name'));
 
-        $service = app(\App\Services\PartnerProfileService::class);
+        $service = app(PartnerProfileService::class);
         $status = $service->sectionStatus($vendor, 'personal');
         $this->assertSame('complete', $status['status']);
         $this->assertTrue($status['complete']);

@@ -17,6 +17,7 @@ use App\Services\PartnerPortalRedirectService;
 use App\Services\PartnerProfileService;
 use App\Services\SupplierPortalHomeService;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -433,7 +434,7 @@ class SupplierController extends Controller
         return view('site.supplier.notifications', compact('vendor', 'notifications'));
     }
 
-    public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse
+    public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse|JsonResponse
     {
         $vendor = $this->supplier();
 
