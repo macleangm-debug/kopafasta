@@ -58,8 +58,8 @@
                             aria-label="{{ __('site.affiliate_portal.how_referrals_work') }}">i</button>
                 </div>
             </div>
-            <div class="px-4 sm:px-5 py-4 flex-1">
-                <p class="text-sm text-gray-800 whitespace-pre-line leading-relaxed" data-kf-promo-message>{{ $shareMessage }}</p>
+            <div class="px-4 sm:px-5 py-3 flex-1">
+                <p class="text-sm text-gray-800 whitespace-pre-line leading-snug" data-kf-promo-message>{{ $shareMessage }}</p>
             </div>
             <x-site.bottom-sheet :title="__('site.affiliate_portal.how_referrals_work')" open="referralSheet">
                 <p class="text-sm text-gray-700">{{ __('site.affiliate_portal.attribution_window_note', ['days' => $attributionWindow]) }}</p>

@@ -6,11 +6,12 @@ use App\Models\AffiliateEvent;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\NotificationLog;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
-use App\Models\Setting;
 use App\Services\AffiliateAttributionService;
 use App\Services\AffiliatePortalPresenter;
+use App\Services\AffiliateService;
 use App\Services\AffiliateTermsService;
 use App\Services\CustomerPaymentService;
 use App\Services\Messaging\TransactionalMessagingService;
@@ -33,12 +34,16 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $this->assertSame('Ripoti', data_get($sw, 'affiliate_portal.nav_reports'));
         $this->assertSame('Shiriki & Pata', data_get($sw, 'affiliate_portal.nav_share'));
         $this->assertSame('Commission earned', data_get($en, 'affiliate_portal.funnel_earned'));
-        $this->assertSame('Qualifying members', data_get($en, 'affiliate_portal.funnel_qualifying'));
-        $this->assertSame('Wanachama waliofikia vigezo', data_get($sw, 'affiliate_portal.funnel_qualifying'));
+        $this->assertSame('Registered members', data_get($en, 'affiliate_portal.funnel_registered'));
+        $this->assertSame('Wanachama waliosajiliwa', data_get($sw, 'affiliate_portal.funnel_registered'));
+        $this->assertSame('Available to withdraw', data_get($en, 'affiliate_portal.figure_available'));
+        $this->assertSame('Inayoweza kutolewa', data_get($sw, 'affiliate_portal.figure_available'));
         $this->assertSame('Member', data_get($en, 'affiliate_portal.col_member'));
         $this->assertSame('Mwanachama', data_get($sw, 'affiliate_portal.col_member'));
-        $this->assertStringNotContainsString('Customer', (string) data_get($en, 'affiliate_portal.funnel_qualifying'));
-        $this->assertStringNotContainsString('Successful', (string) data_get($en, 'affiliate_portal.funnel_qualifying'));
+        $this->assertStringContainsString('Vigezo na Masharti vinatumika.', (string) data_get($sw, 'affiliate_portal.share_invite_with_benefit'));
+        $this->assertStringNotContainsString('Customer', (string) data_get($en, 'affiliate_portal.funnel_registered'));
+        $this->assertStringNotContainsString('Successful', (string) data_get($en, 'affiliate_portal.funnel_registered'));
+        $this->assertStringNotContainsString('Qualifying members', (string) data_get($en, 'affiliate_portal.funnel_registered'));
     }
 
     public function test_promo_only_commission_does_not_inflate_referral_member_counts(): void
@@ -59,6 +64,9 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $this->assertSame(0, $funnel['qualifying']);
         $this->assertSame(90.0, $funnel['earned']);
         $this->assertSame(1, $funnel['commission_transactions']);
+        $this->assertSame(['visited', 'registered', 'applied'], app(AffiliatePortalPresenter::class)->visibleFunnelKeys());
+        $this->assertSame(['visited', 'applied'], app(AffiliatePortalPresenter::class)->overviewFunnelKeys());
+        $this->assertNotContains('qualifying', app(AffiliatePortalPresenter::class)->visibleFunnelKeys());
         $this->assertNotContains('successful', app(AffiliatePortalPresenter::class)->visibleFunnelKeys());
 
         AffiliateEvent::create([
@@ -106,7 +114,10 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('KPF-TZ-WLN5', false)
             ->assertSee(__('site.affiliate_portal.funnel_earned'), false)
-            ->assertSee(__('site.affiliate_portal.funnel_qualifying'), false)
+            ->assertSee(__('site.affiliate_portal.figure_available'), false)
+            ->assertSee(__('site.affiliate_portal.funnel_applied'), false)
+            ->assertSee('lg:text-right', false)
+            ->assertDontSee('Qualifying members', false)
             ->assertDontSee('Successful customers', false)
             ->assertDontSee('Successful members', false)
             ->getContent();
@@ -137,9 +148,37 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->assertSee('PT-AF-TZ-WON4', false)
             ->assertSee(__('site.affiliate_portal.report_activity'), false)
             ->assertSee(__('site.affiliate_portal.funnel_earned'), false)
+            ->assertSee(__('site.affiliate_portal.funnel_registered'), false)
+            ->assertSee(__('site.affiliate_portal.report_available'), false)
+            ->assertSee(__('site.affiliate_portal.report_pending'), false)
             ->assertSee('name="month"', false)
             ->assertSee('monthSheet', false)
+            ->assertDontSee(__('site.affiliate_portal.report_conversion'), false)
+            ->assertDontSee('Qualifying members', false)
             ->assertDontSee(__('site.affiliate_portal.view_monthly_report'), false);
+    }
+
+    public function test_share_message_is_compact_and_settings_gated(): void
+    {
+        $affiliate = $this->affiliate(['affiliate_code' => 'UATSTD01', 'name' => 'UAT Standard Affiliate']);
+        $en = app(AffiliateService::class)->shareInvitation($affiliate, 'en');
+        $sw = app(AffiliateService::class)->shareInvitation($affiliate, 'sw');
+
+        $this->assertStringContainsString('1. ', $en);
+        $this->assertStringContainsString('Use promo: UATSTD01 or the referral link:', $en);
+        $this->assertStringContainsString('Terms and Conditions apply.', $en);
+        $this->assertStringNotContainsString('registration fee', strtolower($en));
+        $this->assertStringContainsString('1. Punguzo', $sw);
+        $this->assertStringContainsString('Tumia promo: UATSTD01 au kiungo cha rufaa:', $sw);
+        $this->assertStringContainsString('Vigezo na Masharti vinatumika.', $sw);
+        $this->assertStringNotContainsString('ada ya usajili', $sw);
+
+        Setting::set('affiliates.applies_to', array_merge(
+            config('affiliates.applies_to'),
+            ['registration_fee' => true]
+        ));
+        $withRegistration = app(AffiliateService::class)->shareInvitation($affiliate->fresh(), 'en');
+        $this->assertStringContainsString('registration fee', strtolower($withRegistration));
     }
 
     public function test_checkout_benefits_cannot_recreate_a_member_relationship_from_a_leftover_claim(): void

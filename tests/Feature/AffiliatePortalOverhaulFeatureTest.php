@@ -10,10 +10,14 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Services\AffiliateAttributionService;
 use App\Services\AffiliateMembershipService;
+use App\Services\AffiliateService;
 use App\Services\AffiliateSettingsService;
 use App\Services\AffiliateTermsService;
+use App\Services\ApplicationFeePaymentService;
+use App\Services\PaymentGateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class AffiliatePortalOverhaulFeatureTest extends TestCase
@@ -85,12 +89,12 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             'phone' => '+255700222333',
         ]);
 
-        app(\App\Services\AffiliateService::class)->attachAffiliate($customer, null);
+        app(AffiliateService::class)->attachAffiliate($customer, null);
         $customer = $customer->fresh();
 
         $this->assertSame($affiliate->id, $customer->affiliate_vendor_id);
 
-        $quote = app(\App\Services\PaymentGateService::class)->quote(
+        $quote = app(PaymentGateService::class)->quote(
             $customer,
             10000,
             'application_fee',
@@ -129,12 +133,12 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             'affiliate_vendor_id' => $affiliate->id,
         ]);
 
-        app(\App\Services\AffiliateService::class)->updateCode($affiliate, 'NEW001');
+        app(AffiliateService::class)->updateCode($affiliate, 'NEW001');
         $affiliate = $affiliate->fresh();
 
         $this->assertSame('NEW001', $affiliate->affiliate_code);
         $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
-        $this->assertNotNull(app(\App\Services\AffiliateService::class)->resolveByPublicCode('OLD001'));
+        $this->assertNotNull(app(AffiliateService::class)->resolveByPublicCode('OLD001'));
     }
 
     public function test_affiliate_translation_keys_have_full_sw_parity(): void
@@ -218,7 +222,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
                     ->withSession(['locale' => 'sw', 'country' => 'TZ'])
                     ->get(route('site.affiliate.dashboard'))
                     ->assertOk()
-                    ->assertSee('Inapatikana kutoa', false)
+                    ->assertSee(__('site.affiliate_portal.hero_available', [], 'sw'), false)
                     ->assertDontSee('Available to withdraw', false)
                     ->assertDontSee('Good afternoon', false)
                     ->assertDontSee('Share & Earn', false);
@@ -229,7 +233,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
     public function test_attribution_window_expiry_lock_and_settings_override(): void
     {
         $start = now()->startOfSecond();
-        \Illuminate\Support\Carbon::setTestNow($start);
+        Carbon::setTestNow($start);
 
         try {
             [$user, $affiliate] = $this->affiliateUser(['affiliate_code' => 'WIN001']);
@@ -238,7 +242,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             $this->get('/aff/WIN001')->assertRedirect();
             $this->assertNotNull(app(AffiliateAttributionService::class)->pendingClaim());
 
-            \Illuminate\Support\Carbon::setTestNow($start->copy()->addDays(29));
+            Carbon::setTestNow($start->copy()->addDays(29));
             $this->assertNotNull(app(AffiliateAttributionService::class)->pendingClaim());
 
             $customer = Customer::create([
@@ -249,7 +253,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
                 'last_name' => 'Borrower',
                 'phone' => '+255700444555',
             ]);
-            app(\App\Services\AffiliateService::class)->attachAffiliate($customer, null);
+            app(AffiliateService::class)->attachAffiliate($customer, null);
             $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
 
             $application = LoanApplication::create([
@@ -272,13 +276,13 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
                 'status' => 'submitted',
                 'current_stage' => 'submitted',
             ]);
-            app(\App\Services\AffiliateService::class)->trackApplication($application);
+            app(AffiliateService::class)->trackApplication($application);
             $this->assertTrue(app(AffiliateAttributionService::class)->isLocked($customer->fresh()));
 
-            \Illuminate\Support\Carbon::setTestNow($start->copy()->addDays(31));
+            Carbon::setTestNow($start->copy()->addDays(31));
             $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
 
-            app(\App\Services\AffiliateService::class)->attachAffiliate($customer->fresh(), 'WIN002');
+            app(AffiliateService::class)->attachAffiliate($customer->fresh(), 'WIN002');
             $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
 
             $expired = Customer::create([
@@ -290,7 +294,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
                 'phone' => '+255700444556',
             ]);
             $this->assertNull(app(AffiliateAttributionService::class)->pendingClaim());
-            app(\App\Services\AffiliateService::class)->attachAffiliate($expired, null);
+            app(AffiliateService::class)->attachAffiliate($expired, null);
             $this->assertNull($expired->fresh()->affiliate_vendor_id);
 
             Setting::set('affiliates.attribution', array_merge(
@@ -299,17 +303,17 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             ));
             $this->assertSame(7, app(AffiliateSettingsService::class)->attributionWindowDays());
 
-            \Illuminate\Support\Carbon::setTestNow($start->copy()->addDays(40));
+            Carbon::setTestNow($start->copy()->addDays(40));
             $short = $this->affiliateUser(['affiliate_code' => 'WIN007'])[1];
             $this->get('/aff/WIN007')->assertRedirect();
-            \Illuminate\Support\Carbon::setTestNow($start->copy()->addDays(40)->addDays(6));
+            Carbon::setTestNow($start->copy()->addDays(40)->addDays(6));
             $this->assertNotNull(app(AffiliateAttributionService::class)->pendingClaim());
-            \Illuminate\Support\Carbon::setTestNow($start->copy()->addDays(40)->addDays(8));
+            Carbon::setTestNow($start->copy()->addDays(40)->addDays(8));
             $this->assertNull(app(AffiliateAttributionService::class)->pendingClaim());
             $this->assertSame('WIN007', $short->affiliate_code);
             $this->assertSame('WIN002', $rival->affiliate_code);
         } finally {
-            \Illuminate\Support\Carbon::setTestNow();
+            Carbon::setTestNow();
         }
     }
 
@@ -365,7 +369,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             ->assertSee('GOLD PARTNER', false)
             ->assertDontSee('2-year', false);
 
-        $affiliates = app(\App\Services\AffiliateService::class);
+        $affiliates = app(AffiliateService::class);
         $this->actingAs($user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
             ->get(route('site.affiliate.share'))
@@ -382,7 +386,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             ->assertDontSee($affiliates->shareInvitation($affiliate, 'en'), false);
 
         $this->expectException(\InvalidArgumentException::class);
-        app(\App\Services\AffiliateService::class)->updateCode($affiliate, 'ADMIN');
+        app(AffiliateService::class)->updateCode($affiliate, 'ADMIN');
     }
 
     public function test_promo_cooldown_and_alias_grace_follow_settings(): void
@@ -398,24 +402,24 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
         ]);
 
         [$user, $affiliate] = $this->affiliateUser(['affiliate_code' => 'COOL001']);
-        app(\App\Services\AffiliateService::class)->updateCode($affiliate, 'COOL002');
+        app(AffiliateService::class)->updateCode($affiliate, 'COOL002');
         $affiliate = $affiliate->fresh();
 
-        $this->assertFalse(app(\App\Services\AffiliateService::class)->canChangeCode($affiliate));
-        $this->assertNotNull(app(\App\Services\AffiliateService::class)->resolveByPublicCode('COOL001'));
+        $this->assertFalse(app(AffiliateService::class)->canChangeCode($affiliate));
+        $this->assertNotNull(app(AffiliateService::class)->resolveByPublicCode('COOL001'));
 
         try {
-            app(\App\Services\AffiliateService::class)->updateCode($affiliate, 'COOL003');
+            app(AffiliateService::class)->updateCode($affiliate, 'COOL003');
             $this->fail('Cooldown should block a second change');
         } catch (\InvalidArgumentException $e) {
             $this->assertNotSame('', $e->getMessage());
         }
 
-        \Illuminate\Support\Carbon::setTestNow(now()->addDays(2));
+        Carbon::setTestNow(now()->addDays(2));
         try {
-            $this->assertNull(app(\App\Services\AffiliateService::class)->resolveByPublicCode('COOL001'));
+            $this->assertNull(app(AffiliateService::class)->resolveByPublicCode('COOL001'));
         } finally {
-            \Illuminate\Support\Carbon::setTestNow();
+            Carbon::setTestNow();
         }
     }
 
@@ -504,9 +508,9 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
         $affiliate = $affiliate->fresh();
         $this->assertSame('HTTPNEW1', $affiliate->affiliate_code);
         $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
-        $this->assertNotNull(app(\App\Services\AffiliateService::class)->resolveByPublicCode('HTTPOLD1'));
+        $this->assertNotNull(app(AffiliateService::class)->resolveByPublicCode('HTTPOLD1'));
 
-        $token = app(\App\Services\AffiliateService::class)->ensureReferralToken($affiliate->fresh());
+        $token = app(AffiliateService::class)->ensureReferralToken($affiliate->fresh());
         $this->actingAs($user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
             ->get(route('site.affiliate.share'))
@@ -547,7 +551,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             'membership_expires_at' => now()->addYear(),
         ]);
 
-        app(\App\Services\AffiliateService::class)->attachAffiliate($customer, null);
+        app(AffiliateService::class)->attachAffiliate($customer, null);
         $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
 
         $product = LoanProduct::create([
@@ -563,7 +567,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             'application_fee_amount' => 10_000,
         ]);
 
-        $quote = app(\App\Services\ApplicationFeePaymentService::class)->quote($customer->fresh(), $product, false, null, null, null);
+        $quote = app(ApplicationFeePaymentService::class)->quote($customer->fresh(), $product, false, null, null, null);
 
         $this->assertTrue($quote['has_affiliate']);
         $this->assertSame(1000.0, (float) $quote['affiliate_discount']);

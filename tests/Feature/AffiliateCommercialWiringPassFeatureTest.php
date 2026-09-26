@@ -8,14 +8,17 @@ use App\Models\LoanProduct;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\AffiliateEligibilityService;
 use App\Services\AffiliateService;
 use App\Services\AffiliateSettingsService;
 use App\Services\AffiliateTermsService;
-use Illuminate\Http\Request;
 use App\Services\CardVerificationService;
 use App\Services\PartnerCodeService;
 use App\Services\PaymentGateService;
+use App\Services\PinRecoveryChallengeService;
+use App\Services\PinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class AffiliateCommercialWiringPassFeatureTest extends TestCase
@@ -26,7 +29,7 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
     {
         $affiliate = $this->affiliate(['affiliate_code' => 'WIRE01', 'partner_number' => 'PT-AF-TZ-51SC']);
         $customer = $this->customer();
-        $this->assertTrue(app(\App\Services\AffiliateEligibilityService::class)->canAttributeNewReferral($affiliate));
+        $this->assertTrue(app(AffiliateEligibilityService::class)->canAttributeNewReferral($affiliate));
 
         $this->actingAs($customer->user)
             ->get('/aff/WIRE01')
@@ -228,7 +231,8 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
         $this->assertStringContainsString('SHARE01', $message);
         $this->assertStringContainsString($affiliate->name, $message);
         $this->assertStringContainsString('/aff/', $message);
-        $this->assertStringContainsString('Promo:', $message);
+        $this->assertStringContainsString('Use promo:', $message);
+        $this->assertStringNotContainsString('registration fee', strtolower($message));
 
         $this->actingAs($affiliate->user)
             ->withSession(['locale' => 'en', 'country' => 'TZ'])
@@ -261,8 +265,8 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
     {
         $customer = $this->customer();
         $user = $customer->user;
-        app(\App\Services\PinService::class)->setPin($user, '1234');
-        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+        app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
             'mother_first_name' => 'Amina',
             'birth_village' => 'Moshi',
             'primary_school' => 'Uhuru',

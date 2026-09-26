@@ -6,9 +6,12 @@ use App\Models\AffiliateEvent;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\LoanApplication;
+use App\Models\Partner;
 use App\Models\PartnerPayment;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -83,7 +86,7 @@ class AffiliateService
         return $alias ? $this->canonicalizeIdentity($alias) : null;
     }
 
-    public function canonicalizeIdentity(Vendor|\App\Models\Partner $affiliate): Vendor|\App\Models\Partner
+    public function canonicalizeIdentity(Vendor|Partner $affiliate): Vendor|Partner
     {
         $affiliate = $affiliate->fresh() ?? $affiliate;
         app(PartnerCodeService::class)->ensure($affiliate);
@@ -110,7 +113,7 @@ class AffiliateService
     /**
      * Stable referral URL token. Promo codes may change; this token must not.
      */
-    public function ensureReferralToken(Vendor|\App\Models\Partner $affiliate): string
+    public function ensureReferralToken(Vendor|Partner $affiliate): string
     {
         $affiliate->refresh();
         $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
@@ -203,7 +206,7 @@ class AffiliateService
         return $code;
     }
 
-    private function looksLikePersonOrCompanyName(Vendor|\App\Models\Partner $affiliate, string $code): bool
+    private function looksLikePersonOrCompanyName(Vendor|Partner $affiliate, string $code): bool
     {
         $name = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $affiliate->name) ?? '');
 
@@ -215,7 +218,7 @@ class AffiliateService
         $attribution = app(AffiliateAttributionService::class)->mergeIntoSession($request);
 
         AffiliateEvent::create(array_merge([
-            'vendor_id'  => $affiliate->id,
+            'vendor_id' => $affiliate->id,
             'event_type' => 'click',
         ], app(AffiliateAttributionService::class)->attributesForEvent($attribution)));
     }
@@ -274,8 +277,8 @@ class AffiliateService
             ->where('event_type', 'registration')
             ->exists()) {
             AffiliateEvent::create(array_merge([
-                'vendor_id'   => $affiliate->id,
-                'event_type'  => 'registration',
+                'vendor_id' => $affiliate->id,
+                'event_type' => 'registration',
                 'customer_id' => $customer->id,
             ], $attribution->attributesForEvent()));
 
@@ -423,11 +426,11 @@ class AffiliateService
         }
 
         AffiliateEvent::create([
-            'vendor_id'           => $customer->affiliate_vendor_id,
-            'event_type'          => 'application',
-            'customer_id'         => $customer->id,
+            'vendor_id' => $customer->affiliate_vendor_id,
+            'event_type' => 'application',
+            'customer_id' => $customer->id,
             'loan_application_id' => $application->id,
-            'referral_code'       => $attribution->customerClaim($customer)['code_used'] ?? null,
+            'referral_code' => $attribution->customerClaim($customer)['code_used'] ?? null,
         ]);
 
         $affiliate = Vendor::query()->find($customer->affiliate_vendor_id);
@@ -469,10 +472,10 @@ class AffiliateService
         $events = AffiliateEvent::query()->where('partner_id', $affiliate->id);
 
         return [
-            'clicks'        => (clone $events)->where('event_type', 'click')->count(),
+            'clicks' => (clone $events)->where('event_type', 'click')->count(),
             'registrations' => (clone $events)->where('event_type', 'registration')->count(),
-            'applications'  => (clone $events)->where('event_type', 'application')->count(),
-            'commissions'   => (float) (clone $events)->where('event_type', 'like', 'commission_%')->sum('commission_amount'),
+            'applications' => (clone $events)->where('event_type', 'application')->count(),
+            'commissions' => (float) (clone $events)->where('event_type', 'like', 'commission_%')->sum('commission_amount'),
         ];
     }
 
@@ -482,12 +485,12 @@ class AffiliateService
         $code = $this->ensureCode($affiliate);
 
         return [
-            'brand'              => brand_name(),
-            'affiliate_name'     => $affiliate->name,
-            'affiliate_code'     => $code,
-            'affiliate_link'     => $this->affiliateLink($affiliate),
-            'registration_link'  => $this->registrationLink($affiliate),
-            'verify_link'        => route('site.affiliate.verify', $code),
+            'brand' => brand_name(),
+            'affiliate_name' => $affiliate->name,
+            'affiliate_code' => $code,
+            'affiliate_link' => $this->affiliateLink($affiliate),
+            'registration_link' => $this->registrationLink($affiliate),
+            'verify_link' => route('site.affiliate.verify', $code),
         ];
     }
 
@@ -504,7 +507,10 @@ class AffiliateService
     {
         $locale = $locale ?: app()->getLocale();
         $context = $this->messageContext($affiliate);
-        $benefit = $this->configuredMemberBenefit($affiliate, $locale);
+        $benefit = collect($this->configuredBenefitItems($affiliate, $locale))
+            ->values()
+            ->map(fn (array $item, int $index) => ($index + 1).'. '.$item['label'])
+            ->implode("\n");
         $params = [
             'brand' => $context['brand'] ?? brand_name(),
             'code' => $context['affiliate_code'] ?? '',
@@ -604,13 +610,13 @@ class AffiliateService
             ->all();
 
         return [
-            'utm_sources'  => $bySource,
-            'devices'      => $byDevice,
-            'utm_campaigns'=> $byCampaign,
+            'utm_sources' => $bySource,
+            'devices' => $byDevice,
+            'utm_campaigns' => $byCampaign,
         ];
     }
 
-    public function recentEvents(Vendor $affiliate, int $limit = 20): \Illuminate\Support\Collection
+    public function recentEvents(Vendor $affiliate, int $limit = 20): Collection
     {
         return AffiliateEvent::query()
             ->where('partner_id', $affiliate->id)
@@ -730,10 +736,10 @@ class AffiliateService
             return true;
         }
 
-        return now()->gte(\Illuminate\Support\Carbon::parse($changedAt)->addDays($cooldown));
+        return now()->gte(Carbon::parse($changedAt)->addDays($cooldown));
     }
 
-    public function nextCodeChangeAt(Vendor $affiliate): ?\Illuminate\Support\Carbon
+    public function nextCodeChangeAt(Vendor $affiliate): ?Carbon
     {
         $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
         $changedAt = $meta['affiliate_code_changed_at'] ?? null;
@@ -742,7 +748,7 @@ class AffiliateService
             return null;
         }
 
-        return \Illuminate\Support\Carbon::parse($changedAt)->addDays($cooldown);
+        return Carbon::parse($changedAt)->addDays($cooldown);
     }
 
     public function codeIsUnique(string $code, ?int $exceptVendorId = null): bool
@@ -790,7 +796,7 @@ class AffiliateService
                     continue;
                 }
                 $graceUntil = $alias['grace_until'] ?? null;
-                if ($graceUntil && now()->lte(\Illuminate\Support\Carbon::parse($graceUntil))) {
+                if ($graceUntil && now()->lte(Carbon::parse($graceUntil))) {
                     return $affiliate;
                 }
             }
@@ -806,17 +812,17 @@ class AffiliateService
      */
     public function quoteFee(Customer $customer, float $baseAmount, string $feeType, ?Vendor $affiliate = null): array
     {
-        $feeType = \App\Models\CustomerPayment::canonicalType($feeType);
+        $feeType = CustomerPayment::canonicalType($feeType);
         $affiliate = $affiliate ?: $this->relationshipAffiliate($customer);
 
         if (! $affiliate || $baseAmount <= 0 || ! app(AffiliateSettingsService::class)->appliesToFeeType($feeType)) {
             return [
-                'base'           => round($baseAmount, 2),
-                'discount'       => 0.0,
+                'base' => round($baseAmount, 2),
+                'discount' => 0.0,
                 'after_discount' => round($baseAmount, 2),
-                'commission'     => 0.0,
-                'affiliate'      => null,
-                'has_affiliate'  => false,
+                'commission' => 0.0,
+                'affiliate' => null,
+                'has_affiliate' => false,
             ];
         }
 
@@ -841,12 +847,12 @@ class AffiliateService
         $commission = app(AffiliateCommissionCalculatorService::class)->calculate($affiliate, $commissionBase, $feeType);
 
         return [
-            'base'           => round($baseAmount, 2),
-            'discount'       => $discount,
+            'base' => round($baseAmount, 2),
+            'discount' => $discount,
             'after_discount' => $afterDiscount,
-            'commission'     => $commission,
-            'affiliate'      => $affiliate,
-            'has_affiliate'  => true,
+            'commission' => $commission,
+            'affiliate' => $affiliate,
+            'has_affiliate' => true,
         ];
     }
 
@@ -905,11 +911,11 @@ class AffiliateService
 
         return DB::transaction(function () use ($quote, $customer, $feeType, $payment, $paymentKey): AffiliateEvent {
             $event = AffiliateEvent::create([
-                'vendor_id'           => $quote['affiliate']->id,
-                'event_type'          => 'commission_'.$feeType,
-                'customer_id'         => $customer->id,
-                'commission_amount'   => $quote['commission'],
-                'landing_page'        => $paymentKey,
+                'vendor_id' => $quote['affiliate']->id,
+                'event_type' => 'commission_'.$feeType,
+                'customer_id' => $customer->id,
+                'commission_amount' => $quote['commission'],
+                'landing_page' => $paymentKey,
             ]);
 
             app(PartnerSettlementService::class)->accrue(

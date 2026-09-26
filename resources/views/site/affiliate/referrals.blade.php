@@ -5,8 +5,6 @@
             'visited' => __('site.affiliate_portal.funnel_visited'),
             'registered' => __('site.affiliate_portal.funnel_registered'),
             'applied' => __('site.affiliate_portal.funnel_applied'),
-            'approved' => __('site.affiliate_portal.funnel_approved'),
-            'qualifying' => __('site.affiliate_portal.funnel_qualifying'),
             'commission' => __('site.affiliate_portal.funnel_commission'),
         ] as $key => $label)
             <div class="glass-card p-4">

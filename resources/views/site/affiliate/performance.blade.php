@@ -1,6 +1,6 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.impact_title'))" active="performance" :hero="false">
     @php
-        $funnelKeys = $funnelKeys ?? app(\App\Services\AffiliatePortalPresenter::class)->visibleFunnelKeys();
+        $overviewKeys = $overviewKeys ?? app(\App\Services\AffiliatePortalPresenter::class)->overviewFunnelKeys();
         $pipeline = $pipeline ?? collect();
         $tab = request()->query('tab', 'overview');
         if (! in_array($tab, ['overview', 'commissions', 'withdrawals'], true)) {
@@ -25,42 +25,43 @@
         <section class="relative mb-6">
             <div class="kf-premium-panel rounded-2xl p-6 sm:p-8 relative overflow-hidden">
                 <div class="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
-                <div class="relative pr-14">
-                    @if ($premium)
-                        <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.premium_badge') }}</p>
-                    @endif
-                    <h1 class="text-2xl sm:text-3xl font-bold mt-2">{{ __('site.affiliate_portal.impact_title') }}</h1>
-                    <p class="text-sm text-white/80 mt-1">{{ __('site.affiliate_portal.impact_hero') }}</p>
-                    <p class="text-xs uppercase tracking-widest text-white/70 font-semibold mt-3">{{ __('site.affiliate_portal.results_this_month') }}</p>
-                    @if (! $premium && ! empty($kpiCard))
-                        <p class="text-lg sm:text-xl font-semibold text-white mt-2">{{ __('site.affiliate_portal.kpi_of', ['achieved' => rtrim(rtrim(number_format($kpiCard['achieved'], 1, '.', ''), '0'), '.'), 'target' => rtrim(rtrim(number_format($kpiCard['target'], 1, '.', ''), '0'), '.')]) }}</p>
-                        <p class="text-xs text-white/75 mt-1">{{ __('site.affiliate_portal.kpi_percent', ['percent' => $kpiCard['percent']]) }}</p>
-                        <div class="mt-3 h-3 max-w-md rounded-full bg-white/15 overflow-hidden" role="progressbar" aria-valuenow="{{ $kpiCard['percent'] }}" aria-valuemin="0" aria-valuemax="100">
-                            <div class="h-full rounded-full bg-brand-gold" style="width: {{ $kpiCard['percent'] }}%"></div>
-                        </div>
-                    @else
-                        <p class="text-sm text-white/80 mt-2 max-w-2xl">{{ $standing['status_label'] ?? '' }}</p>
-                    @endif
+                <div class="relative grid gap-6 lg:grid-cols-2 lg:items-end pr-14">
+                    <div>
+                        @if ($premium)
+                            <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.premium_badge') }}</p>
+                        @endif
+                        <h1 class="text-2xl sm:text-3xl font-bold mt-2">{{ __('site.affiliate_portal.impact_title') }}</h1>
+                        <p class="text-sm text-white/80 mt-1">{{ __('site.affiliate_portal.impact_hero') }}</p>
+                        <p class="text-xs uppercase tracking-widest text-white/70 font-semibold mt-3">{{ __('site.affiliate_portal.results_this_month') }}</p>
+                        @if (! $premium && ! empty($kpiCard))
+                            <p class="text-lg sm:text-xl font-semibold text-white mt-2">{{ __('site.affiliate_portal.kpi_of', ['achieved' => rtrim(rtrim(number_format($kpiCard['achieved'], 1, '.', ''), '0'), '.'), 'target' => rtrim(rtrim(number_format($kpiCard['target'], 1, '.', ''), '0'), '.')]) }}</p>
+                            <p class="text-xs text-white/75 mt-1">{{ __('site.affiliate_portal.kpi_percent', ['percent' => $kpiCard['percent']]) }}</p>
+                            <div class="mt-3 h-3 max-w-md rounded-full bg-white/15 overflow-hidden" role="progressbar" aria-valuenow="{{ $kpiCard['percent'] }}" aria-valuemin="0" aria-valuemax="100">
+                                <div class="h-full rounded-full bg-brand-gold" style="width: {{ $kpiCard['percent'] }}%"></div>
+                            </div>
+                        @else
+                            <p class="text-sm text-white/80 mt-2 max-w-2xl">{{ $standing['status_label'] ?? '' }}</p>
+                        @endif
+                    </div>
 
-                    <div class="mt-5 flex flex-wrap items-end gap-x-8 gap-y-3">
+                    <div class="lg:text-right lg:justify-self-end">
                         <div>
                             <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.funnel_earned') }}</p>
                             <p class="text-2xl font-extrabold tabular-nums mt-1">{{ format_money($funnel['earned'] ?? 0) }}</p>
                         </div>
-                        <div>
+                        <div class="mt-3">
                             <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('site.affiliate_portal.figure_available') }}</p>
                             <p class="text-xl font-bold tabular-nums mt-1">{{ format_money($available ?? 0) }}</p>
                         </div>
-                    </div>
-
-                    <div class="mt-5 flex flex-wrap items-center gap-3">
-                        <button type="button" @click="withdrawing = true; step = 'form'; tab = 'withdrawals'"
-                                class="inline-flex justify-center bg-white text-brand font-semibold px-6 py-3 rounded-xl text-sm hover:bg-brand-gold transition">
-                            {{ __('site.affiliate_portal.withdraw') }}
-                        </button>
-                        @if (($remainingToWithdraw ?? 0) > 0)
-                            <p class="text-sm text-white/70">{{ __('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money($remainingToWithdraw)]) }}</p>
-                        @endif
+                        <div class="mt-5 flex flex-wrap items-center gap-3 lg:justify-end">
+                            <button type="button" @click="withdrawing = true; step = 'form'; tab = 'withdrawals'"
+                                    class="inline-flex justify-center bg-white text-brand font-semibold px-6 py-3 rounded-xl text-sm hover:bg-brand-gold transition">
+                                {{ __('site.affiliate_portal.withdraw') }}
+                            </button>
+                            @if (($remainingToWithdraw ?? 0) > 0)
+                                <p class="text-sm text-white/70">{{ __('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money($remainingToWithdraw)]) }}</p>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
@@ -109,7 +110,7 @@
             <div x-show="tab === 'overview'">
                 @php
                     $metrics = [];
-                    foreach ($funnelKeys as $key) {
+                    foreach ($overviewKeys as $key) {
                         $metrics[] = [
                             'label' => __('site.affiliate_portal.funnel_'.$key),
                             'value' => (string) ($funnel[$key] ?? 0),

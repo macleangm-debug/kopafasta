@@ -117,6 +117,7 @@ class AffiliatePortalPresenter
             'impact' => $this->impactSnapshot($vendor),
             'funnel' => $this->referralFunnel($vendor, now()->copy()->startOfMonth(), now()),
             'funnelKeys' => $this->visibleFunnelKeys(),
+            'overviewKeys' => $this->overviewFunnelKeys(),
             'monthlyCard' => $this->monthlyPerformanceCard($vendor),
             'pipeline' => $this->referralPipeline($vendor),
             'warningLadder' => [
@@ -157,10 +158,10 @@ class AffiliatePortalPresenter
         $prevPeriod = $this->referralFunnel($vendor, $prevStart, $prevEnd);
         $standing = $this->evaluation->currentStanding($vendor);
         $wallet = $this->wallet($vendor);
-        $qualifyingNow = (int) ($thisPeriod['qualifying'] ?? 0);
-        $qualifyingPrev = (int) ($prevPeriod['qualifying'] ?? 0);
-        $delta = $qualifyingPrev > 0
-            ? round(100 * ($qualifyingNow - $qualifyingPrev) / $qualifyingPrev, 1)
+        $registeredNow = (int) ($thisPeriod['registered'] ?? 0);
+        $registeredPrev = (int) ($prevPeriod['registered'] ?? 0);
+        $delta = $registeredPrev > 0
+            ? round(100 * ($registeredNow - $registeredPrev) / $registeredPrev, 1)
             : null;
 
         return [
@@ -184,13 +185,14 @@ class AffiliatePortalPresenter
                 'available' => (float) ($wallet['available'] ?? 0),
                 'pending' => (float) ($wallet['inProgress'] ?? 0),
             ],
-            'conversion' => $this->conversionRatios($thisPeriod),
             'withdrawals' => $thisPeriod['withdrawals'],
             'comparison' => [
                 'previous_month' => $prevStart->translatedFormat('F'),
-                'previous_qualifying' => $qualifyingPrev,
+                'previous_label' => $prevStart->translatedFormat('F Y'),
+                'previous_registered' => $registeredPrev,
                 'current_month' => $start->translatedFormat('F'),
-                'current_qualifying' => $qualifyingNow,
+                'current_label' => $start->translatedFormat('F Y'),
+                'current_registered' => $registeredNow,
                 'delta_percent' => $delta,
             ],
             'months' => $this->availableReportMonths($vendor),
@@ -481,14 +483,13 @@ class AffiliatePortalPresenter
     /** @return list<string> */
     public function visibleFunnelKeys(): array
     {
-        $keys = ['visited', 'registered', 'applied', 'qualifying'];
-        $country = strtoupper((string) session('country', config('app.country', 'TZ')));
-        $hide = config('affiliates.funnel_hide_registered_countries', ['TZ']);
-        if (in_array($country, $hide, true)) {
-            $keys = array_values(array_filter($keys, fn (string $key) => $key !== 'registered'));
-        }
+        return ['visited', 'registered', 'applied'];
+    }
 
-        return $keys;
+    /** @return list<string> */
+    public function overviewFunnelKeys(): array
+    {
+        return ['visited', 'applied'];
     }
 
     /** @return array<string, mixed> */
@@ -529,12 +530,7 @@ class AffiliatePortalPresenter
         }
 
         $commissionEvents = (clone $events)->where('event_type', 'like', 'commission_%');
-        $referredMemberIds = AffiliateEvent::query()
-            ->where('partner_id', $vendor->id)
-            ->whereIn('event_type', ['registration', 'application'])
-            ->whereNotNull('customer_id')
-            ->pluck('customer_id')
-            ->unique();
+        $registered = (clone $events)->where('event_type', 'registration')->count();
         $paymentIds = (clone $commissionEvents)
             ->pluck('landing_page')
             ->map(function ($page): int {
@@ -549,16 +545,10 @@ class AffiliatePortalPresenter
 
         return [
             'visited' => (clone $events)->where('event_type', 'click')->count(),
-            'registered' => (clone $events)->where('event_type', 'registration')->count(),
+            'registered' => $registered,
             'applied' => (clone $events)->where('event_type', 'application')->count(),
             'approved' => $approvedQuery?->count() ?? 0,
-            'qualifying' => $referredMemberIds->isEmpty()
-                ? 0
-                : (clone $commissionEvents)
-                    ->whereNotNull('customer_id')
-                    ->whereIn('customer_id', $referredMemberIds)
-                    ->distinct()
-                    ->count('customer_id'),
+            'qualifying' => $registered,
             'commission' => (clone $commissionEvents)->count(),
             'commission_transactions' => (clone $commissionEvents)->count(),
             'earned' => (float) (clone $commissionEvents)->sum('commission_amount'),
@@ -568,30 +558,6 @@ class AffiliatePortalPresenter
             'withdrawn' => (float) ($withdrawals['paid_amount'] ?? 0),
             'withdrawals' => $withdrawals,
         ];
-    }
-
-    /** @param  array<string, mixed>  $funnel */
-    /** @return list<array{label: string, value: float}> */
-    private function conversionRatios(array $funnel): array
-    {
-        $visited = (int) ($funnel['visited'] ?? 0);
-        $applied = (int) ($funnel['applied'] ?? 0);
-        $qualifying = (int) ($funnel['qualifying'] ?? 0);
-        $rows = [];
-        if ($visited > 0) {
-            $rows[] = [
-                'label' => __('site.affiliate_portal.conversion_visits_to_apps'),
-                'value' => round(100 * $applied / $visited, 1),
-            ];
-        }
-        if ($applied > 0) {
-            $rows[] = [
-                'label' => __('site.affiliate_portal.conversion_apps_to_qualifying'),
-                'value' => round(100 * $qualifying / $applied, 1),
-            ];
-        }
-
-        return $rows;
     }
 
     /** @return array{requested: int, processing: int, paid: int, paid_amount: float} */

@@ -38,11 +38,11 @@
         <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
             <h2 class="font-bold text-white">{{ __('site.affiliate_portal.report_activity') }}</h2>
         </div>
-        <div class="p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="p-4 sm:p-5 grid grid-cols-2 {{ count($funnelKeys) === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4' }} gap-3">
             @foreach ($funnelKeys as $key)
-                <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-3">
-                    <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.funnel_'.$key) }}</p>
-                    <p class="text-lg font-bold tabular-nums mt-1">{{ $activity[$key] ?? 0 }}</p>
+                <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
+                    <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.funnel_'.$key) }}</p>
+                    <p class="text-xl font-extrabold tabular-nums mt-1">{{ $activity[$key] ?? 0 }}</p>
                 </div>
             @endforeach
         </div>
@@ -53,59 +53,46 @@
             <h2 class="font-bold text-white">{{ __('site.affiliate_portal.report_earnings') }}</h2>
         </div>
         <div class="p-4 sm:p-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-3">
-                <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.funnel_earned') }}</p>
-                <p class="text-lg font-bold tabular-nums mt-1">{{ format_money($earnings['commission_earned']) }}</p>
+            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
+                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.funnel_earned') }}</p>
+                <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['commission_earned']) }}</p>
             </div>
-            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-3">
-                <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.report_available') }}</p>
-                <p class="text-lg font-bold tabular-nums mt-1">{{ format_money($earnings['available']) }}</p>
+            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
+                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.report_withdrawn') }}</p>
+                <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['withdrawn']) }}</p>
             </div>
-            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-3">
-                <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.report_withdrawn') }}</p>
-                <p class="text-lg font-bold tabular-nums mt-1">{{ format_money($earnings['withdrawn']) }}</p>
+            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
+                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.report_available') }}</p>
+                <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['available']) }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.report_available_hint') }}</p>
             </div>
-            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-3">
-                <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.report_pending') }}</p>
-                <p class="text-lg font-bold tabular-nums mt-1">{{ format_money($earnings['pending']) }}</p>
+            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
+                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ __('site.affiliate_portal.report_pending') }}</p>
+                <p class="text-xl font-extrabold tabular-nums mt-1">{{ format_money($earnings['pending']) }}</p>
             </div>
         </div>
     </section>
-
-    @if (($conversion ?? []) !== [])
-        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white mb-6">
-            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
-                <h2 class="font-bold text-white">{{ __('site.affiliate_portal.report_conversion') }}</h2>
-            </div>
-            <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                @foreach ($conversion as $row)
-                    <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-3">
-                        <p class="text-xs text-gray-500">{{ $row['label'] }}</p>
-                        <p class="text-lg font-bold tabular-nums mt-1">{{ $row['value'] }}%</p>
-                    </div>
-                @endforeach
-            </div>
-        </section>
-    @endif
 
     <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
         <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
             <h2 class="font-bold text-white">{{ __('site.affiliate_portal.report_comparison') }}</h2>
         </div>
-        <div class="p-4 sm:p-5">
-            <p class="text-sm text-gray-700">{{ __('site.affiliate_portal.report_compare_line', [
-                'month' => $comparison['previous_month'],
-                'count' => $comparison['previous_qualifying'],
-            ]) }}</p>
-            <p class="text-sm text-gray-700 mt-1">{{ __('site.affiliate_portal.report_compare_line', [
-                'month' => $comparison['current_month'],
-                'count' => $comparison['current_qualifying'],
-            ]) }}</p>
-            @if ($comparison['delta_percent'] !== null)
-                <p class="text-lg font-extrabold text-brand mt-3 tabular-nums">
-                    {{ ($comparison['delta_percent'] > 0 ? '+' : '').$comparison['delta_percent'] }}%
-                </p>
-            @endif
+        <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
+                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $comparison['previous_label'] ?? $comparison['previous_month'] }}</p>
+                <p class="text-xl font-extrabold tabular-nums mt-1">{{ $comparison['previous_registered'] ?? 0 }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.funnel_registered') }}</p>
+            </div>
+            <div class="rounded-xl bg-brand/[0.04] ring-1 ring-brand/10 px-4 py-4 min-h-[6.5rem] h-full">
+                <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $comparison['current_label'] ?? $comparison['current_month'] }}</p>
+                <p class="text-xl font-extrabold tabular-nums mt-1">{{ $comparison['current_registered'] ?? 0 }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ __('site.affiliate_portal.funnel_registered') }}</p>
+                @if ($comparison['delta_percent'] !== null)
+                    <p class="text-sm font-extrabold text-brand mt-2 tabular-nums">
+                        {{ ($comparison['delta_percent'] > 0 ? '+' : '').$comparison['delta_percent'] }}%
+                    </p>
+                @endif
+            </div>
         </div>
     </section>
 </x-site.affiliate-layout>

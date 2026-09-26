@@ -1,6 +1,6 @@
 <x-site.affiliate-layout :title="brand_title(__('site.affiliate_portal.dashboard_title'))" active="dashboard" :hero="false">
     @php
-        $funnelKeys = $funnelKeys ?? ['visited', 'applied', 'approved', 'qualifying', 'commission'];
+        $funnelKeys = $funnelKeys ?? ['visited', 'registered', 'applied'];
         $typeLabel = ($progress['premium'] ?? false)
             ? __('site.affiliate_portal.hero_type_premium')
             : __('site.affiliate_portal.hero_type_standard');
@@ -96,9 +96,7 @@
                             'visited' => __('site.affiliate_portal.impact_visited'),
                             'registered' => __('site.affiliate_portal.impact_registered'),
                             'applied' => __('site.affiliate_portal.impact_applied'),
-                            'qualifying' => __('site.affiliate_portal.impact_qualifying'),
                         ] as $key => $label)
-                            @continue($key === 'registered' && ! in_array('registered', $funnelKeys, true))
                             <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
                                 <p class="text-xs text-gray-500">{{ $label }}</p>
                                 <p class="text-lg font-bold tabular-nums">{{ $impact[$key] ?? 0 }}</p>
