@@ -38,13 +38,11 @@ class PlusController extends Controller
         PlusService $plus,
         PlusWorkspaceService $workspace,
         PlusNextBestActionService $nba,
-        PlusLearningService $learning,
         GradeBenefitService $benefits,
         MemberEngagementService $engagement,
     ) {
-        $customer = $request->user()->customer;
+        $customer = $this->borrowerCustomer($request);
         $plus->ensureSampleContent();
-        $learning->ensureCatalog();
         $active = $plus->isActive($customer);
         $expired = $plus->isExpired($customer);
         $rawTrust = $engagement->trustScore($customer);
@@ -149,7 +147,7 @@ class PlusController extends Controller
 
     public function join(Request $request, PlusService $plus)
     {
-        $customer = $request->user()->customer;
+        $customer = $this->borrowerCustomer($request);
         if ($plus->isActive($customer)) {
             return redirect()->route('site.borrower.plus.home');
         }
@@ -159,14 +157,14 @@ class PlusController extends Controller
 
     public function renew(Request $request, PlusService $plus)
     {
-        $customer = $request->user()->customer;
+        $customer = $this->borrowerCustomer($request);
 
         return redirect()->route('site.borrower.payments.show', $plus->startCheckout($customer));
     }
 
     public function welcome(Request $request, PlusService $plus)
     {
-        $customer = $request->user()->customer;
+        $customer = $this->borrowerCustomer($request);
         if (! $plus->isActive($customer)) {
             return redirect()->route('site.borrower.plus.home');
         }
@@ -712,9 +710,24 @@ class PlusController extends Controller
     /**
      * Money diary, Learn, Reports, Offers and Rewards stay closed until Plus is paid.
      */
+    private function borrowerCustomer(Request $request): Customer
+    {
+        $customer = $request->user()?->customer;
+        if ($customer) {
+            return $customer;
+        }
+
+        $user = $request->user();
+        if ($user && in_array((string) $user->role, ['vendor', 'partner'], true)) {
+            throw new HttpResponseException(redirect()->route('site.partner.dashboard'));
+        }
+
+        abort(403);
+    }
+
     private function requireActivePlus(Request $request, PlusService $plus): Customer
     {
-        $customer = $request->user()->customer;
+        $customer = $this->borrowerCustomer($request);
         if ($plus->isActive($customer)) {
             return $customer;
         }

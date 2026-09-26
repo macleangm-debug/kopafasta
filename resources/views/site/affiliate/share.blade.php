@@ -38,18 +38,44 @@
         </div>
     </section>
 
-    <div class="grid lg:grid-cols-2 gap-6">
-        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
-            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
-                <h2 class="font-bold text-white">{{ __('site.affiliate_portal.share_message') }}</h2>
+    <div class="grid lg:grid-cols-[3fr_2fr] gap-4 lg:gap-5 items-start">
+        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white" x-data="{
+            referralSheet: false,
+            referralMenu: false,
+            pop: { top: 0, left: 0 },
+            place() {
+                const r = this.$refs.referralBtn?.getBoundingClientRect();
+                if (! r) return;
+                this.pop = { top: r.bottom + 8, left: Math.max(12, Math.min(r.left, window.innerWidth - 300)) };
+            }
+        }">
+            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="font-bold text-white">{{ __('site.affiliate_portal.share_message') }}</h2>
+                    <button type="button" x-ref="referralBtn"
+                            @click="if (window.matchMedia('(min-width: 1024px)').matches) { referralMenu = !referralMenu; place(); } else { referralSheet = true; }"
+                            class="size-7 shrink-0 rounded-full bg-brand-gold text-brand ring-1 ring-white/40 grid place-items-center text-xs font-extrabold"
+                            aria-label="{{ __('site.affiliate_portal.how_referrals_work') }}">i</button>
+                </div>
             </div>
-            <div class="p-5 space-y-3">
-                <p class="text-sm text-gray-800 whitespace-pre-line" data-kf-promo-message>{{ $shareMessage }}</p>
-                <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.attribution_window_note', ['days' => $attributionWindow]) }}</p>
+            <div class="px-4 sm:px-5 py-4">
+                <p class="text-sm text-gray-800 whitespace-pre-line leading-relaxed" data-kf-promo-message>{{ $shareMessage }}</p>
             </div>
+            <x-site.bottom-sheet :title="__('site.affiliate_portal.how_referrals_work')" open="referralSheet">
+                <p class="text-sm text-gray-700">{{ __('site.affiliate_portal.attribution_window_note', ['days' => $attributionWindow]) }}</p>
+            </x-site.bottom-sheet>
+            <template x-teleport="body">
+                <div x-show="referralMenu" x-cloak x-transition
+                     @click.outside="if (! $refs.referralBtn?.contains($event.target)) referralMenu = false"
+                     class="fixed z-[70] w-72 rounded-2xl bg-white shadow-xl ring-1 ring-brand/10 p-4 text-left"
+                     :style="`top:${pop.top}px;left:${pop.left}px`">
+                    <p class="text-sm font-bold text-gray-900">{{ __('site.affiliate_portal.how_referrals_work') }}</p>
+                    <p class="mt-2 text-sm text-gray-700">{{ __('site.affiliate_portal.attribution_window_note', ['days' => $attributionWindow]) }}</p>
+                </div>
+            </template>
         </section>
 
-        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white"
+        <section class="kf-premium-panel rounded-2xl relative overflow-hidden"
                  x-data="affiliatePromoEditor({
                     initial: @js(old('affiliate_code', $vendor->affiliate_code)),
                     startEditing: @js((bool) old('affiliate_code')),
@@ -62,47 +88,47 @@
                         update: @js(__('site.affiliate_portal.save_code')),
                     },
                  })">
-            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
-                <h2 class="font-bold text-white">{{ __('site.affiliate_portal.personalize_code') }}</h2>
-            </div>
-            <div class="p-5 space-y-4">
-            @if ($canChangeCode)
-                <div class="flex flex-wrap items-center gap-3" x-show="!editing">
-                    <p class="text-2xl font-bold font-mono tracking-wide text-gray-900" data-kf-promo-code>{{ $vendor->affiliate_code }}</p>
-                    <button type="button"
-                            class="rounded-xl ring-1 ring-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                            @click="navigator.clipboard.writeText(@js($vendor->affiliate_code))">{{ __('site.affiliate_portal.copy_code') }}</button>
-                    <button type="button" @click="editing = true"
-                            class="rounded-xl bg-brand text-white px-3 py-2 text-sm font-semibold">{{ __('site.affiliate_portal.edit_code') }}</button>
-                </div>
-                <form method="POST" action="{{ route('site.affiliate.profile.update', ['section' => 'personal']) }}"
-                      class="space-y-3" x-show="editing" x-cloak
-                      @submit.prevent="save()">
-                    @csrf @method('PUT')
-                    <input type="hidden" name="focus" value="promo">
-                    <label class="block text-xs font-medium text-gray-600">{{ __('site.affiliate_portal.promo_code') }}</label>
-                    <input name="affiliate_code" x-model="code"
-                           @blur="check()"
-                           pattern="[A-Za-z0-9_-]{3,24}" maxlength="24"
-                           class="w-full rounded-xl border-gray-200 ring-1 px-3 py-2.5 text-sm font-mono uppercase"
-                           :class="error ? 'ring-red-300 border-red-300' : 'ring-gray-200'">
-                    <p x-show="error" x-cloak x-text="error" class="text-xs text-red-600"></p>
-                    @error('affiliate_code')<p class="text-xs text-red-600" x-show="!error">{{ $message }}</p>@enderror
-                    <div class="flex flex-wrap gap-3">
-                        <button type="submit" :disabled="saving || !!error"
-                                class="bg-brand hover:bg-brand-light text-white font-semibold px-5 py-2.5 rounded-xl text-sm disabled:opacity-60"
-                                x-text="saving ? labels.updating : labels.update"></button>
-                        <button type="button" @click="editing = false; error = ''" class="rounded-xl ring-1 ring-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800">{{ __('site.affiliate_portal.cancel_edit') }}</button>
+            <div class="relative px-4 sm:px-5 py-4 space-y-3">
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">{{ __('site.affiliate_portal.your_promo_code') }}</p>
+                <p class="text-3xl sm:text-4xl font-extrabold font-mono tracking-wide text-white leading-none" data-kf-promo-code>{{ $vendor->affiliate_code }}</p>
+                <button type="button"
+                        class="inline-flex rounded-xl bg-brand-gold text-brand px-3.5 py-2 text-sm font-bold"
+                        @click="navigator.clipboard.writeText(code || @js($vendor->affiliate_code))">{{ __('site.affiliate_portal.copy_code') }}</button>
+
+                @if ($nextCodeChangeAt && ! $canChangeCode)
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-white/60 font-semibold">{{ __('site.affiliate_portal.next_change') }}</p>
+                        <p class="mt-0.5 text-sm font-semibold text-white">{{ $nextCodeChangeAt->timezone(config('app.timezone'))->translatedFormat('d M Y') }}</p>
                     </div>
-                </form>
-            @else
-                <p class="text-2xl font-bold font-mono tracking-wide text-gray-900">{{ $vendor->affiliate_code }}</p>
-                <p class="text-sm text-gray-600">
-                    {{ $nextCodeChangeAt
-                        ? __('site.affiliate_portal.code_cooldown_on', ['date' => $nextCodeChangeAt->timezone(config('app.timezone'))->translatedFormat('d M Y')])
-                        : __('site.affiliate_portal.code_change_now') }}
-                </p>
-            @endif
+                @endif
+
+                <p class="text-xs text-white/75 leading-relaxed">{{ __('site.affiliate_portal.promo_link_unchanged') }}</p>
+
+                @if ($canChangeCode)
+                    <div x-show="!editing">
+                        <button type="button" @click="editing = true"
+                                class="text-sm font-bold text-brand-gold hover:underline">{{ __('site.affiliate_portal.change_promo_code') }} →</button>
+                    </div>
+                    <form method="POST" action="{{ route('site.affiliate.profile.update', ['section' => 'personal']) }}"
+                          class="space-y-2.5" x-show="editing" x-cloak
+                          @submit.prevent="save()">
+                        @csrf @method('PUT')
+                        <input type="hidden" name="focus" value="promo">
+                        <input name="affiliate_code" x-model="code"
+                               @blur="check()"
+                               pattern="[A-Za-z0-9_-]{3,24}" maxlength="24"
+                               class="w-full rounded-xl border-0 ring-1 px-3 py-2.5 text-sm font-mono uppercase text-gray-900"
+                               :class="error ? 'ring-red-300' : 'ring-white/40'">
+                        <p x-show="error" x-cloak x-text="error" class="text-xs text-rose-100"></p>
+                        @error('affiliate_code')<p class="text-xs text-rose-100" x-show="!error">{{ $message }}</p>@enderror
+                        <div class="flex flex-wrap gap-2">
+                            <button type="submit" :disabled="saving || !!error"
+                                    class="bg-brand-gold text-brand font-semibold px-4 py-2 rounded-xl text-sm disabled:opacity-60"
+                                    x-text="saving ? labels.updating : labels.update"></button>
+                            <button type="button" @click="editing = false; error = ''" class="rounded-xl ring-1 ring-white/30 px-3 py-2 text-sm font-semibold text-white">{{ __('site.affiliate_portal.cancel_edit') }}</button>
+                        </div>
+                    </form>
+                @endif
             </div>
         </section>
     </div>

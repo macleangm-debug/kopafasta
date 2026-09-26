@@ -10,9 +10,9 @@
         $lessonTitle = $latestLesson
             ? (app()->getLocale() === 'sw' ? ($latestLesson->title_sw ?: $latestLesson->title_en) : $latestLesson->title_en)
             : null;
-        $money = $summary['money'] ?? null;
-        $business = $summary['business'] ?? null;
-        $leadGoal = $summary['goals']['lead'] ?? null;
+        $money = is_array($summary) ? ($summary['money'] ?? null) : null;
+        $business = is_array($summary) ? ($summary['business'] ?? null) : null;
+        $leadGoal = is_array($summary) ? ($summary['goals']['lead'] ?? null) : null;
         $name = trim((string) ($customer->first_name ?? ''));
         $neverJoined = ! ($plusActive ?? false) && ! ($plusExpired ?? false);
     @endphp

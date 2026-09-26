@@ -219,10 +219,85 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
         $affiliate = $this->affiliate(['affiliate_code' => 'SHARE01']);
         $message = app(AffiliateService::class)->shareInvitation($affiliate, 'en');
 
-        $this->assertStringContainsString('does not guarantee loan approval', $message);
+        $this->assertStringContainsString('Terms and Conditions apply', $message);
+        $this->assertStringNotContainsString('does not guarantee loan approval', $message);
+        $this->assertStringNotContainsString('attributed to you for', $message);
         $this->assertStringContainsString('SHARE01', $message);
         $this->assertStringContainsString($affiliate->name, $message);
         $this->assertStringContainsString('/aff/', $message);
+        $this->assertStringContainsString('Promo:', $message);
+
+        $this->actingAs($affiliate->user)
+            ->withSession(['locale' => 'en', 'country' => 'TZ'])
+            ->get(route('site.affiliate.share'))
+            ->assertOk()
+            ->assertSee(__('site.affiliate_portal.your_promo_code', [], 'en'), false)
+            ->assertSee(__('site.affiliate_portal.how_referrals_work', [], 'en'), false)
+            ->assertSee(__('site.affiliate_portal.promo_link_unchanged', [], 'en'), false)
+            ->assertSee(__('site.affiliate_portal.copy_code', [], 'en'), false)
+            ->assertSee('lg:grid-cols-[3fr_2fr]', false)
+            ->assertSee('items-start', false)
+            ->assertSee(__('site.affiliate_portal.change_promo_code', [], 'en'), false)
+            ->assertDontSee('does not guarantee loan approval', false)
+            ->assertSee($message, false);
+
+        app(AffiliateService::class)->updateCode($affiliate, 'SHARE02');
+        $next = app(AffiliateService::class)->nextCodeChangeAt($affiliate->fresh());
+        $this->assertNotNull($next);
+
+        $this->actingAs($affiliate->user)
+            ->withSession(['locale' => 'en', 'country' => 'TZ'])
+            ->get(route('site.affiliate.share'))
+            ->assertOk()
+            ->assertSee(__('site.affiliate_portal.next_change', [], 'en'), false)
+            ->assertSee($next->timezone(config('app.timezone'))->translatedFormat('d M Y'), false)
+            ->assertDontSee(__('site.affiliate_portal.change_promo_code', [], 'en'), false);
+    }
+
+    public function test_eligible_borrower_can_open_plus_and_join_existing_obligation(): void
+    {
+        $customer = $this->customer();
+        $user = $customer->user;
+        app(\App\Services\PinService::class)->setPin($user, '1234');
+        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+            'mother_first_name' => 'Amina',
+            'birth_village' => 'Moshi',
+            'primary_school' => 'Uhuru',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.plus.home'))
+            ->assertOk()
+            ->assertSee(__('plus.home.join'), false);
+
+        $response = $this->actingAs($user)
+            ->from(route('site.borrower.plus.home'))
+            ->post(route('site.borrower.plus.join'));
+
+        $payment = CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'kopafasta_plus')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($payment);
+        $this->assertSame('kopafasta_plus', $payment->payment_type);
+        $response->assertRedirect(route('site.borrower.payments.show', $payment));
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.payments.show', $payment))
+            ->assertOk()
+            ->assertSee('Kopafasta Plus', false)
+            ->assertDontSee(__('borrower.payment_types.application_fee'), false);
+    }
+
+    public function test_partner_session_does_not_crash_borrower_plus(): void
+    {
+        $affiliate = $this->affiliate(['affiliate_code' => 'PLUSNAV']);
+
+        $this->actingAs($affiliate->user)
+            ->get(route('site.borrower.plus.home'))
+            ->assertRedirect(route('site.partner.dashboard'));
     }
 
     public function test_verification_uses_canonical_partner_number(): void

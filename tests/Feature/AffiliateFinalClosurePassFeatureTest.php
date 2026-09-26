@@ -155,8 +155,10 @@ class AffiliateFinalClosurePassFeatureTest extends TestCase
     public function test_share_cooldown_uses_calendar_date_copy(): void
     {
         $share = file_get_contents(resource_path('views/site/affiliate/share.blade.php'));
-        $this->assertStringContainsString('code_cooldown_on', $share);
+        $this->assertStringContainsString('next_change', $share);
         $this->assertStringContainsString('kf-premium-panel', $share);
+        $this->assertStringContainsString('items-start', $share);
+        $this->assertStringNotContainsString('code_cooldown_on', $share);
         $this->assertStringNotContainsString('diffInDays($nextCodeChangeAt)', $share);
     }
 
