@@ -132,7 +132,7 @@ class AffiliatePartnerWiringPassFeatureTest extends TestCase
             ->assertSee(__('site.affiliate_portal.agreement_terms_section'), false)
             ->assertSee(__('site.affiliate_portal.premium_agreement'), false)
             ->assertSee(__('site.affiliate_portal.agreement_status_accepted'), false)
-            ->assertSee(__('site.affiliate_portal.view_agreement'), false)
+            ->assertSee(__('site.affiliate_portal.agreement_status_accepted'), false)
             ->getContent();
 
         $this->assertStringContainsString('v', $accepted);

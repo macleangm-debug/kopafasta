@@ -22,6 +22,13 @@
                 @endif
                 <h1 class="text-2xl sm:text-3xl font-bold mt-2">{{ __('site.affiliate_portal.impact_hero') }}</h1>
                 <p class="text-sm text-white/80 mt-2 max-w-2xl">{{ $standing['status_label'] ?? '' }}</p>
+                @if (! $premium && ! empty($kpiCard))
+                    <div class="mt-4 max-w-md space-y-1">
+                        <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.monthly_target') }}</p>
+                        <p class="text-sm text-white font-semibold">{{ __('site.affiliate_portal.kpi_of', ['achieved' => rtrim(rtrim(number_format($kpiCard['achieved'], 1, '.', ''), '0'), '.'), 'target' => rtrim(rtrim(number_format($kpiCard['target'], 1, '.', ''), '0'), '.')]) }}</p>
+                        <p class="text-xs text-white/75">{{ __('site.affiliate_portal.kpi_percent', ['percent' => $kpiCard['percent']]) }}</p>
+                    </div>
+                @endif
             </div>
         </div>
         <div class="absolute top-5 right-5 sm:top-7 sm:right-7 z-30">
@@ -30,15 +37,17 @@
                     class="size-9 rounded-full bg-brand-gold text-brand ring-2 ring-white shadow-md grid place-items-center text-sm font-extrabold"
                     aria-label="{{ __('site.affiliate_portal.matokeo_info_title') }}">i</button>
             <x-site.bottom-sheet :title="__('site.affiliate_portal.matokeo_info_title')" open="infoSheet">
-                <p class="text-sm text-gray-700 leading-relaxed">{{ $premium ? __('site.affiliate_portal.matokeo_info_body_premium') : __('site.affiliate_portal.matokeo_info_body_standard') }}</p>
+                @include('site.affiliate._performance-info')
             </x-site.bottom-sheet>
             <template x-teleport="body">
                 <div x-show="infoMenu" x-cloak x-transition
                      @click.outside="if (! $refs.infoBtn?.contains($event.target)) infoMenu = false"
-                     class="fixed z-[90] w-80 rounded-2xl bg-white shadow-xl ring-1 ring-brand/10 p-4 text-left"
+                     class="fixed z-[70] w-80 rounded-2xl bg-white shadow-xl ring-1 ring-brand/10 p-4 text-left"
                      :style="`top:${pop.top}px;left:${pop.left}px`">
                     <p class="text-sm font-bold text-gray-900">{{ __('site.affiliate_portal.matokeo_info_title') }}</p>
-                    <p class="text-sm text-gray-700 leading-relaxed mt-2">{{ $premium ? __('site.affiliate_portal.matokeo_info_body_premium') : __('site.affiliate_portal.matokeo_info_body_standard') }}</p>
+                    <div class="mt-2 space-y-2">
+                        @include('site.affiliate._performance-info')
+                    </div>
                 </div>
             </template>
         </div>
@@ -84,6 +93,22 @@
             default => 'lg:grid-cols-3',
         };
     @endphp
+
+    @if (! $premium && ! empty($kpiCard))
+        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white mb-6">
+            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
+                <h2 class="font-bold text-white">{{ __('site.affiliate_portal.monthly_target') }}</h2>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-sm font-semibold text-gray-900">{{ __('site.affiliate_portal.kpi_of', ['achieved' => rtrim(rtrim(number_format($kpiCard['achieved'], 1, '.', ''), '0'), '.'), 'target' => rtrim(rtrim(number_format($kpiCard['target'], 1, '.', ''), '0'), '.')]) }}</p>
+                <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.kpi_percent', ['percent' => $kpiCard['percent']]) }}</p>
+                <div class="h-3 rounded-full bg-gray-100 overflow-hidden" role="progressbar" aria-valuenow="{{ $kpiCard['percent'] }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="h-full rounded-full bg-brand-gold" style="width: {{ $kpiCard['percent'] }}%"></div>
+                </div>
+                <p class="text-sm text-gray-700">{{ trans_choice('borrower.profile.hub.remaining_count', (int) $kpiCard['remaining'], ['count' => (int) $kpiCard['remaining']]) }}</p>
+            </div>
+        </section>
+    @endif
 
     @if ($metrics !== [])
         <div class="mb-6" x-data="{ active: 0 }" data-kf-matokeo-rail>
@@ -161,37 +186,5 @@
                 @endforeach
             </section>
         @endif
-    @else
-        <section class="glass-card p-6 space-y-3">
-            <h2 class="text-lg font-bold text-gray-900">{{ __('site.affiliate_portal.performance_help_title') }}</h2>
-            <details class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3 group">
-                <summary class="cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-gray-900">
-                    <span>{{ __('site.affiliate_portal.faq_assessed') }}</span>
-                    <span class="text-gray-400 group-open:rotate-180 transition">⌄</span>
-                </summary>
-                <p class="text-sm text-gray-700 mt-3">{{ $assessmentExplanation }}</p>
-            </details>
-            <details class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3 group">
-                <summary class="cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-gray-900">
-                    <span>{{ __('site.affiliate_portal.faq_miss_target') }}</span>
-                    <span class="text-gray-400 group-open:rotate-180 transition">⌄</span>
-                </summary>
-                <div class="mt-3 space-y-2">
-                    @foreach ($warningLadder as $step)
-                        <p class="text-sm text-gray-700">
-                            <span class="font-semibold">{{ __('site.affiliate_portal.miss_step', ['n' => $step['periods']]) }}</span>
-                            → {{ $step['label'] }}
-                        </p>
-                    @endforeach
-                </div>
-            </details>
-            <details class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3 group">
-                <summary class="cursor-pointer list-none flex items-center justify-between gap-3 text-sm font-semibold text-gray-900">
-                    <span>{{ __('site.affiliate_portal.faq_good_standing') }}</span>
-                    <span class="text-gray-400 group-open:rotate-180 transition">⌄</span>
-                </summary>
-                <p class="text-sm text-gray-700 mt-3">{{ $recovery }}</p>
-            </details>
-        </section>
     @endif
 </x-site.affiliate-layout>

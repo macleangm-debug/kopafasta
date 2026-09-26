@@ -60,6 +60,9 @@ return [
     ],
     'register' => [
         'title' => 'Jisajili kama mkopaji',
+        'affiliate_invited' => 'Umealikwa kupitia :brand',
+        'affiliate_brought_by' => 'Umeletwa na mshirika wetu',
+        'affiliate_benefit' => 'Faida yako: :benefit',
         'aside_eyebrow' => 'Usajili wa mkopaji',
         'aside_title' => 'Unda akaunti yako kwa hatua tatu fupi.',
         'aside_body' => 'Chagua nchi yako, thibitisha nambari ya simu, kisha weka taarifa zako na nenosiri.',

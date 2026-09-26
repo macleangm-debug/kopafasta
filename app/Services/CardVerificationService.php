@@ -65,6 +65,11 @@ class CardVerificationService
             return null;
         }
 
+        $existing = $this->findPartnerByAnyNumber($number);
+        if ($existing && filled($existing->partner_number)) {
+            return (string) $existing->partner_number;
+        }
+
         $prefix = $types[$type]['prefix'];
         $prefixClean = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $prefix) ?? '');
 
@@ -330,7 +335,7 @@ class CardVerificationService
             : null;
 
         $display = MemberNumberFormatter::display($customer?->member_no ?? $id);
-        $verified = $customer && $customer->hasMembership() && ! $customer->isMembershipExpired();
+        $verified = (bool) $customer?->isMembershipActive();
 
         $photoUrl = null;
         if ($customer) {
@@ -376,17 +381,7 @@ class CardVerificationService
             $partner = Partner::query()->where('partner_number', $normalized)->first();
         }
 
-        $membership = app(PartnerMembershipService::class);
-        $profileComplete = $partner ? app(PartnerProfileService::class)->isComplete($partner) : false;
-        $membershipOk = $partner && (
-            ! $membership->requiresPayment($partner)
-            || $membership->isActive($partner)
-            || ($partner->isAffiliate() && app(AffiliateMembershipService::class)->isActive($partner))
-        );
-        $verified = $partner
-            && ($partner->status ?? '') === 'active'
-            && $membershipOk
-            && $profileComplete;
+        $verified = $partner && ($partner->status ?? '') === 'active';
 
         $photoUrl = $partner
             ? app(PartnerProfileService::class)->frontPhotoUrl($partner)

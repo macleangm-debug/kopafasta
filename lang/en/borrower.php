@@ -63,6 +63,9 @@ return [
 
     'register' => [
         'title' => 'Register as borrower',
+        'affiliate_invited' => 'You were invited through :brand',
+        'affiliate_brought_by' => 'You were brought by our partner',
+        'affiliate_benefit' => 'Your benefit: :benefit',
         'aside_eyebrow' => 'Borrower onboarding',
         'aside_title' => 'Create your account in three quick steps.',
         'aside_body' => 'Choose your country, confirm your phone number, then add your details and password.',

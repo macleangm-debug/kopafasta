@@ -68,9 +68,9 @@
                 <svg class="w-4 h-4 text-brand shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
                 <span class="truncate">{{ $activeLabel }}</span>
                 @if ($activeComplete)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ $completeLabel }}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700" data-kf-active-category-status data-complete-label="{{ $completeLabel }}" data-remaining-template="{{ trans_choice('borrower.profile.hub.remaining_count', 1, ['count' => ':count']) }}">{{ $completeLabel }}</span>
                 @elseif ($activeRemaining > 0)
-                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                    <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700" data-kf-active-category-status data-complete-label="{{ $completeLabel }}" data-remaining-template="{{ trans_choice('borrower.profile.hub.remaining_count', 1, ['count' => ':count']) }}">
                         {{ trans_choice('borrower.profile.hub.remaining_count', $activeRemaining, ['count' => $activeRemaining]) }}
                     </span>
                 @endif
@@ -95,10 +95,11 @@
                     @endphp
                     <a href="{{ route($profileRoute, ['section' => $key === 'hub' ? null : $key]) }}"
                        data-kf-motion="tab"
+                       data-kf-category="{{ $key }}"
                        class="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold {{ $isActive ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : 'text-gray-800 hover:bg-gray-50' }}">
                         <span class="inline-flex items-center gap-2 min-w-0">
                             @if ($status !== null && in_array($key, $profileKeys, true))
-                                <span @class([
+                                <span data-kf-category-dot @class([
                                     'size-2 rounded-full shrink-0',
                                     $isComplete ? 'bg-emerald-500' : 'bg-amber-400',
                                 ])></span>
@@ -106,9 +107,9 @@
                             <span class="truncate">{{ $label }}</span>
                         </span>
                         @if ($isComplete && in_array($key, $profileKeys, true))
-                            <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ $completeLabel }}</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700" data-kf-category-status data-complete-label="{{ $completeLabel }}" data-remaining-template="{{ trans_choice('borrower.profile.hub.remaining_count', 1, ['count' => ':count']) }}">{{ $completeLabel }}</span>
                         @elseif ($remaining > 0)
-                            <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                            <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700" data-kf-category-status data-complete-label="{{ $completeLabel }}" data-remaining-template="{{ trans_choice('borrower.profile.hub.remaining_count', 1, ['count' => ':count']) }}">
                                 {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
                             </span>
                         @endif
@@ -150,17 +151,18 @@
                 @endphp
                 <a href="{{ route($profileRoute, ['section' => $key === 'hub' ? null : $key]) }}"
                    data-kf-motion="tab"
+                   data-kf-category="{{ $key }}"
                    class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold {{ $isActive ? 'bg-brand-muted text-brand' : 'text-gray-800 hover:bg-gray-50' }}">
                     <span class="inline-flex items-center gap-2 min-w-0">
                         @if ($status !== null && in_array($key, $profileKeys, true))
-                            <span @class(['size-2 rounded-full shrink-0', $isComplete ? 'bg-emerald-500' : 'bg-amber-400'])></span>
+                            <span data-kf-category-dot @class(['size-2 rounded-full shrink-0', $isComplete ? 'bg-emerald-500' : 'bg-amber-400'])></span>
                         @endif
                         <span class="truncate">{{ $label }}</span>
                     </span>
                     @if ($isComplete && in_array($key, $profileKeys, true))
-                        <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{{ $completeLabel }}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wide text-emerald-700" data-kf-category-status data-complete-label="{{ $completeLabel }}" data-remaining-template="{{ trans_choice('borrower.profile.hub.remaining_count', 1, ['count' => ':count']) }}">{{ $completeLabel }}</span>
                     @elseif ($remaining > 0)
-                        <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                        <span class="text-[10px] font-bold uppercase tracking-wide text-amber-700" data-kf-category-status data-complete-label="{{ $completeLabel }}" data-remaining-template="{{ trans_choice('borrower.profile.hub.remaining_count', 1, ['count' => ':count']) }}">
                             {{ trans_choice('borrower.profile.hub.remaining_count', $remaining, ['count' => $remaining]) }}
                         </span>
                     @endif
@@ -178,7 +180,7 @@
             </button>
             <ul x-show="remainingOpen" x-cloak class="border-t border-amber-100 divide-y divide-amber-50" data-kf-remaining-items>
                 @foreach ($activeGaps as $gap)
-                    <li class="px-4 py-2.5 text-sm font-medium text-gray-900">{{ $gap['label'] ?? '' }}</li>
+                    <li class="px-4 py-2.5 text-sm font-medium text-gray-900" data-kf-remaining-key="{{ $gap['key'] ?? '' }}">{{ $gap['label'] ?? '' }}</li>
                 @endforeach
             </ul>
         </div>

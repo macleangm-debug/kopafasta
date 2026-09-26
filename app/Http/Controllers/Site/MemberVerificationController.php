@@ -19,7 +19,7 @@ class MemberVerificationController extends Controller
         return view('site.public.member-verify', [
             'customer' => $customer,
             'memberNo' => MemberNumberFormatter::display($customer?->member_no ?? $memberNo),
-            'verified' => $customer && $customer->hasMembership() && ! $customer->isMembershipExpired(),
+            'verified' => (bool) $customer?->isMembershipActive(),
         ]);
     }
 }

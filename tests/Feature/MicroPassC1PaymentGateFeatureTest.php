@@ -88,8 +88,8 @@ class MicroPassC1PaymentGateFeatureTest extends TestCase
         $this->assertSame(1000, quoted_application_fee($customer, $product));
 
         $quote = app(ApplicationFeePaymentService::class)->quote($customer, $product);
-        $this->assertSame(0.0, (float) $quote['affiliate_discount']);
-        $this->assertSame(1000.0, (float) $quote['cash_due']);
+        $this->assertSame(100.0, (float) $quote['affiliate_discount']);
+        $this->assertSame(900.0, (float) $quote['cash_due']);
         $this->assertSame(1000.0, (float) $quote['base']);
     }
 

@@ -102,6 +102,22 @@
                         </div>
                     </div>
                     <div class="px-5 pt-5 pb-6 sm:px-6 sm:pb-7">
+                    @if (! empty($affiliatePartner) && empty($isInviteRegistration))
+                        <div class="mb-6 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
+                            <div class="kf-premium-panel rounded-none px-4 py-3">
+                                <p class="text-[10px] uppercase tracking-widest text-brand-gold font-bold">{{ brand_name() }}</p>
+                                <p class="text-sm font-bold text-white mt-1">{{ __('borrower.register.affiliate_invited', ['brand' => brand_name()]) }}</p>
+                            </div>
+                            <div class="px-4 py-3 space-y-1">
+                                <p class="text-xs text-gray-500">{{ __('borrower.register.affiliate_brought_by') }}</p>
+                                <p class="text-sm font-bold text-gray-900">{{ $affiliatePartner->name }}</p>
+                                <p class="text-xs font-mono text-gray-600">{{ $affiliatePartner->partner_number ?? $affiliatePartner->vendor_number }}</p>
+                                @if (filled($affiliateBenefit ?? null))
+                                    <p class="text-sm text-brand font-semibold pt-1">{{ __('borrower.register.affiliate_benefit', ['benefit' => $affiliateBenefit]) }}</p>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                     @if ($isGuarantorRegistration && ! empty($prefill['borrower_name']))
                         <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
                             {{ __('borrower.guarantor_invite.register_banner', ['borrower' => $prefill['borrower_name']]) }}

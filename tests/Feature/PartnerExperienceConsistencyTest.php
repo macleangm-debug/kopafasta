@@ -62,10 +62,9 @@ class PartnerExperienceConsistencyTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.affiliate.performance'))
             ->assertOk()
-            ->assertSee(__('site.affiliate_portal.faq_assessed'), false)
-            ->assertSee(__('site.affiliate_portal.faq_miss_target'), false)
-            ->assertSee(__('site.affiliate_portal.faq_good_standing'), false)
-            ->assertSee('<details', false);
+            ->assertSee(__('site.affiliate_portal.matokeo_info_title'), false)
+            ->assertSee(__('site.affiliate_portal.info_percent_rule'), false)
+            ->assertDontSee(__('site.affiliate_portal.performance_help_title'), false);
     }
 
     public function test_premium_performance_is_impact_without_kpi_enforcement(): void

@@ -73,18 +73,8 @@
                 </div>
             @endif
         </dl>
-        <a href="{{ route('site.affiliate.terms') }}" class="inline-flex text-sm font-semibold text-brand hover:underline">
-            {{ __('site.affiliate_portal.view_agreement') }} →
-        </a>
     </div>
 
-    <x-site.branded-agreement :header="$header" :sections="$sections">
-        <div class="flex flex-wrap gap-3 pt-2">
-            <a href="{{ route('site.affiliate.terms') }}" class="inline-flex text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.view_terms') }} →</a>
-            @if ($acceptance)
-                <span class="text-sm text-emerald-700">{{ __('site.affiliate_portal.accepted_on', ['date' => $acceptance->accepted_at?->format('d M Y')]) }}</span>
-            @endif
-        </div>
-    </x-site.branded-agreement>
+    <x-site.branded-agreement :header="$header" :sections="$sections" />
 
 </x-site.affiliate-layout>

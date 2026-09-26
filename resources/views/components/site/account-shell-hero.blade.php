@@ -77,8 +77,12 @@
                                 {{ __('borrower.profile.hero_completion_percent', ['percent' => $pct]) }}
                             @endif
                         </p>
-                        @if ($remainingCount !== null && (int) $remainingCount > 0 && $pct < 100)
-                            <p class="text-xs sm:text-sm text-white/75">{{ trans_choice('borrower.profile.hub.remaining_count', (int) $remainingCount, ['count' => (int) $remainingCount]) }}</p>
+                        @if ($remainingCount !== null)
+                            <p class="text-xs sm:text-sm text-white/75{{ ((int) $remainingCount > 0 && $pct < 100) ? '' : ' hidden' }}"
+                               data-kf-remaining-count
+                               data-label-template="{{ trans_choice('borrower.profile.hub.remaining_count', 1, ['count' => ':count']) }}">
+                                {{ trans_choice('borrower.profile.hub.remaining_count', (int) $remainingCount, ['count' => (int) $remainingCount]) }}
+                            </p>
                         @endif
                         <div class="h-3.5 rounded-full bg-white/20 overflow-hidden ring-1 ring-white/10"
                              role="progressbar"

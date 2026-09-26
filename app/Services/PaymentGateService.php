@@ -73,14 +73,12 @@ class PaymentGateService
             $commission = (float) $referralQuote['commission'];
         } elseif ($affiliates->affiliate($customer)) {
             $affiliateQuote = $affiliates->quoteFee($customer, $baseAmount, $feeType);
-            $hasAffiliate = (bool) $affiliateQuote['has_affiliate'];
-            // Affiliate attribution earns commission. It must NOT auto-discount the borrower.
-            // Borrower discounts come only from an explicit promo with a configured benefit.
-            $affiliateDiscount = 0.0;
-            $afterPartner = round($baseAmount, 2);
-            if ($hasAffiliate && $affiliateQuote['affiliate']) {
-                $commission = app(AffiliateCommissionCalculatorService::class)
-                    ->calculate($affiliateQuote['affiliate'], $baseAmount, $feeType);
+            $hasAffiliate = true;
+            // Attribution stays even when Settings disable the benefit (0% / applies_to off).
+            $affiliateDiscount = (float) ($affiliateQuote['discount'] ?? 0);
+            $afterPartner = (float) ($affiliateQuote['after_discount'] ?? $baseAmount);
+            if ($affiliateQuote['affiliate'] ?? null) {
+                $commission = (float) ($affiliateQuote['commission'] ?? 0);
             }
         }
 
@@ -165,7 +163,7 @@ class PaymentGateService
             'code_kind' => $codeKind,
             'referrer' => $hasReferrer ? $referrals->referrer($customer) : null,
             'referred_by' => $hasAffiliate ? $affiliates->affiliate($customer)?->name : null,
-            'affiliate_auto_applied' => false,
+            'affiliate_auto_applied' => $hasAffiliate,
             'affiliate_locked' => $hasAffiliate && app(AffiliateAttributionService::class)->isLocked($customer),
             'streak_discount' => 0.0,
         ], $feeType);

@@ -204,6 +204,15 @@ function applyOverallPercent(completion) {
     document.querySelectorAll('[data-kf-completion-cta]').forEach((el) => {
         el.classList.toggle('hidden', done);
     });
+
+    if (completion.remaining != null) {
+        const remaining = Math.max(0, Number(completion.remaining) || 0);
+        document.querySelectorAll('[data-kf-remaining-count]').forEach((el) => {
+            const template = el.getAttribute('data-label-template') || ':count';
+            el.textContent = template.replace(':count', String(remaining));
+            el.classList.toggle('hidden', remaining <= 0 || done);
+        });
+    }
 }
 
 function applyRemainingList(completion) {

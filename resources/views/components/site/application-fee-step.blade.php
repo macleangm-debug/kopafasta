@@ -133,7 +133,7 @@
         <x-site.promo-code-toggle
             alpine-model="feePromoCode"
             alpine-apply="refreshApplicationFeeQuote()"
-            hidden-when="!feeUseWallet"
+            hidden-when="feeQuoteData?.has_affiliate || feeUseWallet"
         >
             <template x-if="feeQuoteData?.promo_valid && feeQuoteData?.promo_code">
                 <p class="mt-1 text-xs text-emerald-700" x-text="`{{ __('borrower.membership.promo_applied', ['code' => '__CODE__']) }}`.replace('__CODE__', feeQuoteData.promo_code)"></p>

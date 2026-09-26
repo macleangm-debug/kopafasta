@@ -966,9 +966,18 @@ class AuthController extends Controller
         $defaultCountry = app(CountrySettingsService::class)->defaultCountryCode();
         $defaultDialPrefix = collect($registrationCountries)->firstWhere('code', $defaultCountry)['prefix'] ?? '+255';
 
+        $affiliateCode = $request->query('aff') ?? session('affiliate_code');
+        $affiliatePartner = filled($affiliateCode)
+            ? app(AffiliateService::class)->resolveByPublicCode((string) $affiliateCode)
+            : null;
+
         return view('site.auth.register-borrower', [
             'referralCode' => $request->query('ref'),
-            'affiliateCode' => $request->query('aff') ?? session('affiliate_code'),
+            'affiliateCode' => $affiliateCode,
+            'affiliatePartner' => $affiliatePartner,
+            'affiliateBenefit' => $affiliatePartner
+                ? app(AffiliateService::class)->configuredMemberBenefit($affiliatePartner)
+                : '',
             'guarantorRegistration' => $guarantorRegistration,
             'isGuarantorRegistration' => $guarantorRegistration !== null && ! $isGroupInviteRegistration,
             'isGroupInviteRegistration' => $isGroupInviteRegistration,

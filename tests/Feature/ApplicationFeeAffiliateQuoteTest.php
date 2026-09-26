@@ -82,8 +82,8 @@ class ApplicationFeeAffiliateQuoteTest extends TestCase
         );
 
         $this->assertTrue($quote['has_affiliate'] ?? false);
-        $this->assertSame(0.0, (float) $quote['affiliate_discount']);
-        $this->assertSame(10000.0, (float) $quote['cash_due']);
+        $this->assertSame(1000.0, (float) $quote['affiliate_discount']);
+        $this->assertSame(9000.0, (float) $quote['cash_due']);
         $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
     }
 
@@ -102,8 +102,8 @@ class ApplicationFeeAffiliateQuoteTest extends TestCase
             ]))
             ->assertOk()
             ->assertJsonPath('quote.has_affiliate', true)
-            ->assertJsonPath('quote.affiliate_discount', 0)
-            ->assertJsonPath('quote.cash_due', 10000);
+            ->assertJsonPath('quote.affiliate_discount', 2000)
+            ->assertJsonPath('quote.cash_due', 8000);
     }
 
     public function test_resolve_promo_or_affiliate_prefers_affiliate_match(): void

@@ -564,8 +564,8 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
         $quote = app(\App\Services\ApplicationFeePaymentService::class)->quote($customer->fresh(), $product, false, null, null, null);
 
         $this->assertTrue($quote['has_affiliate']);
-        $this->assertSame(0.0, (float) $quote['affiliate_discount']);
-        $this->assertSame(10000.0, (float) $quote['cash_due']);
+        $this->assertSame(1000.0, (float) $quote['affiliate_discount']);
+        $this->assertSame(9000.0, (float) $quote['cash_due']);
     }
 
     public function test_affiliate_hero_keeps_wallet_code_and_single_mobile_cta(): void

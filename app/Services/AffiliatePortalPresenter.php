@@ -101,6 +101,7 @@ class AffiliatePortalPresenter
             'vendor' => $vendor,
             'premium' => $premium,
             'standing' => $standing,
+            'kpiCard' => $premium ? null : $this->kpiCard($standing),
             'progress' => $this->assessmentProgress($vendor, $standing),
             'impact' => $this->impactSnapshot($vendor),
             'funnel' => $this->referralFunnel($vendor),
@@ -307,6 +308,30 @@ class AffiliatePortalPresenter
         return $section
             ? route('site.affiliate.profile', ['section' => $section])
             : route('site.affiliate.profile');
+    }
+
+    /** @param  array<string, mixed>  $standing */
+    /** @return array{label: string, achieved: float, target: float, percent: int, remaining: float, key: string}|null */
+    private function kpiCard(array $standing): ?array
+    {
+        $kpi = collect($standing['kpi_results'] ?? [])
+            ->first(fn ($row) => ($row['enabled'] ?? false) && (float) ($row['target'] ?? 0) > 0);
+        if (! is_array($kpi)) {
+            return null;
+        }
+
+        $target = (float) ($kpi['target'] ?? 0);
+        $achieved = (float) ($kpi['actual'] ?? 0);
+        $percent = $target > 0 ? min(100, (int) round(($achieved / $target) * 100)) : 0;
+
+        return [
+            'label' => (string) ($kpi['label'] ?? __('site.affiliate_portal.monthly_target')),
+            'achieved' => $achieved,
+            'target' => $target,
+            'percent' => $percent,
+            'remaining' => max(0, $target - $achieved),
+            'key' => (string) ($kpi['key'] ?? ''),
+        ];
     }
 
     /** @param  array<string, mixed>  $standing */

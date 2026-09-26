@@ -39,13 +39,17 @@
     </section>
 
     <div class="grid lg:grid-cols-2 gap-6">
-        <section class="glass-card p-6 space-y-3">
-            <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.share_message') }}</h2>
-            <p class="text-sm text-gray-800 bg-gray-50 rounded-xl p-4 ring-1 ring-gray-100 whitespace-pre-line" data-kf-promo-message>{{ $shareMessage }}</p>
-            <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.attribution_window_note', ['days' => $attributionWindow]) }}</p>
+        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
+            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
+                <h2 class="font-bold text-white">{{ __('site.affiliate_portal.share_message') }}</h2>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-sm text-gray-800 whitespace-pre-line" data-kf-promo-message>{{ $shareMessage }}</p>
+                <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.attribution_window_note', ['days' => $attributionWindow]) }}</p>
+            </div>
         </section>
 
-        <section class="glass-card p-6 space-y-4"
+        <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white"
                  x-data="affiliatePromoEditor({
                     initial: @js(old('affiliate_code', $vendor->affiliate_code)),
                     startEditing: @js((bool) old('affiliate_code')),
@@ -58,7 +62,10 @@
                         update: @js(__('site.affiliate_portal.save_code')),
                     },
                  })">
-            <h2 class="text-sm font-bold uppercase tracking-widest text-gray-500">{{ __('site.affiliate_portal.personalize_code') }}</h2>
+            <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5">
+                <h2 class="font-bold text-white">{{ __('site.affiliate_portal.personalize_code') }}</h2>
+            </div>
+            <div class="p-5 space-y-4">
             @if ($canChangeCode)
                 <div class="flex flex-wrap items-center gap-3" x-show="!editing">
                     <p class="text-2xl font-bold font-mono tracking-wide text-gray-900" data-kf-promo-code>{{ $vendor->affiliate_code }}</p>
@@ -91,9 +98,12 @@
             @else
                 <p class="text-2xl font-bold font-mono tracking-wide text-gray-900">{{ $vendor->affiliate_code }}</p>
                 <p class="text-sm text-gray-600">
-                    {{ $nextCodeChangeAt ? __('site.affiliate_portal.code_cooldown', ['days' => max(1, now()->diffInDays($nextCodeChangeAt))]) : __('site.affiliate_portal.code_locked_hint') }}
+                    {{ $nextCodeChangeAt
+                        ? __('site.affiliate_portal.code_cooldown_on', ['date' => $nextCodeChangeAt->timezone(config('app.timezone'))->translatedFormat('d M Y')])
+                        : __('site.affiliate_portal.code_change_now') }}
                 </p>
             @endif
+            </div>
         </section>
     </div>
 

@@ -530,6 +530,8 @@ class PartnerProfileService
             $payload['celebrate'] = $this->profileCompleteCelebrationCopy();
         }
 
+        $payload['completion'] = $this->autosaveCompletion($entity, $section);
+
         if ($entity instanceof Partner && $entity->isAffiliate()) {
             $affiliates = app(AffiliateService::class);
             $links = $affiliates->messageContext($entity);
@@ -542,6 +544,55 @@ class PartnerProfileService
         }
 
         return $payload;
+    }
+
+    /**
+     * Canonical Partner completion snapshot for autosave JSON.
+     * Browser only renders this payload; it must not invent a second engine.
+     *
+     * @return array{
+     *     percent: int,
+     *     remaining: int,
+     *     section: string,
+     *     section_remaining: int,
+     *     section_done: int,
+     *     section_total: int,
+     *     section_complete: bool,
+     *     gaps: list<array{key: string, label: string, url: string}>,
+     *     categories: array<string, array{remaining: int, complete: bool}>,
+     *     cards: array<string, bool>
+     * }
+     */
+    public function autosaveCompletion(Partner|Lender $entity, string $section): array
+    {
+        $status = $this->sectionStatus($entity, $section);
+        $categories = [];
+        foreach ($this->sectionsFor($entity) as $key) {
+            $row = $this->sectionStatus($entity, $key);
+            $categories[$key] = [
+                'remaining' => count($row['missing'] ?? []),
+                'complete' => (bool) ($row['complete'] ?? false),
+            ];
+        }
+
+        return [
+            'percent' => $this->completionPercent($entity),
+            'remaining' => $this->remainingItemCount($entity),
+            'section' => $section,
+            'section_remaining' => (int) ($status['progress']['remaining'] ?? 0),
+            'section_done' => (int) ($status['progress']['done'] ?? 0),
+            'section_total' => (int) ($status['progress']['total'] ?? 0),
+            'section_complete' => (bool) ($status['complete'] ?? false),
+            'gaps' => array_map(static fn (array $gap) => [
+                'key' => (string) ($gap['key'] ?? ''),
+                'label' => (string) ($gap['label'] ?? ''),
+                'url' => '',
+            ], $status['missing'] ?? []),
+            'categories' => $categories,
+            'cards' => [
+                'section-'.$section => (bool) ($status['complete'] ?? false),
+            ],
+        ];
     }
 
     /** @return array{tone: string, title: string, message: string, okLabel: string} */

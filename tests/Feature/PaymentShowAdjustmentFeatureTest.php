@@ -89,7 +89,7 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
         ]);
     }
 
-    public function test_kitonga_affiliate_code_does_not_discount_without_promo_benefit(): void
+    public function test_kitonga_affiliate_code_applies_configured_benefit(): void
     {
         $customer = $this->borrower();
         $this->affiliate('KITONGA');
@@ -102,19 +102,19 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('ok', false)
             ->assertJsonPath('promo_valid', false)
-            ->assertJsonPath('quote.affiliate_discount', 0)
-            ->assertJsonPath('quote.cash_due', 10000)
+            ->assertJsonPath('quote.has_affiliate', true)
+            ->assertJsonPath('quote.affiliate_discount', 1000)
+            ->assertJsonPath('quote.cash_due', 9000)
             ->assertJsonPath('quote.base', 10000);
 
-        // Attribution may still attach for commission; borrower pays full fee.
         $this->assertNotNull($customer->fresh()->affiliate_vendor_id);
 
         $quote = app(PaymentGateService::class)->quote($customer->fresh(), 10000, 'application_fee', false, 'KITONGA');
         $keys = collect($quote['lines'])->pluck('key')->all();
         $this->assertContains('base', $keys);
-        $this->assertNotContains('affiliate', $keys);
+        $this->assertContains('affiliate', $keys);
         $this->assertContains('payable', $keys);
-        $this->assertSame(0.0, (float) $quote['affiliate_discount']);
+        $this->assertSame(1000.0, (float) $quote['affiliate_discount']);
     }
 
     public function test_invalid_promo_returns_an_inline_error(): void
@@ -220,7 +220,6 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk()
             ->assertSee(__('borrower.payments_page.show.amount_to_pay'), false)
-            ->assertSee(__('borrower.membership.apply_promo_link'), false)
             ->getContent();
 
         $this->assertStringNotContainsString('promoCode: \'KITONGA\'', $html);
@@ -228,9 +227,9 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
 
         $payment->refresh();
         $this->assertEquals(10000, (float) data_get($payment->provider_meta, 'pricing.gross'));
-        $this->assertEquals(0, (float) data_get($payment->provider_meta, 'pricing.affiliate_discount'));
-        $this->assertEquals(10000, (float) data_get($payment->provider_meta, 'pricing.net_payable'));
-        $this->assertEquals(10000, CustomerPaymentService::collectableAmount($payment));
+        $this->assertEquals(1000, (float) data_get($payment->provider_meta, 'pricing.affiliate_discount'));
+        $this->assertEquals(9000, (float) data_get($payment->provider_meta, 'pricing.net_payable'));
+        $this->assertEquals(9000, CustomerPaymentService::collectableAmount($payment));
     }
 
     public function test_new_payment_show_promo_input_starts_empty_without_attribution(): void
@@ -299,8 +298,8 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('ok', false)
             ->assertJsonPath('promo_valid', false)
-            ->assertJsonPath('quote.affiliate_discount', 0)
-            ->assertJsonPath('quote.cash_due', 10000);
+            ->assertJsonPath('quote.affiliate_discount', 1000)
+            ->assertJsonPath('quote.cash_due', 9000);
     }
 
     public function test_reward_and_promo_do_not_stack_by_default(): void
