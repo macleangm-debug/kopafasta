@@ -45,6 +45,11 @@ class AffiliateUxProfilePassFeatureTest extends TestCase
         $this->assertStringContainsString(':hero="false"', $wallet);
         $this->assertStringContainsString(':hero="false"', $performance);
         $this->assertStringContainsString('tab_overview', $performance);
+        $this->assertStringContainsString('hidden lg:block', $performance);
+        $this->assertStringContainsString('lg:hidden space-y-3', $performance);
+        $share = file_get_contents(resource_path('views/site/affiliate/share.blade.php'));
+        $this->assertStringContainsString('lg:items-stretch', $share);
+        $this->assertStringContainsString('lg:justify-center', $share);
         $this->assertStringContainsString('quick_actions_title', $dashboard);
         $this->assertStringContainsString(':required="true"', $apply);
         $this->assertStringContainsString('reference_contact', file_get_contents(app_path('Services/PartnerProfileService.php')));

@@ -30,7 +30,7 @@ return [
         'share_title' => 'Sambaza Kopafasta',
         'share_body' => 'Tumia kiungo chako na msimbo wa promo. Wanaoanza nawe wanahusishwa nawe.',
         'track_title' => 'Fuatilia utendaji wako',
-        'track_body' => 'Ona rufaa, maombi na maendeleo ya wateja kwenye portal yako.',
+        'track_body' => 'Ona rufaa, maombi na maendeleo ya wanachama kwenye portal yako.',
         'earn_title' => 'Pata na toa',
         'earn_body' => 'Kamisheni stahiki zinaingia kwenye pochi yako. Toa ukifikia kiwango cha chini.',
         'ready_title' => 'Uko tayari',

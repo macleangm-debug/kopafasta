@@ -33,6 +33,43 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $this->assertSame('Ripoti', data_get($sw, 'affiliate_portal.nav_reports'));
         $this->assertSame('Shiriki & Pata', data_get($sw, 'affiliate_portal.nav_share'));
         $this->assertSame('Commission earned', data_get($en, 'affiliate_portal.funnel_earned'));
+        $this->assertSame('Qualifying members', data_get($en, 'affiliate_portal.funnel_qualifying'));
+        $this->assertSame('Wanachama waliofikia vigezo', data_get($sw, 'affiliate_portal.funnel_qualifying'));
+        $this->assertSame('Member', data_get($en, 'affiliate_portal.col_member'));
+        $this->assertSame('Mwanachama', data_get($sw, 'affiliate_portal.col_member'));
+        $this->assertStringNotContainsString('Customer', (string) data_get($en, 'affiliate_portal.funnel_qualifying'));
+        $this->assertStringNotContainsString('Successful', (string) data_get($en, 'affiliate_portal.funnel_qualifying'));
+    }
+
+    public function test_promo_only_commission_does_not_inflate_referral_member_counts(): void
+    {
+        $affiliate = $this->affiliate();
+        $member = $this->customer(['member_no' => 'KPF-TZ-PRO1']);
+        AffiliateEvent::create([
+            'vendor_id' => $affiliate->id,
+            'event_type' => 'commission_kopafasta_plus',
+            'customer_id' => $member->id,
+            'commission_amount' => 90,
+            'landing_page' => 'payment:148',
+        ]);
+
+        $funnel = app(AffiliatePortalPresenter::class)->performance($affiliate)['funnel'];
+        $this->assertSame(0, $funnel['registered']);
+        $this->assertSame(0, $funnel['applied']);
+        $this->assertSame(0, $funnel['qualifying']);
+        $this->assertSame(90.0, $funnel['earned']);
+        $this->assertSame(1, $funnel['commission_transactions']);
+        $this->assertNotContains('successful', app(AffiliatePortalPresenter::class)->visibleFunnelKeys());
+
+        AffiliateEvent::create([
+            'vendor_id' => $affiliate->id,
+            'event_type' => 'registration',
+            'customer_id' => $member->id,
+        ]);
+        $after = app(AffiliatePortalPresenter::class)->performance($affiliate)['funnel'];
+        $this->assertSame(1, $after['registered']);
+        $this->assertSame(1, $after['qualifying']);
+        $this->assertSame(90.0, $after['earned']);
     }
 
     public function test_referral_pipeline_uses_membership_number_not_borrower_name(): void
@@ -69,6 +106,9 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('KPF-TZ-WLN5', false)
             ->assertSee(__('site.affiliate_portal.funnel_earned'), false)
+            ->assertSee(__('site.affiliate_portal.funnel_qualifying'), false)
+            ->assertDontSee('Successful customers', false)
+            ->assertDontSee('Successful members', false)
             ->getContent();
 
         $this->assertStringNotContainsString('Halima', $html);
@@ -97,7 +137,9 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
             ->assertSee('PT-AF-TZ-WON4', false)
             ->assertSee(__('site.affiliate_portal.report_activity'), false)
             ->assertSee(__('site.affiliate_portal.funnel_earned'), false)
-            ->assertSee('name="month"', false);
+            ->assertSee('name="month"', false)
+            ->assertSee('monthSheet', false)
+            ->assertDontSee(__('site.affiliate_portal.view_monthly_report'), false);
     }
 
     public function test_checkout_benefits_cannot_recreate_a_member_relationship_from_a_leftover_claim(): void

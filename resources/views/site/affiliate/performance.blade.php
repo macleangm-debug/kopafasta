@@ -42,18 +42,14 @@
                         <p class="text-sm text-white/80 mt-2 max-w-2xl">{{ $standing['status_label'] ?? '' }}</p>
                     @endif
 
-                    <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div class="rounded-xl bg-white/10 ring-1 ring-white/15 px-4 py-3">
-                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.figure_available') }}</p>
+                    <div class="mt-5 flex flex-wrap items-end gap-x-8 gap-y-3">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.funnel_earned') }}</p>
+                            <p class="text-2xl font-extrabold tabular-nums mt-1">{{ format_money($funnel['earned'] ?? 0) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">{{ __('site.affiliate_portal.figure_available') }}</p>
                             <p class="text-xl font-bold tabular-nums mt-1">{{ format_money($available ?? 0) }}</p>
-                        </div>
-                        <div class="rounded-xl bg-white/10 ring-1 ring-white/15 px-4 py-3">
-                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.figure_processing') }}</p>
-                            <p class="text-xl font-bold tabular-nums mt-1">{{ format_money($inProgress ?? 0) }}</p>
-                        </div>
-                        <div class="rounded-xl bg-white/10 ring-1 ring-white/15 px-4 py-3">
-                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.figure_earned') }}</p>
-                            <p class="text-xl font-bold tabular-nums mt-1">{{ format_money($totals['earned'] ?? 0) }}</p>
                         </div>
                     </div>
 
@@ -116,33 +112,8 @@
                     foreach ($funnelKeys as $key) {
                         $metrics[] = [
                             'label' => __('site.affiliate_portal.funnel_'.$key),
-                            'value' => $key === 'earned'
-                                ? format_money($funnel[$key] ?? 0)
-                                : (string) ($funnel[$key] ?? 0),
+                            'value' => (string) ($funnel[$key] ?? 0),
                         ];
-                    }
-                    if ($premium) {
-                        $metrics[] = [
-                            'label' => __('site.affiliate_portal.impact_earned'),
-                            'value' => format_money($impact['earned'] ?? 0),
-                        ];
-                    } else {
-                        foreach ($standing['kpi_results'] ?? [] as $kpi) {
-                            if (! ($kpi['enabled'] ?? false)) {
-                                continue;
-                            }
-                            $actual = $kpi['key'] === 'conversion'
-                                ? number_format($kpi['actual'], 1).'%'
-                                : number_format($kpi['actual'], 0);
-                            $target = $kpi['key'] === 'conversion'
-                                ? number_format($kpi['target'], 0).'%'
-                                : number_format($kpi['target'], 0);
-                            $metrics[] = [
-                                'label' => $kpi['label'],
-                                'value' => $actual,
-                                'hint' => '/ '.$target,
-                            ];
-                        }
                     }
                     $metricCount = count($metrics);
                     $lgCols = match ($metricCount) {
@@ -210,21 +181,34 @@
                                 {{ __('site.affiliate_portal.view_monthly_report') }} →
                             </a>
                         </div>
-                        <div class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-100 overflow-hidden">
+                        <div class="hidden lg:block overflow-x-auto rounded-xl ring-1 ring-gray-100">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50 text-left text-[10px] uppercase tracking-wider text-gray-500">
+                                    <tr>
+                                        <th class="px-4 py-3">{{ __('site.affiliate_portal.col_member') }}</th>
+                                        <th class="px-4 py-3">{{ __('site.affiliate_portal.col_source') }}</th>
+                                        <th class="px-4 py-3">{{ __('site.affiliate_portal.col_milestone') }}</th>
+                                        <th class="px-4 py-3">{{ __('site.affiliate_portal.col_date') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach ($pipeline as $referral)
+                                        <tr>
+                                            <td class="px-4 py-3 font-mono text-xs font-semibold">{{ $referral['member_no'] ?: '—' }}</td>
+                                            <td class="px-4 py-3">{{ $referral['source'] }}</td>
+                                            <td class="px-4 py-3 text-brand font-medium">{{ $referral['stage'] }}</td>
+                                            <td class="px-4 py-3 text-gray-500">{{ $referral['date']?->format('d M Y') }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="lg:hidden space-y-3">
                             @foreach ($pipeline as $referral)
-                                <div class="px-4 py-4 flex items-start justify-between gap-4">
-                                    <div>
-                                        <p class="font-semibold text-gray-900 font-mono">{{ $referral['member_no'] ?: '—' }}</p>
-                                        <p class="text-sm text-brand font-medium mt-0.5">{{ $referral['stage'] }}</p>
-                                        <p class="text-xs text-gray-500 mt-0.5">{{ $referral['source'] }}</p>
-                                        @if (! empty($referral['commission_amount']))
-                                            <p class="text-xs text-gray-600 mt-1">{{ __('site.affiliate_portal.pipeline_commission', [
-                                                'amount' => format_money($referral['commission_amount']),
-                                                'status' => $referral['commission_status'] ?? '',
-                                            ]) }}</p>
-                                        @endif
-                                    </div>
-                                    <p class="text-sm text-gray-500 shrink-0">{{ $referral['date']?->format('d M Y') }}</p>
+                                <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-3">
+                                    <p class="font-semibold text-gray-900 font-mono">{{ $referral['member_no'] ?: '—' }}</p>
+                                    <p class="text-sm text-brand font-medium mt-1">{{ $referral['stage'] }}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">{{ $referral['source'] }} · {{ $referral['date']?->format('d M Y') }}</p>
                                 </div>
                             @endforeach
                         </div>

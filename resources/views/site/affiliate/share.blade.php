@@ -75,7 +75,7 @@
             </template>
         </section>
 
-        <section class="kf-premium-panel rounded-2xl relative overflow-hidden lg:h-full"
+        <section class="kf-premium-panel rounded-2xl relative overflow-hidden lg:h-full lg:flex lg:flex-col"
                  x-data="affiliatePromoEditor({
                     initial: @js(old('affiliate_code', $vendor->affiliate_code)),
                     startEditing: @js((bool) old('affiliate_code')),
@@ -88,21 +88,23 @@
                         update: @js(__('site.affiliate_portal.save_code')),
                     },
                  })">
-            <div class="relative px-4 sm:px-5 py-4 space-y-3">
+            <div class="relative px-4 sm:px-5 py-4 lg:flex-1 lg:flex lg:flex-col">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">{{ __('site.affiliate_portal.your_promo_code') }}</p>
-                <p class="text-3xl sm:text-4xl font-extrabold font-mono tracking-wide text-white leading-none" data-kf-promo-code>{{ $vendor->affiliate_code }}</p>
-                <button type="button"
-                        class="inline-flex rounded-xl bg-brand-gold text-brand px-3.5 py-2 text-sm font-bold"
-                        @click="navigator.clipboard.writeText(code || @js($vendor->affiliate_code))">{{ __('site.affiliate_portal.copy_code') }}</button>
+                <div class="lg:flex-1 lg:flex lg:flex-col lg:items-center lg:justify-center lg:text-center py-4 lg:py-0 space-y-3">
+                    <p class="text-3xl sm:text-5xl font-extrabold font-mono tracking-wide text-white leading-none" data-kf-promo-code>{{ $vendor->affiliate_code }}</p>
+                    <button type="button"
+                            class="inline-flex rounded-xl bg-brand-gold text-brand px-3.5 py-2 text-sm font-bold"
+                            @click="navigator.clipboard.writeText(code || @js($vendor->affiliate_code))">{{ __('site.affiliate_portal.copy_code') }}</button>
+                </div>
 
                 @if ($nextCodeChangeAt && ! $canChangeCode)
-                    <div>
+                    <div class="mt-3">
                         <p class="text-[10px] uppercase tracking-widest text-white/60 font-semibold">{{ __('site.affiliate_portal.next_change') }}</p>
                         <p class="mt-0.5 text-sm font-semibold text-white">{{ $nextCodeChangeAt->timezone(config('app.timezone'))->translatedFormat('d M Y') }}</p>
                     </div>
                 @endif
 
-                <p class="text-xs text-white/75 leading-relaxed">{{ __('site.affiliate_portal.promo_link_unchanged') }}</p>
+                <p class="text-xs text-white/75 leading-relaxed mt-2">{{ __('site.affiliate_portal.promo_link_unchanged') }}</p>
 
                 @if ($canChangeCode)
                     <div x-show="!editing">

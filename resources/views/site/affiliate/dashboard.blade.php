@@ -140,15 +140,13 @@
                     @foreach ($funnelKeys as $key)
                         <div class="rounded-xl bg-gray-50 px-4 py-3 ring-1 ring-gray-100">
                             <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.funnel_'.$key) }}</p>
-                            <p class="text-xl font-bold tabular-nums mt-1">
-                                @if ($key === 'earned')
-                                    {{ format_money($funnel[$key] ?? 0) }}
-                                @else
-                                    {{ $funnel[$key] ?? 0 }}
-                                @endif
-                            </p>
+                            <p class="text-xl font-bold tabular-nums mt-1">{{ $funnel[$key] ?? 0 }}</p>
                         </div>
                     @endforeach
+                    <div class="rounded-xl bg-gray-50 px-4 py-3 ring-1 ring-gray-100">
+                        <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.funnel_earned') }}</p>
+                        <p class="text-xl font-bold tabular-nums mt-1">{{ format_money($funnel['earned'] ?? 0) }}</p>
+                    </div>
                 </div>
             </div>
         </section>

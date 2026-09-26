@@ -49,9 +49,9 @@
             </tbody>
         </table>
     </div>
-    <div class="lg:hidden divide-y divide-gray-100">
+    <div class="lg:hidden space-y-3 p-4">
         @foreach ($commissions as $row)
-            <div class="px-5 py-4 space-y-1.5">
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-4 space-y-1.5">
                 <div class="flex items-start justify-between gap-3">
                     <p class="font-mono text-xs text-gray-500">{{ $row['payment_id'] }}</p>
                     <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 shrink-0

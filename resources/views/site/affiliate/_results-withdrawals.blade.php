@@ -41,9 +41,9 @@
             </tbody>
         </table>
     </div>
-    <div class="lg:hidden divide-y divide-gray-100">
+    <div class="lg:hidden space-y-3 p-4">
         @foreach ($withdrawals as $request)
-            <div class="px-5 py-4 space-y-1.5">
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-4 space-y-1.5">
                 <p class="font-mono text-xs text-gray-500">{{ $request->requestNumber() }}</p>
                 <p class="text-sm font-semibold">{{ format_money($request->amount) }} · {{ __('site.affiliate_portal.withdrawal_status_'.$request->publicStatus()) }}</p>
                 <p class="text-sm text-gray-700">{{ $request->payout_account_label ?: ($payoutAccountLabel ?? '—') }}</p>

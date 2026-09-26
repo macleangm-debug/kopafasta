@@ -30,7 +30,7 @@ return [
         'share_title' => 'Share Kopafasta',
         'share_body' => 'Use your unique link and promo code. People who start with you are attributed to you.',
         'track_title' => 'Track your performance',
-        'track_body' => 'See referrals, applications and customer progress in your portal.',
+        'track_body' => 'See referrals, applications and member progress in your portal.',
         'earn_title' => 'Earn and withdraw',
         'earn_body' => 'Eligible commissions land in your wallet. Withdraw when you reach the minimum payout.',
         'ready_title' => "You're ready",
