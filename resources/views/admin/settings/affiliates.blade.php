@@ -495,7 +495,7 @@
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @foreach ([
-                                'qualified_referrals' => 'Qualified referrals',
+                                'qualified_referrals' => 'Registered members',
                                 'applications' => 'Applications generated',
                                 'disbursed_loans' => 'Loans disbursed',
                                 'conversion' => 'Conversion % (reg → application)',

@@ -38,6 +38,9 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $this->assertSame('Wanachama waliosajiliwa', data_get($sw, 'affiliate_portal.funnel_registered'));
         $this->assertSame('Available to withdraw', data_get($en, 'affiliate_portal.figure_available'));
         $this->assertSame('Inayoweza kutolewa', data_get($sw, 'affiliate_portal.figure_available'));
+        $this->assertSame(':achieved of :target registered members', data_get($en, 'affiliate_portal.kpi_of'));
+        $this->assertSame(':achieved kati ya wanachama :target waliosajiliwa', data_get($sw, 'affiliate_portal.kpi_of'));
+        $this->assertStringNotContainsString('qualifying members', strtolower((string) data_get($en, 'affiliate_portal.kpi_of')));
         $this->assertSame('Member', data_get($en, 'affiliate_portal.col_member'));
         $this->assertSame('Mwanachama', data_get($sw, 'affiliate_portal.col_member'));
         $this->assertStringContainsString('Vigezo na Masharti vinatumika.', (string) data_get($sw, 'affiliate_portal.share_invite_with_benefit'));
