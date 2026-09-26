@@ -16,6 +16,10 @@
     $autoApplied = ($quote['affiliate_auto_applied'] ?? false)
         && ($quote['has_affiliate'] ?? false)
         && (float) ($quote['affiliate_discount'] ?? 0) > 0;
+    $manualPromoApplied = ! $autoApplied
+        && ($quote['attribution_source'] ?? null) === 'promo'
+        && ($quote['has_affiliate'] ?? false)
+        && (float) ($quote['affiliate_discount'] ?? 0) > 0;
 @endphp
 
 <div
@@ -29,6 +33,14 @@
             @if (filled($quote['referred_by'] ?? null))
                 <span class="block text-xs mt-1">{{ __('site.affiliate_portal.referred_by', ['name' => $quote['referred_by']]) }}</span>
             @endif
+        </div>
+    @elseif ($manualPromoApplied)
+        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">
+            {{ __('site.affiliate_portal.promo_code_applied') }}
+            <span class="block text-xs mt-1">{{ __('site.affiliate_portal.promo_code_applied_detail', [
+                'code' => $quote['promo_code_snapshot'] ?? $quote['promo_code'] ?? '',
+                'name' => $quote['affiliate_name'] ?? '',
+            ]) }}</span>
         </div>
     @else
     <button type="button"

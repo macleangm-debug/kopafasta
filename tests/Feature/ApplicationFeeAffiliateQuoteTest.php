@@ -84,7 +84,8 @@ class ApplicationFeeAffiliateQuoteTest extends TestCase
         $this->assertTrue($quote['has_affiliate'] ?? false);
         $this->assertSame(1000.0, (float) $quote['affiliate_discount']);
         $this->assertSame(9000.0, (float) $quote['cash_due']);
-        $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
+        $this->assertNull($customer->fresh()->affiliate_vendor_id);
+        $this->assertSame('promo', $quote['attribution_source'] ?? null);
     }
 
     public function test_quote_endpoint_accepts_affiliate_code_query(): void

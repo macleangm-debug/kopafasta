@@ -137,21 +137,25 @@ class AffiliatePortalPresenter
     /** @return array<string, mixed> */
     public function wallet(Vendor $vendor): array
     {
+        $this->wallet->promoteVerifiedCommissions($vendor);
         $summary = $this->wallet->summary($vendor);
         $available = $this->payouts->availableBalance($vendor, 'affiliate_commission');
         $approved = (int) ($summary['approved'] ?? 0);
         $paid = (int) ($summary['paid'] ?? 0);
         $reserved = $this->wallet->reservedAmount($vendor);
         $profile = app(PartnerProfileService::class);
+        $minPayout = $this->settings->minimumPayoutAmount();
+        $perPage = $this->settings->walletTransactionsPerPage();
 
         return [
             'vendor' => $vendor,
             'summary' => $summary,
-            'payments' => $this->wallet->paginated($vendor),
-            'commissions' => $this->wallet->ledgerRows($vendor, $reserved),
+            'payments' => $this->wallet->paginated($vendor, $perPage),
+            'commissions' => $this->wallet->paginatedLedger($vendor, $reserved, $perPage),
             'withdrawals' => $this->wallet->withdrawals($vendor),
             'available' => $available,
-            'minPayout' => $this->settings->minimumPayoutAmount(),
+            'minPayout' => $minPayout,
+            'remainingToWithdraw' => max(0, $minPayout - $available),
             'pending' => (int) ($summary['pending'] ?? 0),
             'inProgress' => $reserved,
             'payoutAccountLabel' => $profile->payoutAccountLabel($vendor),

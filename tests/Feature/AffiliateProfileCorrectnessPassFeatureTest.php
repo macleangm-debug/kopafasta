@@ -54,8 +54,16 @@ class AffiliateProfileCorrectnessPassFeatureTest extends TestCase
     public function test_maproso_resolves_immediately_and_attributes_borrower(): void
     {
         $affiliate = $this->affiliateWithAlmostCompleteProfile();
+        $affiliate->update([
+            'user_id' => User::factory()->create(['role' => 'vendor'])->id,
+            'membership_status' => 'active',
+            'membership_started_at' => now()->subMonth(),
+            'membership_expires_at' => now()->addYear(),
+            'affiliate_lifecycle_status' => 'active',
+        ]);
+        app(\App\Services\AffiliateTermsService::class)->accept($affiliate->fresh(), Request::create('/terms', 'POST'));
         $affiliates = app(AffiliateService::class);
-        $affiliates->updateCode($affiliate, 'MAPROSO');
+        $affiliates->updateCode($affiliate->fresh(), 'MAPROSO');
         $affiliate->refresh();
 
         $this->assertSame('MAPROSO', $affiliate->affiliate_code);

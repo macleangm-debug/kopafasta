@@ -450,6 +450,27 @@ class AffiliateSettingsService
         return in_array($model, ['first_valid', 'last_click'], true) ? $model : 'first_valid';
     }
 
+    public function referralAttributionMode(): string
+    {
+        $mode = (string) ($this->attributionSettings()['referral_attribution_mode'] ?? 'relationship');
+
+        return $mode === 'relationship' ? 'relationship' : 'relationship';
+    }
+
+    public function promoAttributionMode(): string
+    {
+        $mode = (string) ($this->attributionSettings()['promo_attribution_mode'] ?? 'per_payment');
+
+        return $mode === 'per_payment' ? 'per_payment' : 'per_payment';
+    }
+
+    public function walletTransactionsPerPage(): int
+    {
+        $stored = Setting::get('affiliates.wallet.transactions_per_page');
+
+        return max(5, (int) ($stored ?: config('affiliates.wallet.transactions_per_page', 10)));
+    }
+
     /** @return array<string, mixed> */
     public function promoCodeSettings(): array
     {

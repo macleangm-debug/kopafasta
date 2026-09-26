@@ -74,6 +74,31 @@ class PartnerSettlementService
         return $promoted;
     }
 
+    /**
+     * Verified qualifying payments must post Complete commission immediately.
+     * Heals rows accrued before affiliate_commission was auto-approved.
+     */
+    public function promotePendingAffiliateCommissions(Vendor $vendor): int
+    {
+        $promoted = 0;
+        $pending = VendorPayment::query()
+            ->where('partner_id', $vendor->id)
+            ->where('source_type', 'affiliate_commission')
+            ->where('status', 'pending')
+            ->get();
+
+        foreach ($pending as $payment) {
+            try {
+                $this->approvePayment($payment, $this->systemUser());
+                $promoted++;
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
+        }
+
+        return $promoted;
+    }
+
     private function shouldAutoApprove(Vendor $vendor, string $sourceType, int $amount): bool
     {
         if ($vendor->status !== 'active' || $amount <= 0) {
@@ -82,6 +107,11 @@ class PartnerSettlementService
 
         // Completed valuation jobs are accepted work — post to the wallet once, immediately.
         if ($sourceType === 'valuation_fee') {
+            return true;
+        }
+
+        // Verified qualifying payments earn Complete commission immediately.
+        if ($sourceType === 'affiliate_commission') {
             return true;
         }
 

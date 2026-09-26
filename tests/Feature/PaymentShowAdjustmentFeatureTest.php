@@ -107,7 +107,7 @@ class PaymentShowAdjustmentFeatureTest extends TestCase
             ->assertJsonPath('quote.cash_due', 9000)
             ->assertJsonPath('quote.base', 10000);
 
-        $this->assertNotNull($customer->fresh()->affiliate_vendor_id);
+        $this->assertNull($customer->fresh()->affiliate_vendor_id);
 
         $quote = app(PaymentGateService::class)->quote($customer->fresh(), 10000, 'application_fee', false, 'KITONGA');
         $keys = collect($quote['lines'])->pluck('key')->all();

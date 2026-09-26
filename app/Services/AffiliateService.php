@@ -237,39 +237,33 @@ class AffiliateService
             return;
         }
 
-        $affiliate = null;
-        $claim = null;
-
+        $pending = $attribution->pendingClaim($request);
+        $pendingAffiliate = $attribution->pendingAffiliate($request);
         if (filled($code)) {
-            $affiliate = $this->resolveByPublicCode($code);
-            if (! $affiliate) {
+            $resolved = $this->resolveByPublicCode($code);
+            if (! $pending || ! $pendingAffiliate || ! $resolved || (int) $pendingAffiliate->id !== (int) $resolved->id) {
                 return;
-            }
-
-            $claim = [
-                'affiliate_id' => (int) $affiliate->id,
-                'code_used' => strtoupper(trim((string) $code)),
-                'source' => 'promo',
-                'attributed_at' => now()->toIso8601String(),
-                'policy_version' => $settings->policyVersion(),
-            ];
-        } else {
-            $pending = $attribution->pendingClaim($request);
-            $pendingAffiliate = $attribution->pendingAffiliate($request);
-            if ($pending && $pendingAffiliate && app(AffiliateEligibilityService::class)->canAttributeNewReferral($pendingAffiliate)) {
-                $affiliate = $pendingAffiliate;
-                $claim = $pending;
             }
         }
 
-        if (! $affiliate || ! $claim) {
+        if (! $pending || ! $pendingAffiliate) {
             return;
         }
 
+        $this->persistRelationship($customer, $pendingAffiliate, $pending, $request);
+    }
+
+    /**
+     * @param  array<string, mixed>  $claim
+     */
+    private function persistRelationship(Customer $customer, Vendor $affiliate, array $claim, ?Request $request = null): bool
+    {
+        $settings = app(AffiliateSettingsService::class);
+        $attribution = app(AffiliateAttributionService::class);
         $lockAtRegistration = $settings->attributionLockAt() === 'registration';
         $attached = $attribution->persistOnCustomer($customer, $affiliate, $claim, lock: $lockAtRegistration);
         if (! $attached) {
-            return;
+            return false;
         }
 
         $customer->refresh();
@@ -293,8 +287,9 @@ class AffiliateService
         }
 
         $attribution->clearSession();
-
         app(AffiliateFraudDetectionService::class)->scanAndPersist($affiliate);
+
+        return true;
     }
 
     /**
@@ -321,7 +316,10 @@ class AffiliateService
             }
         }
 
-        if ($existingId === 0 && $attribution->customerIsExistingBorrower($customer) && ! $settings->existingCustomerReferral()) {
+        if ($existingId === 0
+            && $attribution->customerIsExistingBorrower($customer)
+            && ! $settings->existingCustomerReferral()
+            && ! $attribution->isRelationshipSource($source)) {
             return 'not_allowed';
         }
 
@@ -329,7 +327,25 @@ class AffiliateService
             return 'ineligible';
         }
 
-        $this->attachAffiliate($customer, $affiliate->affiliate_code ?: $this->ensureReferralToken($affiliate), $request);
+        $claim = $attribution->pendingClaim($request);
+        if (! $claim || (int) ($claim['affiliate_id'] ?? 0) !== (int) $affiliate->id) {
+            $now = now();
+            $claim = [
+                'affiliate_id' => (int) $affiliate->id,
+                'code_used' => strtoupper((string) ($affiliate->affiliate_code ?: $this->ensureReferralToken($affiliate))),
+                'source' => $attribution->isRelationshipSource($source) ? $source : 'link',
+                'attributed_at' => $now->toIso8601String(),
+                'expires_at' => $now->copy()->addDays($settings->attributionWindowDays())->toIso8601String(),
+                'window_days' => $settings->attributionWindowDays(),
+                'policy_version' => $settings->policyVersion(),
+            ];
+        } else {
+            $claim['source'] = $attribution->isRelationshipSource((string) ($claim['source'] ?? ''))
+                ? $claim['source']
+                : ($attribution->isRelationshipSource($source) ? $source : 'link');
+        }
+
+        $this->persistRelationship($customer, $affiliate, $claim, $request);
         $customer->refresh();
 
         return (int) $customer->affiliate_vendor_id === (int) $affiliate->id ? 'attached' : 'none';
@@ -547,6 +563,15 @@ class AffiliateService
         }
 
         return Vendor::query()->find($customer->affiliate_vendor_id);
+    }
+
+    public function relationshipAffiliate(Customer $customer): ?Vendor
+    {
+        if (! app(AffiliateAttributionService::class)->hasValidRelationship($customer)) {
+            return null;
+        }
+
+        return $this->affiliate($customer);
     }
 
     public function attributionBreakdown(Vendor $affiliate): array
@@ -779,10 +804,10 @@ class AffiliateService
      *
      * @return array{base: float, discount: float, after_discount: float, commission: float, affiliate: Vendor|null, has_affiliate: bool}
      */
-    public function quoteFee(Customer $customer, float $baseAmount, string $feeType): array
+    public function quoteFee(Customer $customer, float $baseAmount, string $feeType, ?Vendor $affiliate = null): array
     {
         $feeType = \App\Models\CustomerPayment::canonicalType($feeType);
-        $affiliate = $this->affiliate($customer);
+        $affiliate = $affiliate ?: $this->relationshipAffiliate($customer);
 
         if (! $affiliate || $baseAmount <= 0 || ! app(AffiliateSettingsService::class)->appliesToFeeType($feeType)) {
             return [
@@ -840,7 +865,13 @@ class AffiliateService
             return null;
         }
 
-        $quote = $this->quoteFee($customer, $baseAmount, $feeType);
+        $payment = ($refType === CustomerPayment::class && $refId)
+            ? CustomerPayment::query()->find($refId)
+            : null;
+        $snapshotId = (int) data_get($payment?->provider_meta, 'pricing.affiliate_partner_id', 0);
+        $snapshotAffiliate = $snapshotId > 0 ? Vendor::query()->find($snapshotId) : null;
+        $affiliate = $this->relationshipAffiliate($customer) ?? $snapshotAffiliate;
+        $quote = $this->quoteFee($customer, $baseAmount, $feeType, $affiliate);
         if (! $quote['affiliate'] || $quote['commission'] <= 0) {
             return null;
         }
@@ -849,9 +880,6 @@ class AffiliateService
             return null;
         }
 
-        $payment = ($refType === CustomerPayment::class && $refId)
-            ? CustomerPayment::query()->find($refId)
-            : null;
         $paymentKey = $payment ? 'payment:'.$payment->id : null;
 
         if ($payment?->reference) {

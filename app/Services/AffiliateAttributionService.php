@@ -207,7 +207,9 @@ class AffiliateAttributionService
         }
 
         if ($this->customerIsExistingBorrower($customer) && ! $settings->existingCustomerReferral() && $existingId === 0) {
-            return false;
+            if (! $this->isRelationshipSource((string) ($claim['source'] ?? ''))) {
+                return false;
+            }
         }
 
         $now = now();
@@ -216,6 +218,14 @@ class AffiliateAttributionService
             'code_used' => strtoupper((string) ($claim['code_used'] ?? $affiliate->affiliate_code)),
             'transferred_at' => $now->toIso8601String(),
         ]);
+        if ($this->isRelationshipSource((string) ($stored['source'] ?? '')) && empty($stored['expires_at'])) {
+            $from = filled($stored['attributed_at'] ?? null)
+                ? \Illuminate\Support\Carbon::parse($stored['attributed_at'])
+                : $now;
+            $stored['attributed_at'] = $stored['attributed_at'] ?? $from->toIso8601String();
+            $stored['expires_at'] = $from->copy()->addDays($settings->attributionWindowDays())->toIso8601String();
+            $stored['window_days'] = $stored['window_days'] ?? $settings->attributionWindowDays();
+        }
 
         if ($lock) {
             $stored['locked_at'] = $stored['locked_at'] ?? $now->toIso8601String();
@@ -253,6 +263,65 @@ class AffiliateAttributionService
     public function customerIsExistingBorrower(Customer $customer): bool
     {
         return $customer->applications()->exists() || $customer->loans()->exists();
+    }
+
+    public function isRelationshipSource(string $source): bool
+    {
+        return in_array($source, ['link', 'qr', 'login', 'registration', 'referral_link', 'session', 'application'], true);
+    }
+
+    public function isPromoSource(string $source): bool
+    {
+        return $source === 'promo';
+    }
+
+    public function hasValidRelationship(Customer $customer): bool
+    {
+        if (! $customer->affiliate_vendor_id) {
+            return false;
+        }
+
+        $claim = $this->customerClaim($customer);
+        if (! $claim) {
+            return true;
+        }
+
+        $source = (string) ($claim['source'] ?? '');
+        if ($this->isPromoSource($source)) {
+            return false;
+        }
+
+        if ($source !== '' && ! $this->isRelationshipSource($source)) {
+            return false;
+        }
+
+        $expiresAt = $claim['expires_at'] ?? null;
+        if (filled($expiresAt) && now()->gt(\Illuminate\Support\Carbon::parse($expiresAt))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Remove a 30-day member relationship that was created only from a typed promo.
+     */
+    public function clearPromoOnlyRelationship(Customer $customer): bool
+    {
+        $claim = $this->customerClaim($customer);
+        if (! $this->isPromoSource((string) ($claim['source'] ?? ''))) {
+            return false;
+        }
+
+        $details = is_array($customer->activity_details) ? $customer->activity_details : [];
+        unset($details[self::CUSTOMER_META_KEY]);
+
+        $customer->update([
+            'affiliate_vendor_id' => null,
+            'activity_details' => $details,
+        ]);
+
+        return true;
     }
 
     /** @param  array<string, mixed>  $attribution */

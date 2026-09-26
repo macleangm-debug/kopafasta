@@ -132,12 +132,20 @@
 
                     @if (isset($promo))
                         <div x-show="stackWithPromo || !applyReward">{{ $promo }}</div>
-                    @elseif ($showPromo && ($quote['has_affiliate'] ?? false) && ($quote['affiliate_discount'] ?? 0) > 0)
+                    @elseif ($showPromo && ($quote['affiliate_auto_applied'] ?? false) && ($quote['affiliate_discount'] ?? 0) > 0)
                         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">
                             {{ __('site.affiliate_portal.benefit_applied') }}
                             @if (filled($quote['referred_by'] ?? null))
                                 <span class="block text-xs mt-1">{{ __('site.affiliate_portal.referred_by', ['name' => $quote['referred_by']]) }}</span>
                             @endif
+                        </div>
+                    @elseif ($showPromo && ($quote['attribution_source'] ?? null) === 'promo' && ($quote['affiliate_discount'] ?? 0) > 0)
+                        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">
+                            {{ __('site.affiliate_portal.promo_code_applied') }}
+                            <span class="block text-xs mt-1">{{ __('site.affiliate_portal.promo_code_applied_detail', [
+                                'code' => $quote['promo_code_snapshot'] ?? $quote['promo_code'] ?? '',
+                                'name' => $quote['affiliate_name'] ?? '',
+                            ]) }}</span>
                         </div>
                     @elseif ($showPromo)
                         <div x-show="stackWithPromo || !applyReward" class="rounded-xl bg-white ring-1 ring-brand/10 px-4 py-3 space-y-2">

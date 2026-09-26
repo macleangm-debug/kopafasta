@@ -76,6 +76,9 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
         $this->assertFalse($settings->existingCustomerReferral());
         $this->assertSame(14, $settings->promoOldCodeGraceDays());
         $this->assertSame('first_valid', $settings->attributionModel());
+        $this->assertSame('relationship', $settings->referralAttributionMode());
+        $this->assertSame('per_payment', $settings->promoAttributionMode());
+        $this->assertSame(30, $settings->attributionWindowDays());
     }
 
     public function test_referral_token_stays_when_promo_changes(): void
@@ -176,7 +179,7 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
                 ->json()
         ));
 
-        $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
+        $this->assertNull($customer->fresh()->affiliate_vendor_id);
     }
 
     public function test_attributed_payment_hides_promo_entry_and_keeps_net(): void
@@ -394,9 +397,12 @@ class AffiliateCommercialWiringPassFeatureTest extends TestCase
             ->assertJsonPath('ok', true)
             ->assertJsonPath('promo_valid', true)
             ->assertJsonPath('quote.cash_due', 900)
-            ->assertJsonPath('quote.lines.0.label', 'Kopafasta Plus');
+            ->assertJsonPath('quote.lines.0.label', 'Kopafasta Plus')
+            ->assertJsonPath('quote.attribution_source', 'promo')
+            ->assertJsonPath('quote.affiliate_auto_applied', false);
 
-        $this->assertSame($affiliate->id, $customer->fresh()->affiliate_vendor_id);
+        $this->assertNull($customer->fresh()->affiliate_vendor_id);
+        $this->assertSame($affiliate->id, (int) data_get($payment->fresh()->provider_meta, 'pricing.affiliate_partner_id'));
     }
 
     public function test_guest_redirect_preserves_referral_and_opens_register(): void

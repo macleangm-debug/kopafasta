@@ -40,16 +40,15 @@ class PaymentGateService
         [$resolvedPromo, $resolvedAffiliate] = app(ApplicationFeePaymentService::class)
             ->resolvePromoOrAffiliate($promoCode, $affiliateCode, $customer);
 
-        if (filled($resolvedAffiliate) && ! app(ReferralService::class)->referrer($customer)) {
-            // Explicit affiliate code: attach when unbound (canonical promo path for wakala codes).
-            if (blank($customer->affiliate_vendor_id)) {
-                app(AffiliateService::class)->attachAffiliate($customer, $resolvedAffiliate);
-                $customer->refresh();
-            }
-        }
         $referrals = app(ReferralService::class);
         $affiliates = app(AffiliateService::class);
         $promotions = app(PromotionService::class);
+        $settings = app(AffiliateSettingsService::class);
+        $relationshipAffiliate = $affiliates->relationshipAffiliate($customer);
+        $promoAffiliate = filled($resolvedAffiliate)
+            ? $affiliates->resolveByPublicCode($resolvedAffiliate)
+            : null;
+        $feeApplies = $settings->appliesToFeeType($feeType);
 
         $referralDiscount = 0.0;
         $affiliateDiscount = 0.0;
@@ -61,6 +60,11 @@ class PaymentGateService
         $appliedPromo = null;
         $codeKind = null; // promo | affiliate | invalid
         $promoReason = null;
+        $attributionSource = null;
+        $referredBy = null;
+        $autoApplied = false;
+        $usedAffiliate = null;
+        $promoCodeSnapshot = null;
 
         $afterPartner = round($baseAmount, 2);
         $canonicalBase = $afterPartner;
@@ -73,15 +77,25 @@ class PaymentGateService
             $referralDiscount = (float) $referralQuote['discount'];
             $afterPartner = (float) $referralQuote['after_discount'];
             $commission = (float) $referralQuote['commission'];
-        } elseif ($affiliates->affiliate($customer)) {
-            $affiliateQuote = $affiliates->quoteFee($customer, $baseAmount, $feeType);
+        } elseif ($relationshipAffiliate && $feeApplies) {
+            $affiliateQuote = $affiliates->quoteFee($customer, $baseAmount, $feeType, $relationshipAffiliate);
             $hasAffiliate = true;
-            // Attribution stays even when Settings disable the benefit (0% / applies_to off).
+            $usedAffiliate = $relationshipAffiliate;
+            $attributionSource = 'referral_link';
+            $referredBy = $relationshipAffiliate->name;
             $affiliateDiscount = (float) ($affiliateQuote['discount'] ?? 0);
             $afterPartner = (float) ($affiliateQuote['after_discount'] ?? $baseAmount);
-            if ($affiliateQuote['affiliate'] ?? null) {
-                $commission = (float) ($affiliateQuote['commission'] ?? 0);
-            }
+            $commission = (float) ($affiliateQuote['commission'] ?? 0);
+            $autoApplied = $affiliateDiscount > 0;
+        } elseif ($promoAffiliate && $feeApplies) {
+            $affiliateQuote = $affiliates->quoteFee($customer, $baseAmount, $feeType, $promoAffiliate);
+            $hasAffiliate = true;
+            $usedAffiliate = $promoAffiliate;
+            $attributionSource = 'promo';
+            $promoCodeSnapshot = strtoupper(trim((string) $resolvedAffiliate));
+            $affiliateDiscount = (float) ($affiliateQuote['discount'] ?? 0);
+            $afterPartner = (float) ($affiliateQuote['after_discount'] ?? $baseAmount);
+            $commission = (float) ($affiliateQuote['commission'] ?? 0);
         }
 
         if (filled($resolvedPromo) && ! $useWallet) {
@@ -106,19 +120,22 @@ class PaymentGateService
             $codeKind = 'invalid';
             $promoReason = 'not_found';
         } elseif (filled($resolvedAffiliate)) {
-            $appliedPromo = null;
             $codeKind = 'affiliate';
-            if ($hasAffiliate) {
+            if ($hasAffiliate && $attributionSource === 'promo') {
+                $appliedPromo = $promoCodeSnapshot;
+                $promoValid = true;
+                $promoReason = null;
+            } elseif ($hasAffiliate && $attributionSource === 'referral_link') {
+                $appliedPromo = null;
                 $promoValid = true;
                 $promoReason = null;
             } else {
+                $appliedPromo = strtoupper(trim((string) $resolvedAffiliate));
                 $promoValid = false;
-                $existingId = (int) ($customer->affiliate_vendor_id ?? 0);
-                $settings = app(AffiliateSettingsService::class);
                 $attribution = app(AffiliateAttributionService::class);
                 $promoReason = match (true) {
-                    $existingId > 0 => 'attribution_protected',
-                    $attribution->customerIsExistingBorrower($customer) && ! $settings->existingCustomerReferral() => 'existing_not_allowed',
+                    $relationshipAffiliate && $attribution->isLocked($customer) => 'attribution_protected',
+                    ! $feeApplies => 'fee_not_applicable',
                     default => 'attribution_blocked',
                 };
             }
@@ -175,9 +192,14 @@ class PaymentGateService
             'promo_reason' => $promoReason,
             'code_kind' => $codeKind,
             'referrer' => $hasReferrer ? $referrals->referrer($customer) : null,
-            'referred_by' => $hasAffiliate ? $affiliates->affiliate($customer)?->name : null,
-            'affiliate_auto_applied' => $hasAffiliate && $affiliateDiscount > 0,
-            'affiliate_locked' => $hasAffiliate && app(AffiliateAttributionService::class)->isLocked($customer),
+            'referred_by' => $referredBy,
+            'affiliate_auto_applied' => $autoApplied,
+            'affiliate_locked' => $relationshipAffiliate && app(AffiliateAttributionService::class)->isLocked($customer),
+            'attribution_source' => $attributionSource,
+            'affiliate_partner_id' => $usedAffiliate?->id,
+            'promo_code_snapshot' => $promoCodeSnapshot,
+            'affiliate_name' => $usedAffiliate?->name,
+            'commission_basis' => $hasAffiliate ? $afterPartner : null,
             'streak_discount' => 0.0,
         ], $feeType);
     }

@@ -10,11 +10,16 @@
                 <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.wallet_title') }}</p>
                 <p class="text-xs uppercase tracking-widest text-white/70 font-semibold mt-3">{{ __('site.affiliate_portal.hero_available') }}</p>
                 <p class="text-3xl sm:text-4xl font-bold mt-1 tabular-nums">{{ format_money($available) }}</p>
-                <p class="text-sm text-white/70 mt-2">{{ __('site.affiliate_portal.hero_pending', ['amount' => format_money($pending ?? $totals['pending'] ?? 0)]) }}</p>
+                <p class="text-sm text-white/70 mt-2">{{ __('site.affiliate_portal.min_payout_note', ['amount' => format_money($minPayout)]) }}</p>
+                @if (($remainingToWithdraw ?? 0) > 0)
+                    <p class="text-sm text-white/70 mt-1">{{ __('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money($remainingToWithdraw)]) }}</p>
+                @endif
+                @if (($pending ?? 0) > 0)
+                    <p class="text-sm text-white/70 mt-1">{{ __('site.affiliate_portal.hero_pending', ['amount' => format_money($pending)]) }}</p>
+                @endif
                 @if (($inProgress ?? 0) > 0)
                     <p class="text-sm text-white/70 mt-1">{{ __('site.affiliate_portal.hero_in_progress', ['amount' => format_money($inProgress)]) }}</p>
                 @endif
-                <p class="text-sm text-white/70 mt-1">{{ __('site.affiliate_portal.min_payout_note', ['amount' => format_money($minPayout)]) }}</p>
             </div>
             <button type="button" @click="withdrawing = true; step = 'form'"
                     class="inline-flex justify-center bg-white text-brand font-semibold px-6 py-3 rounded-xl text-sm shrink-0 hover:bg-brand-gold transition">
@@ -115,7 +120,7 @@
             <div class="px-5 py-3 border-b border-gray-100">
                 <h2 class="font-semibold text-gray-900">{{ __('site.affiliate_portal.commission_transactions') }}</h2>
             </div>
-            @if (empty($commissions))
+            @if ($commissions->isEmpty())
                 <x-site.empty-state
                     icon="💰"
                     :title="__('site.affiliate_portal.no_payments')"
@@ -134,7 +139,7 @@
                                 <th class="px-5 py-3">{{ __('site.affiliate_portal.col_paid_for') }}</th>
                                 <th class="px-5 py-3">{{ __('site.affiliate_portal.col_payment_amount') }}</th>
                                 <th class="px-5 py-3">{{ __('site.affiliate_portal.col_your_commission') }}</th>
-                                <th class="px-5 py-3">{{ __('site.affiliate_portal.col_status') }}</th>
+                                <th class="px-5 py-3">{{ __('site.affiliate_portal.col_commission_status') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
@@ -149,7 +154,7 @@
                                     <td class="px-5 py-3">
                                         <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1
                                             {{ match($row['status']) {
-                                                'approved' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+                                                'complete', 'approved' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
                                                 'reserved' => 'bg-sky-100 text-sky-800 ring-sky-200',
                                                 'paid' => 'bg-sky-100 text-sky-800 ring-sky-200',
                                                 'disputed' => 'bg-red-100 text-red-800 ring-red-200',
@@ -166,15 +171,29 @@
                 <div class="lg:hidden divide-y divide-gray-100">
                     @foreach ($commissions as $row)
                         <div class="px-5 py-4 space-y-1.5">
-                            <p class="font-mono text-xs text-gray-500">{{ $row['payment_id'] }}</p>
+                            <div class="flex items-start justify-between gap-3">
+                                <p class="font-mono text-xs text-gray-500">{{ $row['payment_id'] }}</p>
+                                <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 shrink-0
+                                    {{ match($row['status']) {
+                                        'complete', 'approved' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+                                        'reserved' => 'bg-sky-100 text-sky-800 ring-sky-200',
+                                        'paid' => 'bg-sky-100 text-sky-800 ring-sky-200',
+                                        'disputed' => 'bg-red-100 text-red-800 ring-red-200',
+                                        default => 'bg-amber-100 text-amber-900 ring-amber-200',
+                                    } }}">
+                                    {{ __('site.affiliate_portal.commission_status_'.$row['status']) }}
+                                </span>
+                            </div>
                             <p class="text-sm font-semibold text-gray-900">{{ $row['paid_for'] }} · {{ $row['member_no'] }}</p>
-                            <p class="text-sm text-gray-700">{{ $row['payment_amount'] !== null ? format_money($row['payment_amount']) : '—' }}
-                                · {{ __('site.affiliate_portal.col_your_commission') }} {{ format_money($row['commission']) }}</p>
-                            <p class="text-xs text-gray-500">{{ optional($row['date'])->timezone(config('app.timezone'))->translatedFormat('d M Y') }}
-                                · {{ __('site.affiliate_portal.commission_status_'.$row['status']) }}</p>
+                            <p class="text-sm text-gray-700">{{ __('site.affiliate_portal.mobile_paid', ['amount' => $row['payment_amount'] !== null ? format_money($row['payment_amount']) : '—']) }}</p>
+                            <p class="text-sm text-gray-700">{{ __('site.affiliate_portal.mobile_commission', ['amount' => format_money($row['commission'])]) }}</p>
+                            <p class="text-xs text-gray-500">{{ optional($row['date'])->timezone(config('app.timezone'))->translatedFormat('d M Y') }}</p>
                         </div>
                     @endforeach
                 </div>
+                @if ($commissions->hasPages())
+                    <div class="px-5 py-3 border-t border-gray-100">{{ $commissions->links() }}</div>
+                @endif
             @endif
         </div>
 

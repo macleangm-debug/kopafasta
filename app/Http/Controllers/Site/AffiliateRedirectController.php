@@ -14,7 +14,7 @@ class AffiliateRedirectController extends Controller
 {
     public function __invoke(string $code, Request $request, AffiliateService $affiliates): RedirectResponse
     {
-        $affiliate = $affiliates->resolveByPublicCode($code);
+        $affiliate = $affiliates->findByCode($code);
         if (! $affiliate) {
             $normalized = strtoupper(trim($code));
             $raw = \App\Models\Vendor::query()

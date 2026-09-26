@@ -2049,6 +2049,9 @@ class SettingsController extends Controller
                 'allow_override_after_lock' => $request->boolean('attribution_allow_override_after_lock'),
                 'existing_customer_referral' => $request->boolean('attribution_existing_customer'),
                 'cookie_enabled' => $request->boolean('attribution_cookie_enabled'),
+                'referral_attribution_mode' => 'relationship',
+                'promo_attribution_mode' => 'per_payment',
+                'existing_member_manual_promo_lock' => 'none',
             ],
             'affiliates.promo_code'                          => [
                 'affiliate_can_edit' => $request->boolean('promo_affiliate_can_edit'),

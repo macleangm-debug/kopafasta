@@ -323,7 +323,21 @@
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
                 <div>
                     <h3 class="text-sm font-semibold text-gray-900">Referral attribution</h3>
-                    <p class="text-xs text-gray-500 mt-1">The referral link captures the Affiliate at the first eligible touchpoint. Commission still fires only at the configured qualifying fee event. The window governs anonymous/pre-application claims; locked application attribution does not expire with the cookie.</p>
+                    <p class="text-xs text-gray-500 mt-1">QR/link attribution is a Settings-driven relationship (currently {{ $attribution['window_days'] ?? 30 }} days). Manual promo is per payment only and does not lock the member. Commission still fires only at the configured qualifying fee event.</p>
+                    <dl class="mt-3 grid sm:grid-cols-3 gap-3 text-xs text-gray-600">
+                        <div class="rounded-lg bg-gray-50 px-3 py-2">
+                            <dt class="font-semibold text-gray-800">Referral mode</dt>
+                            <dd>{{ $attribution['referral_attribution_mode'] ?? 'relationship' }}</dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 px-3 py-2">
+                            <dt class="font-semibold text-gray-800">Manual promo mode</dt>
+                            <dd>{{ $attribution['promo_attribution_mode'] ?? 'per_payment' }}</dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 px-3 py-2">
+                            <dt class="font-semibold text-gray-800">Existing-member promo lock</dt>
+                            <dd>{{ $attribution['existing_member_manual_promo_lock'] ?? 'none' }}</dd>
+                        </div>
+                    </dl>
                 </div>
                 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <x-admin.input name="attribution_window_days" label="Attribution window (days)" type="number" min="1"

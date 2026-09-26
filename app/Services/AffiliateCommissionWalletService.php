@@ -46,6 +46,16 @@ class AffiliateCommissionWalletService
             ->paginate($perPage);
     }
 
+    public function paginatedLedger(Vendor $vendor, float $reserved = 0, int $perPage = 10): LengthAwarePaginator
+    {
+        $this->promoteVerifiedCommissions($vendor);
+        $reservedIds = $this->reservedRowIds($vendor, $reserved);
+        $page = $this->query($vendor)->latest('id')->paginate($perPage);
+        $page->getCollection()->transform(fn (PartnerPayment $row) => $this->mapLedgerRow($row, $reservedIds));
+
+        return $page;
+    }
+
     /**
      * Ledger rows for the Affiliate wallet. Does not create commissions.
      *
@@ -53,43 +63,71 @@ class AffiliateCommissionWalletService
      */
     public function ledgerRows(Vendor $vendor, float $reserved = 0): array
     {
-        $rows = $this->query($vendor)->latest('id')->get();
-        $remainingReserved = max(0, $reserved);
-        $ledger = [];
+        $this->promoteVerifiedCommissions($vendor);
+        $reservedIds = $this->reservedRowIds($vendor, $reserved);
 
-        foreach ($rows as $row) {
-            $this->attachCustomerPaymentReference($row);
-            $customerPayment = $this->customerPaymentFor($row);
-            $event = $row->source_id
-                ? AffiliateEvent::query()->find($row->source_id)
-                : null;
-            $feeType = $this->feeTypeFromEvent($event);
-            $status = (string) $row->status;
-            $displayStatus = $status;
-            if ($status === 'approved' && $remainingReserved > 0) {
-                $displayStatus = 'reserved';
-                $remainingReserved = max(0, $remainingReserved - (float) $row->amount);
+        return $this->query($vendor)->latest('id')->get()
+            ->map(fn (PartnerPayment $row) => $this->mapLedgerRow($row, $reservedIds))
+            ->all();
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function reservedRowIds(Vendor $vendor, float $reserved): array
+    {
+        $remaining = max(0, $reserved);
+        $ids = [];
+        foreach ($this->query($vendor)->where('status', 'approved')->latest('id')->get() as $row) {
+            if ($remaining <= 0) {
+                break;
             }
-
-            $ledger[] = [
-                'id' => $row->id,
-                'payment_id' => $customerPayment?->reference ?: '—',
-                'date' => $customerPayment?->paid_at ?: $row->created_at,
-                'member_no' => $customerPayment?->customer?->member_no
-                    ?: $event?->customer?->member_no
-                    ?: '—',
-                'paid_for' => $customerPayment?->typeLabel()
-                    ?: $this->obligationLabel($feeType),
-                'payment_amount' => $customerPayment
-                    ? CustomerPaymentService::collectableAmount($customerPayment)
-                    : null,
-                'commission' => (float) $row->amount,
-                'status' => $displayStatus,
-                'domain_status' => $status,
-            ];
+            $ids[] = (int) $row->id;
+            $remaining = max(0, $remaining - (float) $row->amount);
         }
 
-        return $ledger;
+        return $ids;
+    }
+
+    /**
+     * @param  list<int>  $reservedIds
+     * @return array<string, mixed>
+     */
+    private function mapLedgerRow(PartnerPayment $row, array $reservedIds): array
+    {
+        $this->attachCustomerPaymentReference($row);
+        $customerPayment = $this->customerPaymentFor($row);
+        $event = $row->source_id
+            ? AffiliateEvent::query()->find($row->source_id)
+            : null;
+        $feeType = $this->feeTypeFromEvent($event);
+        $status = (string) $row->status;
+        $displayStatus = match ($status) {
+            'approved' => in_array((int) $row->id, $reservedIds, true) ? 'reserved' : 'complete',
+            default => $status,
+        };
+
+        return [
+            'id' => $row->id,
+            'payment_id' => $customerPayment?->reference ?: '—',
+            'date' => $customerPayment?->paid_at ?: $row->created_at,
+            'member_no' => $customerPayment?->customer?->member_no
+                ?: $event?->customer?->member_no
+                ?: '—',
+            'paid_for' => $customerPayment?->typeLabel()
+                ?: $this->obligationLabel($feeType),
+            'payment_amount' => $customerPayment
+                ? CustomerPaymentService::collectableAmount($customerPayment)
+                : null,
+            'commission' => (float) $row->amount,
+            'status' => $displayStatus,
+            'domain_status' => $status,
+        ];
+    }
+
+    public function promoteVerifiedCommissions(Vendor $vendor): int
+    {
+        return app(PartnerSettlementService::class)->promotePendingAffiliateCommissions($vendor);
     }
 
     /**

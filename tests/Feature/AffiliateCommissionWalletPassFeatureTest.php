@@ -12,7 +12,6 @@ use App\Services\AffiliateService;
 use App\Services\AffiliateTermsService;
 use App\Services\CustomerPaymentService;
 use App\Services\PartnerPayoutRequestService;
-use App\Services\PartnerSettlementService;
 use App\Services\PaymentGateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -80,7 +79,7 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
         $this->assertCount(1, $wallet);
         $this->assertSame('PAY-PLUS90', $wallet->first()->reference);
         $this->assertSame(90, (int) $wallet->first()->amount);
-        $this->assertSame('pending', $wallet->first()->status);
+        $this->assertSame('approved', $wallet->first()->status);
 
         app(AffiliateService::class)->accrueCommission(
             $customer->fresh(),
@@ -100,7 +99,9 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
             ->assertSee('PAY-PLUS90', false)
             ->assertSee('KPF-TZ-WLN5', false)
             ->assertSee('Kopafasta Plus', false)
-            ->assertSee(__('site.affiliate_portal.commission_status_pending', [], 'en'), false)
+            ->assertSee(__('site.affiliate_portal.commission_status_complete', [], 'en'), false)
+            ->assertSee(__('site.affiliate_portal.remaining_to_withdraw', ['amount' => format_money(49910)], 'en'), false)
+            ->assertDontSee(__('site.affiliate_portal.commission_status_pending', [], 'en'), false)
             ->assertDontSee('INV-', false)
             ->getContent();
 
@@ -108,7 +109,7 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
         $this->assertStringNotContainsString($customer->phone, $html);
     }
 
-    public function test_pending_commission_cannot_be_withdrawn_and_settlement_gets_a_payment_id(): void
+    public function test_complete_commission_increases_available_and_settlement_gets_a_payment_id(): void
     {
         Setting::set('affiliates.minimum_payout_amount', 50);
         $affiliate = $this->affiliate();
@@ -126,18 +127,11 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
         app(CustomerPaymentService::class)->verify($payment);
 
         $payouts = app(PartnerPayoutRequestService::class);
-        $this->assertSame(0.0, $payouts->availableBalance($affiliate, 'affiliate_commission'));
-
-        try {
-            $payouts->request($affiliate, 'affiliate_commission', 90);
-            $this->fail('Pending commission must not be withdrawable');
-        } catch (\InvalidArgumentException $e) {
-            $this->assertNotSame('', $e->getMessage());
-        }
+        $this->assertSame(90.0, $payouts->availableBalance($affiliate, 'affiliate_commission'));
 
         $line = \App\Models\VendorPayment::query()->where('reference', 'PAY-AVL001')->first();
         $this->assertNotNull($line);
-        app(PartnerSettlementService::class)->approvePayment($line, User::factory()->create(['role' => 'admin']));
+        $this->assertSame('approved', $line->status);
 
         $affiliate->update(['metadata' => ['payout_account' => [
             'type' => 'mobile_money',

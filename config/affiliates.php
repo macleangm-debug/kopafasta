@@ -148,6 +148,13 @@ return [
         'allow_override_after_lock' => false,
         'existing_customer_referral' => false,
         'cookie_enabled' => true,
+        'referral_attribution_mode' => 'relationship',
+        'promo_attribution_mode' => 'per_payment',
+        'existing_member_manual_promo_lock' => 'none',
+    ],
+
+    'wallet' => [
+        'transactions_per_page' => 10,
     ],
 
     'messages_sw' => [
