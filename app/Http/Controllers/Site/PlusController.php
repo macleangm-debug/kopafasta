@@ -78,7 +78,6 @@ class PlusController extends Controller
                 ->first(),
             'loyaltyBalance' => app(LoyaltyPointsService::class)->balance($customer),
             'rewardsDash' => app(LoyaltyRedemptionService::class)->dashboard($customer),
-            'plusReceipt' => $plus->latestPaidPayment($customer),
         ]);
     }
 
@@ -173,10 +172,7 @@ class PlusController extends Controller
             return redirect()->route('site.borrower.plus.home');
         }
 
-        return view('site.plus.welcome', [
-            'customer' => $customer,
-            'plusReceipt' => $plus->latestPaidPayment($customer),
-        ]);
+        return view('site.plus.welcome', compact('customer'));
     }
 
     public function money(Request $request, PlusService $plus, PlusWorkspaceService $workspace)

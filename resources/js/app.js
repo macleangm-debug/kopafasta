@@ -9,6 +9,7 @@ import { bindFormDrafts } from './form-draft';
 import { bindScreeningChecklistSave } from './screening-checklist-save';
 import { bindPaymentContinuation } from './payment-continuation';
 import { bindAccountTheme } from './account-theme';
+import { bindReceiptSave } from './receipt-image';
 
 bindMoneyFormatGlobally();
 bindNidaFormatGlobally();
@@ -20,6 +21,7 @@ bindFormDrafts();
 bindScreeningChecklistSave();
 bindPaymentContinuation();
 bindAccountTheme();
+bindReceiptSave();
 
 // Never prompt for browser Notification / Push permission (mobile web stays app-clean).
 // In-app / SMS / email / Settings Hub notifications are unchanged.

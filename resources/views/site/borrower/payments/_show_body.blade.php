@@ -69,6 +69,11 @@
         :overlay="empty($adminLivePreview ?? false)"
         :simulate-url="$simulateUrl ?? null"
     />
+@elseif ($payment->isVerified())
+<div class="max-w-xl mx-auto space-y-5">
+    <p class="text-lg font-extrabold text-gray-900">✓ {{ __('borrower.payment_waiting.success_title') }}</p>
+    <x-site.payment-receipt :payment="$payment" :continue-url="$successUrl" />
+</div>
 @else
 <div class="max-w-xl mx-auto space-y-5">
     <section class="relative kf-premium-panel rounded-3xl">

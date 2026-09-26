@@ -8,7 +8,7 @@
     $typeKinds = collect($types)->mapWithKeys(fn ($meta, $key) => [$key => $meta['kind'] ?? 'member'])->all();
 @endphp
 
-<div class="relative overflow-hidden rounded-[1.5rem] bg-white/95 backdrop-blur shadow-[0_24px_60px_rgba(8,47,39,0.12)] ring-1 ring-brand/10 p-5 sm:p-7"
+<div class="kf-verify-card relative overflow-hidden rounded-[1.5rem] bg-white/95 backdrop-blur shadow-[0_24px_60px_rgba(8,47,39,0.12)] ring-1 ring-brand/10 p-5 sm:p-7"
      x-data="cardVerifyForm(@js($selectedType), @js($prefixes), @js($typeLabels), @js($typeKinds))">
     <div class="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-brand-gold/15 pointer-events-none"></div>
     <div class="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand via-brand-gold to-brand pointer-events-none"></div>

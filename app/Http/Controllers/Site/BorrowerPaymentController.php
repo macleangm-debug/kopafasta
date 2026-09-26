@@ -610,6 +610,7 @@ class BorrowerPaymentController extends Controller
         }
 
         $adjustUrl = route('site.borrower.payments.adjust', $payment);
+        $successUrl = app(CustomerPaymentService::class)->successRedirectUrl($payment);
 
         return view('site.borrower.payments.show', compact(
             'payment',
@@ -623,6 +624,7 @@ class BorrowerPaymentController extends Controller
             'cancelUrl',
             'adjustUrl',
             'applyReward',
+            'successUrl',
         ));
     }
 

@@ -181,14 +181,9 @@
                 </div>
             </div>
 
-            <div x-show="state === 'paid' || navigatingAway" x-cloak class="pt-3 space-y-5">
-                <div class="rounded-3xl kf-premium-panel">
-                    <div class="px-6 py-8 text-center space-y-3">
-                        <p class="text-2xl font-extrabold tracking-tight text-white">✓ {{ __('borrower.payment_waiting.success_title') }}</p>
-                        <p class="text-sm text-white/85">{{ __('borrower.payment_waiting.success_confirmed') }}</p>
-                        <p class="text-xs text-white/60">{{ __('borrower.payment_waiting.continuing') }}</p>
-                    </div>
-                </div>
+            <div x-show="state === 'paid'" x-cloak class="pt-3 space-y-5">
+                <p class="text-lg font-extrabold text-gray-900">✓ {{ __('borrower.payment_waiting.success_title') }}</p>
+                <x-site.payment-receipt :payment="$payment" :continue-url="$successUrl" />
             </div>
 
             <div x-show="state === 'failed' && !navigatingAway" x-cloak class="pt-3 space-y-5">

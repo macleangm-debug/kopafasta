@@ -3943,6 +3943,8 @@ return [
         'show' => [
             'payment_reference' => 'Rejea ya malipo',
             'receipt' => 'Risiti',
+            'save_receipt' => 'Hifadhi',
+            'status' => 'Hali',
             'type' => 'Aina ya malipo',
             'method' => 'Njia ya malipo',
             'amount' => 'Kiasi',

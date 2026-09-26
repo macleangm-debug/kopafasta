@@ -873,11 +873,28 @@ html.kf-account-shell[data-theme="dark"] .hover\:text-brand:hover {
     color: var(--kf-accent-muted) !important;
 }
 
-html.kf-account-shell[data-theme="dark"] :is(.bg-brand-gold, .bg-white, .bg-yellow-400).text-brand,
+html.kf-account-shell[data-theme="dark"] :is(.bg-brand-gold, .bg-brand-gold\/95, .bg-white, .bg-yellow-400).text-brand,
 html.kf-account-shell[data-theme="dark"] .kf-chrome-sidebar .bg-brand-gold,
 html.kf-account-shell[data-theme="dark"] .kf-premium-panel .bg-white,
 html.kf-account-shell[data-theme="dark"] .kf-auth-btn-gold {
     color: #004d40 !important;
+}
+
+/* Verify / gold attention cards keep a light surface and dark ink in Dark Mode. */
+html.kf-account-shell[data-theme="dark"] .kf-verify-card,
+html.kf-account-shell[data-theme="dark"] .kf-verify-card.bg-white\/95,
+html.kf-account-shell[data-theme="dark"] .kf-verify-card.bg-white {
+    background-color: #fff8e1 !important;
+    color: #111827 !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .kf-verify-card .text-gray-900,
+html.kf-account-shell[data-theme="dark"] .kf-verify-card .text-gray-800,
+html.kf-account-shell[data-theme="dark"] .kf-verify-card .text-gray-700,
+html.kf-account-shell[data-theme="dark"] .kf-verify-card .text-gray-600,
+html.kf-account-shell[data-theme="dark"] .kf-verify-card .text-gray-500,
+html.kf-account-shell[data-theme="dark"] .kf-verify-card .text-brand {
+    color: #111827 !important;
 }
 
 html.kf-account-shell[data-theme="dark"] .border-gray-50,

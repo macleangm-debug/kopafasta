@@ -391,14 +391,17 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.payments.show', $verified))
             ->assertOk()
             ->assertSee(__('borrower.payments_page.show.receipt'), false)
+            ->assertSee(__('borrower.payments_page.show.save_receipt'), false)
+            ->assertSee(__('plus.welcome.open'), false)
+            ->assertSee('kopafasta-mark.png', false)
             ->assertSee($verified->reference, false);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.welcome'))
             ->assertOk()
             ->assertSee(__('plus.welcome.title'), false)
-            ->assertSee(__('plus.welcome.view_receipt'), false)
-            ->assertSee($verified->reference, false);
+            ->assertDontSee(__('plus.welcome.view_receipt'), false)
+            ->assertDontSee($verified->reference, false);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.learn'))
@@ -816,5 +819,14 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->assertStringNotContainsString('bg-red-600', $hero);
         $this->assertStringNotContainsString('affiliate_referral_outcome', $dashboard);
         $this->assertStringNotContainsString('referral_connected_title', $dashboard);
+
+        $receipt = file_get_contents(resource_path('views/components/site/payment-receipt.blade.php'));
+        $flow = file_get_contents(resource_path('views/components/site/psp-payment-flow.blade.php'));
+        $plusHome = file_get_contents(resource_path('views/site/plus/home.blade.php'));
+
+        $this->assertStringContainsString('x-site.brand-mark', $receipt);
+        $this->assertStringContainsString('data-kf-save-receipt', $receipt);
+        $this->assertStringContainsString('site.payment-receipt', $flow);
+        $this->assertStringNotContainsString('plus.home.view_receipt', $plusHome);
     }
 }

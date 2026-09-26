@@ -14,8 +14,11 @@ use App\Models\Partner;
 use App\Models\Repayment;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Integrations\IntegrationFeedback;
 use App\Services\Marketing\DemoGuard;
 use App\Services\Plus\PlusService;
+use App\Services\Staging\StagingPaymentSimulator;
+use App\Services\Staging\StagingPaymentsService;
 use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -284,7 +287,7 @@ class CustomerPaymentService
         }
 
         $payIn = app(PayInService::class);
-        if (! $payIn->isConfigured() && ! app(\App\Services\Staging\StagingPaymentsService::class)->isSimulator()) {
+        if (! $payIn->isConfigured() && ! app(StagingPaymentsService::class)->isSimulator()) {
             throw ValidationException::withMessages([
                 'payment_method' => [__('borrower.payments.aggregator_required')],
             ]);
@@ -397,7 +400,7 @@ class CustomerPaymentService
             $isBank = $method === 'bank_transfer';
             $payIn = app(PayInService::class);
             $liveGateway = ! payment_gateway_is_dummy();
-            $stagingPayments = app(\App\Services\Staging\StagingPaymentsService::class);
+            $stagingPayments = app(StagingPaymentsService::class);
             $usePayIn = false;
             $useSimulator = false;
 
@@ -596,9 +599,9 @@ class CustomerPaymentService
         $payIn = app(PayInService::class);
         $pspPhone = $payIn->normalizePhone((string) $phone);
         $requestedOperator = $payIn->normalizeOperator($operator);
-        $staging = app(\App\Services\Staging\StagingPaymentsService::class);
+        $staging = app(StagingPaymentsService::class);
         if ($staging->isSimulator()) {
-            return app(\App\Services\Staging\StagingPaymentSimulator::class)->initiate($payment, $pspPhone, $requestedOperator);
+            return app(StagingPaymentSimulator::class)->initiate($payment, $pspPhone, $requestedOperator);
         }
         if (! $payIn->isConfigured()) {
             throw ValidationException::withMessages([
@@ -981,6 +984,17 @@ class CustomerPaymentService
         };
     }
 
+    public function continueLabel(CustomerPayment $payment): string
+    {
+        return match ($payment->payment_type) {
+            'application_fee', 'valuation_fee' => __('borrower.celebration.cta_apply'),
+            'kopafasta_plus' => __('plus.welcome.open'),
+            'loan_repayment' => __('borrower.dashboard.view_loan'),
+            'registration_fee' => __('borrower.celebration.cta_continue'),
+            default => __('borrower.celebration.cta_continue'),
+        };
+    }
+
     /**
      * Success celebration copy for the waiting / confirmation UI — keyed by payment type.
      *
@@ -1150,7 +1164,7 @@ class CustomerPaymentService
             if (! empty($meta['integration_rehearsal']) || ! empty($meta['integration_live_test'])) {
                 $partner = (string) ($meta['integration_partner'] ?? 'payin');
                 try {
-                    app(\App\Services\Integrations\IntegrationFeedback::class)->markLiveVerified($partner);
+                    app(IntegrationFeedback::class)->markLiveVerified($partner);
                 } catch (\Throwable) {
                     // Never block payment verification on readiness bookkeeping.
                 }

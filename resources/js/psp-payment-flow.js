@@ -223,17 +223,12 @@ export function registerPspPaymentFlow(Alpine) {
             } else {
                 this.stopTimers();
             }
-            // verified → visible success → short pause → direct destination (no intermediate hop)
             if (this.state === 'paid') {
-                this.navigatingAway = true;
                 this.burstConfetti();
                 const url = this.successUrl || data.redirect_url || '';
                 if (url) {
                     this.successUrl = url;
                     this.prepareDirectContinuation(url);
-                    window.setTimeout(() => {
-                        window.location.replace(this.successUrl);
-                    }, 1300);
                 }
             }
         },
