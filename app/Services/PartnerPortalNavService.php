@@ -105,6 +105,7 @@ class PartnerPortalNavService
             ['key' => 'dashboard', 'label' => __('site.affiliate_portal.nav_dashboard'), 'route' => 'site.affiliate.dashboard', 'icon' => 'home'],
             ['key' => 'performance', 'label' => __('site.affiliate_portal.nav_performance'), 'route' => 'site.affiliate.performance', 'icon' => 'chart'],
             ['key' => 'share', 'label' => __('site.affiliate_portal.nav_share'), 'route' => 'site.affiliate.share', 'icon' => 'share'],
+            ['key' => 'reports', 'label' => __('site.affiliate_portal.nav_reports'), 'route' => 'site.affiliate.reports', 'icon' => 'folder'],
             ['key' => 'profile', 'label' => __('site.affiliate_portal.nav_profile'), 'route' => 'site.affiliate.profile', 'icon' => 'user'],
         ];
     }
@@ -154,8 +155,8 @@ class PartnerPortalNavService
             $prefer = ['dashboard', 'recovery', 'recovery_wallet', 'notifications', 'profile'];
         }
         if (($nav[0]['route'] ?? null) === 'site.affiliate.dashboard') {
-            $prefer = ['dashboard', 'performance', 'share', 'profile'];
-            $max = 4;
+            $prefer = ['dashboard', 'performance', 'share', 'reports', 'profile'];
+            $max = 5;
         }
         if (($nav[0]['route'] ?? null) === 'site.supplier.dashboard') {
             $prefer = ['dashboard', 'assets', 'requests', 'settlements', 'profile'];

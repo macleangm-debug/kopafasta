@@ -80,11 +80,6 @@ class CustomerPaymentService
             return [];
         }
 
-        if (blank($customer->affiliate_vendor_id)) {
-            app(AffiliateService::class)->connectFromPendingClaim($customer, request());
-            $customer->refresh();
-        }
-
         $gross = (float) (
             data_get($payment->provider_meta, 'pricing.gross')
             ?? data_get($payment->provider_meta, 'apply_context.gross_amount')

@@ -14,16 +14,16 @@ class AffiliateResultsWorkspacePassFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_primary_nav_is_home_results_share_profile(): void
+    public function test_primary_nav_is_home_performance_share_reports_profile(): void
     {
         $nav = app(PartnerPortalNavService::class)->affiliateNav();
 
-        $this->assertSame(['dashboard', 'performance', 'share', 'profile'], array_column($nav, 'key'));
-        $this->assertCount(4, $nav);
+        $this->assertSame(['dashboard', 'performance', 'share', 'reports', 'profile'], array_column($nav, 'key'));
+        $this->assertCount(5, $nav);
 
         $mobile = app(PartnerPortalNavService::class)->mobilePrimaryNav($nav);
-        $this->assertSame(['dashboard', 'performance', 'share', 'profile'], array_column($mobile, 'key'));
-        $this->assertCount(4, $mobile);
+        $this->assertSame(['dashboard', 'performance', 'share', 'reports', 'profile'], array_column($mobile, 'key'));
+        $this->assertCount(5, $mobile);
     }
 
     public function test_wallet_route_redirects_to_results_commissions(): void

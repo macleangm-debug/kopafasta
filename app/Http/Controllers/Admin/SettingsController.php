@@ -1914,6 +1914,8 @@ class SettingsController extends Controller
             'promo_change_cooldown_days'          => ['nullable', 'integer', 'min:0', 'max:365'],
             'promo_old_code_grace_days'           => ['nullable', 'integer', 'min:0', 'max:365'],
             'promo_reserved'                      => ['nullable', 'string', 'max:2000'],
+            'daily_commission_summary'            => ['nullable', 'boolean'],
+            'daily_summary_at'                    => ['nullable', 'date_format:H:i'],
         ]);
 
         $feeTypes = ['application_fee', 'kopafasta_plus', 'registration_fee', 'valuation_fee', 'gps_fee', 'post_approval_fee', 'interest', 'repayments'];
@@ -2052,6 +2054,10 @@ class SettingsController extends Controller
                 'referral_attribution_mode' => 'relationship',
                 'promo_attribution_mode' => 'per_payment',
                 'existing_member_manual_promo_lock' => 'none',
+            ],
+            'affiliates.notifications'                      => [
+                'daily_commission_summary' => $request->boolean('daily_commission_summary'),
+                'daily_summary_at' => (string) ($data['daily_summary_at'] ?? '20:00'),
             ],
             'affiliates.promo_code'                          => [
                 'affiliate_can_edit' => $request->boolean('promo_affiliate_can_edit'),

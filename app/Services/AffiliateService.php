@@ -922,15 +922,6 @@ class AffiliateService
                 $payment?->reference,
             );
 
-            app(NotificationService::class)->notifyPartnerOnce($quote['affiliate'], 'affiliate_commission_earned', [
-                'partner' => $quote['affiliate']->name,
-                'amount' => format_money($quote['commission']),
-                '_fallback_subject' => __('site.affiliate_portal.notify_commission_subject'),
-                '_fallback_body' => __('site.affiliate_portal.notify_commission_body', [
-                    'amount' => format_money($quote['commission']),
-                ]),
-            ], route('site.affiliate.performance', ['tab' => 'commissions']), 'evt:'.$event->id);
-
             return $event;
         });
     }

@@ -11,10 +11,12 @@ class AffiliateUxProfilePassFeatureTest extends TestCase
         $sw = include lang_path('sw/site.php');
         $welcome = include lang_path('sw/account_welcome.php');
 
-        $this->assertSame('Matokeo yako', data_get($sw, 'affiliate_portal.impact_title'));
-        $this->assertSame('Tazama matokeo', data_get($sw, 'affiliate_portal.view_impact'));
-        $this->assertSame('Matokeo', data_get($sw, 'affiliate_portal.nav_performance'));
-        $this->assertSame('Fuatilia matokeo yako', data_get($welcome, 'affiliate.track_title'));
+        $this->assertSame('Utendaji wako', data_get($sw, 'affiliate_portal.impact_title'));
+        $this->assertSame('Angalia utendaji', data_get($sw, 'affiliate_portal.view_impact'));
+        $this->assertSame('Utendaji', data_get($sw, 'affiliate_portal.nav_performance'));
+        $this->assertSame('Ripoti', data_get($sw, 'affiliate_portal.nav_reports'));
+        $this->assertSame('Shiriki & Pata', data_get($sw, 'affiliate_portal.nav_share'));
+        $this->assertSame('Fuatilia utendaji wako', data_get($welcome, 'affiliate.track_title'));
         $this->assertStringNotContainsString('Athari', (string) data_get($sw, 'affiliate_portal.impact_hero'));
     }
 

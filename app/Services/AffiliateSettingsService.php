@@ -106,6 +106,7 @@ class AffiliateSettingsService
             'membership'                          => AffiliateMembershipService::config(),
             'premium'                             => $this->premiumSettings(),
             'attribution'                         => $this->attributionSettings(),
+            'notifications'                       => $this->notificationSettings(),
             'promo_code'                          => $this->promoCodeSettings(),
             'terms_body_en'                       => (string) Setting::get('affiliates.terms.body_en', ''),
             'terms_body_sw'                       => (string) Setting::get('affiliates.terms.body_sw', ''),
@@ -469,6 +470,27 @@ class AffiliateSettingsService
         $stored = Setting::get('affiliates.wallet.transactions_per_page');
 
         return max(5, (int) ($stored ?: config('affiliates.wallet.transactions_per_page', 10)));
+    }
+
+    /** @return array<string, mixed> */
+    public function notificationSettings(): array
+    {
+        $defaults = config('affiliates.notifications', []);
+        $stored = Setting::get('affiliates.notifications');
+
+        return array_merge($defaults, is_array($stored) ? $stored : []);
+    }
+
+    public function dailyCommissionSummaryEnabled(): bool
+    {
+        return (bool) ($this->notificationSettings()['daily_commission_summary'] ?? true);
+    }
+
+    public function dailyCommissionSummaryAt(): string
+    {
+        $at = (string) ($this->notificationSettings()['daily_summary_at'] ?? '20:00');
+
+        return preg_match('/^\d{2}:\d{2}$/', $at) ? $at : '20:00';
     }
 
     /** @return array<string, mixed> */

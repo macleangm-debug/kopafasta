@@ -29,6 +29,7 @@ Schedule::command('plus:dispatch-nudges')->dailyAt('10:45');
 Schedule::command('plus:generate-monthly-reports')->dailyAt('06:20');
 Schedule::command('partners:queue-weekly-settlements')->weeklyOn(5, '08:00');
 Schedule::command('affiliate:evaluate')->monthlyOn(1, '06:00');
+Schedule::command('affiliate:send-daily-commission-summaries')->hourly();
 Schedule::command('partners:evaluate-efficiency')->weeklyOn(1, '06:30');
 Schedule::command('affiliate:scan-fraud')->weeklyOn(1, '07:00');
 Schedule::command('customers:send-birthday-wishes')->dailyAt('07:30');

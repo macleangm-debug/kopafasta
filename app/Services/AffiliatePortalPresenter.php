@@ -3,11 +3,17 @@
 namespace App\Services;
 
 use App\Models\AffiliateEvent;
+use App\Models\Customer;
+use App\Models\CustomerPayment;
 use App\Models\Loan;
 use App\Models\LoanApplication;
+use App\Models\PartnerPayoutRequest;
 use App\Models\Vendor;
 use App\Support\AffiliatePerformanceStatus;
+use App\Support\MemberNumberFormatter;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class AffiliatePortalPresenter
 {
@@ -39,7 +45,8 @@ class AffiliatePortalPresenter
         $eligibility = $this->eligibility->for($vendor);
         $standing = $this->evaluation->currentStanding($vendor);
         $commercial = $this->membership->summary($vendor);
-        $funnel = $this->referralFunnel($vendor);
+        $monthStart = now()->copy()->startOfMonth();
+        $funnel = $this->referralFunnel($vendor, $monthStart, now());
         $progress = $this->assessmentProgress($vendor, $standing);
         $activity = $this->recentActivity($vendor);
         $attention = $this->needsAttention($vendor, $eligibility, $commercial);
@@ -67,6 +74,7 @@ class AffiliatePortalPresenter
             'hero' => $this->hero($vendor, $links, $available, $walletSummary, $standing, $commercial, $eligibility, $attention),
             'recentReferrals' => $this->recentReferrals($vendor),
             'walletActivity' => $this->walletActivity($vendor),
+            'monthlyCard' => $this->monthlyPerformanceCard($vendor, $monthStart),
         ];
     }
 
@@ -108,8 +116,9 @@ class AffiliatePortalPresenter
             'kpiCard' => $premium ? null : $this->kpiCard($standing),
             'progress' => $this->assessmentProgress($vendor, $standing),
             'impact' => $this->impactSnapshot($vendor),
-            'funnel' => $this->referralFunnel($vendor),
+            'funnel' => $this->referralFunnel($vendor, now()->copy()->startOfMonth(), now()),
             'funnelKeys' => $this->visibleFunnelKeys(),
+            'monthlyCard' => $this->monthlyPerformanceCard($vendor),
             'pipeline' => $this->referralPipeline($vendor),
             'warningLadder' => [
                 ['label' => __('site.affiliate_portal.performance_needs_attention'), 'periods' => $this->settings->volumeMissesBeforeNudge()],
@@ -133,8 +142,57 @@ class AffiliatePortalPresenter
     {
         return [
             'vendor' => $vendor,
-            'funnel' => $this->referralFunnel($vendor),
+            'funnel' => $this->referralFunnel($vendor, now()->copy()->startOfMonth(), now()),
             'pipeline' => $this->referralPipeline($vendor),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function monthlyReport(Vendor $vendor, ?string $month = null): array
+    {
+        $start = $this->parseMonthStart($month);
+        $end = $start->copy()->endOfMonth();
+        $prevStart = $start->copy()->subMonth()->startOfMonth();
+        $prevEnd = $start->copy()->subSecond();
+        $thisPeriod = $this->referralFunnel($vendor, $start, $end);
+        $prevPeriod = $this->referralFunnel($vendor, $prevStart, $prevEnd);
+        $standing = $this->evaluation->currentStanding($vendor);
+        $wallet = $this->wallet($vendor);
+        $qualifyingNow = (int) ($thisPeriod['qualifying'] ?? 0);
+        $qualifyingPrev = (int) ($prevPeriod['qualifying'] ?? 0);
+        $delta = $qualifyingPrev > 0
+            ? round(100 * ($qualifyingNow - $qualifyingPrev) / $qualifyingPrev, 1)
+            : null;
+
+        return [
+            'vendor' => $vendor,
+            'month' => $start->format('Y-m'),
+            'month_label' => $start->translatedFormat('F Y'),
+            'title' => __('site.affiliate_portal.report_title', ['month' => $start->translatedFormat('F Y')]),
+            'partner_name' => $vendor->name,
+            'partner_type' => $vendor->isPremiumAffiliate()
+                ? __('site.affiliate_portal.premium_partner')
+                : __('site.affiliate_portal.standard_partner'),
+            'partner_number' => $vendor->partner_number ?? $vendor->vendor_number,
+            'activity' => $thisPeriod,
+            'funnelKeys' => $this->visibleFunnelKeys(),
+            'kpiCard' => $vendor->isPremiumAffiliate() ? null : $this->kpiCard($standing),
+            'earnings' => [
+                'qualifying_payments' => (int) ($thisPeriod['commission_transactions'] ?? 0),
+                'payment_value' => (float) ($thisPeriod['payment_value'] ?? 0),
+                'commission_earned' => (float) ($thisPeriod['earned'] ?? 0),
+                'withdrawn' => (float) ($thisPeriod['withdrawn'] ?? 0),
+                'available' => (float) ($wallet['available'] ?? 0),
+            ],
+            'withdrawals' => $thisPeriod['withdrawals'],
+            'comparison' => [
+                'previous_month' => $prevStart->translatedFormat('F'),
+                'previous_qualifying' => $qualifyingPrev,
+                'current_month' => $start->translatedFormat('F'),
+                'current_qualifying' => $qualifyingNow,
+                'delta_percent' => $delta,
+            ],
+            'months' => $this->availableReportMonths($vendor),
         ];
     }
 
@@ -422,7 +480,7 @@ class AffiliatePortalPresenter
     /** @return list<string> */
     public function visibleFunnelKeys(): array
     {
-        $keys = ['visited', 'registered', 'applied', 'approved', 'qualifying', 'commission'];
+        $keys = ['visited', 'registered', 'applied', 'qualifying', 'successful', 'earned'];
         $country = strtoupper((string) session('country', config('app.country', 'TZ')));
         $hide = config('affiliates.funnel_hide_registered_countries', ['TZ']);
         if (in_array($country, $hide, true)) {
@@ -432,36 +490,131 @@ class AffiliatePortalPresenter
         return $keys;
     }
 
-    /** @return array<string, int> */
-    private function referralFunnel(Vendor $vendor): array
+    /** @return array<string, mixed> */
+    public function monthlyPerformanceCard(Vendor $vendor, ?Carbon $start = null): array
+    {
+        $start = ($start ?? now()->copy()->startOfMonth())->copy()->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+        $funnel = $this->referralFunnel($vendor, $start, $end);
+
+        return [
+            'title' => __('site.affiliate_portal.month_performance', ['month' => $start->translatedFormat('F')]),
+            'month' => $start->format('Y-m'),
+            'funnel' => $funnel,
+            'report_url' => route('site.affiliate.reports', ['month' => $start->format('Y-m')]),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function referralFunnel(Vendor $vendor, ?Carbon $from = null, ?Carbon $to = null): array
     {
         $events = AffiliateEvent::query()->where('partner_id', $vendor->id);
-        $customerIds = AffiliateEvent::query()
-            ->where('partner_id', $vendor->id)
+        if ($from && $to) {
+            $events->whereBetween('created_at', [$from, $to]);
+        }
+
+        $customerIds = (clone $events)
             ->whereNotNull('customer_id')
             ->pluck('customer_id')
             ->unique();
 
-        $approved = $customerIds->isEmpty() ? 0 : LoanApplication::query()
-            ->whereIn('customer_id', $customerIds)
-            ->whereIn('status', ['approved', 'pre_approved', 'awaiting_offer', 'disbursed'])
-            ->count();
+        $approvedQuery = $customerIds->isEmpty()
+            ? null
+            : LoanApplication::query()
+                ->whereIn('customer_id', $customerIds)
+                ->whereIn('status', ['approved', 'pre_approved', 'awaiting_offer', 'disbursed']);
+        if ($approvedQuery && $from && $to) {
+            $approvedQuery->whereBetween('updated_at', [$from, $to]);
+        }
 
-        $disbursed = $customerIds->isEmpty() ? 0 : Loan::query()
-            ->whereIn('customer_id', $customerIds)
-            ->whereNotNull('disbursement_date')
-            ->count();
+        $disbursedQuery = $customerIds->isEmpty()
+            ? null
+            : Loan::query()
+                ->whereIn('customer_id', $customerIds)
+                ->whereNotNull('disbursement_date');
+        if ($disbursedQuery && $from && $to) {
+            $disbursedQuery->whereBetween('disbursement_date', [$from, $to]);
+        }
 
-        $commission = (clone $events)->where('event_type', 'like', 'commission_%')->count();
+        $commissionEvents = (clone $events)->where('event_type', 'like', 'commission_%');
+        $paymentIds = (clone $commissionEvents)
+            ->pluck('landing_page')
+            ->map(function ($page): int {
+                $page = (string) $page;
+
+                return str_starts_with($page, 'payment:') ? (int) substr($page, 8) : 0;
+            })
+            ->filter()
+            ->values();
+
+        $withdrawals = $this->withdrawalCounts($vendor, $from, $to);
 
         return [
             'visited' => (clone $events)->where('event_type', 'click')->count(),
             'registered' => (clone $events)->where('event_type', 'registration')->count(),
             'applied' => (clone $events)->where('event_type', 'application')->count(),
-            'approved' => $approved,
-            'qualifying' => $disbursed,
-            'commission' => $commission,
+            'approved' => $approvedQuery?->count() ?? 0,
+            'qualifying' => (clone $commissionEvents)->whereNotNull('customer_id')->distinct()->count('customer_id'),
+            'successful' => $disbursedQuery?->count() ?? 0,
+            'commission' => (clone $commissionEvents)->count(),
+            'commission_transactions' => (clone $commissionEvents)->count(),
+            'earned' => (float) (clone $commissionEvents)->sum('commission_amount'),
+            'payment_value' => $paymentIds->isEmpty()
+                ? 0.0
+                : (float) CustomerPayment::query()->whereIn('id', $paymentIds->all())->sum('amount'),
+            'withdrawn' => (float) ($withdrawals['paid_amount'] ?? 0),
+            'withdrawals' => $withdrawals,
         ];
+    }
+
+    /** @return array{requested: int, processing: int, paid: int, paid_amount: float} */
+    private function withdrawalCounts(Vendor $vendor, ?Carbon $from = null, ?Carbon $to = null): array
+    {
+        $query = PartnerPayoutRequest::query()->where('partner_id', $vendor->id);
+        if (Schema::hasColumn('partner_payout_requests', 'source_type')) {
+            $query->where('source_type', 'affiliate_commission');
+        } elseif (Schema::hasColumn('partner_payout_requests', 'wallet_type')) {
+            $query->where('wallet_type', 'affiliate_commission');
+        }
+        if ($from && $to) {
+            $query->whereBetween('created_at', [$from, $to]);
+        }
+
+        $rows = $query->get(['status', 'amount']);
+
+        return [
+            'requested' => $rows->whereIn('status', ['pending', 'review'])->count(),
+            'processing' => $rows->where('status', 'approved')->count(),
+            'paid' => $rows->where('status', 'paid')->count(),
+            'paid_amount' => (float) $rows->where('status', 'paid')->sum('amount'),
+        ];
+    }
+
+    private function parseMonthStart(?string $month): Carbon
+    {
+        if (is_string($month) && preg_match('/^\d{4}-\d{2}$/', $month)) {
+            return Carbon::parse($month.'-01')->startOfMonth();
+        }
+
+        return now()->copy()->startOfMonth();
+    }
+
+    /** @return list<string> */
+    private function availableReportMonths(Vendor $vendor): array
+    {
+        $first = AffiliateEvent::query()
+            ->where('partner_id', $vendor->id)
+            ->orderBy('created_at')
+            ->value('created_at');
+        $cursor = $first ? Carbon::parse($first)->startOfMonth() : now()->copy()->startOfMonth();
+        $end = now()->copy()->startOfMonth();
+        $months = [];
+        while ($cursor->lte($end)) {
+            $months[] = $cursor->format('Y-m');
+            $cursor->addMonth();
+        }
+
+        return array_values(array_reverse($months));
     }
 
     /** @return Collection<int, array<string, mixed>> */
@@ -469,28 +622,77 @@ class AffiliatePortalPresenter
     {
         return AffiliateEvent::query()
             ->where('partner_id', $vendor->id)
-            ->whereIn('event_type', ['registration', 'application'])
+            ->whereNotNull('customer_id')
+            ->whereIn('event_type', ['registration', 'application', 'commission_application_fee', 'commission_kopafasta_plus', 'commission_registration_fee', 'commission_post_approval_fee'])
             ->with(['customer', 'loanApplication'])
             ->latest()
-            ->limit(40)
+            ->limit(80)
             ->get()
-            ->map(function (AffiliateEvent $event): array {
+            ->unique('customer_id')
+            ->take(40)
+            ->values()
+            ->map(function (AffiliateEvent $event) use ($vendor): array {
                 $customer = $event->customer;
-                $name = $customer
-                    ? trim(mb_substr((string) $customer->first_name, 0, 1).'. '.(string) $customer->last_name)
-                    : __('site.affiliate_portal.anonymous_visitor');
-                $stage = match ($event->event_type) {
-                    'registration' => __('site.affiliate_portal.stage_registered'),
-                    'application' => __('site.affiliate_portal.stage_applied'),
-                    default => ucfirst(str_replace('_', ' ', (string) $event->event_type)),
-                };
+                $commission = AffiliateEvent::query()
+                    ->where('partner_id', $vendor->id)
+                    ->where('customer_id', $event->customer_id)
+                    ->where('event_type', 'like', 'commission_%')
+                    ->latest('id')
+                    ->first();
 
                 return [
-                    'name' => $name,
-                    'stage' => $stage,
+                    'member_no' => MemberNumberFormatter::raw($customer?->member_no ?: $customer?->customer_number),
+                    'stage' => $this->referralMilestone($customer, $event, $commission),
+                    'source' => $this->referralSourceLabel($event, $customer),
                     'date' => $event->created_at,
+                    'commission_amount' => $commission ? (float) $commission->commission_amount : null,
+                    'commission_status' => $commission ? __('site.affiliate_portal.commission_status_complete') : null,
                 ];
             });
+    }
+
+    private function referralMilestone(?Customer $customer, AffiliateEvent $event, ?AffiliateEvent $commission): string
+    {
+        $application = $customer?->applications()->latest('id')->first();
+        if ($application) {
+            $status = (string) $application->status;
+
+            return match (true) {
+                $status === 'disbursed' => __('site.affiliate_portal.stage_successful'),
+                in_array($status, ['approved', 'pre_approved', 'awaiting_offer', 'offer_issued'], true) => __('site.affiliate_portal.stage_approved'),
+                in_array($status, ['rejected', 'declined', 'cancelled'], true) => __('site.affiliate_portal.stage_declined'),
+                default => __('site.affiliate_portal.stage_application_submitted'),
+            };
+        }
+
+        if ($commission || str_starts_with((string) $event->event_type, 'commission_')) {
+            return __('site.affiliate_portal.stage_fee_paid');
+        }
+
+        return $event->event_type === 'application'
+            ? __('site.affiliate_portal.stage_application_submitted')
+            : __('site.affiliate_portal.stage_registered');
+    }
+
+    private function referralSourceLabel(AffiliateEvent $event, ?Customer $customer): string
+    {
+        $claim = $customer ? app(AffiliateAttributionService::class)->customerClaim($customer) : null;
+        $source = (string) ($claim['source'] ?? '');
+        $landing = strtolower((string) ($event->landing_page ?? ''));
+
+        if (app(AffiliateAttributionService::class)->isPromoSource($source)) {
+            return __('site.affiliate_portal.source_promo');
+        }
+
+        if (app(AffiliateAttributionService::class)->isRelationshipSource($source)
+            || str_contains($landing, '/aff/')
+            || str_contains($landing, 'aff=')) {
+            return __('site.affiliate_portal.source_link');
+        }
+
+        return $customer && ! $customer->affiliate_vendor_id
+            ? __('site.affiliate_portal.source_promo')
+            : __('site.affiliate_portal.source_link');
     }
 
     /** @return Collection<int, array<string, mixed>> */

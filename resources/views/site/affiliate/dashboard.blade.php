@@ -129,10 +129,10 @@
 
         <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
             <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
-                <h2 class="font-bold text-white">{{ __('site.affiliate_portal.funnel_title') }}</h2>
-                <a href="{{ route('site.affiliate.performance', ['tab' => 'overview']) }}"
+                <h2 class="font-bold text-white">{{ $monthlyCard['title'] ?? __('site.affiliate_portal.funnel_title') }}</h2>
+                <a href="{{ $monthlyCard['report_url'] ?? route('site.affiliate.reports') }}"
                    class="inline-flex items-center rounded-lg bg-brand-gold text-brand font-bold px-3 py-1.5 text-xs shadow-sm">
-                    {{ __('site.affiliate_portal.view_referrals') }}
+                    {{ __('site.affiliate_portal.view_monthly_report') }} →
                 </a>
             </div>
             <div class="p-5">
@@ -140,7 +140,13 @@
                     @foreach ($funnelKeys as $key)
                         <div class="rounded-xl bg-gray-50 px-4 py-3 ring-1 ring-gray-100">
                             <p class="text-xs text-gray-500">{{ __('site.affiliate_portal.funnel_'.$key) }}</p>
-                            <p class="text-xl font-bold tabular-nums mt-1">{{ $funnel[$key] ?? 0 }}</p>
+                            <p class="text-xl font-bold tabular-nums mt-1">
+                                @if ($key === 'earned')
+                                    {{ format_money($funnel[$key] ?? 0) }}
+                                @else
+                                    {{ $funnel[$key] ?? 0 }}
+                                @endif
+                            </p>
                         </div>
                     @endforeach
                 </div>

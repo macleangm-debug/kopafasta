@@ -888,8 +888,17 @@ class MessagingCatalog
                 'group' => 'partners',
                 'critical' => false,
                 'default_channels' => ['in_app'],
+                'default_enabled' => false,
+                'description' => 'Retired per-transaction notice. Daily summary is used instead.',
+            ],
+            [
+                'code' => 'affiliate_commission_daily_summary',
+                'name' => 'Affiliate daily commission summary',
+                'group' => 'partners',
+                'critical' => false,
+                'default_channels' => ['in_app'],
                 'default_enabled' => true,
-                'description' => 'When an eligible commission is recorded.',
+                'description' => 'One daily summary of commission earned, not one notice per payment.',
             ],
         ];
     }

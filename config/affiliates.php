@@ -157,6 +157,11 @@ return [
         'transactions_per_page' => 10,
     ],
 
+    'notifications' => [
+        'daily_commission_summary' => true,
+        'daily_summary_at' => '20:00',
+    ],
+
     'messages_sw' => [
         'share_template' => 'Unatafuta mkopo wa Kopafasta? Anza ombi lako kwa kiungo changu cha rufaa: {affiliate_link}',
         'referral_sms' => 'Unahitaji fedha? Omba na Kopafasta kwa kiungo changu cha rufaa: {affiliate_link}',

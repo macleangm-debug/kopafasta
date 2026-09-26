@@ -86,6 +86,14 @@ class AffiliateController extends Controller
         return view('site.affiliate.performance', app(AffiliatePortalPresenter::class)->performance($this->affiliate()));
     }
 
+    public function reports(Request $request): View
+    {
+        return view('site.affiliate.reports', app(AffiliatePortalPresenter::class)->monthlyReport(
+            $this->affiliate(),
+            $request->query('month')
+        ));
+    }
+
     public function referrals(): RedirectResponse
     {
         return redirect()->route('site.affiliate.performance', ['tab' => 'overview']);

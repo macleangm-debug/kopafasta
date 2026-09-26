@@ -29,8 +29,9 @@
             @foreach ($pipeline as $referral)
                 <div class="glass-card p-4 flex items-center justify-between gap-4">
                     <div>
-                        <p class="font-semibold text-gray-900">{{ $referral['name'] }}</p>
+                        <p class="font-semibold text-gray-900 font-mono">{{ $referral['member_no'] ?: '—' }}</p>
                         <p class="text-sm text-brand font-medium mt-0.5">{{ $referral['stage'] }}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $referral['source'] ?? '' }}</p>
                     </div>
                     <p class="text-sm text-gray-500">{{ $referral['date']?->format('d M Y') }}</p>
                 </div>

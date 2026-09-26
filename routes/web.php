@@ -597,6 +597,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::post('/share/promo-check', [AffiliateController::class, 'checkPromoCode'])->name('share.promo-check');
             Route::get('/performance', [AffiliateController::class, 'performance'])->name('performance');
             Route::get('/results', [AffiliateController::class, 'performance'])->name('results');
+            Route::get('/reports', [AffiliateController::class, 'reports'])->name('reports');
             Route::get('/agreement', [AffiliateController::class, 'agreement'])->name('agreement');
             Route::get('/referrals', [AffiliateController::class, 'referrals'])->name('referrals');
             Route::get('/wallet', [AffiliateController::class, 'wallet'])->name('wallet');

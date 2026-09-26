@@ -116,7 +116,9 @@
                     foreach ($funnelKeys as $key) {
                         $metrics[] = [
                             'label' => __('site.affiliate_portal.funnel_'.$key),
-                            'value' => (string) ($funnel[$key] ?? 0),
+                            'value' => $key === 'earned'
+                                ? format_money($funnel[$key] ?? 0)
+                                : (string) ($funnel[$key] ?? 0),
                         ];
                     }
                     if ($premium) {
@@ -202,15 +204,27 @@
                     />
                 @else
                     <div class="px-4 sm:px-5 pb-5">
-                        <h2 class="font-semibold text-gray-900 mb-3">{{ __('site.affiliate_portal.recent_referrals') }}</h2>
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <h2 class="font-semibold text-gray-900">{{ __('site.affiliate_portal.recent_referrals') }}</h2>
+                            <a href="{{ route('site.affiliate.reports') }}" class="text-xs font-semibold text-brand">
+                                {{ __('site.affiliate_portal.view_monthly_report') }} →
+                            </a>
+                        </div>
                         <div class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-100 overflow-hidden">
                             @foreach ($pipeline as $referral)
-                                <div class="px-4 py-4 flex items-center justify-between gap-4">
+                                <div class="px-4 py-4 flex items-start justify-between gap-4">
                                     <div>
-                                        <p class="font-semibold text-gray-900">{{ $referral['name'] }}</p>
+                                        <p class="font-semibold text-gray-900 font-mono">{{ $referral['member_no'] ?: '—' }}</p>
                                         <p class="text-sm text-brand font-medium mt-0.5">{{ $referral['stage'] }}</p>
+                                        <p class="text-xs text-gray-500 mt-0.5">{{ $referral['source'] }}</p>
+                                        @if (! empty($referral['commission_amount']))
+                                            <p class="text-xs text-gray-600 mt-1">{{ __('site.affiliate_portal.pipeline_commission', [
+                                                'amount' => format_money($referral['commission_amount']),
+                                                'status' => $referral['commission_status'] ?? '',
+                                            ]) }}</p>
+                                        @endif
                                     </div>
-                                    <p class="text-sm text-gray-500">{{ $referral['date']?->format('d M Y') }}</p>
+                                    <p class="text-sm text-gray-500 shrink-0">{{ $referral['date']?->format('d M Y') }}</p>
                                 </div>
                             @endforeach
                         </div>

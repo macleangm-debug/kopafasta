@@ -324,6 +324,20 @@ class AffiliateAttributionService
         return true;
     }
 
+    /**
+     * Operational repair: drop member-level attribution without touching payment snapshots.
+     */
+    public function clearMemberAttribution(Customer $customer): void
+    {
+        $details = is_array($customer->activity_details) ? $customer->activity_details : [];
+        unset($details[self::CUSTOMER_META_KEY]);
+
+        $customer->update([
+            'affiliate_vendor_id' => null,
+            'activity_details' => $details,
+        ]);
+    }
+
     /** @param  array<string, mixed>  $attribution */
     public function attributesForEvent(array $attribution = []): array
     {
