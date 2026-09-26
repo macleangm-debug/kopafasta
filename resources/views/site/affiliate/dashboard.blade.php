@@ -30,14 +30,10 @@
                     </a>
                 @endif
             </div>
-            <div class="w-full lg:max-w-sm flex flex-col items-stretch gap-3">
+            <div class="w-full lg:max-w-sm">
                 @include('site.affiliate._balance-card', [
                     'available' => $available ?? 0,
                     'inProgress' => $inProgress ?? 0,
-                ])
-                @include('site.affiliate._withdraw-cta', [
-                    'mode' => 'link',
-                    'withdrawHref' => route('site.affiliate.performance', ['tab' => 'withdrawals', 'withdraw' => ($available ?? 0) >= ($minPayout ?? 0) ? 1 : 0]),
                 ])
             </div>
         </div>
@@ -60,11 +56,10 @@
 
     <section class="mb-6">
         <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3">{{ __('site.affiliate_portal.quick_actions_title') }}</p>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
             @foreach ([
                 [__('site.affiliate_portal.quick_share'), $shareUrl, '🔗'],
                 [__('site.affiliate_portal.quick_results'), route('site.affiliate.performance', ['tab' => 'overview']), '📊'],
-                [__('site.affiliate_portal.withdraw'), route('site.affiliate.performance', ['tab' => 'withdrawals', 'withdraw' => 1]), '💰'],
                 [__('site.affiliate_portal.quick_profile'), route('site.affiliate.profile'), '👤'],
             ] as [$label, $url, $icon])
                 <a href="{{ $url }}"

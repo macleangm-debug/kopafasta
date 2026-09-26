@@ -4,9 +4,15 @@ namespace App\Services\Plus;
 
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\PlusLesson;
+use App\Models\PlusOffer;
+use App\Models\PlusOfferEvent;
+use App\Models\PlusRewardLedger;
 use App\Models\PlusSubscription;
 use App\Models\Setting;
 use App\Services\CustomerPaymentService;
+use App\Services\Staging\StagingPaymentsService;
+use Illuminate\Support\Collection;
 
 class PlusService
 {
@@ -44,6 +50,16 @@ class PlusService
         return PlusSubscription::query()
             ->where('customer_id', $customer->id)
             ->latest('expires_at')
+            ->first();
+    }
+
+    public function latestPaidPayment(Customer $customer): ?CustomerPayment
+    {
+        return CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'kopafasta_plus')
+            ->whereIn('status', ['paid', 'verified'])
+            ->latest('id')
             ->first();
     }
 
@@ -99,7 +115,7 @@ class PlusService
 
         $price = $plan['prices'][$country] ?? $plan['prices']['TZ'];
         $price['canonical_amount'] = $price['amount'];
-        $price['amount'] = app(\App\Services\Staging\StagingPaymentsService::class)
+        $price['amount'] = app(StagingPaymentsService::class)
             ->effective('kopafasta_plus', (float) $price['amount']);
 
         return $price;
@@ -136,8 +152,8 @@ class PlusService
      */
     public function ensureSampleContent(): void
     {
-        if (! \App\Models\PlusLesson::query()->exists()) {
-            \App\Models\PlusLesson::query()->create([
+        if (! PlusLesson::query()->exists()) {
+            PlusLesson::query()->create([
                 'month' => now()->format('Y-m'),
                 'title_en' => 'Keep a simple money diary',
                 'title_sw' => 'Weka daftari rahisi la pesa',
@@ -149,7 +165,7 @@ class PlusService
                 'audience' => 'plus_members',
                 'published_at' => now()->subHour(),
             ]);
-            \App\Models\PlusLesson::query()->create([
+            PlusLesson::query()->create([
                 'month' => now()->copy()->subMonth()->format('Y-m'),
                 'title_en' => 'Separate home money and business money',
                 'title_sw' => 'Tenganisha pesa ya nyumbani na pesa ya biashara',
@@ -163,8 +179,8 @@ class PlusService
             ]);
         }
 
-        if (! \App\Models\PlusOffer::query()->exists()) {
-            \App\Models\PlusOffer::query()->create([
+        if (! PlusOffer::query()->exists()) {
+            PlusOffer::query()->create([
                 'title' => 'Plus Club — record 7 days of money in and out',
                 'body' => 'Write money in and out for seven days. Partner offers for your country will appear here when they are live.',
                 'tier' => 'standard',
@@ -174,7 +190,7 @@ class PlusService
                 'active' => true,
             ]);
         } else {
-            \App\Models\PlusOffer::query()
+            PlusOffer::query()
                 ->where(function ($q) {
                     $q->where('body', 'like', '%does not change your Grade%')
                         ->orWhere('body', 'like', '%haibadilishi Daraja%');
@@ -308,13 +324,13 @@ class PlusService
             ]);
     }
 
-    public function eligibleOffers(Customer $customer): \Illuminate\Support\Collection
+    public function eligibleOffers(Customer $customer): Collection
     {
         $grade = (string) ($customer->grade ?: 'bronze');
         $country = strtoupper((string) ($customer->country_code ?? 'TZ'));
         $plus = $this->isActive($customer);
 
-        return \App\Models\PlusOffer::query()
+        return PlusOffer::query()
             ->where('active', true)
             ->where(function ($q) {
                 $q->whereNull('starts_at')->orWhere('starts_at', '<=', now());
@@ -341,7 +357,7 @@ class PlusService
             ->values();
     }
 
-    public function awardReward(Customer $customer, string $kind, int $points, string $reason, string $source = 'plus'): \App\Models\PlusRewardLedger
+    public function awardReward(Customer $customer, string $kind, int $points, string $reason, string $source = 'plus'): PlusRewardLedger
     {
         $blocked = ['loan', 'borrow', 'disbursement', 'application', 'drawdown'];
         foreach ($blocked as $word) {
@@ -350,7 +366,7 @@ class PlusService
             }
         }
 
-        return \App\Models\PlusRewardLedger::query()->create([
+        return PlusRewardLedger::query()->create([
             'customer_id' => $customer->id,
             'kind' => $kind,
             'points' => $points,
@@ -359,7 +375,7 @@ class PlusService
         ]);
     }
 
-    public function redeemReward(Customer $customer, int $points, string $reason): \App\Models\PlusRewardLedger
+    public function redeemReward(Customer $customer, int $points, string $reason): PlusRewardLedger
     {
         $points = abs($points);
         abort_unless($points > 0, 422, 'Enter points to redeem.');
@@ -370,7 +386,7 @@ class PlusService
 
     public function rewardBalance(Customer $customer): int
     {
-        return (int) \App\Models\PlusRewardLedger::query()
+        return (int) PlusRewardLedger::query()
             ->where('customer_id', $customer->id)
             ->sum('points');
     }
@@ -390,18 +406,18 @@ class PlusService
         })->values()->all();
     }
 
-    public function recordOfferEvent(Customer $customer, \App\Models\PlusOffer $offer, string $event): void
+    public function recordOfferEvent(Customer $customer, PlusOffer $offer, string $event): void
     {
-        \App\Models\PlusOfferEvent::query()->create([
+        PlusOfferEvent::query()->create([
             'customer_id' => $customer->id,
             'plus_offer_id' => $offer->id,
             'event' => $event,
         ]);
     }
 
-    public function hasClaimed(Customer $customer, \App\Models\PlusOffer $offer): bool
+    public function hasClaimed(Customer $customer, PlusOffer $offer): bool
     {
-        return \App\Models\PlusOfferEvent::query()
+        return PlusOfferEvent::query()
             ->where('customer_id', $customer->id)
             ->where('plus_offer_id', $offer->id)
             ->where('event', 'claimed')

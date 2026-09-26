@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\PlusBusiness;
 use App\Models\PlusBusinessEntry;
 use App\Models\PlusGoal;
 use App\Models\PlusGoalContribution;
@@ -11,6 +12,7 @@ use App\Models\PlusLesson;
 use App\Models\PlusLessonProgress;
 use App\Models\PlusMoneyEntry;
 use App\Models\PlusOffer;
+use App\Models\PlusOfferEvent;
 use App\Models\PlusSubject;
 use App\Services\Grades\GradeBenefitService;
 use App\Services\GrowthPointsService;
@@ -26,6 +28,7 @@ use App\Services\Plus\PlusService;
 use App\Services\Plus\PlusWorkspaceService;
 use App\Support\Celebration;
 use App\Support\MoneyFormat;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -75,6 +78,7 @@ class PlusController extends Controller
                 ->first(),
             'loyaltyBalance' => app(LoyaltyPointsService::class)->balance($customer),
             'rewardsDash' => app(LoyaltyRedemptionService::class)->dashboard($customer),
+            'plusReceipt' => $plus->latestPaidPayment($customer),
         ]);
     }
 
@@ -169,7 +173,10 @@ class PlusController extends Controller
             return redirect()->route('site.borrower.plus.home');
         }
 
-        return view('site.plus.welcome', compact('customer'));
+        return view('site.plus.welcome', [
+            'customer' => $customer,
+            'plusReceipt' => $plus->latestPaidPayment($customer),
+        ]);
     }
 
     public function money(Request $request, PlusService $plus, PlusWorkspaceService $workspace)
@@ -237,7 +244,7 @@ class PlusController extends Controller
                 $request->session()->forget('plus.selected_business_id');
             } else {
                 $candidate = (int) $raw;
-                $owned = \App\Models\PlusBusiness::query()
+                $owned = PlusBusiness::query()
                     ->where('customer_id', $customer->id)
                     ->whereKey($candidate)
                     ->exists();
@@ -251,7 +258,7 @@ class PlusController extends Controller
         } else {
             $candidate = (int) $request->session()->get('plus.selected_business_id');
             if ($candidate > 0) {
-                $owned = \App\Models\PlusBusiness::query()
+                $owned = PlusBusiness::query()
                     ->where('customer_id', $customer->id)
                     ->whereKey($candidate)
                     ->exists();
@@ -278,7 +285,7 @@ class PlusController extends Controller
             'period' => ['nullable', 'in:today,week,month'],
         ]);
 
-        \App\Models\PlusBusiness::query()->create([
+        PlusBusiness::query()->create([
             'customer_id' => $customer->id,
             'name' => $data['name'],
             'type' => $data['type'] === 'other' && filled($data['type_other'] ?? null)
@@ -287,7 +294,7 @@ class PlusController extends Controller
             'is_active' => true,
         ]);
 
-        $created = \App\Models\PlusBusiness::query()
+        $created = PlusBusiness::query()
             ->where('customer_id', $customer->id)
             ->latest('id')
             ->first();
@@ -318,7 +325,7 @@ class PlusController extends Controller
             : (float) ($request->input('spent') ?: $request->input('amount') ?: 0);
         $request->merge(['kind' => $kind, 'amount' => $amount]);
 
-        $businesses = \App\Models\PlusBusiness::query()
+        $businesses = PlusBusiness::query()
             ->where('customer_id', $customer->id)
             ->where('is_active', true)
             ->orderBy('name')
@@ -369,7 +376,7 @@ class PlusController extends Controller
                 $request->session()->forget('plus.selected_goal_id');
             } else {
                 $candidate = (int) $raw;
-                $owned = \App\Models\PlusGoal::query()
+                $owned = PlusGoal::query()
                     ->where('customer_id', $customer->id)
                     ->whereKey($candidate)
                     ->exists();
@@ -383,7 +390,7 @@ class PlusController extends Controller
         } else {
             $candidate = (int) $request->session()->get('plus.selected_goal_id');
             if ($candidate > 0) {
-                $owned = \App\Models\PlusGoal::query()
+                $owned = PlusGoal::query()
                     ->where('customer_id', $customer->id)
                     ->whereKey($candidate)
                     ->exists();
@@ -517,7 +524,7 @@ class PlusController extends Controller
         $businessId = null;
         $candidate = (int) $request->session()->get('plus.selected_business_id');
         if ($candidate > 0) {
-            $owned = \App\Models\PlusBusiness::query()
+            $owned = PlusBusiness::query()
                 ->where('customer_id', $customer->id)
                 ->whereKey($candidate)
                 ->exists();
@@ -537,7 +544,7 @@ class PlusController extends Controller
         $businessId = null;
         $candidate = (int) $request->session()->get('plus.selected_business_id');
         if ($candidate > 0) {
-            $owned = \App\Models\PlusBusiness::query()
+            $owned = PlusBusiness::query()
                 ->where('customer_id', $customer->id)
                 ->whereKey($candidate)
                 ->exists();
@@ -547,7 +554,7 @@ class PlusController extends Controller
         $month = (string) ($report['month'] ?? now()->format('Y-m'));
         $filename = 'kopafasta-plus-report-'.$month.'.pdf';
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.plus-monthly-report', [
+        $pdf = Pdf::loadView('pdf.plus-monthly-report', [
             'report' => $report,
         ])->setPaper('a4');
 
@@ -562,13 +569,13 @@ class PlusController extends Controller
             $plus->recordOfferEvent($customer, $offer, 'viewed');
         }
         $claimedMap = $offers->mapWithKeys(fn ($o) => [$o->id => $plus->hasClaimed($customer, $o)]);
-        $claimedIds = \App\Models\PlusOfferEvent::query()
+        $claimedIds = PlusOfferEvent::query()
             ->where('customer_id', $customer->id)
             ->where('event', 'claimed')
             ->pluck('plus_offer_id')
             ->unique()
             ->all();
-        $claimedOffers = \App\Models\PlusOffer::query()->whereIn('id', $claimedIds)->get();
+        $claimedOffers = PlusOffer::query()->whereIn('id', $claimedIds)->get();
 
         return view('site.plus.offers', [
             'customer' => $customer,

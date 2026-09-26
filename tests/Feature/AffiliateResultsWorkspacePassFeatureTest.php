@@ -51,10 +51,11 @@ class AffiliateResultsWorkspacePassFeatureTest extends TestCase
         $affiliate = $this->affiliate();
         $dashboard = file_get_contents(resource_path('views/site/affiliate/dashboard.blade.php'));
 
-        $this->assertStringContainsString("['tab' => 'withdrawals'", $dashboard);
+        $this->assertStringNotContainsString("['tab' => 'withdrawals'", $dashboard);
         $this->assertStringContainsString("['tab' => 'overview']", $dashboard);
         $this->assertStringContainsString("['tab' => 'commissions']", $dashboard);
         $this->assertStringNotContainsString("route('site.affiliate.wallet')", $dashboard);
+        $this->assertStringNotContainsString('site.affiliate._withdraw-cta', $dashboard);
 
         $this->actingAs($affiliate->user)
             ->get(route('site.affiliate.dashboard'))

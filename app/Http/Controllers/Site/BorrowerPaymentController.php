@@ -520,12 +520,6 @@ class BorrowerPaymentController extends Controller
                 ->with(Celebration::SESSION_KEY, ['membership']);
         }
 
-        if ($payment->payment_type === 'kopafasta_plus'
-            && ($payment->isVerified() || in_array($payment->status, ['paid', 'verified'], true))
-        ) {
-            return redirect()->route('site.borrower.plus.welcome');
-        }
-
         $accounts = app(PaymentAccountService::class);
         $bankDetails = null;
         $mobileDetails = [];

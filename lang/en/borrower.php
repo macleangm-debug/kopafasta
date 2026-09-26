@@ -3096,6 +3096,7 @@ return [
         ],
         'show' => [
             'payment_reference' => 'Payment reference',
+            'receipt' => 'Receipt',
             'type' => 'Payment type',
             'method' => 'Payment method',
             'amount' => 'Amount',

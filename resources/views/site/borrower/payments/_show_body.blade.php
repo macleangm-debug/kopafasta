@@ -91,6 +91,7 @@
     </section>
 
     <div class="kf-receipt rounded-2xl bg-white ring-1 ring-gray-200 p-5 space-y-5">
+    <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-gray-500">{{ __('borrower.payments_page.show.receipt') }}</p>
     <dl class="grid sm:grid-cols-2 gap-5">
         <div>
             <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.type') }}</dt>

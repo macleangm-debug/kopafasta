@@ -2,13 +2,8 @@
 
 @php
     $variant = $hero['variant'] ?? 'no_loan';
-    $premium = ! in_array($variant, ['arrears', 'active_loan', 'settled'], true);
-    $shell = match ($variant) {
-        'arrears' => 'bg-red-600 text-white ring-1 ring-red-700',
-        'active_loan' => 'bg-gray-900 text-white ring-1 ring-gray-800',
-        'settled' => 'bg-emerald-600 text-white ring-1 ring-emerald-700',
-        default => 'kf-premium-panel',
-    };
+    $premium = true;
+    $shell = 'kf-premium-panel';
     $decor = match ($variant) {
         'arrears', 'active_loan' => 'individual',
         'under_review', 'guarantor_request' => 'business',

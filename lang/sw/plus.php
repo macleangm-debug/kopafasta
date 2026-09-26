@@ -79,6 +79,7 @@ return [
         'continue' => 'Endelea',
         'open_room' => 'Angalia',
         'rooms_title' => '',
+        'view_receipt' => 'Angalia risiti',
     ],
     'today' => [
         'title' => 'Leo',
@@ -160,6 +161,8 @@ return [
         'title' => 'Karibu Kopafasta Plus',
         'body' => 'Sasa una mwenzako wa pesa, biashara, malengo na Klabu ya kila mwezi. Fungua Plus siku yoyote — si wakati wa kukopa tu.',
         'open' => 'Fungua Plus',
+        'receipt' => 'Risiti ya malipo',
+        'view_receipt' => 'Angalia risiti',
     ],
     'money' => [
         'title' => 'Pesa zako',

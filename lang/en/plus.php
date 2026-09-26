@@ -79,6 +79,7 @@ return [
         'continue' => 'Continue',
         'open_room' => 'Open',
         'rooms_title' => '',
+        'view_receipt' => 'View receipt',
     ],
     'today' => [
         'title' => 'Today',
@@ -160,6 +161,8 @@ return [
         'title' => 'Welcome to Kopafasta Plus',
         'body' => 'Your companion for money, business, goals and a monthly Club. Open Plus any day — not only when you borrow.',
         'open' => 'Open Plus',
+        'receipt' => 'Payment receipt',
+        'view_receipt' => 'View receipt',
     ],
     'money' => [
         'title' => 'Your money',

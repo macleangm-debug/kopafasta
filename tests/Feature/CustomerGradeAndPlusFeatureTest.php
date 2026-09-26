@@ -2,13 +2,34 @@
 
 namespace Tests\Feature;
 
+use App\Models\ChartOfAccount;
 use App\Models\Customer;
+use App\Models\CustomerGradeEvaluation;
+use App\Models\CustomerPayment;
+use App\Models\JournalEntryLine;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Models\PlusGoal;
+use App\Models\PlusGoalContribution;
+use App\Models\PlusLesson;
+use App\Models\PlusMoneyEntry;
+use App\Models\PlusSubject;
+use App\Models\PlusSubjectCategory;
+use App\Models\PlusSubscription;
 use App\Models\User;
 use App\Services\ApplicationRequirementsService;
+use App\Services\BorrowerFinancialSnapshotService;
+use App\Services\CustomerPaymentService;
 use App\Services\Grades\CustomerGradeEngine;
+use App\Services\Grades\GradeBenefitService;
+use App\Services\PinRecoveryChallengeService;
+use App\Services\PinService;
+use App\Services\Plus\PlusLearningService;
+use App\Services\Plus\PlusNextBestActionService;
 use App\Services\Plus\PlusService;
+use App\Support\PlusArticleSteps;
+use Database\Seeders\DefaultChartOfAccountsSeeder;
+use Database\Seeders\FinanceDefaultsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -182,9 +203,9 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
     public function test_product_grade_eligibility_hides_higher_grade_products(): void
     {
         $customer = $this->customer(['grade' => 'bronze']);
-        $product = new \App\Models\LoanProduct(['eligible_grades' => ['gold', 'platinum']]);
+        $product = new LoanProduct(['eligible_grades' => ['gold', 'platinum']]);
 
-        $this->assertFalse(app(\App\Services\Grades\GradeBenefitService::class)->productEligible($customer, $product));
+        $this->assertFalse(app(GradeBenefitService::class)->productEligible($customer, $product));
     }
 
     public function test_staff_override_requires_reason_and_expiry(): void
@@ -202,11 +223,10 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->assertSame('silver', $evaluation->effective_grade);
     }
 
-
     public function test_existing_customer_who_never_paid_membership_has_normal_lending_checklist(): void
     {
         $customer = $this->customer(['membership_expires_at' => null, 'last_renewal_at' => null]);
-        $checklist = app(\App\Services\ApplicationRequirementsService::class)->checklist($customer);
+        $checklist = app(ApplicationRequirementsService::class)->checklist($customer);
 
         $this->assertNull(collect($checklist['items'])->firstWhere('key', 'membership'));
     }
@@ -214,7 +234,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
     public function test_plus_rewards_can_be_redeemed_without_borrowing(): void
     {
         $customer = $this->customer();
-        $plus = app(\App\Services\Plus\PlusService::class);
+        $plus = app(PlusService::class);
         $plus->awardReward($customer, 'lesson', 40, 'Watched monthly lesson', 'plus');
         $plus->redeemReward($customer, 10, 'Airtime bundle');
 
@@ -249,14 +269,14 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
     {
         $bronze = $this->customer(['grade' => 'bronze']);
         $gold = $this->customer(['grade' => 'gold']);
-        $benefits = app(\App\Services\Grades\GradeBenefitService::class);
+        $benefits = app(GradeBenefitService::class);
 
         $this->assertSame(12, $benefits->maxTenureMonths($bronze));
         $this->assertSame(24, $benefits->maxTenureMonths($gold));
         $this->assertNotSame('borrow', strtolower($benefits->servicePriority($gold)));
 
         $gold->update(['grade_integrity' => 'review']);
-        \App\Models\CustomerGradeEvaluation::query()->create([
+        CustomerGradeEvaluation::query()->create([
             'customer_id' => $gold->id,
             'rule_version' => 1,
             'trigger' => 'test',
@@ -290,13 +310,13 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
 
     public function test_non_member_joins_plus_through_shared_payment_show_and_posts_gl_4080_once(): void
     {
-        $this->seed(\Database\Seeders\DefaultChartOfAccountsSeeder::class);
-        $this->seed(\Database\Seeders\FinanceDefaultsSeeder::class);
+        $this->seed(DefaultChartOfAccountsSeeder::class);
+        $this->seed(FinanceDefaultsSeeder::class);
 
         $customer = $this->customer();
         $user = $customer->user;
-        app(\App\Services\PinService::class)->setPin($user, '1234');
-        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+        app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
             'mother_first_name' => 'Amina',
             'birth_village' => 'Moshi',
             'primary_school' => 'Uhuru',
@@ -311,13 +331,15 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee(__('plus.card.teaser_body'), false)
             ->assertSee(format_money(500_000), false)
             ->assertSee('kf-premium-panel', false)
+            ->assertDontSee('bg-red-600', false)
+            ->assertDontSee(__('site.affiliate_portal.referral_connected_title'), false)
             ->assertDontSee(__('borrower.dashboard.hero.under_review_subtitle'), false);
 
         $response = $this->actingAs($user)
             ->from(route('site.borrower.plus.home'))
             ->post(route('site.borrower.plus.join'));
 
-        $payment = \App\Models\CustomerPayment::query()
+        $payment = CustomerPayment::query()
             ->where('customer_id', $customer->id)
             ->where('payment_type', 'kopafasta_plus')
             ->latest('id')
@@ -333,7 +355,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->get(route('site.borrower.payments.show', $payment))
             ->assertOk();
 
-        $verified = app(\App\Services\CustomerPaymentService::class)->verify($payment);
+        $verified = app(CustomerPaymentService::class)->verify($payment);
         $this->assertTrue($verified->isVerified());
         $this->assertTrue(app(PlusService::class)->isActive($customer->fresh()));
 
@@ -342,11 +364,11 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             'price_paid' => $payment->amount,
         ]);
 
-        $this->assertSame(1, \App\Models\PlusSubscription::query()->where('customer_id', $customer->id)->count());
+        $this->assertSame(1, PlusSubscription::query()->where('customer_id', $customer->id)->count());
 
-        $income = \App\Models\ChartOfAccount::query()->where('code', '4080')->first();
+        $income = ChartOfAccount::query()->where('code', '4080')->first();
         $this->assertNotNull($income);
-        $credits = \App\Models\JournalEntryLine::query()
+        $credits = JournalEntryLine::query()
             ->where('chart_of_account_id', $income->id)
             ->where('credit', '>', 0)
             ->count();
@@ -354,10 +376,10 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
 
         $this->assertSame(
             route('site.borrower.plus.welcome'),
-            app(\App\Services\CustomerPaymentService::class)->successRedirectUrl($verified)
+            app(CustomerPaymentService::class)->successRedirectUrl($verified)
         );
 
-        \App\Models\PlusLesson::query()->create([
+        PlusLesson::query()->create([
             'month' => now()->format('Y-m'),
             'title_en' => 'Keep a money diary',
             'title_sw' => 'Weka daftari la pesa',
@@ -366,9 +388,17 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         ]);
 
         $this->actingAs($user)
+            ->get(route('site.borrower.payments.show', $verified))
+            ->assertOk()
+            ->assertSee(__('borrower.payments_page.show.receipt'), false)
+            ->assertSee($verified->reference, false);
+
+        $this->actingAs($user)
             ->get(route('site.borrower.plus.welcome'))
             ->assertOk()
-            ->assertSee(__('plus.welcome.title'), false);
+            ->assertSee(__('plus.welcome.title'), false)
+            ->assertSee(__('plus.welcome.view_receipt'), false)
+            ->assertSee($verified->reference, false);
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.learn'))
@@ -392,8 +422,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
     {
         $customer = $this->customer();
         $user = $customer->user;
-        app(\App\Services\PinService::class)->setPin($user, '1234');
-        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+        app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
             'mother_first_name' => 'Amina',
             'birth_village' => 'Moshi',
             'primary_school' => 'Uhuru',
@@ -426,7 +456,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $this->assertTrue($subscription->complimentary);
         $this->assertSame(0.0, (float) $subscription->price_paid);
         $this->assertNotEmpty($subscription->entitlements['complimentary_grants'] ?? []);
-        $this->assertSame(0, \App\Models\CustomerPayment::query()->where('customer_id', $customer->id)->count());
+        $this->assertSame(0, CustomerPayment::query()->where('customer_id', $customer->id)->count());
     }
 
     public function test_completed_plus_goal_rejects_further_contributions(): void
@@ -435,7 +465,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
         $user = $customer->user;
         app(PlusService::class)->grantComplimentary($customer, 'Goal guard UAT.', 1, 30);
 
-        $goal = \App\Models\PlusGoal::query()->create([
+        $goal = PlusGoal::query()->create([
             'customer_id' => $customer->id,
             'kind' => 'emergency',
             'title' => 'Emergency',
@@ -450,7 +480,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertForbidden();
 
         $this->assertEquals(10_000.0, (float) $goal->fresh()->saved_amount);
-        $this->assertSame(0, \App\Models\PlusGoalContribution::query()->where('plus_goal_id', $goal->id)->count());
+        $this->assertSame(0, PlusGoalContribution::query()->where('plus_goal_id', $goal->id)->count());
     }
 
     public function test_hero_and_plus_follow_grade_access_and_hide_application_tracking(): void
@@ -461,8 +491,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             'country_code' => 'TZ',
         ]);
         $user = $customer->user;
-        app(\App\Services\PinService::class)->setPin($user, '1234');
-        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+        app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
             'mother_first_name' => 'Amina',
             'birth_village' => 'Moshi',
             'primary_school' => 'Uhuru',
@@ -516,8 +546,8 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
     {
         $customer = $this->customer(['member_no' => 'KPF-TZ-PLUS']);
         $user = $customer->user;
-        app(\App\Services\PinService::class)->setPin($user, '1234');
-        app(\App\Services\PinRecoveryChallengeService::class)->enroll($user, [
+        app(PinService::class)->setPin($user, '1234');
+        app(PinRecoveryChallengeService::class)->enroll($user, [
             'mother_first_name' => 'Amina',
             'birth_village' => 'Moshi',
             'primary_school' => 'Uhuru',
@@ -531,7 +561,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee('KPF-TZ-PLUS', false)
             ->assertDontSee(url('/country'), false);
 
-        $snapshot = app(\App\Services\BorrowerFinancialSnapshotService::class)->forCustomer($customer);
+        $snapshot = app(BorrowerFinancialSnapshotService::class)->forCustomer($customer);
         $this->assertArrayNotHasKey('available_limit', $snapshot);
         $this->assertArrayHasKey('trust', $snapshot);
 
@@ -566,7 +596,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             'customer_id' => $customer->id,
             'category' => 'food',
         ]);
-        $this->assertEquals(120000.0, (float) \App\Models\PlusMoneyEntry::query()->where('customer_id', $customer->id)->latest('id')->value('outflow'));
+        $this->assertEquals(120000.0, (float) PlusMoneyEntry::query()->where('customer_id', $customer->id)->latest('id')->value('outflow'));
 
         $this->actingAs($user)
             ->post(route('site.borrower.plus.money.save'), [
@@ -576,7 +606,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ])
             ->assertRedirect();
 
-        $in = \App\Models\PlusMoneyEntry::query()
+        $in = PlusMoneyEntry::query()
             ->where('customer_id', $customer->id)
             ->where('inflow', '>', 0)
             ->latest('id')
@@ -621,15 +651,15 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertDontSee('25 Aug · food', false)
             ->assertDontSee('x-text="spoken"', false);
 
-        $nba = app(\App\Services\Plus\PlusNextBestActionService::class)->forCustomer($customer->fresh());
+        $nba = app(PlusNextBestActionService::class)->forCustomer($customer->fresh());
         $this->assertArrayHasKey('key', $nba);
         $this->assertArrayHasKey('cta_url', $nba);
 
-        app(\App\Services\Plus\PlusLearningService::class)->ensureCatalog();
-        $this->assertGreaterThanOrEqual(500, \App\Models\PlusSubject::query()->count());
-        $this->assertSame(20, \App\Models\PlusSubjectCategory::query()->count());
-        $this->assertGreaterThan(0, \App\Models\PlusSubject::query()->where('status', 'published')->count());
-        $this->assertGreaterThan(400, \App\Models\PlusSubject::query()->where('status', 'draft')->count());
+        app(PlusLearningService::class)->ensureCatalog();
+        $this->assertGreaterThanOrEqual(500, PlusSubject::query()->count());
+        $this->assertSame(20, PlusSubjectCategory::query()->count());
+        $this->assertGreaterThan(0, PlusSubject::query()->where('status', 'published')->count());
+        $this->assertGreaterThan(400, PlusSubject::query()->where('status', 'draft')->count());
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.learn'))
@@ -640,13 +670,13 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee(__('plus.learn.saved'), false)
             ->assertSee(__('plus.nav.home'), false);
 
-        $subject = \App\Models\PlusSubject::query()->published()->first();
+        $subject = PlusSubject::query()->published()->first();
         $this->assertNotNull($subject);
         $this->assertGreaterThan(400, strlen((string) $subject->body_en));
         $this->assertLessThanOrEqual(14, substr_count(trim((string) $subject->body_en), "\n\n"));
         $this->assertStringNotContainsString('is not a separate subject', (string) $subject->body_en);
         $this->assertGreaterThanOrEqual(5, (int) $subject->duration_minutes);
-        $editorial = \App\Support\PlusArticleSteps::openingAndCards($subject->localizedIntro(), $subject->localizedBody());
+        $editorial = PlusArticleSteps::openingAndCards($subject->localizedIntro(), $subject->localizedBody());
         $this->assertNotEmpty($editorial['opening']);
         $this->assertNotEmpty($editorial['slides']);
         $this->assertLessThanOrEqual(12, count($editorial['slides']));
@@ -689,7 +719,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee('name="title"', false)
             ->assertDontSee(__('plus.goals.mark_complete'), false);
 
-        $goal = \App\Models\PlusGoal::query()->create([
+        $goal = PlusGoal::query()->create([
             'customer_id' => $customer->id,
             'kind' => 'emergency',
             'title' => 'Dharura',
@@ -704,7 +734,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertForbidden();
         $this->assertNull($goal->fresh()->completed_at);
 
-        $completed = \App\Models\PlusGoal::query()->create([
+        $completed = PlusGoal::query()->create([
             'customer_id' => $customer->id,
             'kind' => 'emergency',
             'title' => 'Done',
@@ -719,7 +749,7 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->post(route('site.borrower.plus.goals.contribute', $completed), ['amount' => '1,000'])
             ->assertForbidden();
         $this->assertEquals(10_000.0, (float) $completed->fresh()->saved_amount);
-        $this->assertSame(0, \App\Models\PlusGoalContribution::query()->where('plus_goal_id', $completed->id)->count());
+        $this->assertSame(0, PlusGoalContribution::query()->where('plus_goal_id', $completed->id)->count());
 
         $this->actingAs($user)
             ->get(route('site.borrower.plus.reports'))
@@ -775,5 +805,16 @@ class CustomerGradeAndPlusFeatureTest extends TestCase
             ->assertSee(__('plus.offers.sample_title'), false)
             ->assertSee(__('plus.offers.view'), false)
             ->assertSee(__('plus.offers.claim'), false);
+    }
+
+    public function test_dashboard_hero_stays_green_and_omits_referred_by_card(): void
+    {
+        $hero = file_get_contents(resource_path('views/components/site/borrower-dashboard-hero.blade.php'));
+        $dashboard = file_get_contents(resource_path('views/site/borrower/dashboard.blade.php'));
+
+        $this->assertStringContainsString("\$shell = 'kf-premium-panel'", $hero);
+        $this->assertStringNotContainsString('bg-red-600', $hero);
+        $this->assertStringNotContainsString('affiliate_referral_outcome', $dashboard);
+        $this->assertStringNotContainsString('referral_connected_title', $dashboard);
     }
 }

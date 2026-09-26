@@ -53,6 +53,9 @@
                         @endif
                     </form>
                 @endif
+                @if ($plusReceipt ?? null)
+                    <a href="{{ route('site.borrower.payments.show', $plusReceipt) }}" class="relative mt-4 inline-flex text-sm font-semibold text-white/90 underline underline-offset-4">{{ __('plus.home.view_receipt') }}</a>
+                @endif
             </section>
 
             <div class="grid sm:grid-cols-2 gap-3 items-stretch">

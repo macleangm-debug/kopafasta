@@ -276,7 +276,8 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $this->assertStringContainsString('site.affiliate._balance-card', $performance);
         $this->assertStringContainsString('site.affiliate._withdraw-cta', $performance);
         $this->assertStringContainsString('site.affiliate._balance-card', $dashboard);
-        $this->assertStringContainsString('site.affiliate._withdraw-cta', $dashboard);
+        $this->assertStringNotContainsString('site.affiliate._withdraw-cta', $dashboard);
+        $this->assertStringNotContainsString("['tab' => 'withdrawals'", $dashboard);
         $this->assertStringNotContainsString('withdrawHint', $card);
         $this->assertStringNotContainsString('site.affiliate_portal.withdraw', $card);
         $this->assertStringContainsString('withdrawHint', $cta);
