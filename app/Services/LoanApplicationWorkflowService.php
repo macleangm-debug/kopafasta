@@ -18,7 +18,7 @@ class LoanApplicationWorkflowService
             'label' => 'Acknowledge receipt',
             'to_stage' => 'screening',
             'permission' => 'applications.acknowledge',
-            'from' => ['submitted'],
+            'from' => ['submitted', 'ready_for_screening', 'submitted_initial_check'],
         ],
         'complete_screening' => [
             // Kept for backwards compatibility — hidden from the desk UI.
@@ -626,6 +626,11 @@ class LoanApplicationWorkflowService
     {
         return match ($stage) {
             'submitted' => 'Submitted',
+            'submitted_initial_check' => 'Initial check',
+            'initial_decision_hold' => 'Initial decision hold',
+            'rejected_initial_gate' => 'Rejected at initial gate',
+            'guarantor_required_not_added' => 'Add guarantor',
+            'ready_for_screening' => 'Ready for screening',
             'screening' => 'Screening',
             'credit_appraisal' => 'Credit appraisal',
             'pre_approval' => 'Pre-approval',

@@ -259,9 +259,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ->where('template', 'guarantor_sent')
             ->first();
 
-        $this->assertNotNull($sent);
-        $this->assertStringContainsString('Jane Guarantor', (string) $sent->message);
-        $this->assertStringStartsWith('/borrower/loans', (string) $sent->recipient);
+        $this->assertNull($sent);
     }
 
     public function test_notification_preview_exposes_accept_and_decline_for_guarantor_request(): void
@@ -574,7 +572,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $this->assertContains('guarantor_loan_arrears', $templates);
     }
 
-    public function test_validating_member_guarantor_sends_in_app_accept_decline_request(): void
+    public function test_validating_member_guarantor_nominates_without_sending_invitation(): void
     {
         $borrower = $this->makeCustomer('80', [
             'first_name' => 'Borrow',
@@ -597,7 +595,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('invite.notified', true);
+            ->assertJsonPath('invite.notified', false);
 
         $invitationId = (int) $response->json('invite.invitation_id');
         $linkId = (int) $response->json('invite.customer_guarantor_id');
@@ -618,14 +616,6 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ->where('template', 'guarantor_request')
             ->first();
 
-        $this->assertNotNull($log);
-        $this->assertStringContainsString('/borrower/guarantor-requests/'.$linkId, (string) $log->recipient);
-
-        $this->actingAs($member->user)
-            ->get(route('site.borrower.dashboard'))
-            ->assertOk()
-            ->assertSee(__('borrower.guarantor_notifications.accept_cta'), false)
-            ->assertSee(__('borrower.guarantor_notifications.decline_cta'), false)
-            ->assertSee('Borrow Eight', false);
+        $this->assertNull($log);
     }
 }

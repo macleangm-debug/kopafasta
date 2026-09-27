@@ -748,6 +748,7 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             ->name('hubs.field-assignments');
 
         // Applications
+        Route::view('loan-applications/intake', 'admin.loan-applications.intake')->name('loan-applications.intake');
         Route::view('loan-applications/pipeline/under-review', 'admin.loan-applications.pipeline-under-review')->name('loan-applications.pipeline.under-review');
         Route::view('loan-applications/pipeline/system-sorted', 'admin.loan-applications.pipeline-system-sorted')->name('loan-applications.pipeline.system-sorted');
         Route::view('loan-applications/pipeline/approved', 'admin.loan-applications.pipeline-approved')->name('loan-applications.pipeline.approved');

@@ -19,6 +19,35 @@
         </div>
     </div>
 
+    <section class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-white px-5 py-4 space-y-3">
+        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.intake.readiness_title') }}</p>
+        <ul class="space-y-1.5 text-sm">
+            <li class="flex items-center justify-between gap-3">
+                <span>{{ __('borrower.intake.your_information') }}</span>
+                <span class="text-xs font-semibold" :class="canApply ? 'text-emerald-700' : 'text-amber-700'"
+                      x-text="canApply ? @js(__('borrower.intake.complete')) : @js(__('borrower.intake.incomplete'))"></span>
+            </li>
+            <li class="flex items-center justify-between gap-3">
+                <span>{{ __('borrower.intake.application_information') }}</span>
+                <span class="text-xs font-semibold text-emerald-700">{{ __('borrower.intake.complete') }}</span>
+            </li>
+            <li x-show="hasStep('guarantor')" x-cloak class="flex items-center justify-between gap-3">
+                <span>{{ __('borrower.intake.guarantor_nominated') }}</span>
+                <span class="text-xs font-semibold"
+                      :class="form.guarantor_mode && form.guarantor_mode !== 'none' ? 'text-emerald-700' : 'text-amber-700'"
+                      x-text="form.guarantor_mode && form.guarantor_mode !== 'none' ? @js(__('borrower.intake.complete')) : @js(__('borrower.intake.incomplete'))"></span>
+            </li>
+            <li class="flex items-center justify-between gap-3">
+                <span>{{ __('borrower.intake.application_fee') }}</span>
+                <span class="text-xs font-semibold text-emerald-700">{{ __('borrower.intake.complete') }}</span>
+            </li>
+        </ul>
+        <p class="text-xs text-gray-600 pt-2 border-t border-gray-100">
+            <span class="font-semibold text-gray-800">{{ __('borrower.intake.what_happens_next') }}.</span>
+            {{ __('borrower.intake.nominate_before_invite') }}
+        </p>
+    </section>
+
     <div x-show="supplementMode" x-cloak class="glass-card rounded-2xl ring-1 ring-sky-200 bg-gradient-to-br from-sky-50 to-white px-5 py-4 text-sm text-sky-900 mb-6">
         <p class="font-semibold">{{ __('borrower.apply.submit_step.supplement_title') }}</p>
         <p class="mt-1 text-sky-800">{{ __('borrower.apply.submit_step.supplement_hint') }}</p>

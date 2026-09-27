@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\ApplicationStageHistory;
+use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\CustomerGuarantor;
@@ -9,11 +11,14 @@ use App\Models\Guarantor;
 use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\CapacityAutoRejectService;
 use App\Services\CrbCreditCheckService;
+use App\Services\GuarantorInvitationService;
 use App\Services\GuarantorOnboardingService;
 use App\Services\ProfileCompletionService;
+use App\Services\ProfileValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -118,22 +123,22 @@ class GuarantorHoldReleaseFeatureTest extends TestCase
 
         $fresh = $application->fresh();
         $this->assertSame('submitted', $fresh->status);
-        $this->assertSame('screening', $fresh->current_stage);
+        $this->assertSame('ready_for_screening', $fresh->current_stage);
     }
 
     public function test_residence_letter_follows_the_kyc_setting_instead_of_a_silent_bypass(): void
     {
-        \App\Models\Setting::setMany([
+        Setting::setMany([
             'kyc.require_address_proof' => false,
             'kyc.require_residence_letter' => false,
         ]);
-        $this->assertFalse(app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter());
+        $this->assertFalse(app(ProfileValidationService::class)->requiresResidenceLetter());
 
-        \App\Models\Setting::setMany([
+        Setting::setMany([
             'kyc.require_address_proof' => true,
             'kyc.require_residence_letter' => true,
         ]);
-        $this->assertTrue(app(\App\Services\ProfileValidationService::class)->requiresResidenceLetter());
+        $this->assertTrue(app(ProfileValidationService::class)->requiresResidenceLetter());
     }
 
     public function test_incomplete_borrower_blocks_screening_even_when_the_guarantor_is_complete(): void
@@ -157,7 +162,7 @@ class GuarantorHoldReleaseFeatureTest extends TestCase
             ]);
         });
 
-        $service = app(\App\Services\GuarantorInvitationService::class);
+        $service = app(GuarantorInvitationService::class);
         $this->assertSame('borrower_profile_incomplete', $service->guarantorHoldBlocker($application));
         $this->assertFalse($service->tryReleaseApplicationFromGuarantorHold($application));
         $this->assertSame('awaiting_guarantor', $application->fresh()->status);
@@ -178,7 +183,7 @@ class GuarantorHoldReleaseFeatureTest extends TestCase
             'current_stage' => 'screening',
         ]);
 
-        $service = app(\App\Services\GuarantorInvitationService::class);
+        $service = app(GuarantorInvitationService::class);
         $this->assertFalse($service->tryReleaseApplicationFromGuarantorHold($application->fresh()));
         $fresh = $application->fresh();
         $this->assertSame('submitted', $fresh->status);
@@ -204,7 +209,7 @@ class GuarantorHoldReleaseFeatureTest extends TestCase
 
         $application = LoanApplication::query()->where('customer_id', $borrower->id)->first();
         $this->assertSame('submitted', $application->status);
-        $this->assertSame('screening', $application->current_stage);
+        $this->assertSame('ready_for_screening', $application->current_stage);
     }
 
     public function test_automatic_screening_release_records_one_history_event_and_ignores_rechecks(): void
@@ -221,41 +226,34 @@ class GuarantorHoldReleaseFeatureTest extends TestCase
             $mock->shouldReceive('pullAndAttachAfterCapacityPass')->andReturn(['skipped' => true]);
         });
 
-        $service = app(\App\Services\GuarantorInvitationService::class);
+        $service = app(GuarantorInvitationService::class);
         $this->assertTrue($service->tryReleaseApplicationFromGuarantorHold($application->fresh()));
         $this->assertFalse($service->tryReleaseApplicationFromGuarantorHold($application->fresh()));
 
-        $history = \App\Models\ApplicationStageHistory::query()
+        $history = ApplicationStageHistory::query()
             ->where('loan_application_id', $application->id)
             ->get();
         $this->assertCount(1, $history);
         $entry = $history->first();
         $this->assertSame('awaiting_guarantor', $entry->from_stage);
-        $this->assertSame('screening', $entry->to_stage);
+        $this->assertSame('ready_for_screening', $entry->to_stage);
         $this->assertNull($entry->changed_by);
-        $this->assertStringContainsString('Entered Credit Screening', $entry->remarks);
-        $this->assertStringContainsString('System (automatic)', $entry->remarks);
-        $this->assertStringContainsString('awaiting_guarantor', $entry->remarks);
-        $this->assertStringContainsString('submitted', $entry->remarks);
-        $this->assertStringContainsString('pre-Screening requirements completed', $entry->remarks);
+        $this->assertStringContainsString('Guarantor completed', $entry->remarks);
 
-        $logs = \App\Models\AuditLog::query()
+        $logs = AuditLog::query()
             ->where('auditable_type', LoanApplication::class)
             ->where('auditable_id', $application->id)
-            ->where('event', 'application.stage_changed')
+            ->where('event', 'application.intake_transition')
             ->get();
         $this->assertCount(1, $logs);
         $this->assertNull($logs->first()->user_id);
         $this->assertSame('awaiting_guarantor', $logs->first()->old_values['current_stage']);
         $this->assertSame('awaiting_guarantor', $logs->first()->old_values['status']);
-        $this->assertSame('screening', $logs->first()->new_values['current_stage']);
-        $this->assertSame('submitted', $logs->first()->new_values['status']);
-        $this->assertSame('system', $logs->first()->new_values['actor']);
-        $this->assertSame('pre-Screening requirements completed', $logs->first()->new_values['reason']);
+        $this->assertSame('ready_for_screening', $logs->first()->new_values['current_stage']);
 
         $fresh = $application->fresh();
         $this->assertSame('submitted', $fresh->status);
-        $this->assertSame('screening', $fresh->current_stage);
+        $this->assertSame('ready_for_screening', $fresh->current_stage);
     }
 
     /** @return array{0: Customer, 1: Customer, 2: LoanApplication} */

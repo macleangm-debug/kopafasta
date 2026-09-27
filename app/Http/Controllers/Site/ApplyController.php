@@ -17,6 +17,8 @@ use App\Models\LoanProduct;
 use App\Rules\MinimumAge;
 use App\Services\AffiliateService;
 use App\Services\ApplicationFeePaymentService;
+use App\Services\ApplicationIntakeReadinessService;
+use App\Services\ApplicationIntakeTransitionService;
 use App\Services\ApplicationOfferService;
 use App\Services\ApplicationRequirementsService;
 use App\Services\ApplicationTrackingShareService;
@@ -26,8 +28,6 @@ use App\Services\AssetBackedLoanService;
 use App\Services\AssetReservationService;
 use App\Services\BorrowerCreditLimitService;
 use App\Services\BorrowerSignatureService;
-use App\Services\CapacityAutoRejectService;
-use App\Services\CrbCreditCheckService;
 use App\Services\CustomerAssetService;
 use App\Services\CustomerPaymentService;
 use App\Services\DisplayedRateService;
@@ -40,7 +40,6 @@ use App\Services\GroupLendingService;
 use App\Services\GroupMemberInvitationService;
 use App\Services\GroupMemberProgressService;
 use App\Services\GroupScoringService;
-use App\Services\GuarantorDeadlineService;
 use App\Services\GuarantorInvitationService;
 use App\Services\GuarantorSupplementService;
 use App\Services\IdentityVerificationPolicyService;
@@ -1858,7 +1857,6 @@ class ApplyController extends Controller
         GuarantorInvitationService $guarantors,
         ApplicationRequirementsService $requirements,
         LoanApplicationDraftService $drafts,
-        CrbCreditCheckService $crbCredit,
     ): RedirectResponse {
         $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
 
@@ -2223,7 +2221,9 @@ class ApplyController extends Controller
                 $data['guarantor_mode'] = $mode;
             }
             if ($mode === 'none') {
-                // Borrower submission must not be blocked by incomplete guarantor onboarding.
+                return $this->wizardSubmitRedirect($request, $draft)->withInput()->withErrors([
+                    'guarantor_mode' => __('borrower.apply.alerts.guarantor_required_before_submit'),
+                ]);
             } elseif ($mode === 'internal' || $mode === 'previous') {
                 if ($mode === 'previous') {
                     $data['guarantor_mode'] = 'internal';
@@ -2371,7 +2371,7 @@ class ApplyController extends Controller
                     'requested_amount' => $data['requested_amount'],
                     'requested_tenure_months' => $data['requested_tenure_months'],
                     'status' => $status,
-                    'current_stage' => 'screening',
+                    'current_stage' => ApplicationIntakeReadinessService::STATE_INITIAL_CHECK,
                     'purpose' => $purposeStored,
                     'screening_payload' => array_replace(
                         is_array($existingApplication->screening_payload) ? $existingApplication->screening_payload : [],
@@ -2416,7 +2416,7 @@ class ApplyController extends Controller
                 'requested_amount' => $data['requested_amount'],
                 'requested_tenure_months' => $data['requested_tenure_months'],
                 'status' => $status,
-                'current_stage' => 'screening',
+                'current_stage' => ApplicationIntakeReadinessService::STATE_INITIAL_CHECK,
                 'purpose' => $purposeStored,
                 'screening_payload' => [
                     'product_code' => $loanProduct->code,
@@ -2578,25 +2578,18 @@ class ApplyController extends Controller
             }
         }
 
-        $guarantorPending = $guarantorRequired
-            && ! $guarantors->hasReadyGuarantor($app);
+        $app = app(ApplicationIntakeTransitionService::class)->afterBorrowerSubmit($app->fresh(['customer', 'product']));
+        $intake = app(ApplicationIntakeReadinessService::class)->resolve($app);
+        $guarantorPending = ($intake['state'] ?? '') === ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR;
 
-        if ($guarantorPending && app(UnderwritingSettingsService::class)->holdApplicationsUntilGuarantorApproved()) {
-            // Hold outside credit screening until guarantor accepts + completes profile.
-            // CRB pull waits until release + capacity pass.
-            app(GuarantorDeadlineService::class)->markAwaiting($app->fresh());
-        } else {
-            app(CapacityAutoRejectService::class)->evaluateAndPark($app->fresh(['customer', 'product']));
-            $crbCredit->pullAndAttachAfterCapacityPass(
-                $app->fresh(['customer', 'product']),
-                ($isGroupProduct && $groupData) ? $groupData['members'] : null,
-            );
-        }
-
-        $message = __('borrower.apply.success.submitted_message');
-        if ($guarantorPending) {
-            $message = __('borrower.apply.success.submitted_guarantor_pending_message');
-        }
+        $message = match ($intake['state'] ?? '') {
+            ApplicationIntakeReadinessService::STATE_HOLD,
+            ApplicationIntakeReadinessService::STATE_INITIAL_CHECK => __('borrower.intake.received_hold_body'),
+            ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR => __('borrower.intake.passed_guarantor_body'),
+            ApplicationIntakeReadinessService::STATE_GUARANTOR_MISSING => __('borrower.intake.add_guarantor_body'),
+            ApplicationIntakeReadinessService::STATE_READY => __('borrower.intake.ready_body'),
+            default => __('borrower.apply.success.part_submitted_message'),
+        };
 
         $this->auditBorrower('application.submitted', $app, [
             'product_id' => $loanProduct->id,

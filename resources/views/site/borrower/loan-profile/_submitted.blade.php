@@ -13,6 +13,50 @@
     $docProgress = $requiredCount > 0 ? round(($satisfiedCount / $requiredCount) * 100) : 100;
 @endphp
 
+@php
+    $intake = app(\App\Services\ApplicationIntakeReadinessService::class)->resolve($application);
+    $intakeState = $intake['state'] ?? '';
+@endphp
+@if (in_array($intakeState, ['submitted_initial_check', 'initial_decision_hold', 'awaiting_guarantor', 'guarantor_required_not_added', 'ready_for_screening'], true))
+    <div class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-white p-5 space-y-2">
+        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.intake.part_submitted') }}</p>
+        <h2 class="text-lg font-bold text-gray-900">
+            @if (in_array($intakeState, ['submitted_initial_check', 'initial_decision_hold'], true))
+                {{ __('borrower.intake.received_title') }}
+            @elseif ($intakeState === 'awaiting_guarantor')
+                {{ __('borrower.intake.passed_title') }}
+            @elseif ($intakeState === 'ready_for_screening')
+                {{ __('borrower.intake.ready_title') }}
+            @else
+                {{ __('borrower.intake.received_title') }}
+            @endif
+        </h2>
+        <p class="text-sm text-gray-600">
+            @if (in_array($intakeState, ['submitted_initial_check', 'initial_decision_hold'], true))
+                {{ __('borrower.intake.received_pending_body') }}
+            @elseif ($intakeState === 'awaiting_guarantor')
+                {{ __('borrower.intake.passed_guarantor_body') }}
+            @elseif ($intakeState === 'ready_for_screening')
+                {{ __('borrower.intake.ready_body') }}
+            @else
+                {{ __('borrower.intake.add_guarantor_body') }}
+            @endif
+        </p>
+        @if (($intake['guarantor']['nominated'] ?? false) && $intakeState === 'awaiting_guarantor')
+            <dl class="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('borrower.apply.guarantor') }}</dt>
+                    <dd class="font-semibold">{{ $intake['guarantor']['name'] ?? '—' }} {{ $intake['guarantor']['phone'] ? '· '.$intake['guarantor']['phone'] : '' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500">{{ __('admin.intake.next_action') }}</dt>
+                    <dd class="font-semibold">{{ $intake['guarantor']['progress'] ?? '—' }}</dd>
+                </div>
+            </dl>
+        @endif
+    </div>
+@endif
+
 @if ($loan && in_array((string) $loan->status, ['active', 'disbursed', 'arrears'], true))
     <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-6">
         <h2 class="font-semibold text-emerald-900 mb-2">{{ __('borrower.loan_profile.disbursed_title') }}</h2>

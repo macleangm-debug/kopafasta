@@ -401,6 +401,7 @@ class BorrowerController extends Controller
 
         $application->update([
             'status' => 'withdrawn',
+            'current_stage' => 'withdrawn',
             'rejection_reason' => $application->rejection_reason ?: 'Withdrawn by borrower',
         ]);
 

@@ -10,7 +10,14 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class LoanApplication extends Model
 {
     public const STAGES = [
+        'draft',
         'submitted',
+        'submitted_initial_check',
+        'initial_decision_hold',
+        'rejected_initial_gate',
+        'guarantor_required_not_added',
+        'awaiting_guarantor',
+        'ready_for_screening',
         'screening',
         'credit_appraisal',
         'pre_approval',
@@ -18,6 +25,7 @@ class LoanApplication extends Model
         'approval',
         'disbursement',
         'rejected',
+        'withdrawn',
     ];
 
     public const CLOSED_STATUSES = ['rejected', 'withdrawn', 'expired', 'cancelled'];

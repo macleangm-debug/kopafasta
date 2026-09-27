@@ -39,18 +39,35 @@
                 <td class="px-5 py-3">
                     {{ $r->partyLabel() }}
                     <div class="text-xs text-gray-500">{{ $r->customer?->phone }}</div>
+                    @if (($pipeline ?? null) === 'intake' && ($intakeSection ?? null) === 'awaiting_guarantor')
+                        @php $g = $intake->guarantorNomination($r); @endphp
+                        <div class="text-[10px] text-gray-500 mt-1">
+                            {{ $g['name'] ?? '—' }} · {{ $g['progress'] ?? '—' }}
+                            @if (! empty($g['created_at'])) · {{ $g['created_at']->diffForHumans() }} @endif
+                        </div>
+                    @endif
                 </td>
                 <td class="px-5 py-3">{{ format_money( ($r->requested_amount ?? 0)) }}</td>
                 <td class="px-5 py-3 text-xs text-gray-600">{{ $contextValue }}</td>
                 <td class="px-5 py-3">
-                    <x-admin.badge :value="$r->status" group="application_status" :map="[
+                    @php
+                        $intake = app(\App\Services\ApplicationIntakeReadinessService::class);
+                        $displayStatus = $intake->displayStatus($r);
+                        $displayStage = $intake->displayStage($r);
+                    @endphp
+                    <x-admin.badge :value="$displayStatus" group="application_status" :map="[
                         'approved'     => 'bg-emerald-100 text-emerald-800',
                         'pre_approved'   => 'bg-sky-100 text-sky-800',
                         'rejected'       => 'bg-red-100 text-red-800',
+                        'rejected_initial_gate' => 'bg-red-100 text-red-800',
                         'in_progress'    => 'bg-blue-100 text-blue-800',
                         'submitted'      => 'bg-amber-100 text-amber-800',
+                        'submitted_initial_check' => 'bg-amber-100 text-amber-800',
+                        'initial_decision_hold' => 'bg-amber-100 text-amber-800',
+                        'ready_for_screening' => 'bg-sky-100 text-sky-800',
                         'under_review'   => 'bg-blue-100 text-blue-800',
                         'awaiting_guarantor' => 'bg-purple-100 text-purple-800',
+                        'withdrawn' => 'bg-gray-200 text-gray-700',
                         'expired'            => 'bg-gray-200 text-gray-700',
                     ]" />
                     @php
@@ -67,10 +84,16 @@
                             @endif
                         </div>
                     @endif
-                    @if (! in_array($pipeline, ['approved', 'disbursement'], true))
+                    @if (! in_array($pipeline, ['approved', 'disbursement'], true)
+                        && $displayStage
+                        && $displayStage !== $displayStatus
+                        && ! in_array($displayStatus, ['withdrawn', 'rejected', 'expired', 'cancelled'], true))
                         <div class="text-[10px] text-gray-400 mt-0.5">
-                            {{ display_label($r->current_stage, 'application_stage') }}
+                            {{ display_label($displayStage, 'application_stage') ?: app(\App\Services\LoanApplicationWorkflowService::class)->stageLabel($displayStage) }}
                         </div>
+                    @endif
+                    @if ($r->status === 'draft')
+                        <div class="text-[10px] text-amber-800 mt-0.5">{{ $intake->draftReasonLabel($intake->resolve($r)['draft_reason'] ?? null) }}</div>
                     @endif
                 </td>
                 <td class="px-5 py-3 text-gray-500">{{ $r->created_at?->format('Y-m-d') }}</td>

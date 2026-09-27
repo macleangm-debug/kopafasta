@@ -10,6 +10,7 @@ use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
+use App\Models\NotificationLog;
 use App\Support\MemberNumberFormatter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -79,28 +80,28 @@ class GuarantorInvitationService
         $member = $this->findCustomerByMemberNumber($membershipId);
         if (! $member) {
             return [
-                'ok'      => false,
+                'ok' => false,
                 'message' => __('borrower.apply.alerts.guarantor_not_found'),
             ];
         }
 
         if (! $member->hasMembership()) {
             return [
-                'ok'      => false,
+                'ok' => false,
                 'message' => __('borrower.apply.alerts.guarantor_not_member'),
             ];
         }
 
         if (! $member->isMembershipActive() && ! $member->isMembershipInGrace()) {
             return [
-                'ok'      => false,
+                'ok' => false,
                 'message' => __('borrower.apply.alerts.guarantor_membership_inactive'),
             ];
         }
 
         if ($member->id === $borrower->id) {
             return [
-                'ok'      => false,
+                'ok' => false,
                 'message' => __('borrower.apply.alerts.guarantor_self'),
             ];
         }
@@ -109,7 +110,7 @@ class GuarantorInvitationService
         $memberPhone = $this->normalizePhone($member->phone);
         if ($inputPhone === '' || $memberPhone === '' || $inputPhone !== $memberPhone) {
             return [
-                'ok'      => false,
+                'ok' => false,
                 'message' => __('borrower.apply.alerts.guarantor_phone_mismatch'),
             ];
         }
@@ -118,7 +119,7 @@ class GuarantorInvitationService
         // When a name is supplied (e.g. previous-guarantor re-verify), still check it.
         if (trim($name) !== '' && ! $this->namesMatch($name, $member)) {
             return [
-                'ok'      => false,
+                'ok' => false,
                 'message' => __('borrower.apply.alerts.guarantor_name_mismatch'),
             ];
         }
@@ -129,11 +130,11 @@ class GuarantorInvitationService
             : ($member->isMembershipInGrace() ? 'grace' : 'inactive');
 
         return [
-            'ok'      => true,
+            'ok' => true,
             'message' => __('borrower.apply.alerts.guarantor_verified'),
-            'name'    => $displayName,
-            'label'   => trim($displayName.' · '.__('borrower.apply.guarantor_fields.membership_'.$statusKey)),
-            'member'  => $member,
+            'name' => $displayName,
+            'label' => trim($displayName.' · '.__('borrower.apply.guarantor_fields.membership_'.$statusKey)),
+            'member' => $member,
         ];
     }
 
@@ -172,11 +173,11 @@ class GuarantorInvitationService
 
             return __('borrower.guarantor_invite.message', [
                 'guarantor_name' => $guarantorName,
-                'borrower_name'  => $borrowerName,
-                'product'        => $context['product_name'],
-                'amount'         => $context['amount_label'],
-                'duration'       => $context['duration_label'],
-                'link'           => $url,
+                'borrower_name' => $borrowerName,
+                'product' => $context['product_name'],
+                'amount' => $context['amount_label'],
+                'duration' => $context['duration_label'],
+                'link' => $url,
             ]);
         } finally {
             app()->setLocale($previous);
@@ -204,14 +205,14 @@ class GuarantorInvitationService
         }
 
         return [
-            'amount'             => $amount,
-            'amount_label'       => $amount > 0 ? 'TZS '.number_format($amount) : __('borrower.guarantor_invite.amount_tbd'),
-            'tenure_months'      => $tenure,
-            'duration_label'     => $tenure > 0
+            'amount' => $amount,
+            'amount_label' => $amount > 0 ? 'TZS '.number_format($amount) : __('borrower.guarantor_invite.amount_tbd'),
+            'tenure_months' => $tenure,
+            'duration_label' => $tenure > 0
                 ? trans_choice('borrower.guarantor_invite.duration_months', $tenure, ['count' => $tenure])
                 : __('borrower.guarantor_invite.duration_tbd'),
-            'product_name'       => $productName !== '' ? $productName : __('borrower.guarantor_invite.product_tbd'),
-            'installment_label'  => $installmentLabel,
+            'product_name' => $productName !== '' ? $productName : __('borrower.guarantor_invite.product_tbd'),
+            'installment_label' => $installmentLabel,
         ];
     }
 
@@ -392,40 +393,40 @@ class GuarantorInvitationService
 
         $steps = [
             [
-                'key'      => 'invited',
-                'label'    => __('borrower.apply.guarantor_progress.invited'),
+                'key' => 'invited',
+                'label' => __('borrower.apply.guarantor_progress.invited'),
                 'complete' => $invitedDone,
-                'current'  => false,
+                'current' => false,
             ],
             [
-                'key'      => 'accepted',
-                'label'    => __('borrower.apply.guarantor_progress.accepted'),
+                'key' => 'accepted',
+                'label' => __('borrower.apply.guarantor_progress.accepted'),
                 'complete' => $acceptedDone,
-                'current'  => $current === 'accepted',
+                'current' => $current === 'accepted',
             ],
             [
-                'key'      => 'profile',
-                'label'    => $profilePercent !== null
+                'key' => 'profile',
+                'label' => $profilePercent !== null
                     ? __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $profilePercent])
                     : __('borrower.apply.guarantor_progress.profile'),
                 'complete' => $profileDone || $ready,
-                'current'  => $current === 'profile',
+                'current' => $current === 'profile',
             ],
             [
-                'key'      => 'ready',
-                'label'    => __('borrower.apply.guarantor_progress.ready'),
+                'key' => 'ready',
+                'label' => __('borrower.apply.guarantor_progress.ready'),
                 'complete' => $ready,
-                'current'  => $current === 'ready',
+                'current' => $current === 'ready',
             ],
         ];
 
         return [
-            'code'             => $code,
-            'label'            => __('borrower.apply.guarantor_status.'.$labelKey),
-            'profile_percent'  => $profilePercent,
-            'accepted'         => $acceptedDone,
-            'ready'            => $ready,
-            'steps'            => $steps,
+            'code' => $code,
+            'label' => __('borrower.apply.guarantor_status.'.$labelKey),
+            'profile_percent' => $profilePercent,
+            'accepted' => $acceptedDone,
+            'ready' => $ready,
+            'steps' => $steps,
         ];
     }
 
@@ -524,19 +525,19 @@ class GuarantorInvitationService
         $borrowerStatus = $this->borrowerInvitationStatus($invitation);
 
         return [
-            'invitation_id'          => $invitation->id,
-            'invitation_url'         => $this->invitationUrl($invitation),
-            'short_url'              => $this->shortInvitationUrl($invitation),
-            'whatsapp_url'           => $this->whatsAppShareUrl($invitation, $borrower),
-            'sms_url'                => $this->smsShareUrl($invitation),
-            'email_url'              => $this->emailShareUrl($invitation),
-            'status'                 => (string) ($invitation->status ?? 'pending'),
-            'borrower_status_code'   => $borrowerStatus['code'],
-            'borrower_status_label'  => $borrowerStatus['label'],
-            'profile_percent'        => $borrowerStatus['profile_percent'],
-            'accepted'               => $borrowerStatus['accepted'],
-            'ready'                  => $borrowerStatus['ready'],
-            'steps'                  => $borrowerStatus['steps'],
+            'invitation_id' => $invitation->id,
+            'invitation_url' => $this->invitationUrl($invitation),
+            'short_url' => $this->shortInvitationUrl($invitation),
+            'whatsapp_url' => $this->whatsAppShareUrl($invitation, $borrower),
+            'sms_url' => $this->smsShareUrl($invitation),
+            'email_url' => $this->emailShareUrl($invitation),
+            'status' => (string) ($invitation->status ?? 'pending'),
+            'borrower_status_code' => $borrowerStatus['code'],
+            'borrower_status_label' => $borrowerStatus['label'],
+            'profile_percent' => $borrowerStatus['profile_percent'],
+            'accepted' => $borrowerStatus['accepted'],
+            'ready' => $borrowerStatus['ready'],
+            'steps' => $borrowerStatus['steps'],
         ];
     }
 
@@ -581,8 +582,6 @@ class GuarantorInvitationService
             $phone,
             $email,
             $relationship,
-            $region,
-            $district,
             $channel,
             $contact,
             $displayName,
@@ -609,26 +608,26 @@ class GuarantorInvitationService
                 $link = CustomerGuarantor::query()->find($invitation->customer_guarantor_id);
                 if ($link?->guarantor_id) {
                     Guarantor::query()->where('id', $link->guarantor_id)->update([
-                        'first_name'   => trim($firstName.' '.($middleName ?: '')),
-                        'last_name'    => $lastName,
-                        'phone'        => $phone,
-                        'email'        => $email,
+                        'first_name' => trim($firstName.' '.($middleName ?: '')),
+                        'last_name' => $lastName,
+                        'phone' => $phone,
+                        'email' => $email,
                         'relationship' => $relationship,
-                        'address'      => $address,
+                        'address' => $address,
                     ]);
                 }
                 $identityChanged = $invitation->contact !== $contact
                     || $invitation->invitee_name !== $displayName;
 
                 $updates = [
-                    'channel'                 => $channel,
-                    'contact'                 => $contact,
-                    'invitee_name'            => $displayName,
-                    'requested_amount'        => $requestedAmount,
+                    'channel' => $channel,
+                    'contact' => $contact,
+                    'invitee_name' => $displayName,
+                    'requested_amount' => $requestedAmount,
                     'requested_tenure_months' => $requestedTenureMonths,
-                    'loan_product_id'         => $loanProductId,
-                    'expires_at'              => now()->addDays($this->invitationExpiryDays()),
-                    'status'                  => 'pending',
+                    'loan_product_id' => $loanProductId,
+                    'expires_at' => now()->addDays($this->invitationExpiryDays()),
+                    'status' => 'pending',
                 ];
 
                 if ($identityChanged) {
@@ -639,36 +638,36 @@ class GuarantorInvitationService
                 $invitation->update($updates);
             } else {
                 $guarantor = Guarantor::create([
-                    'first_name'   => trim($firstName.' '.($middleName ?: '')),
-                    'last_name'    => $lastName,
-                    'phone'        => $phone,
-                    'email'        => $email,
+                    'first_name' => trim($firstName.' '.($middleName ?: '')),
+                    'last_name' => $lastName,
+                    'phone' => $phone,
+                    'email' => $email,
                     'relationship' => $relationship,
-                    'address'      => $address,
+                    'address' => $address,
                 ]);
 
                 $link = CustomerGuarantor::create([
-                    'customer_id'         => $borrower->id,
-                    'guarantor_id'        => $guarantor->id,
+                    'customer_id' => $borrower->id,
+                    'guarantor_id' => $guarantor->id,
                     'loan_application_id' => null,
-                    'status'              => 'pending',
+                    'status' => 'pending',
                 ]);
 
                 $invitation = GuarantorInvitation::create([
-                    'customer_id'             => $borrower->id,
-                    'loan_application_id'     => null,
-                    'loan_product_id'         => $loanProductId,
-                    'customer_guarantor_id'     => $link->id,
-                    'type'                    => 'external',
-                    'channel'                 => $channel,
-                    'contact'                 => $contact,
-                    'invitee_name'            => $displayName,
-                    'requested_amount'        => $requestedAmount,
+                    'customer_id' => $borrower->id,
+                    'loan_application_id' => null,
+                    'loan_product_id' => $loanProductId,
+                    'customer_guarantor_id' => $link->id,
+                    'type' => 'external',
+                    'channel' => $channel,
+                    'contact' => $contact,
+                    'invitee_name' => $displayName,
+                    'requested_amount' => $requestedAmount,
                     'requested_tenure_months' => $requestedTenureMonths,
-                    'token'                   => Str::random(48),
-                    'short_code'              => $this->generateShortCode(),
-                    'status'                  => 'pending',
-                    'expires_at'              => now()->addDays($this->invitationExpiryDays()),
+                    'token' => Str::random(48),
+                    'short_code' => $this->generateShortCode(),
+                    'status' => 'pending',
+                    'expires_at' => now()->addDays($this->invitationExpiryDays()),
                 ]);
             }
 
@@ -678,20 +677,7 @@ class GuarantorInvitationService
             $borrowerId = (int) $borrower->id;
             $sentInviteeName = $displayName;
 
-            DB::afterCommit(function () use ($invitationId, $borrowerId, $sentInviteeName): void {
-                $freshInvitation = GuarantorInvitation::query()->find($invitationId);
-                $freshBorrower = Customer::query()->find($borrowerId);
-                if (! $freshInvitation || ! $freshBorrower) {
-                    return;
-                }
-
-                try {
-                    $this->notifyExternalInvitation($freshBorrower, $freshInvitation, $sentInviteeName);
-                    $this->notifyBorrowerInvitationSent($freshBorrower, $freshInvitation, $sentInviteeName);
-                } catch (\Throwable $e) {
-                    report($e);
-                }
-            });
+            // Nomination only. Invitation is dispatched after the borrower first gate passes.
 
             return $this->sharePayload($invitation, $borrower);
         });
@@ -721,9 +707,9 @@ class GuarantorInvitationService
 
         $link->update(['loan_application_id' => $application->id]);
         $invitation->update([
-            'loan_application_id'     => $application->id,
-            'loan_product_id'         => $invitation->loan_product_id ?: $application->loan_product_id,
-            'requested_amount'        => $invitation->requested_amount ?: (int) $application->requested_amount,
+            'loan_application_id' => $application->id,
+            'loan_product_id' => $invitation->loan_product_id ?: $application->loan_product_id,
+            'requested_amount' => $invitation->requested_amount ?: (int) $application->requested_amount,
             'requested_tenure_months' => $invitation->requested_tenure_months ?: (int) $application->requested_tenure_months,
         ]);
 
@@ -809,13 +795,7 @@ class GuarantorInvitationService
                 $application->id,
             );
 
-            $this->notifyInternalGuarantorRequest($borrower, $member, $link, $invitation, $application);
-
-            $this->notifyBorrowerInvitationSent(
-                $borrower,
-                $invitation,
-                trim($member->first_name.' '.$member->last_name),
-            );
+            // Nomination only. Invitation is dispatched after the borrower first gate passes.
 
             return [$link, $invitation];
         });
@@ -880,32 +860,31 @@ class GuarantorInvitationService
                     ->first();
             }
 
-            $created = false;
             if ($invitation?->customer_guarantor_id) {
                 $link = CustomerGuarantor::query()->find($invitation->customer_guarantor_id);
                 if ($link?->guarantor_id) {
                     Guarantor::query()->where('id', $link->guarantor_id)->update([
-                        'first_name'   => $member->first_name,
-                        'last_name'    => $member->last_name,
-                        'phone'        => $member->phone ?? '',
-                        'email'        => $member->email,
-                        'national_id'  => $member->national_id,
-                        'address'      => $member->address,
+                        'first_name' => $member->first_name,
+                        'last_name' => $member->last_name,
+                        'phone' => $member->phone ?? '',
+                        'email' => $member->email,
+                        'national_id' => $member->national_id,
+                        'address' => $member->address,
                         'relationship' => 'member',
                     ]);
                 }
 
                 $invitation->update([
-                    'guarantor_customer_id'   => $member->id,
-                    'membership_id'           => MemberNumberFormatter::lookupKey($membershipId),
-                    'invitee_name'            => $member->full_name,
-                    'requested_amount'        => $requestedAmount,
+                    'guarantor_customer_id' => $member->id,
+                    'membership_id' => MemberNumberFormatter::lookupKey($membershipId),
+                    'invitee_name' => $member->full_name,
+                    'requested_amount' => $requestedAmount,
                     'requested_tenure_months' => $requestedTenureMonths,
-                    'loan_product_id'         => $loanProductId,
-                    'channel'                 => 'in_app',
-                    'contact'                 => $member->phone ?? '',
-                    'expires_at'              => now()->addDays($this->invitationExpiryDays()),
-                    'status'                  => ($link?->status === 'approved' || $invitation->status === 'accepted')
+                    'loan_product_id' => $loanProductId,
+                    'channel' => 'in_app',
+                    'contact' => $member->phone ?? '',
+                    'expires_at' => now()->addDays($this->invitationExpiryDays()),
+                    'status' => ($link?->status === 'approved' || $invitation->status === 'accepted')
                         ? 'accepted'
                         : 'pending',
                 ]);
@@ -920,54 +899,27 @@ class GuarantorInvitationService
                     $requestedTenureMonths,
                     null,
                 );
-                $created = true;
             }
 
             $this->ensureShortCode($invitation);
 
-            $shouldNotify = $created || ($link && $link->status === 'pending');
-            if ($shouldNotify && $link) {
-                $invitationId = (int) $invitation->id;
-                $borrowerId = (int) $borrower->id;
-                $memberId = (int) $member->id;
-                $linkId = (int) $link->id;
-
-                DB::afterCommit(function () use ($invitationId, $borrowerId, $memberId, $linkId): void {
-                    $freshInvitation = GuarantorInvitation::query()->find($invitationId);
-                    $freshBorrower = Customer::query()->find($borrowerId);
-                    $freshMember = Customer::query()->find($memberId);
-                    $freshLink = CustomerGuarantor::query()->find($linkId);
-                    if (! $freshInvitation || ! $freshBorrower || ! $freshMember || ! $freshLink) {
-                        return;
-                    }
-
-                    try {
-                        $this->notifyInternalGuarantorRequest($freshBorrower, $freshMember, $freshLink, $freshInvitation, null);
-                        $this->notifyBorrowerInvitationSent(
-                            $freshBorrower,
-                            $freshInvitation,
-                            trim($freshMember->first_name.' '.$freshMember->last_name),
-                        );
-                    } catch (\Throwable $e) {
-                        report($e);
-                    }
-                });
-            }
+            // Nomination only. Invitation is dispatched after the borrower first gate passes.
+            $shouldNotify = false;
 
             $status = $this->borrowerInvitationStatus($invitation->fresh(['customerGuarantor']));
 
             return [
-                'invitation_id'         => (int) $invitation->id,
+                'invitation_id' => (int) $invitation->id,
                 'customer_guarantor_id' => (int) ($link?->id ?? $invitation->customer_guarantor_id),
-                'status'                => (string) $invitation->status,
-                'borrower_status_code'  => $status['code'],
+                'status' => (string) $invitation->status,
+                'borrower_status_code' => $status['code'],
                 'borrower_status_label' => $status['label'],
-                'profile_percent'       => $status['profile_percent'],
-                'accepted'              => $status['accepted'],
-                'ready'                 => $status['ready'],
-                'steps'                 => $status['steps'],
-                'notified'              => $shouldNotify,
-                'invitee_name'          => (string) ($invitation->invitee_name ?: $member->full_name),
+                'profile_percent' => $status['profile_percent'],
+                'accepted' => $status['accepted'],
+                'ready' => $status['ready'],
+                'steps' => $status['steps'],
+                'notified' => $shouldNotify,
+                'invitee_name' => (string) ($invitation->invitee_name ?: $member->full_name),
             ];
         });
     }
@@ -997,9 +949,9 @@ class GuarantorInvitationService
 
         $link->update(['loan_application_id' => $application->id]);
         $invitation->update([
-            'loan_application_id'     => $application->id,
-            'loan_product_id'         => $invitation->loan_product_id ?: $application->loan_product_id,
-            'requested_amount'        => $invitation->requested_amount ?: (int) $application->requested_amount,
+            'loan_application_id' => $application->id,
+            'loan_product_id' => $invitation->loan_product_id ?: $application->loan_product_id,
+            'requested_amount' => $invitation->requested_amount ?: (int) $application->requested_amount,
             'requested_tenure_months' => $invitation->requested_tenure_months ?: (int) $application->requested_tenure_months,
         ]);
 
@@ -1017,45 +969,45 @@ class GuarantorInvitationService
         ?int $applicationId,
     ): array {
         $guarantor = Guarantor::create([
-            'first_name'   => $member->first_name,
-            'last_name'    => $member->last_name,
-            'phone'        => $member->phone ?? '',
-            'email'        => $member->email,
-            'national_id'  => $member->national_id,
-            'address'      => $member->address,
+            'first_name' => $member->first_name,
+            'last_name' => $member->last_name,
+            'phone' => $member->phone ?? '',
+            'email' => $member->email,
+            'national_id' => $member->national_id,
+            'address' => $member->address,
             'relationship' => 'member',
         ]);
 
         $link = CustomerGuarantor::create([
-            'customer_id'         => $borrower->id,
-            'guarantor_id'        => $guarantor->id,
+            'customer_id' => $borrower->id,
+            'guarantor_id' => $guarantor->id,
             'loan_application_id' => $applicationId,
-            'status'              => 'pending',
+            'status' => 'pending',
         ]);
 
         $invitation = GuarantorInvitation::create([
-            'customer_id'             => $borrower->id,
-            'loan_application_id'     => $applicationId,
-            'loan_product_id'         => $loanProductId,
-            'customer_guarantor_id'   => $link->id,
-            'guarantor_customer_id'   => $member->id,
-            'type'                    => 'internal',
-            'channel'                 => 'in_app',
-            'contact'                 => $member->phone ?? '',
-            'membership_id'           => MemberNumberFormatter::lookupKey($membershipId),
-            'invitee_name'            => $member->full_name,
-            'requested_amount'        => $requestedAmount,
+            'customer_id' => $borrower->id,
+            'loan_application_id' => $applicationId,
+            'loan_product_id' => $loanProductId,
+            'customer_guarantor_id' => $link->id,
+            'guarantor_customer_id' => $member->id,
+            'type' => 'internal',
+            'channel' => 'in_app',
+            'contact' => $member->phone ?? '',
+            'membership_id' => MemberNumberFormatter::lookupKey($membershipId),
+            'invitee_name' => $member->full_name,
+            'requested_amount' => $requestedAmount,
             'requested_tenure_months' => $requestedTenureMonths,
-            'token'                   => Str::random(48),
-            'short_code'              => $this->generateShortCode(),
-            'status'                  => 'pending',
-            'expires_at'              => now()->addDays($this->invitationExpiryDays()),
+            'token' => Str::random(48),
+            'short_code' => $this->generateShortCode(),
+            'status' => 'pending',
+            'expires_at' => now()->addDays($this->invitationExpiryDays()),
         ]);
 
         return [$link, $invitation];
     }
 
-    private function notifyInternalGuarantorRequest(
+    public function notifyInternalGuarantorRequest(
         Customer $borrower,
         Customer $member,
         CustomerGuarantor $link,
@@ -1075,7 +1027,7 @@ class GuarantorInvitationService
         $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
 
         // Avoid duplicate unread guarantor_request rows for the same link.
-        $alreadyNotified = \App\Models\NotificationLog::query()
+        $alreadyNotified = NotificationLog::query()
             ->where('customer_id', $member->id)
             ->where('template', 'guarantor_request')
             ->whereNull('read_at')
@@ -1089,7 +1041,7 @@ class GuarantorInvitationService
         app(NotificationService::class)->notifyInApp(
             $member,
             __('borrower.guarantor_invite.guarantor_received', [
-                'borrower'  => $borrowerName,
+                'borrower' => $borrowerName,
                 'reference' => $reference,
             ]),
             'guarantor',
@@ -1099,9 +1051,9 @@ class GuarantorInvitationService
             __('borrower.guarantor_notifications.view_request'),
             [
                 'title_key' => 'borrower.guarantor_invite.notify_request_title',
-                'body_key'  => 'borrower.guarantor_invite.guarantor_received',
-                'params'    => [
-                    'borrower'  => $borrowerName,
+                'body_key' => 'borrower.guarantor_invite.guarantor_received',
+                'params' => [
+                    'borrower' => $borrowerName,
                     'reference' => $reference,
                 ],
                 'customer_guarantor_id' => $link->id,
@@ -1126,57 +1078,56 @@ class GuarantorInvitationService
         $displayName = trim(collect([$firstName, $middleName, $lastName])->filter()->implode(' '));
         $address = trim(collect([$region, $district])->filter()->implode(', '));
 
-        return DB::transaction(function () use ($borrower, $application, $firstName, $middleName, $lastName, $phone, $email, $relationship, $region, $district, $channel, $displayName, $address): array {
+        return DB::transaction(function () use ($borrower, $application, $firstName, $middleName, $lastName, $phone, $email, $relationship, $channel, $displayName, $address): array {
             $guarantor = Guarantor::create([
-                'first_name'   => trim($firstName.' '.($middleName ?: '')),
-                'last_name'    => $lastName,
-                'phone'        => $phone,
-                'email'        => $email,
+                'first_name' => trim($firstName.' '.($middleName ?: '')),
+                'last_name' => $lastName,
+                'phone' => $phone,
+                'email' => $email,
                 'relationship' => $relationship,
-                'address'      => $address,
+                'address' => $address,
             ]);
 
             $link = CustomerGuarantor::create([
-                'customer_id'         => $borrower->id,
-                'guarantor_id'        => $guarantor->id,
+                'customer_id' => $borrower->id,
+                'guarantor_id' => $guarantor->id,
                 'loan_application_id' => $application->id,
-                'status'              => 'pending',
+                'status' => 'pending',
             ]);
 
             $contact = $channel === 'email' ? ($email ?: $phone) : $phone;
 
             $invitation = GuarantorInvitation::create([
-                'customer_id'             => $borrower->id,
-                'loan_application_id'     => $application->id,
-                'loan_product_id'         => $application->loan_product_id,
-                'customer_guarantor_id'   => $link->id,
-                'type'                    => 'external',
-                'channel'                 => $channel,
-                'contact'                 => $contact,
-                'invitee_name'            => $displayName,
-                'requested_amount'        => (int) $application->requested_amount,
+                'customer_id' => $borrower->id,
+                'loan_application_id' => $application->id,
+                'loan_product_id' => $application->loan_product_id,
+                'customer_guarantor_id' => $link->id,
+                'type' => 'external',
+                'channel' => $channel,
+                'contact' => $contact,
+                'invitee_name' => $displayName,
+                'requested_amount' => (int) $application->requested_amount,
                 'requested_tenure_months' => (int) $application->requested_tenure_months,
-                'token'                   => Str::random(48),
-                'short_code'              => $this->generateShortCode(),
-                'status'                  => 'pending',
-                'expires_at'              => now()->addDays($this->invitationExpiryDays()),
+                'token' => Str::random(48),
+                'short_code' => $this->generateShortCode(),
+                'status' => 'pending',
+                'expires_at' => now()->addDays($this->invitationExpiryDays()),
             ]);
 
-            $this->notifyExternalInvitation($borrower, $invitation, $displayName);
-            $this->notifyBorrowerInvitationSent($borrower, $invitation, $displayName);
+            // Nomination only. Invitation is dispatched after the borrower first gate passes.
 
             return [$link, $invitation];
         });
     }
 
-    protected function notifyBorrowerInvitationSent(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
+    public function notifyBorrowerInvitationSent(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
     {
         $context = $this->invitationLoanContext($invitation);
         $message = __('borrower.guarantor_invite.borrower_sent', [
             'guarantor' => $inviteeName,
-            'product'   => $context['product_name'],
-            'amount'    => $context['amount_label'],
-            'duration'  => $context['duration_label'],
+            'product' => $context['product_name'],
+            'amount' => $context['amount_label'],
+            'duration' => $context['duration_label'],
         ]);
 
         $actionUrl = $invitation->loan_application_id
@@ -1193,12 +1144,12 @@ class GuarantorInvitationService
             __('borrower.notifications.view_application'),
             [
                 'title_key' => 'borrower.guarantor_invite.notify_sent_title',
-                'body_key'  => 'borrower.guarantor_invite.borrower_sent',
-                'params'    => [
+                'body_key' => 'borrower.guarantor_invite.borrower_sent',
+                'params' => [
                     'guarantor' => $inviteeName,
-                    'product'   => $context['product_name'],
-                    'amount'    => $context['amount_label'],
-                    'duration'  => $context['duration_label'],
+                    'product' => $context['product_name'],
+                    'amount' => $context['amount_label'],
+                    'duration' => $context['duration_label'],
                 ],
             ],
         );
@@ -1213,7 +1164,7 @@ class GuarantorInvitationService
         }
     }
 
-    protected function notifyExternalInvitation(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
+    public function notifyExternalInvitation(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
     {
         $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
         $message = $this->invitationMessage($invitation);
@@ -1244,7 +1195,7 @@ class GuarantorInvitationService
                 ->where('customer_guarantor_id', $link->id)
                 ->whereIn('status', ['pending', 'accepted'])
                 ->update([
-                    'status'       => 'accepted',
+                    'status' => 'accepted',
                     'responded_at' => now(),
                 ]);
 
@@ -1380,8 +1331,8 @@ class GuarantorInvitationService
     }
 
     /**
-     * Move awaiting_guarantor → screening only when the borrower and every approved guarantor
-     * are complete in the profile engine. Applications already past this status are not moved back.
+     * Move awaiting_guarantor → ready_for_screening when the borrower and every approved guarantor
+     * are complete. Staff then send the file to Credit Screening.
      */
     public function tryReleaseApplicationFromGuarantorHold(?LoanApplication $application): bool
     {
@@ -1389,23 +1340,7 @@ class GuarantorInvitationService
             return false;
         }
 
-        $fromStage = (string) ($application->current_stage ?: 'awaiting_guarantor');
-        $fromStatus = (string) $application->status;
-
-        $application->update([
-            'status'                => 'submitted',
-            'current_stage'         => 'screening',
-            'submitted_at'          => $application->submitted_at ?? now(),
-            'guarantor_deadline_at' => null,
-        ]);
-
-        $this->recordAutomaticScreeningEntry($application, $fromStage, $fromStatus);
-
-        $released = $application->fresh(['customer', 'product']);
-        app(CapacityAutoRejectService::class)->evaluateAndPark($released);
-        app(CrbCreditCheckService::class)->pullAndAttachAfterCapacityPass($released->fresh(['customer', 'product']));
-
-        return true;
+        return app(ApplicationIntakeTransitionService::class)->releaseToReadyForScreening($application->fresh());
     }
 
     /**
@@ -1521,8 +1456,8 @@ class GuarantorInvitationService
                 ->where('customer_guarantor_id', $link->id)
                 ->where('status', 'pending')
                 ->update([
-                    'status'         => 'rejected',
-                    'responded_at'   => now(),
+                    'status' => 'rejected',
+                    'responded_at' => now(),
                     'response_notes' => $notes,
                 ]);
 
@@ -1555,8 +1490,8 @@ class GuarantorInvitationService
                     __('borrower.notifications.view_application'),
                     [
                         'title_key' => 'borrower.guarantor_invite.notify_declined_title',
-                        'body_key'  => 'borrower.guarantor_invite.borrower_declined',
-                        'params'    => ['guarantor' => trim($guarantorName)],
+                        'body_key' => 'borrower.guarantor_invite.borrower_declined',
+                        'params' => ['guarantor' => trim($guarantorName)],
                     ],
                 );
             }
@@ -1579,8 +1514,8 @@ class GuarantorInvitationService
                 ->where('customer_guarantor_id', $link->id)
                 ->whereIn('status', ['pending', 'accepted'])
                 ->update([
-                    'status'         => 'rejected',
-                    'responded_at'   => now(),
+                    'status' => 'rejected',
+                    'responded_at' => now(),
                     'response_notes' => $notes ?: 'Declined by underwriting for this application',
                 ]);
         });
@@ -1748,13 +1683,13 @@ class GuarantorInvitationService
                 : false;
 
             $items[] = [
-                'id'            => $link->id,
-                'label'         => $label,
-                'mode'          => $mode,
+                'id' => $link->id,
+                'label' => $label,
+                'mode' => $mode,
                 'membership_id' => $invitation?->membership_id,
-                'phone'         => $guarantor->phone ?: ($member?->phone ?? ''),
-                'name'          => $label,
-                'kyc_fresh'     => $kycFresh,
+                'phone' => $guarantor->phone ?: ($member?->phone ?? ''),
+                'name' => $label,
+                'kyc_fresh' => $kycFresh,
             ];
         }
 
@@ -1793,11 +1728,11 @@ class GuarantorInvitationService
 
                 if ($verified['ok']) {
                     return [
-                        'ok'      => true,
+                        'ok' => true,
                         'message' => __('borrower.apply.previous_guarantor.ready'),
-                        'lookup'  => [
-                            'ok'    => true,
-                            'name'  => $verified['name'] ?? $verified['label'] ?? $link->guarantor->first_name,
+                        'lookup' => [
+                            'ok' => true,
+                            'name' => $verified['name'] ?? $verified['label'] ?? $link->guarantor->first_name,
                             'label' => $verified['label'] ?? null,
                             'member_no' => $invitation->membership_id,
                             'previous_guarantor_id' => $link->id,
@@ -1809,11 +1744,11 @@ class GuarantorInvitationService
         }
 
         return [
-            'ok'      => true,
+            'ok' => true,
             'message' => __('borrower.apply.previous_guarantor.request_sent'),
-            'lookup'  => [
-                'ok'    => true,
-                'name'  => trim(($link->guarantor->first_name ?? '').' '.($link->guarantor->last_name ?? '')),
+            'lookup' => [
+                'ok' => true,
+                'name' => trim(($link->guarantor->first_name ?? '').' '.($link->guarantor->last_name ?? '')),
                 'label' => trim(($link->guarantor->first_name ?? '').' '.($link->guarantor->last_name ?? '')),
                 'member_no' => $invitation?->membership_id,
                 'previous_guarantor_id' => $link->id,

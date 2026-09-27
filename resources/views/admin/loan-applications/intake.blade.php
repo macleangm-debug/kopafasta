@@ -1,6 +1,5 @@
-<x-admin.layout title="Loan Applications" heading="" subheading="">
-    <x-admin.letterhead kicker="Lending" title="Loan applications" :subtitle="__('admin.intake.subtitle')" />
-    <x-admin.index-toolbar route="admin.loan-applications" label="New application" />
+<x-admin.layout title="Intake" heading="" subheading="">
+    <x-admin.letterhead kicker="Lending" :title="__('admin.intake.title')" :subtitle="__('admin.intake.subtitle')" />
     @include('admin.loan-applications._pipeline-tabs', ['active' => 'intake'])
 
     @php
@@ -17,7 +16,7 @@
 
     <nav class="flex flex-wrap gap-2 mb-4" aria-label="Intake sections">
         @foreach ($sections as $key => [$label, $count])
-            <a href="{{ route('admin.loan-applications.index', ['section' => $key]) }}"
+            <a href="{{ route('admin.loan-applications.intake', ['section' => $key]) }}"
                class="px-3 py-1.5 rounded-lg text-sm font-medium {{ $section === $key ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                 {{ $label }}
                 <span class="ml-1 tabular-nums text-xs {{ $section === $key ? 'text-brand/80' : 'text-gray-400' }}">{{ $count }}</span>

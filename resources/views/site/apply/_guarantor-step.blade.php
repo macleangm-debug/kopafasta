@@ -1,7 +1,7 @@
 <div x-show="stepKey === 'guarantor' && ! $data.feeGateOpen" class="p-6 sm:p-8">
     <x-site.wizard-step-header
         :title="__('borrower.apply.guarantor')"
-        :subtitle="null"
+        :subtitle="__('borrower.intake.nominate_before_invite')"
     />
 
     <div x-show="requiresGuarantor() && !isGuarantorLocked() && !addGuarantorOpen" x-cloak class="mb-5">

@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use Illuminate\Support\Collection;
@@ -22,9 +21,9 @@ class ApplicationBorrowerStatusService
         $tone = $this->toneForCode($code);
 
         return [
-            'code'  => $code,
+            'code' => $code,
             'label' => $this->labelForCode($code, $application),
-            'tone'  => $tone,
+            'tone' => $tone,
         ];
     }
 
@@ -32,9 +31,9 @@ class ApplicationBorrowerStatusService
     public function forDraft(LoanApplicationDraft $draft): array
     {
         return [
-            'code'  => 'draft',
+            'code' => 'draft',
             'label' => __('borrower.applications_list.statuses.draft'),
-            'tone'  => 'gray',
+            'tone' => 'gray',
         ];
     }
 
@@ -240,44 +239,44 @@ class ApplicationBorrowerStatusService
             ['key' => 'submitted', 'label' => __('borrower.loan_progress.submitted'), 'complete' => true, 'current' => false],
             ['key' => 'approved', 'label' => __('borrower.loan_progress.approval'), 'complete' => true, 'current' => false],
             [
-                'key'      => 'accept_offer',
-                'label'    => __('borrower.loan_progress.accept_offer'),
+                'key' => 'accept_offer',
+                'label' => __('borrower.loan_progress.accept_offer'),
                 'complete' => $offerSigned,
-                'current'  => false,
+                'current' => false,
             ],
             [
-                'key'      => 'post_approval_fee',
-                'label'    => __('borrower.loan_progress.post_approval_fee'),
+                'key' => 'post_approval_fee',
+                'label' => __('borrower.loan_progress.post_approval_fee'),
                 'complete' => $feesComplete,
-                'current'  => false,
+                'current' => false,
             ],
             [
-                'key'      => 'destination',
-                'label'    => __('borrower.loan_progress.destination'),
+                'key' => 'destination',
+                'label' => __('borrower.loan_progress.destination'),
                 'complete' => $destinationComplete,
-                'current'  => false,
+                'current' => false,
             ],
             [
-                'key'      => 'contract',
-                'label'    => __('borrower.loan_progress.contract'),
+                'key' => 'contract',
+                'label' => __('borrower.loan_progress.contract'),
                 'complete' => $contractSigned,
-                'current'  => false,
+                'current' => false,
             ],
             [
-                'key'      => 'disbursement',
-                'label'    => $disbursed && $application->disbursed_at
+                'key' => 'disbursement',
+                'label' => $disbursed && $application->disbursed_at
                     ? __('borrower.loan_progress.disbursement').' · '.$application->disbursed_at->format('d M Y')
                     : __('borrower.loan_progress.disbursement'),
                 'complete' => $disbursed,
-                'current'  => false,
+                'current' => false,
             ],
             [
-                'key'      => 'active_loan',
-                'label'    => $activeLoan && $application->loan
+                'key' => 'active_loan',
+                'label' => $activeLoan && $application->loan
                     ? __('borrower.loan_progress.active_loan').' · '.$application->loan->loan_number
                     : __('borrower.loan_progress.active_loan'),
                 'complete' => $activeLoan,
-                'current'  => false,
+                'current' => false,
             ],
         ];
 
@@ -315,9 +314,9 @@ class ApplicationBorrowerStatusService
         $percent = (int) round((($completedCount + ($currentIndex !== false ? 0.5 : 0)) / max(1, count($steps))) * 100);
 
         return [
-            'percent'           => min(100, $percent),
-            'steps'             => $steps,
-            'is_loan_progress'  => true,
+            'percent' => min(100, $percent),
+            'steps' => $steps,
+            'is_loan_progress' => true,
         ];
     }
 
@@ -336,10 +335,10 @@ class ApplicationBorrowerStatusService
     public function groupedDocumentRequests(Collection $requests): array
     {
         return [
-            'pending'   => $requests->where('status', 'pending')->values(),
-            'uploaded'  => $requests->where('status', 'uploaded')->values(),
+            'pending' => $requests->where('status', 'pending')->values(),
+            'uploaded' => $requests->where('status', 'uploaded')->values(),
             'completed' => $requests->where('status', 'satisfied')->values(),
-            'rejected'  => $requests->where('status', 'rejected')->values(),
+            'rejected' => $requests->where('status', 'rejected')->values(),
         ];
     }
 
@@ -358,20 +357,24 @@ class ApplicationBorrowerStatusService
             return 'required_information_not_provided';
         }
 
-        if ($status === 'awaiting_guarantor' || $stage === 'awaiting_guarantor') {
-            return 'awaiting_guarantor';
-        }
-
-        if ($application->offer_status === 'declined' || $this->offerCancelledByBorrower($application)) {
-            return 'offer_declined';
-        }
-
         if ($status === 'withdrawn' && $application->offer_status === 'declined') {
             return 'offer_declined';
         }
 
         if ($status === 'withdrawn') {
             return 'withdrawn';
+        }
+
+        if (in_array($status, LoanApplication::CLOSED_STATUSES, true)) {
+            return $status === 'rejected' ? 'rejected' : $status;
+        }
+
+        if ($status === 'awaiting_guarantor' || $stage === 'awaiting_guarantor') {
+            return 'awaiting_guarantor';
+        }
+
+        if ($application->offer_status === 'declined' || $this->offerCancelledByBorrower($application)) {
+            return 'offer_declined';
         }
 
         if ((string) $application->current_stage === 'awaiting_management') {
@@ -411,14 +414,14 @@ class ApplicationBorrowerStatusService
 
         if ($application->offer_status === 'accepted'
             || in_array($status, ['approved', 'pre_approved'], true)
-            || in_array($stage, app(\App\Services\ApplicationDisbursementReadinessService::class)->borrowerPostApprovalStages(), true)
+            || in_array($stage, app(ApplicationDisbursementReadinessService::class)->borrowerPostApprovalStages(), true)
             || in_array($stage, ['pre_approval'], true)) {
             // Committee / pre-approval is still "under review" to the borrower until final approve.
             if (in_array($status, ['pre_approved'], true) || $stage === 'pre_approval') {
                 return 'under_review';
             }
 
-            $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+            $readiness = app(ApplicationDisbursementReadinessService::class);
 
             if ($readiness->needsBorrowerSignature($application)) {
                 return 'awaiting_signature';
@@ -459,30 +462,30 @@ class ApplicationBorrowerStatusService
     private function labelForCode(string $code, LoanApplication $application): string
     {
         return match ($code) {
-            'draft'                 => __('borrower.applications_list.statuses.draft'),
-            'submitted'             => __('borrower.applications_list.statuses.under_review'),
-            'awaiting_guarantor'    => __('borrower.applications_list.statuses.awaiting_guarantor'),
-            'under_review'          => __('borrower.applications_list.statuses.under_review'),
-            'screening'             => __('borrower.applications_list.statuses.under_review'),
-            'documents_requested'   => __('borrower.applications_list.statuses.documents_requested'),
+            'draft' => __('borrower.applications_list.statuses.draft'),
+            'submitted' => __('borrower.applications_list.statuses.under_review'),
+            'awaiting_guarantor' => __('borrower.applications_list.statuses.awaiting_guarantor'),
+            'under_review' => __('borrower.applications_list.statuses.under_review'),
+            'screening' => __('borrower.applications_list.statuses.under_review'),
+            'documents_requested' => __('borrower.applications_list.statuses.documents_requested'),
             'documents_resubmitted' => __('borrower.applications_list.statuses.documents_resubmitted'),
-            'awaiting_valuation_fee'=> __('borrower.applications_list.statuses.awaiting_valuation_fee'),
-            'credit_review'         => __('borrower.applications_list.statuses.under_review'),
-            'awaiting_offer'        => __('borrower.applications_list.statuses.awaiting_offer'),
-            'offer_accepted'        => __('borrower.applications_list.statuses.offer_accepted'),
-            'offer_declined'        => __('borrower.applications_list.statuses.offer_declined'),
-            'withdrawn'             => __('borrower.applications_list.statuses.withdrawn'),
-            'awaiting_signature'    => __('borrower.applications_list.statuses.awaiting_signature'),
-            'post_approval_fees'    => __('borrower.applications_list.statuses.post_approval_fees'),
+            'awaiting_valuation_fee' => __('borrower.applications_list.statuses.awaiting_valuation_fee'),
+            'credit_review' => __('borrower.applications_list.statuses.under_review'),
+            'awaiting_offer' => __('borrower.applications_list.statuses.awaiting_offer'),
+            'offer_accepted' => __('borrower.applications_list.statuses.offer_accepted'),
+            'offer_declined' => __('borrower.applications_list.statuses.offer_declined'),
+            'withdrawn' => __('borrower.applications_list.statuses.withdrawn'),
+            'awaiting_signature' => __('borrower.applications_list.statuses.awaiting_signature'),
+            'post_approval_fees' => __('borrower.applications_list.statuses.post_approval_fees'),
             'awaiting_disbursement_details' => __('borrower.applications_list.statuses.awaiting_disbursement_details'),
-            'awaiting_contract'     => __('borrower.applications_list.statuses.awaiting_contract'),
-            'ready_for_disbursement'=> __('borrower.applications_list.statuses.ready_for_disbursement'),
-            'approved'              => __('borrower.applications_list.statuses.approved'),
-            'rejected'              => __('borrower.applications_list.statuses.not_approved'),
+            'awaiting_contract' => __('borrower.applications_list.statuses.awaiting_contract'),
+            'ready_for_disbursement' => __('borrower.applications_list.statuses.ready_for_disbursement'),
+            'approved' => __('borrower.applications_list.statuses.approved'),
+            'rejected' => __('borrower.applications_list.statuses.not_approved'),
             'required_information_not_provided' => __('borrower.applications_list.statuses.required_information_not_provided'),
-            'disbursed'             => __('borrower.applications_list.statuses.disbursed'),
-            'closed'                => __('borrower.applications_list.statuses.closed'),
-            default                 => ucfirst(str_replace('_', ' ', $code)),
+            'disbursed' => __('borrower.applications_list.statuses.disbursed'),
+            'closed' => __('borrower.applications_list.statuses.closed'),
+            default => ucfirst(str_replace('_', ' ', $code)),
         };
     }
 

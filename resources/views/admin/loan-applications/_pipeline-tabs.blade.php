@@ -1,6 +1,7 @@
 @props(['active' => 'under_review'])
 @php
     $tabs = [
+        'intake'         => [__('admin.intake.title'), 'admin.loan-applications.intake'],
         'under_review'   => ['Credit screening', 'admin.loan-applications.pipeline.under-review'],
         'system_sorted'  => ['System sorted', 'admin.loan-applications.pipeline.system-sorted'],
         'committee'      => ['Credit committee', 'admin.loan-applications.pre-approvals'],
@@ -17,7 +18,7 @@
     if ($user && ! $desk->isExempt($user->role) && ($onScreening || $onCommittee || $onManagement)) {
         $keep = [];
         if ($onScreening) {
-            $keep = array_merge($keep, ['under_review', 'system_sorted', 'rejected']);
+            $keep = array_merge($keep, ['intake', 'under_review', 'system_sorted', 'rejected']);
         }
         if ($onCommittee) {
             $keep = array_merge($keep, ['system_sorted', 'committee', 'rejected']);

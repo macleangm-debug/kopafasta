@@ -3,6 +3,10 @@
 namespace App\Livewire\Admin;
 
 use App\Models\LoanApplication;
+use App\Services\ApplicationDisbursementReadinessService;
+use App\Services\ApplicationIntakeReadinessService;
+use App\Services\CapacityAutoRejectService;
+use App\Services\CreditDeskAssignmentService;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -11,24 +15,43 @@ class LoanApplicationsTable extends Component
 {
     use WithPagination;
 
-    #[Url(as: 'q')] public string $search = '';
-    #[Url] public string $status = '';
-    #[Url] public string $stage = '';
-    #[Url] public string $sort = 'created_at';
-    #[Url] public string $direction = 'desc';
-    #[Url] public bool $mine = false;
-    #[Url] public bool $hideSystemSorted = true;
+    #[Url(as: 'q')]
+    public string $search = '';
+
+    #[Url]
+    public string $status = '';
+
+    #[Url]
+    public string $stage = '';
+
+    #[Url]
+    public string $sort = 'created_at';
+
+    #[Url]
+    public string $direction = 'desc';
+
+    #[Url]
+    public bool $mine = false;
+
+    #[Url]
+    public bool $hideSystemSorted = true;
+
     public int $perPage = 15;
+
     public bool $lockStage = false;
+
     public ?string $pipeline = null;
 
-    public function mount(?string $stage = null, bool $lockStage = false, ?string $pipeline = null, ?bool $hideSystemSorted = null): void
+    public ?string $intakeSection = null;
+
+    public function mount(?string $stage = null, bool $lockStage = false, ?string $pipeline = null, ?bool $hideSystemSorted = null, ?string $intakeSection = null): void
     {
         if ($stage !== null && $stage !== '') {
             $this->stage = $stage;
         }
         $this->lockStage = $lockStage;
         $this->pipeline = $pipeline;
+        $this->intakeSection = $intakeSection;
         if ($hideSystemSorted !== null) {
             $this->hideSystemSorted = $hideSystemSorted;
         } elseif ($pipeline === 'system_sorted') {
@@ -38,11 +61,30 @@ class LoanApplicationsTable extends Component
         }
     }
 
-    public function updatingSearch(): void { $this->resetPage(); }
-    public function updatingStatus(): void { $this->resetPage(); }
-    public function updatingStage(): void { $this->resetPage(); }
-    public function updatingMine(): void { $this->resetPage(); }
-    public function updatingHideSystemSorted(): void { $this->resetPage(); }
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingStatus(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingStage(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingMine(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingHideSystemSorted(): void
+    {
+        $this->resetPage();
+    }
 
     public function sortBy(string $col): void
     {
@@ -54,7 +96,7 @@ class LoanApplicationsTable extends Component
 
     public function render()
     {
-        $readiness = app(\App\Services\ApplicationDisbursementReadinessService::class);
+        $readiness = app(ApplicationDisbursementReadinessService::class);
 
         $rows = LoanApplication::query()
             ->with(['customer', 'product', 'loan', 'assignedAnalyst', 'recommendedByUser', 'loanGroup.members'])
@@ -74,20 +116,33 @@ class LoanApplicationsTable extends Component
             ->when($this->mine, fn ($q) => $q->where('assigned_analyst_id', auth()->id()))
             ->when($this->status !== '', fn ($q) => $q->where('status', $this->status))
             ->when($this->stage !== '', fn ($q) => $q->where('current_stage', $this->stage))
+            ->when($this->pipeline === 'intake', function ($q) {
+                $closed = ApplicationIntakeReadinessService::CLOSED_STATUSES;
+                match ($this->intakeSection) {
+                    'awaiting_guarantor' => $q->whereNotIn('status', $closed)
+                        ->where(fn ($q) => $q->where('status', 'awaiting_guarantor')->orWhere('current_stage', 'awaiting_guarantor')),
+                    'ready_for_screening' => $q->whereNotIn('status', $closed)
+                        ->where('current_stage', 'ready_for_screening'),
+                    'drafts' => $q->where('status', 'draft'),
+                    'closed' => $q->whereIn('status', ['withdrawn', 'rejected']),
+                    default => $q->whereNotIn('status', $closed)
+                        ->whereIn('current_stage', ['submitted_initial_check', 'initial_decision_hold']),
+                };
+            })
             ->when($this->pipeline === 'under_review', function ($q) {
-                $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
+                $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal', 'ready_for_screening'])
                     ->whereNotIn('status', ['approved', 'disbursed', 'rejected', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
                     ->whereNotIn('current_stage', ['awaiting_guarantor', 'expired', 'rejected']);
             })
             ->when($this->pipeline === 'system_sorted', function ($q) {
                 $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
                     ->whereNotIn('status', ['approved', 'disbursed', 'rejected', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
-                    ->where('screening_payload->capacity_auto_reject->status', \App\Services\CapacityAutoRejectService::STATUS_PENDING);
+                    ->where('screening_payload->capacity_auto_reject->status', CapacityAutoRejectService::STATUS_PENDING);
             })
             ->when($this->pipeline === 'under_review' && $this->hideSystemSorted, function ($q) {
                 $q->where(function ($q) {
                     $q->whereNull('screening_payload->capacity_auto_reject->status')
-                        ->orWhere('screening_payload->capacity_auto_reject->status', '!=', \App\Services\CapacityAutoRejectService::STATUS_PENDING);
+                        ->orWhere('screening_payload->capacity_auto_reject->status', '!=', CapacityAutoRejectService::STATUS_PENDING);
                 });
             })
             ->when($this->pipeline === 'committee', function ($q) {
@@ -126,11 +181,11 @@ class LoanApplicationsTable extends Component
                 });
             })
             ->when(
-                app(\App\Services\CreditDeskAssignmentService::class)->isManagementOnly(auth()->user())
+                app(CreditDeskAssignmentService::class)->isManagementOnly(auth()->user())
                     && $this->pipeline !== 'rejected'
                     && $this->stage !== 'rejected',
                 function ($q) {
-                    $desk = app(\App\Services\CreditDeskAssignmentService::class);
+                    $desk = app(CreditDeskAssignmentService::class);
                     $q->whereIn('current_stage', $desk->managementVisibleStages())
                         ->whereNotIn('status', ['rejected', 'draft', 'awaiting_guarantor', 'withdrawn', 'cancelled', 'expired']);
                 }
