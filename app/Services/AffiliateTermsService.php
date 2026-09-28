@@ -296,7 +296,6 @@ class AffiliateTermsService
             'title' => $this->agreementTitle($affiliate, $locale),
             'affiliate_name' => $affiliate->name,
             'affiliate_id' => $affiliate->partner_number ?: '#'.$affiliate->id,
-            'affiliate_code' => $affiliate->affiliate_code,
             'affiliate_type' => $affiliate->isPremiumAffiliate()
                 ? __('site.affiliate_portal.premium_partner')
                 : __('site.affiliate_portal.hero_type_affiliate'),

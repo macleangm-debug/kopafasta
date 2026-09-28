@@ -22,7 +22,6 @@
             @foreach ([
                 __('site.affiliate_portal.doc_affiliate') => $header['affiliate_name'] ?? null,
                 __('site.affiliate_portal.doc_id') => $header['affiliate_id'] ?? null,
-                __('site.affiliate_portal.doc_code') => $header['affiliate_code'] ?? null,
                 __('site.affiliate_portal.doc_version') => isset($header['agreement_version']) ? 'v'.$header['agreement_version'] : null,
                 __('site.affiliate_portal.doc_effective') => $header['effective_date'] ?? null,
                 __('site.affiliate_portal.doc_contract_term') => $header['contract_term'] ?? null,

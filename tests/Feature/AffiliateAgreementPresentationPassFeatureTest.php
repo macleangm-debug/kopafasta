@@ -54,5 +54,7 @@ class AffiliateAgreementPresentationPassFeatureTest extends TestCase
             ->getContent();
 
         $this->assertStringNotContainsString('**', strip_tags($html));
+        $this->assertStringNotContainsString(__('site.affiliate_portal.doc_code'), $html);
+        $this->assertStringNotContainsString('DOC001', $html);
     }
 }
