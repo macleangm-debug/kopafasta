@@ -2076,6 +2076,8 @@ return [
         'agreement_terms_section' => 'Mkataba na Masharti',
         'agreement_status_accepted' => 'Imekubaliwa',
         'agreement_status_pending' => 'Haijakubaliwa',
+        'agreement_status_update_required' => 'Inahitaji kusasishwa',
+        'agreement_update_body' => 'Mkataba mpya wa Msambazaji (unaochukua nafasi ya v:version) uko tayari kwa ukaguzi. Mkataba wako wa awali uliotiwa saini unabaki kwenye kumbukumbu.',
         'accepted_date_label' => 'Tarehe ya kukubali',
         'agreement_version_label' => 'Toleo',
         'agreement_duration_label' => 'Muda',

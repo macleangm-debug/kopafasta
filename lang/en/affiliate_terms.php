@@ -12,6 +12,7 @@ return [
     'required' => 'Accept the Affiliate Agreement to continue.',
     'required_before_membership' => 'Accept the Affiliate Agreement before paying membership.',
     'already_accepted' => 'You have already accepted the Affiliate Agreement that applied at the time.',
+    'updated' => 'You have accepted the updated Affiliate Agreement.',
     'annual_membership_term' => ':days-day annual membership',
     'general_provisions' => 'General provisions',
     'contract_years' => '{1} :count year|[2,*] :count years',

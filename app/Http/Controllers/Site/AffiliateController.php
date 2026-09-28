@@ -212,6 +212,13 @@ class AffiliateController extends Controller
                 ->with('status', __('site.affiliate_portal.agreement_active'));
         }
 
+        $membership = app(AffiliateMembershipService::class);
+        if ($membership->isActive($vendor) || ! AffiliateMembershipService::config()['enabled']) {
+            return redirect()
+                ->route('site.affiliate.profile', ['section' => 'agreement'])
+                ->with('status', __('affiliate_terms.updated'));
+        }
+
         return redirect()
             ->route('site.affiliate.membership.pay')
             ->with('status', __('affiliate_terms.already_accepted'));

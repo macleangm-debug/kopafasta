@@ -239,12 +239,16 @@ class AffiliatePortalPresenter
     public function agreementDocument(Vendor $vendor): array
     {
         $commercial = $this->membership->summary($vendor);
-        $acceptance = $this->terms->latestAcceptance($vendor);
+        $latest = $this->terms->latestAcceptance($vendor);
+        $current = $this->terms->hasAccepted($vendor);
+        $acceptance = $current ? $latest : null;
 
         return [
             'vendor' => $vendor,
             'commercial' => $commercial,
             'acceptance' => $acceptance,
+            'previous_acceptance' => (! $current && $latest) ? $latest : null,
+            'needs_acceptance' => ! $current,
             'rendered' => $acceptance?->rendered_text ?: $this->terms->render($vendor),
             'header' => $this->terms->documentHeader($vendor, $commercial, $acceptance),
             'sections' => $this->terms->documentSections($vendor, $acceptance),

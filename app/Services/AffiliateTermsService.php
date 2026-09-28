@@ -135,12 +135,39 @@ class AffiliateTermsService
 
     public function agreementVersion(): int
     {
+        $this->ensurePublishedContractContent();
+
         // Content revision 2: Owner EN/SW Affiliate + Premium partnership copy (no promo code).
         return max(2, (int) Setting::get('affiliates.terms.version', 2));
     }
 
+    /**
+     * Publish Owner contract pack v2 into Settings SoT and clear stale Hub body overrides
+     * so existing Affiliates see the new EN/SW templates (re-acceptance required).
+     */
+    public function ensurePublishedContractContent(): void
+    {
+        if ((int) Setting::get('affiliates.terms.content_revision', 0) >= 2) {
+            return;
+        }
+
+        foreach ([
+            'affiliates.terms.body_en',
+            'affiliates.terms.body_sw',
+            'affiliates.terms.premium.body_en',
+            'affiliates.terms.premium.body_sw',
+        ] as $key) {
+            Setting::set($key, '');
+        }
+
+        $current = max(2, (int) Setting::get('affiliates.terms.version', 1));
+        Setting::set('affiliates.terms.version', $current);
+        Setting::set('affiliates.terms.content_revision', 2);
+    }
+
     public function template(?string $locale = null, ?Vendor $affiliate = null): string
     {
+        $this->ensurePublishedContractContent();
         $locale = $locale ?: app()->getLocale();
         $premium = $affiliate?->isPremiumAffiliate() ?? false;
         $key = $premium
@@ -187,10 +214,18 @@ class AffiliateTermsService
 
     public function hasAccepted(Vendor|Partner $affiliate): bool
     {
-        return PartnerAgreementAcceptance::query()
-            ->where('partner_id', $affiliate->id)
-            ->where('agreement_key', self::AGREEMENT_KEY)
-            ->exists();
+        $latest = $this->latestAcceptance($affiliate);
+        if (! $latest) {
+            return false;
+        }
+
+        // Existing Affiliates on an older signed pack must accept the current contract version.
+        return (int) $latest->agreement_version >= $this->agreementVersion();
+    }
+
+    public function needsAcceptance(Vendor|Partner $affiliate): bool
+    {
+        return ! $this->hasAccepted($affiliate);
     }
 
     public function latestAcceptance(Vendor|Partner $affiliate): ?PartnerAgreementAcceptance

@@ -50,9 +50,13 @@ class AffiliateEligibilityService
         $membershipOk = $premiumAgreement
             ? $membershipActive
             : ($membershipActive || $promoAfterExpiry);
+        $termsService = app(AffiliateTermsService::class);
         $termsOk = ! ($membershipCfg['require_terms_before_activation'] ?? true)
-            || app(AffiliateTermsService::class)->hasAccepted($affiliate)
-            || $this->legacyMembershipAlreadyActive($affiliate, $membershipCfg);
+            || $termsService->hasAccepted($affiliate)
+            || (
+                $termsService->latestAcceptance($affiliate) === null
+                && $this->legacyMembershipAlreadyActive($affiliate, $membershipCfg)
+            );
 
         $performance = (string) ($affiliate->affiliate_performance_status ?: AffiliatePerformanceStatus::RAMP_UP);
         $performanceOk = $affiliate->isPremiumAffiliate()

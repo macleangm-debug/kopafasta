@@ -2094,6 +2094,8 @@ return [
         'agreement_terms_section' => 'Agreement & Terms',
         'agreement_status_accepted' => 'Accepted',
         'agreement_status_pending' => 'Not accepted',
+        'agreement_status_update_required' => 'Update required',
+        'agreement_update_body' => 'A new Affiliate Agreement (replacing v:version) is ready for review. Your previous signed agreement remains on file.',
         'accepted_date_label' => 'Accepted date',
         'agreement_version_label' => 'Version',
         'agreement_duration_label' => 'Duration',

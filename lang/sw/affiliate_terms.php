@@ -12,6 +12,7 @@ return [
     'required' => 'Kubali Mkataba wa Msambazaji ili kuendelea.',
     'required_before_membership' => 'Kubali Mkataba wa Msambazaji kabla ya kulipa uanachama.',
     'already_accepted' => 'Tayari umekubali Mkataba wa Msambazaji uliotumika wakati huo.',
+    'updated' => 'Umekubali Mkataba wa Msambazaji uliosasishwa.',
     'annual_membership_term' => 'Uanachama wa mwaka wa siku :days',
     'membership_not_required_premium' => 'Wasambazaji wa Premium hawalipi ada ya uanachama wa mwaka isipokuwa Mipangilio inahitaji wazi.',
     'membership_not_required_territory' => 'Uanachama wa mwaka wa Msambazaji hautumiki chini ya Mipangilio ya eneo la sasa.',
