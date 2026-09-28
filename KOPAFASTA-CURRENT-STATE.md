@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production baseline** | `0b292c681f5c110d33bcc8fe324c9c618ea5b0ac` | Release 2 production-closed and **FROZEN**. Do not mix Premium Affiliate work into this SHA. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | `b0ad579ad74e2b78d3810cf96175c73007dff00c` | P0 application-fee resume gate + Owner UAT cleanup (receipt PSP hide, camera instruction, Premium badge). Staging only. Do not promote until Owner retests fee hotfix. |
+| **Current staging / development baseline** | `03beb59bbc6625f2d866bb2d3e0b405ca04dc5c1` | Continue/Pay → same `payment.show` obligation + MU8Q restore copy readiness. Staging deployed. Promote only after Owner fee UAT; do not restore MU8Q without separate approval. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
