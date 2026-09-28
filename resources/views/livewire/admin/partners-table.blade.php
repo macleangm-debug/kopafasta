@@ -13,6 +13,16 @@
             </span>
         @endif
         <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search name, phone, partner #, TIN, email…" class="rounded-lg border-gray-300 text-sm min-w-[16rem]">
+        @if (($lockedRole ?? $role ?? '') === 'affiliate' || ($lockCategory ?? false) && ($lockedRole ?? '') === 'affiliate')
+            <div class="flex flex-wrap gap-1">
+                @foreach (['' => __('admin.partners.filter_all'), 'standard' => __('admin.partners.filter_standard'), 'premium' => __('admin.partners.filter_premium')] as $value => $label)
+                    <button type="button" wire:click="$set('affiliateClass', @js($value))"
+                            class="px-3 py-1.5 rounded-lg text-sm font-medium {{ ($affiliateClass ?? '') === $value ? 'bg-brand-gold text-brand' : 'bg-white text-gray-600 ring-1 ring-gray-200' }}">
+                        {{ $label }}
+                    </button>
+                @endforeach
+            </div>
+        @endif
         @if (! ($lockStatus ?? false))
             <select wire:model.live="status" class="rounded-lg border-gray-300 text-sm">
                 <option value="">All statuses</option>

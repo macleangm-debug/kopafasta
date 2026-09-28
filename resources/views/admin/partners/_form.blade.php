@@ -55,6 +55,10 @@
         get isGps() { return this.category === 'gps_installer'; },
         get isSupplier() { return this.category === 'supplier'; },
         get isAffiliate() { return this.category === 'affiliate'; },
+        premiumAffiliate: @js((bool) old('affiliate_premium', $r?->affiliate_premium)),
+        rateSource: @js((string) old('commercial_rate_source', data_get($r?->metadata, 'commercial.rate_source', 'standard'))),
+        get showPremiumTerms() { return this.isAffiliate && this.premiumAffiliate; },
+        get showNegotiatedRates() { return this.showPremiumTerms && this.rateSource === 'negotiated'; },
         get isDebtCollector() { return this.category === 'debt_collector' || this.category === 'auctioneer'; },
         get allowsPerson() { return this.personTypes.includes(this.category); },
         roles: @js(old('roles', $r ? ($r->roles ?: array_values(array_filter([$r->category]))) : (filled($category) ? [$category] : []))),
@@ -416,22 +420,27 @@
 
     <div data-step-gate x-show="isAffiliate" x-cloak>
         <x-admin.step title="Affiliate program">
+            @php
+                $commercialLocked = $r && (filled($r->activated_at) || (string) $r->status === 'active');
+            @endphp
             <div class="md:col-span-2 rounded-xl bg-brand-muted/60 ring-1 ring-brand/15 px-4 py-3 text-sm text-brand mb-2">
-                @if ($canNegotiateRates)
-                    Defaults from Settings → Affiliates. Overrides below are optional.
+                @if ($commercialLocked)
+                    Classification and commercial terms are changed from Affiliate 360 after activation.
                 @else
-                    Platform affiliate defaults apply. Admin approves any negotiated discount or commission.
+                    Settings → Affiliates rates apply to Standard and Premium by default. Only Premium can negotiate an individual override.
                 @endif
             </div>
             <div class="md:col-span-2">
                 <input type="hidden" name="affiliate_premium" value="0">
-                <label class="flex items-start gap-3 rounded-xl border-2 border-brand/30 bg-white px-4 py-3 cursor-pointer">
+                <label class="flex items-start gap-3 rounded-xl border-2 border-brand/30 bg-white px-4 py-3 {{ $commercialLocked ? '' : 'cursor-pointer' }}">
                     <input type="checkbox" name="affiliate_premium" value="1"
                            class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand"
+                           x-model="premiumAffiliate"
+                           @if ($commercialLocked) disabled @endif
                            @checked((bool) old('affiliate_premium', $r?->affiliate_premium))>
                     <span>
-                        <span class="block text-sm font-semibold text-gray-900">Premium affiliate</span>
-                        <span class="block text-xs text-gray-500 mt-0.5">For affiliates with a large following. Volume KPIs, warnings, and automatic performance suspension do not apply. Fraud, compliance, and admin holds still do.</span>
+                        <span class="block text-sm font-semibold text-gray-900">Premium Affiliate</span>
+                        <span class="block text-xs text-gray-500 mt-0.5">Reach / brand partner. Paying Members targets, KPI progress, missed-target warnings, and target consequences do not apply. Referrals, commissions, wallet, and withdrawals stay.</span>
                     </span>
                 </label>
             </div>
@@ -456,19 +465,59 @@
                 @endif
                 <p><span class="font-semibold">Kopafasta Plus customer discount:</span> {{ rtrim(rtrim(number_format($plusDefault, 2), '0'), '.') }}%</p>
             </div>
-            @if ($canNegotiateRates)
-                <x-admin.input name="registration_discount_percent" label="Registration discount (%)" type="number" step="0.01" :value="$r?->registration_discount_percent ?? config('affiliates.default_registration_discount_percent')" />
-                <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="$r?->application_discount_percent ?? config('affiliates.default_application_discount_percent')" />
-                <x-admin.input name="affiliate_commission_percent" label="Commission (%)" type="number" step="0.01" :value="$r?->affiliate_commission_percent ?? config('affiliates.default_commission_percent')" />
-                <x-admin.input name="plus_discount_percent" label="Kopafasta Plus discount override (%)" type="number" step="0.1" min="0" max="100" :value="$plusOverride ?? $plusDefault" help="Default is the configured Plus membership discount (10% unless Settings change it)." />
-            @else
-                <p class="md:col-span-2 text-xs text-gray-600">
-                    Registration discount {{ config('affiliates.default_registration_discount_percent') }}%
-                    · Application discount {{ config('affiliates.default_application_discount_percent') }}%
-                    · Commission {{ config('affiliates.default_commission_percent') }}%
-                    · Plus {{ rtrim(rtrim(number_format($plusDefault, 2), '0'), '.') }}%
-                </p>
-            @endif
+            @php
+                $settingsRates = [
+                    'registration' => (float) ($affForm['default_registration_discount_percent'] ?? config('affiliates.default_registration_discount_percent', 10)),
+                    'application' => (float) ($affForm['default_application_discount_percent'] ?? config('affiliates.default_application_discount_percent', 10)),
+                    'commission' => (float) ($affForm['default_commission_percent'] ?? config('affiliates.default_commission_percent', 10)),
+                    'plus' => $plusDefault,
+                ];
+                $fmtPct = fn (float $v) => rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.').'%';
+            @endphp
+            <div class="md:col-span-2" x-show="showPremiumTerms && ! {{ $commercialLocked ? 'true' : 'false' }}" x-cloak>
+                <input type="hidden" name="commercial_rate_source" value="standard">
+                <p class="text-sm font-semibold text-gray-900">Commercial terms</p>
+                <p class="text-xs text-gray-500 mt-0.5 mb-3">Default is Settings Hub Affiliate rates. Negotiated rates belong only to this Premium Affiliate.</p>
+                <div class="space-y-2">
+                    <label class="flex items-start gap-3 rounded-xl ring-1 ring-gray-200 px-4 py-3 cursor-pointer">
+                        <input type="radio" name="commercial_rate_source" value="standard" x-model="rateSource"
+                               class="mt-0.5 text-brand focus:ring-brand" @checked(old('commercial_rate_source', data_get($r?->metadata, 'commercial.rate_source', 'standard')) !== 'negotiated')>
+                        <span>
+                            <span class="block text-sm font-semibold text-gray-900">Use standard Affiliate rates</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">
+                                Registration {{ $fmtPct($settingsRates['registration']) }}
+                                · Application {{ $fmtPct($settingsRates['application']) }}
+                                · Commission {{ $fmtPct($settingsRates['commission']) }}
+                                · Plus {{ $fmtPct($settingsRates['plus']) }}
+                            </span>
+                        </span>
+                    </label>
+                    @if ($canNegotiateRates)
+                        <label class="flex items-start gap-3 rounded-xl ring-1 ring-gray-200 px-4 py-3 cursor-pointer">
+                            <input type="radio" name="commercial_rate_source" value="negotiated" x-model="rateSource"
+                                   class="mt-0.5 text-brand focus:ring-brand" @checked(old('commercial_rate_source', data_get($r?->metadata, 'commercial.rate_source')) === 'negotiated')>
+                            <span>
+                                <span class="block text-sm font-semibold text-gray-900">Use negotiated rates</span>
+                                <span class="block text-xs text-gray-500 mt-0.5">Unlock the existing commission / discount fields. Prefills from Settings so you only change the agreed values.</span>
+                            </span>
+                        </label>
+                    @endif
+                </div>
+                <div class="mt-3">
+                    <label class="block text-sm font-semibold text-gray-800">Commercial note / negotiation reference</label>
+                    <textarea name="commercial_note" rows="2" maxlength="500"
+                              class="mt-1 w-full rounded-xl border-gray-300 text-sm"
+                              placeholder="Internal Admin note. Not shown to the Affiliate.">{{ old('commercial_note', data_get($r?->metadata, 'commercial.note')) }}</textarea>
+                </div>
+            </div>
+            <div class="contents" x-show="showNegotiatedRates && ! {{ $commercialLocked ? 'true' : 'false' }}" x-cloak>
+                @if ($canNegotiateRates)
+                    <x-admin.input name="registration_discount_percent" label="Registration discount (%)" type="number" step="0.01" :value="old('registration_discount_percent', $r?->registration_discount_percent ?? $settingsRates['registration'])" />
+                    <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="old('application_discount_percent', $r?->application_discount_percent ?? $settingsRates['application'])" />
+                    <x-admin.input name="affiliate_commission_percent" label="Commission (%)" type="number" step="0.01" :value="old('affiliate_commission_percent', $r?->affiliate_commission_percent ?? $settingsRates['commission'])" />
+                    <x-admin.input name="plus_discount_percent" label="Kopafasta Plus discount (%)" type="number" step="0.1" min="0" max="100" :value="old('plus_discount_percent', $plusOverride ?? $plusDefault)" />
+                @endif
+            </div>
         </x-admin.step>
     </div>
 </div>

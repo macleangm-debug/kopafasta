@@ -68,6 +68,8 @@ class VendorController extends ResourceController
             'supplier_type'                  => ['nullable', 'in:managed_loan,upfront_settlement'],
             'affiliate_code'                 => ['nullable', 'string', 'max:32'],
             'affiliate_premium'              => ['nullable', 'boolean'],
+            'commercial_rate_source'         => ['nullable', 'in:standard,negotiated'],
+            'commercial_note'                => ['nullable', 'string', 'max:500'],
             'recovery_fee_type'              => ['nullable', 'in:percentage,fixed'],
             'recovery_fixed_amount'          => ['nullable', 'numeric', 'min:0'],
             'registration_discount_percent'  => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -512,6 +514,12 @@ class VendorController extends ResourceController
         $data['affiliate_premium'] = $isAffiliate && filter_var($data['affiliate_premium'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         $meta = is_array($existing?->metadata ?? null) ? $existing->metadata : [];
+        if ($isAffiliate) {
+            $data['metadata'] = $meta;
+            $data = app(\App\Services\AffiliateCommercialTermsService::class)
+                ->applyFromForm($data, $existing instanceof Vendor ? $existing : null, app(\App\Services\PartnerStaffService::class)->canNegotiateRates(request()->user()));
+            $meta = is_array($data['metadata'] ?? null) ? $data['metadata'] : $meta;
+        }
         if ($contactPerson !== '') {
             $meta['contact_person'] = ['name' => $contactPerson];
         }
@@ -533,7 +541,7 @@ class VendorController extends ResourceController
             $meta['payout_account'] = $payout;
         }
         $canNegotiateRates = app(\App\Services\PartnerStaffService::class)->canNegotiateRates(request()->user());
-        if ($isAffiliate && $canNegotiateRates && array_key_exists('plus_discount_percent', $data) && $data['plus_discount_percent'] !== null && $data['plus_discount_percent'] !== '') {
+        if (! $isAffiliate && $canNegotiateRates && array_key_exists('plus_discount_percent', $data) && $data['plus_discount_percent'] !== null && $data['plus_discount_percent'] !== '') {
             $meta['plus_discount_percent'] = (float) $data['plus_discount_percent'];
         }
         unset($data['plus_discount_percent']);
@@ -625,6 +633,9 @@ class VendorController extends ResourceController
         $affiliateAgreement = $tabs->showsPipeline($record)
             ? app(\App\Services\AffiliateTermsService::class)->latestAcceptance($record)
             : null;
+        $affiliateCommercial = $tabs->showsPipeline($record)
+            ? app(\App\Services\AffiliateCommercialTermsService::class)->arrangement($record)
+            : null;
         $partnerAgreement = $tabs->showsFieldGovernance($record)
             ? app(\App\Services\PartnerTermsService::class)->latestAcceptance($record)
             : null;
@@ -671,6 +682,7 @@ class VendorController extends ResourceController
                 'affiliateEligibility' => $affiliateEligibility,
                 'affiliateStanding' => $affiliateStanding,
                 'affiliateAgreement' => $affiliateAgreement,
+                'affiliateCommercial' => $affiliateCommercial,
                 'partnerAgreement' => $partnerAgreement,
                 'partnerAgreements' => $partnerAgreements,
                 'jobEligibility' => $jobEligibility,
@@ -689,6 +701,54 @@ class VendorController extends ResourceController
             ],
             $this->formData($record),
         ));
+    }
+
+    public function changeAffiliateCommercialTerms(Request $request, Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        $this->authorize('update', $vendor);
+        abort_unless($vendor->isAffiliate(), 404);
+        abort_unless(app(\App\Services\PartnerStaffService::class)->canNegotiateRates($request->user()), 403);
+
+        $data = $request->validate([
+            'confirmed' => ['accepted'],
+            'rate_source' => ['required', 'in:standard,negotiated'],
+            'registration_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'application_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'affiliate_commission_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'plus_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'effective_from' => ['required', 'date'],
+            'reason' => ['required', 'string', 'min:8', 'max:500'],
+        ]);
+
+        app(\App\Services\AffiliateCommercialTermsService::class)->changeTerms($vendor, $data, $request->user());
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Commercial terms updated. New terms apply from the effective date. Historical commissions stay as earned.');
+    }
+
+    public function changeAffiliateClassification(Request $request, Vendor $vendor): \Illuminate\Http\RedirectResponse
+    {
+        $this->authorize('update', $vendor);
+        abort_unless($vendor->isAffiliate(), 404);
+
+        $data = $request->validate([
+            'confirmed' => ['accepted'],
+            'affiliate_premium' => ['required', 'boolean'],
+            'reason' => ['required', 'string', 'min:8', 'max:500'],
+        ]);
+
+        app(\App\Services\AffiliateCommercialTermsService::class)->changeClassification(
+            $vendor,
+            (bool) $data['affiliate_premium'],
+            $data['reason'],
+            $request->user(),
+        );
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $vendor)
+            ->with('status', 'Affiliate classification updated. Future operating rules change from now. Signed agreements and historical commissions stay as they were.');
     }
 
     public function updateAffiliateLifecycle(Request $request, Vendor $vendor): \Illuminate\Http\RedirectResponse

@@ -14,6 +14,7 @@ class PartnersTable extends Component
 
     #[Url(as: 'q')] public string $search = '';
     #[Url] public string $role = '';
+    #[Url] public string $affiliateClass = '';
 
     public string $category = '';
     public bool $lockCategory = false;
@@ -49,6 +50,11 @@ class PartnersTable extends Component
         $this->resetPage();
     }
 
+    public function updatingAffiliateClass(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatingStatus(): void
     {
         $this->resetPage();
@@ -63,6 +69,9 @@ class PartnersTable extends Component
         $query = $partners->filteredQuery($role, $this->search ?: null);
         if (filled($this->status)) {
             $query->where('status', $this->status);
+        }
+        if (($role === 'affiliate' || $this->category === 'affiliate') && in_array($this->affiliateClass, ['standard', 'premium'], true)) {
+            $query->where('affiliate_premium', $this->affiliateClass === 'premium');
         }
 
         $rows = $query->orderByDesc('id')->paginate(15);

@@ -521,10 +521,14 @@
 
         <x-admin.settings-panel id="terms">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
-                <h3 class="text-sm font-semibold text-gray-900">Affiliate Terms</h3>
-                <p class="text-xs text-gray-500">Templates may only use approved Settings variables such as <span class="font-mono">@{{membership_fee_individual}}</span>, <span class="font-mono">@{{assessment_period}}</span>, <span class="font-mono">@{{minimum_qualified_referrals}}</span>. Leave blank to use the built-in EN/SW catalogue. Saving Terms increments the agreement version; historical acceptances stay frozen.</p>
-                <x-admin.textarea name="terms_body_en" label="English Terms (optional override)" rows="8" :value="$values['terms_body_en'] ?? ''" />
-                <x-admin.textarea name="terms_body_sw" label="Kiswahili Terms (optional override)" rows="8" :value="$values['terms_body_sw'] ?? ''" />
+                <h3 class="text-sm font-semibold text-gray-900">Affiliate agreements</h3>
+                <p class="text-xs text-gray-500">One rate configuration on Defaults / Commission applies to both Standard and Premium. These templates only change the agreement text. Standard Affiliates receive the Standard agreement. Premium Affiliates receive the Premium agreement. Approved variables include <span class="font-mono">@{{commission_percent}}</span>, <span class="font-mono">@{{rate_source}}</span>, <span class="font-mono">@{{affiliate_type}}</span>, <span class="font-mono">@{{membership_fee_individual}}</span>. Leave blank to use the built-in EN/SW catalogue. Saving increments the agreement version; signed acceptances stay frozen.</p>
+                <h4 class="text-sm font-semibold text-gray-800">Standard Affiliate Agreement</h4>
+                <x-admin.textarea name="terms_body_en" label="English (optional override)" rows="8" :value="$values['terms_body_en'] ?? ''" />
+                <x-admin.textarea name="terms_body_sw" label="Kiswahili (optional override)" rows="8" :value="$values['terms_body_sw'] ?? ''" />
+                <h4 class="text-sm font-semibold text-gray-800 pt-2">Premium Affiliate Agreement</h4>
+                <x-admin.textarea name="premium_terms_body_en" label="English (optional override)" rows="8" :value="$values['premium_terms_body_en'] ?? ''" />
+                <x-admin.textarea name="premium_terms_body_sw" label="Kiswahili (optional override)" rows="8" :value="$values['premium_terms_body_sw'] ?? ''" />
             </div>
         </x-admin.settings-panel>
 

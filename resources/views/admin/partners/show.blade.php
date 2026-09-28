@@ -113,36 +113,10 @@
                         <dd class="mt-1 font-semibold text-gray-900 font-mono">{{ $record->affiliate_code }}</dd>
                     </div>
                 @endif
-                @if ($record->isPremiumAffiliate())
-                    <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Premium affiliate</dt>
-                        <dd class="mt-1">
-                            <x-site.grade-badge grade="premium" :label="app(\App\Services\AffiliateSettingsService::class)->premiumBadgeLabel()" size="sm" />
-                        </dd>
-                    </div>
-                @endif
                 @if ($record->deposit_markup_percent)
                     <div>
                         <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Deposit markup %</dt>
                         <dd class="mt-1 font-semibold text-gray-900">{{ $record->deposit_markup_percent }}</dd>
-                    </div>
-                @endif
-                @if ($record->registration_discount_percent)
-                    <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Registration discount %</dt>
-                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->registration_discount_percent }}</dd>
-                    </div>
-                @endif
-                @if ($record->application_discount_percent)
-                    <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Application discount %</dt>
-                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->application_discount_percent }}</dd>
-                    </div>
-                @endif
-                @if ($record->affiliate_commission_percent)
-                    <div>
-                        <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Commission %</dt>
-                        <dd class="mt-1 font-semibold text-gray-900">{{ $record->affiliate_commission_percent }}</dd>
                     </div>
                 @endif
                 @if ($record->recovery_commission_percent)
@@ -177,6 +151,7 @@
 @endif
 
 @if ($record->isAffiliate() || $record->hasPartnerRole('affiliate'))
+    @include('admin.partners._profile-affiliate-commercial', ['record' => $record, 'affiliateCommercial' => $affiliateCommercial ?? null])
     @include('admin.partners._profile-affiliate-identity', ['record' => $record, 'membership' => $membership ?? null])
 @endif
     </div>
@@ -530,7 +505,7 @@
         @endif
     </div>
 
-    <div x-show="tab === 'agreements'" x-cloak class="space-y-6">
+    <div x-show="tab === 'agreements'" x-cloak class="space-y-6" id="affiliate-agreement">
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
             <h3 class="text-sm font-semibold text-gray-700 mb-3">Agreements</h3>
             @if ($affiliateAgreement ?? null)

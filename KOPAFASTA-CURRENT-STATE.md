@@ -6,9 +6,9 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 
 | State | SHA | Note |
 | --- | --- | --- |
-| **Accepted production baseline** | `8bb9bf5e0a2e117e79db27459ce7a77f321af9d6` | Operational production baseline until live production is re-verified. Do not casually overwrite. |
+| **Accepted production baseline** | `0b292c681f5c110d33bcc8fe324c9c618ea5b0ac` | Release 2 production-closed and **FROZEN**. Do not mix Premium Affiliate work into this SHA. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | `746910ad9fbf00d6c0a5eb2603805e541f66e0d9` | Loans IA (Applications / Active / Guarantor / Closed-Previous), dark holder CTA, proven-state withdrawal restore. **Do not promote.** |
+| **Current staging / development baseline** | Premium Affiliate economical pass (see latest local commit) | One Settings Hub Affiliate rate SoT; Premium-only negotiated override; 360 + contract snapshot. **Staging only. Do not promote until Owner UAT.** |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
@@ -22,7 +22,13 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 - Registration password removed this pass (phone + PIN + incomplete draft resume)
 - Document holder status cleanup, KYC 405, native Upload chooser, Remove confirmation
 - Face focus/reload loop fix (preserve no-snap)
-- Partner Experience Consistency (CLOSED)
+- Partner Experience Consistency (CLOSED) except this owner-authorized Premium Affiliate commercial pass
+- **Release 2 lending** (First Gate, Parked Screening, auto-rejection, Screening wizard, System Sorted, receipts, Borrower Loans IA, application restoration). Do not start Steward. Do not restore MU8Q.
+- Recovery, Supplier, Valuer, Capital Partner, payment posting/provider logic
+
+## Premium Affiliate (current isolated pass)
+
+Settings Hub → Affiliates → Rates is the **one** default for Standard and Premium. Only Premium may store an individual negotiated override. Affiliate 360 is the commercial-arrangement card. The existing contract renderer snapshots the effective terms. No second portal, commission engine, or Premium rate configuration.
 
 ## Canonical rules (this pass)
 

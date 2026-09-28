@@ -93,7 +93,23 @@ class ApplicationFeeAffiliateQuoteTest extends TestCase
         $customer = $this->makeCustomer();
         app(PinService::class)->setPin($customer->user, '1234');
         $product = $this->makeProduct();
-        $this->makeAffiliate(['affiliate_code' => 'AFFQRY20', 'application_discount_percent' => 20]);
+        $this->makeAffiliate([
+            'affiliate_code' => 'AFFQRY20',
+            'affiliate_premium' => true,
+            'application_discount_percent' => 20,
+            'metadata' => [
+                'commercial' => [
+                    'rate_source' => 'negotiated',
+                    'effective_from' => now()->toDateString(),
+                    'rates' => [
+                        'registration_discount_percent' => 10,
+                        'application_discount_percent' => 20,
+                        'affiliate_commission_percent' => 10,
+                        'plus_discount_percent' => 10,
+                    ],
+                ],
+            ],
+        ]);
 
         $this->actingAs($customer->user)
             ->getJson(route('site.borrower.apply.application-fee.quote', [

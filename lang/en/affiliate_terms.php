@@ -55,4 +55,41 @@ An Affiliate introduces or refers a member and may provide only the referral ben
 ## 6. Changes
 Configurable values in these Terms come from Settings Hub. Material changes may require re-acceptance or apply on renewal, according to Settings. The version you accept is snapshotted and is not rewritten when Settings later change.
 TEXT,
+    'premium_body' => <<<'TEXT'
+# {{brand}} Premium Affiliate Agreement
+
+This is an application to become an independent {{brand}} Premium Affiliate and is not an application for employment.
+
+## 1. Independent relationship
+You operate as an independent commercial Affiliate. You must not present yourself as an employee, officer, or agent with authority to bind {{brand}}, and you must not charge customers any unauthorised fee.
+
+## 2. Premium agreement
+You are classified as a {{affiliate_type}}. Premium Affiliates are reach / visibility / brand partners. They are not governed by Paying Members or KPI performance targets.
+
+The Premium Affiliate Agreement runs for {{premium_contract_label}} ({{premium_contract_months}} months) from {{agreement_start}} to {{agreement_end}}, unless suspended or terminated earlier under these Terms.
+
+## 3. Commercial terms
+Rate source: {{rate_source}}.
+Effective from: {{commercial_effective_from}}.
+Commission: {{commission_percent}}.
+Registration discount: {{registration_discount_percent}}.
+Application discount: {{application_discount_percent}}.
+Kopafasta Plus discount: {{plus_discount_percent}}.
+
+These are the actual effective commercial terms for this Affiliate. A later Settings Hub change does not rewrite this signed agreement.
+
+## 4. Promo codes and commissions
+Your promo code may be reserved when your partner record is created. It becomes operational for new qualifying referrals only while your application is approved, your account is eligible, KYC is satisfied where required, and compliance is clear.
+
+Historical referrals, commissions, and ledger records are preserved if eligibility later changes.
+
+## 5. Conduct
+You must not misrepresent {{brand}}, collect unauthorised customer fees, or use deceptive marketing. Compliance or fraud concerns may result in restriction, suspension, or termination.
+
+## 5A. Referral benefit is not loan approval
+An Affiliate introduces or refers a member and may provide only the referral benefits configured in Settings. An Affiliate does not approve the loan, cannot guarantee approval, and must not represent an application fee as payment for obtaining a loan.
+
+## 6. Changes
+The version you accept is snapshotted and is not rewritten when Settings later change.
+TEXT,
 ];

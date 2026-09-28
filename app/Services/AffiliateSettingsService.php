@@ -149,6 +149,8 @@ class AffiliateSettingsService
             'promo_code' => $this->promoCodeSettings(),
             'terms_body_en' => (string) Setting::get('affiliates.terms.body_en', ''),
             'terms_body_sw' => (string) Setting::get('affiliates.terms.body_sw', ''),
+            'premium_terms_body_en' => (string) Setting::get('affiliates.terms.premium.body_en', ''),
+            'premium_terms_body_sw' => (string) Setting::get('affiliates.terms.premium.body_sw', ''),
             'message_share_template_sw' => $this->localizedMessage('share_template', 'sw'),
             'message_referral_sms_sw' => $this->localizedMessage('referral_sms', 'sw'),
             'message_verification_notice_sw' => $this->localizedMessage('verification_notice', 'sw'),

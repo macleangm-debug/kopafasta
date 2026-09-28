@@ -31,6 +31,7 @@ class AffiliateTermsService
         $premium = $affiliate?->isPremiumAffiliate() ?? false;
         $contractMonths = app(AffiliateSettingsService::class)->premiumContractDurationMonths();
         $contractLabel = $this->contractDurationLabel($contractMonths, $locale);
+        $commercial = app(AffiliateCommercialTermsService::class)->contractSnapshot($affiliate);
 
         return [
             'membership_fee' => format_money($fee),
@@ -43,15 +44,23 @@ class AffiliateTermsService
             'affiliate_type' => $premium
                 ? __('site.affiliate_portal.premium_partner')
                 : __('site.affiliate_portal.standard_partner'),
+            'rate_source' => $commercial['commercial_rate_source_label'],
+            'commission_percent' => $commercial['commission_percent'],
+            'registration_discount_percent' => $commercial['registration_discount_percent'],
+            'application_discount_percent' => $commercial['application_discount_percent'],
+            'plus_discount_percent' => $commercial['plus_discount_percent'],
+            'commercial_effective_from' => $commercial['commercial_effective_from'],
             'agreement_start' => $affiliate?->membership_started_at?->format('d M Y') ?? '—',
             'agreement_end' => $affiliate?->membership_expires_at?->format('d M Y') ?? '—',
-            'assessment_period' => (string) $settings->evaluationPeriodDays(),
-            'assessment_period_label' => $this->periodLabel($settings->evaluationPeriodDays(), $locale),
-            'minimum_qualified_referrals' => (string) ($referrals['target'] ?? $settings->monthlyRegistrationTarget()),
-            'ramp_up_days' => (string) $settings->volumeMinActiveDays(),
-            'warning_periods' => (string) $settings->volumeMissesBeforeWatchlist(),
-            'suspension_periods' => (string) $settings->volumeMissesBeforeSuspend(),
-            'recovery_enabled' => ($eval['auto_recover'] ?? true) ? __('affiliate_terms.yes', [], $locale) : __('affiliate_terms.no', [], $locale),
+            'assessment_period' => $premium ? __('admin.partners.commercial_not_applicable') : (string) $settings->evaluationPeriodDays(),
+            'assessment_period_label' => $premium ? __('admin.partners.commercial_not_applicable') : $this->periodLabel($settings->evaluationPeriodDays(), $locale),
+            'minimum_qualified_referrals' => $premium ? __('admin.partners.commercial_not_applicable') : (string) ($referrals['target'] ?? $settings->monthlyRegistrationTarget()),
+            'ramp_up_days' => $premium ? __('admin.partners.commercial_not_applicable') : (string) $settings->volumeMinActiveDays(),
+            'warning_periods' => $premium ? __('admin.partners.commercial_not_applicable') : (string) $settings->volumeMissesBeforeWatchlist(),
+            'suspension_periods' => $premium ? __('admin.partners.commercial_not_applicable') : (string) $settings->volumeMissesBeforeSuspend(),
+            'recovery_enabled' => $premium
+                ? __('admin.partners.commercial_not_applicable')
+                : (($eval['auto_recover'] ?? true) ? __('affiliate_terms.yes', [], $locale) : __('affiliate_terms.no', [], $locale)),
             'policy_version' => (string) $settings->policyVersion(),
             'brand' => brand_name(),
         ];
@@ -73,21 +82,29 @@ class AffiliateTermsService
         return max(1, (int) Setting::get('affiliates.terms.version', 1));
     }
 
-    public function template(?string $locale = null): string
+    public function template(?string $locale = null, ?Vendor $affiliate = null): string
     {
         $locale = $locale ?: app()->getLocale();
-        $stored = Setting::get('affiliates.terms.body_'.$locale);
+        $premium = $affiliate?->isPremiumAffiliate() ?? false;
+        $key = $premium
+            ? 'affiliates.terms.premium.body_'.$locale
+            : 'affiliates.terms.body_'.$locale;
+        $stored = Setting::get($key);
         if (filled($stored)) {
             return (string) $stored;
         }
 
-        return (string) __('affiliate_terms.body', [], $locale);
+        $fallback = $premium
+            ? __('affiliate_terms.premium_body', [], $locale)
+            : __('affiliate_terms.body', [], $locale);
+
+        return (string) (filled($fallback) ? $fallback : __('affiliate_terms.body', [], $locale));
     }
 
     public function render(?Vendor $affiliate = null, ?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
-        $text = $this->template($locale);
+        $text = $this->template($locale, $affiliate);
         foreach ($this->variables($affiliate, $locale) as $key => $value) {
             $text = str_replace(['{{'.$key.'}}', '{'.$key.'}'], $value, $text);
         }
@@ -116,8 +133,12 @@ class AffiliateTermsService
     public function accept(Vendor|Partner $affiliate, Request $request, ?string $locale = null): PartnerAgreementAcceptance
     {
         $locale = $locale ?: app()->getLocale();
-        $rendered = $this->render($affiliate instanceof Vendor ? $affiliate : Vendor::query()->find($affiliate->id), $locale);
-        $snapshot = $this->variables($affiliate instanceof Vendor ? $affiliate : null, $locale);
+        $vendor = $affiliate instanceof Vendor ? $affiliate : Vendor::query()->find($affiliate->id);
+        $rendered = $this->render($vendor, $locale);
+        $snapshot = array_merge(
+            $this->variables($vendor, $locale),
+            $vendor ? app(AffiliateCommercialTermsService::class)->contractSnapshot($vendor) : [],
+        );
 
         $acceptance = PartnerAgreementAcceptance::query()->create([
             'partner_id' => $affiliate->id,

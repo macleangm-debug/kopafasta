@@ -449,16 +449,21 @@ class AffiliateGovernanceFeatureTest extends TestCase
                 'status' => 'active',
                 'phone' => $affiliate->phone,
                 'affiliate_code' => 'GOVPREM2',
-                'affiliate_premium' => '1',
                 'coverage_type' => 'regions',
                 'regions' => ['Dar es Salaam'],
-                'plus_discount_percent' => '10',
+            ])
+            ->assertRedirect(route('admin.partners.show', $affiliate));
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partners.affiliate-classification', $affiliate), [
+                'confirmed' => '1',
+                'affiliate_premium' => '1',
+                'reason' => 'Public-figure reach partner for brand visibility.',
             ])
             ->assertRedirect(route('admin.partners.show', $affiliate));
 
         $fresh = $affiliate->fresh();
         $this->assertTrue($fresh->isPremiumAffiliate());
-        $this->assertSame(10.0, (float) data_get($fresh->metadata, 'plus_discount_percent'));
         $this->assertSame('nationwide', $fresh->coverage_type);
         $this->assertSame([], $fresh->regions ?? []);
         $this->assertSame(AffiliatePerformanceStatus::PREMIUM, $fresh->affiliate_performance_status);

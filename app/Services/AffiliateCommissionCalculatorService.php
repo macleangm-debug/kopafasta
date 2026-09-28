@@ -26,9 +26,8 @@ class AffiliateCommissionCalculatorService
 
     public function percentFor(Vendor $affiliate): float
     {
-        return (float) ($affiliate->affiliate_commission_percent
-            ?? app(AffiliateSettingsService::class)->forForm()['default_commission_percent']
-            ?? config('affiliates.default_commission_percent', 10));
+        return app(AffiliateCommercialTermsService::class)
+            ->effectiveRates($affiliate)['affiliate_commission_percent'];
     }
 
     public function fixedAmount(Vendor $affiliate, string $feeType): float

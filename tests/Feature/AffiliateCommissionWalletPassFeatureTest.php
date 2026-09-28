@@ -27,7 +27,25 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
 
     public function test_benefit_banner_requires_a_real_discount_not_attribution_alone(): void
     {
-        $affiliate = $this->affiliate(['application_discount_percent' => 0]);
+        $affiliate = $this->affiliate([
+            'affiliate_premium' => true,
+            'application_discount_percent' => 0,
+            'registration_discount_percent' => 0,
+            'affiliate_commission_percent' => 0,
+            'metadata' => [
+                'plus_discount_percent' => 0,
+                'commercial' => [
+                    'rate_source' => 'negotiated',
+                    'effective_from' => now()->toDateString(),
+                    'rates' => [
+                        'registration_discount_percent' => 0,
+                        'application_discount_percent' => 0,
+                        'affiliate_commission_percent' => 0,
+                        'plus_discount_percent' => 0,
+                    ],
+                ],
+            ],
+        ]);
         $customer = $this->customer(['affiliate_vendor_id' => $affiliate->id]);
         $this->borrowerPin($customer->user);
 

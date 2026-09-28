@@ -47,6 +47,8 @@ class AdminPartnerCreateActivationTest extends TestCase
             ->assertSee('Application / registration fee:', false)
             ->assertSee('Annual membership:', false)
             ->assertSee('Kopafasta Plus customer discount:', false)
+            ->assertSee('Premium Affiliate', false)
+            ->assertSee('Use standard Affiliate rates', false)
             ->assertSee('plus_discount_percent', false)
             ->assertSee('data-document-holder', false)
             ->assertSee('kf-request-add', false);

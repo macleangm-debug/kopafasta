@@ -447,25 +447,20 @@ class AffiliateService
 
     public function registrationDiscountPercent(Vendor $affiliate): float
     {
-        return (float) ($affiliate->registration_discount_percent
-            ?? app(AffiliateSettingsService::class)->forForm()['default_registration_discount_percent']
-            ?? config('affiliates.default_registration_discount_percent', 10));
+        return app(AffiliateCommercialTermsService::class)
+            ->effectiveRates($affiliate)['registration_discount_percent'];
     }
 
     public function applicationDiscountPercent(Vendor $affiliate): float
     {
-        return (float) ($affiliate->application_discount_percent
-            ?? app(AffiliateSettingsService::class)->forForm()['default_application_discount_percent']
-            ?? config('affiliates.default_application_discount_percent', 10));
+        return app(AffiliateCommercialTermsService::class)
+            ->effectiveRates($affiliate)['application_discount_percent'];
     }
 
     public function plusDiscountPercent(Vendor $affiliate): float
     {
-        $meta = is_array($affiliate->metadata ?? null) ? $affiliate->metadata : [];
-
-        return (float) ($meta['plus_discount_percent']
-            ?? app(AffiliateSettingsService::class)->forForm()['default_plus_discount_percent']
-            ?? config('affiliates.default_plus_discount_percent', 10));
+        return app(AffiliateCommercialTermsService::class)
+            ->effectiveRates($affiliate)['plus_discount_percent'];
     }
 
     public function stats(Vendor $affiliate): array

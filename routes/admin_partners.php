@@ -30,6 +30,8 @@ return function (): void {
     Route::post('partners/{vendor}/reset-pin', [VendorController::class, 'resetPin'])->name('partners.reset-pin');
     Route::post('partners/{vendor}/reissue-activation', [VendorController::class, 'reissueActivation'])->name('partners.reissue-activation');
     Route::post('partners/{vendor}/deactivate', [VendorController::class, 'deactivate'])->name('partners.deactivate');
+    Route::post('partners/{vendor}/affiliate-commercial-terms', [VendorController::class, 'changeAffiliateCommercialTerms'])->name('partners.affiliate-commercial-terms');
+    Route::post('partners/{vendor}/affiliate-classification', [VendorController::class, 'changeAffiliateClassification'])->name('partners.affiliate-classification');
     Route::post('partners/{vendor}/affiliate-kyc/approve', [VendorController::class, 'approveAffiliateKyc'])->name('partners.affiliate-kyc.approve');
     Route::post('partners/{vendor}/affiliate-kyc/reject', [VendorController::class, 'rejectAffiliateKyc'])->name('partners.affiliate-kyc.reject');
     Route::post('partners/{vendor}/affiliate-lifecycle', [VendorController::class, 'updateAffiliateLifecycle'])->name('partners.affiliate-lifecycle.update');

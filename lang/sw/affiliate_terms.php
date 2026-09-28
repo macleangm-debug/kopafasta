@@ -55,4 +55,41 @@ Msambazaji analeta au kurejelea mwanachama na anaweza kutoa tu faida za rufaa zi
 ## 6. Mabadiliko
 Thamani zinazobadilika katika Masharti haya zinatokana na Kitovu cha Mipangilio. Mabadiliko muhimu yanaweza kuhitaji kukubali upya au kutumika wakati wa kuhuisha, kulingana na Mipangilio. Toleo unalokubali linahifadhiwa na halibadilishwi Mipangilio inapobadilika baadaye.
 TEXT,
+    'premium_body' => <<<'TEXT'
+# Mkataba wa Msambazaji wa Premium wa {{brand}}
+
+Hili ni ombi la kuwa Msambazaji huru wa Premium wa {{brand}}; si ombi la ajira.
+
+## 1. Uhusiano huru
+Unafanya kazi kama Msambazaji huru wa kibiashara. Usiwajulishe wateja kuwa wewe ni mfanyakazi, afisa, au wakala mwenye mamlaka ya kufunga {{brand}}, wala usitoze ada yoyote isiyoruhusiwa.
+
+## 2. Mkataba wa Premium
+Umeainishwa kama {{affiliate_type}}. Wasambazaji wa Premium ni washirika wa ufikiaji / chapa. Hawatawaliwi na malengo ya Wanachama Wanaolipa au KPI.
+
+Mkataba wa Msambazaji wa Premium unaendelea kwa {{premium_contract_label}} (miezi {{premium_contract_months}}) kuanzia {{agreement_start}} hadi {{agreement_end}}, isipokuwa kusimamishwa au kusitishwa mapema.
+
+## 3. Masharti ya kibiashara
+Chanzo cha kiwango: {{rate_source}}.
+Inaanza: {{commercial_effective_from}}.
+Kamisheni: {{commission_percent}}.
+Punguzo la usajili: {{registration_discount_percent}}.
+Punguzo la maombi: {{application_discount_percent}}.
+Punguzo la Kopafasta Plus: {{plus_discount_percent}}.
+
+Haya ndiyo masharti halisi ya kibiashara ya Msambazaji huyu. Badiliko la baadaye kwenye Kitovu cha Mipangilio halibadilishi mkataba huu uliosainiwa.
+
+## 4. Misimbo na kamisheni
+Msimbo wako unaweza kuwekwa wakati rekodi ya mshirika inapoundwa. Unakuwa unafanya kazi kwa rufaa mpya zinazostahili tu wakati ombi limeidhinishwa, akaunti inastahili, KYC imetoshelezwa inapohitajika, na uzingatiaji uko wazi.
+
+Rufaa, kamisheni, na kumbukumbu za daftari za kihistoria zinahifadhiwa ikiwa ustahiki utabadilika baadaye.
+
+## 5. Mwenendo
+Usipotoshe {{brand}}, usitoze ada zisizoidhinishwa, wala usitumie utangazaji wa udanganyifu.
+
+## 5A. Faida ya rufaa si idhini ya mkopo
+Msambazaji analeta au kurejelea mwanachama na anaweza kutoa tu faida za rufaa zilizopangwa kwenye Mipangilio. Msambazaji haidhinishi mkopo.
+
+## 6. Mabadiliko
+Toleo unalokubali linahifadhiwa na halibadilishwi Mipangilio inapobadilika baadaye.
+TEXT,
 ];
