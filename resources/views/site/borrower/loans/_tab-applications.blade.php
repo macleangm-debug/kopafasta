@@ -60,32 +60,23 @@
 @endif
 
 @if ($closedRows !== [])
-    <details class="mt-2 group rounded-2xl ring-1 ring-gray-200/80 bg-white/70 overflow-hidden">
-        <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 [&::-webkit-details-marker]:hidden hover:bg-gray-50/80 transition">
-            <div>
-                <p class="text-sm font-bold text-gray-900">{{ __('borrower.applications_list.closed_title') }}</p>
-                <p class="text-xs text-gray-500 mt-0.5">
-                    {{ __('borrower.applications_list.closed_hint') }}
-                    · {{ trans_choice('borrower.applications_list.closed_count', count($closedRows), ['count' => count($closedRows)]) }}
-                </p>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-                <span class="text-xs font-semibold text-gray-500 group-open:hidden">{{ __('borrower.applications_list.show_closed') }}</span>
-                <span class="text-xs font-semibold text-gray-500 hidden group-open:inline">{{ __('borrower.applications_list.hide_closed') }}</span>
-                <svg class="size-4 text-gray-400 transition group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-            </div>
-        </summary>
-        <div class="px-5 pb-5 border-t border-gray-100 pt-4">
-            <div class="lg:hidden">
-                @include('site.borrower.loans._applications-cards', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
-            </div>
-            <div class="hidden lg:block">
-                @if ($viewMode === 'cards')
-                    @include('site.borrower.loans._applications-cards', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
-                @else
-                    @include('site.borrower.loans._applications-table', ['rows' => $closedRows])
-                @endif
-            </div>
+    <section class="mt-10 space-y-4">
+        <div>
+            <h2 class="text-lg font-semibold text-gray-900">{{ __('borrower.applications_list.closed_title') }}</h2>
+            <p class="text-sm text-gray-500 mt-0.5">
+                {{ __('borrower.applications_list.closed_hint') }}
+                · {{ trans_choice('borrower.applications_list.closed_count', count($closedRows), ['count' => count($closedRows)]) }}
+            </p>
         </div>
-    </details>
+        <div class="lg:hidden">
+            @include('site.borrower.loans._applications-closed', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
+        </div>
+        <div class="hidden lg:block">
+            @if ($viewMode === 'cards')
+                @include('site.borrower.loans._applications-closed', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
+            @else
+                @include('site.borrower.loans._applications-table', ['rows' => $closedRows, 'closed' => true])
+            @endif
+        </div>
+    </section>
 @endif

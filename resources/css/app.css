@@ -858,7 +858,20 @@ html.kf-account-shell[data-theme="dark"] .text-gray-700 {
 
 html.kf-account-shell[data-theme="dark"] .text-gray-600,
 html.kf-account-shell[data-theme="dark"] .text-gray-500,
-html.kf-account-shell[data-theme="dark"] .text-gray-400 {
+html.kf-account-shell[data-theme="dark"] .text-gray-400,
+html.kf-account-shell[data-theme="dark"] .text-slate-600,
+html.kf-account-shell[data-theme="dark"] .text-slate-500,
+html.kf-account-shell[data-theme="dark"] .text-slate-400 {
+    color: var(--kf-muted) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .text-slate-900,
+html.kf-account-shell[data-theme="dark"] .text-slate-800,
+html.kf-account-shell[data-theme="dark"] .text-slate-700 {
+    color: var(--kf-ink) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] .document-holder .text-\[\#5c6b64\] {
     color: var(--kf-muted) !important;
 }
 

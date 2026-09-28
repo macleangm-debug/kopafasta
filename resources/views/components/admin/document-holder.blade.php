@@ -41,9 +41,12 @@
             fitPage: @js((bool) $fitPage),
             fitted(url) {
                 if (!url) return '';
-                if (!this.fitPage) return url;
                 const base = String(url).split('#')[0];
-                return base + (window.matchMedia('(max-width: 767px)').matches ? '#view=FitH' : '#view=Fit');
+                const mobile = window.matchMedia('(max-width: 767px)').matches;
+                const view = this.fitPage
+                    ? (mobile ? 'FitH' : 'Fit')
+                    : (mobile ? 'FitH' : 'Fit');
+                return base + '#toolbar=1&navpanes=0&scrollbar=1&view=' + view;
             }
          }">
         <div class="px-4 sm:px-5 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">

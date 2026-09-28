@@ -74,7 +74,7 @@ class LegalSettingsService
             return $full;
         }
 
-        $hash = md5($full.'|'.(string) filemtime($full).'|sig-h1');
+        $hash = md5($full.'|'.(string) filemtime($full).'|sig-h2');
         $dir = storage_path('app/pdf-cache/signatures');
         $cache = $dir.'/'.$hash.'.png';
         if (is_file($cache)) {
@@ -92,11 +92,20 @@ class LegalSettingsService
         }
 
         $src = $this->applyExifOrientation($src, $this->exifOrientation($full));
-        if (imagesy($src) > imagesx($src)) {
+        $bbox = $this->signatureInkBox($src);
+        if ($bbox && $bbox['h'] > $bbox['w']) {
             $rotated = $this->rotatePreservingAlpha($src, 270);
             if ($rotated !== false) {
                 imagedestroy($src);
                 $src = $rotated;
+                $bbox = $this->signatureInkBox($src);
+            }
+        }
+        if ($bbox) {
+            $cropped = $this->cropToInkBox($src, $bbox);
+            if ($cropped !== false) {
+                imagedestroy($src);
+                $src = $cropped;
             }
         }
 
@@ -132,6 +141,88 @@ class LegalSettingsService
             8 => $this->rotatePreservingAlpha($src, 90) ?: $src,
             default => $src,
         };
+    }
+
+    /**
+     * Ink box of a signature, ignoring near-white / transparent pixels.
+     *
+     * @param  \GdImage|resource  $src
+     * @return array{x: int, y: int, w: int, h: int}|null
+     */
+    private function signatureInkBox($src): ?array
+    {
+        $width = imagesx($src);
+        $height = imagesy($src);
+        $minX = $width;
+        $minY = $height;
+        $maxX = -1;
+        $maxY = -1;
+        $trueColor = imageistruecolor($src);
+
+        for ($x = 0; $x < $width; $x++) {
+            for ($y = 0; $y < $height; $y++) {
+                $pixel = imagecolorat($src, $x, $y);
+                if ($trueColor) {
+                    $alpha = ($pixel & 0x7F000000) >> 24;
+                    $r = ($pixel >> 16) & 0xFF;
+                    $g = ($pixel >> 8) & 0xFF;
+                    $b = $pixel & 0xFF;
+                } else {
+                    $rgba = imagecolorsforindex($src, $pixel);
+                    $alpha = (int) ($rgba['alpha'] ?? 0);
+                    $r = (int) ($rgba['red'] ?? 0);
+                    $g = (int) ($rgba['green'] ?? 0);
+                    $b = (int) ($rgba['blue'] ?? 0);
+                }
+
+                if ($alpha >= 120 || ($r >= 245 && $g >= 245 && $b >= 245)) {
+                    continue;
+                }
+
+                $minX = min($minX, $x);
+                $minY = min($minY, $y);
+                $maxX = max($maxX, $x);
+                $maxY = max($maxY, $y);
+            }
+        }
+
+        if ($maxX < $minX || $maxY < $minY) {
+            return null;
+        }
+
+        return [
+            'x' => $minX,
+            'y' => $minY,
+            'w' => $maxX - $minX + 1,
+            'h' => $maxY - $minY + 1,
+        ];
+    }
+
+    /**
+     * @param  \GdImage|resource  $src
+     * @param  array{x: int, y: int, w: int, h: int}  $box
+     * @return \GdImage|resource|false
+     */
+    private function cropToInkBox($src, array $box)
+    {
+        $pad = max(8, (int) round(max($box['w'], $box['h']) * 0.12));
+        $x = max(0, $box['x'] - $pad);
+        $y = max(0, $box['y'] - $pad);
+        $w = min(imagesx($src) - $x, $box['w'] + ($box['x'] - $x) + $pad);
+        $h = min(imagesy($src) - $y, $box['h'] + ($box['y'] - $y) + $pad);
+        if ($w < 8 || $h < 8) {
+            return false;
+        }
+
+        $dst = imagecreatetruecolor($w, $h);
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $clear = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+        imagefilledrectangle($dst, 0, 0, $w, $h, $clear);
+        imagealphablending($dst, true);
+        imagecopy($dst, $src, 0, 0, $x, $y, $w, $h);
+
+        return $dst;
     }
 
     /** @param \GdImage|resource $src */

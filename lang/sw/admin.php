@@ -232,7 +232,7 @@ return [
         'my_queue' => 'Foleni yangu',
         'my_queue_subtitle' => 'Maombi yaliyokabidhiwa kwako ambayo bado yanahitaji kazi',
         'restore_application' => 'Rejesha ombi',
-        'restore_incomplete_confirm' => 'Rejesha :number kwenye Maombi Yasiyokamilika? Hili ni ombi lile lile. Halitengenezi ombi jipya, haliendeshi Lango la Kwanza, wala kualika mdhamini.',
+        'restore_incomplete_confirm' => 'Rejesha :number kwenye Maombi Yasiyokamilika? Hii ni namba ile ile ya ombi. Historia ya kughairi inabaki. Lango la Kwanza haliendeshwi kwa sababu ya kurejesha, wala mdhamini haaalikwi.',
         'restore_incomplete_reason' => 'Sababu ya kurejesha',
         'restore_incomplete_done' => ':number limerejeshwa kwenye Maombi Yasiyokamilika.',
         'restore_incomplete_blocked' => 'Ombi hili haliwezi kurejeshwa.',

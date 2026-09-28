@@ -44,6 +44,7 @@ class ApplicationBorrowerCancelFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('borrower.policy.cancel_application'), false)
             ->assertSee(__('borrower.policy.cancel_application_confirm_title'), false)
+            ->assertSee(__('borrower.policy.cancel_application_confirm_body'), false)
             ->assertSee(__('borrower.policy.cancel_application_keep'), false)
             ->assertSee('confirmForm', false);
 
@@ -85,6 +86,12 @@ class ApplicationBorrowerCancelFeatureTest extends TestCase
         $this->assertTrue(app(ApplicationIntakeTransitionService::class)->canRestoreIncompleteBorrowerCancel($withdrawn));
 
         $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.customers.show', ['customer' => $withdrawn->customer_id, 'tab' => 'applications']))
+            ->assertOk()
+            ->assertSee(__('admin.intake.restore_application'), false)
+            ->assertSee(__('admin.intake.restore_incomplete_confirm', ['number' => $number]), false);
+
         $this->gateMustNotRun();
 
         $this->actingAs($admin, 'admin')
@@ -132,6 +139,11 @@ class ApplicationBorrowerCancelFeatureTest extends TestCase
         $this->assertFalse(app(ApplicationIntakeTransitionService::class)->canRestoreIncompleteBorrowerCancel($application->fresh()));
 
         $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.customers.show', ['customer' => $application->customer_id, 'tab' => 'applications']))
+            ->assertOk()
+            ->assertDontSee(__('admin.intake.restore_application'), false);
+
         $this->actingAs($admin, 'admin')
             ->from(route('admin.customers.show', $application->customer_id))
             ->post(route('admin.loan-applications.restore-incomplete-cancel', $application), [

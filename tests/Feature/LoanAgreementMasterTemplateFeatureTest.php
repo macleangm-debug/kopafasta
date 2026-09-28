@@ -911,4 +911,28 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $this->assertStringContainsString('sig-img', file_get_contents(resource_path('views/pdf/loan-agreement/_signatories.blade.php')) ?: '');
         $this->assertStringContainsString('max-height: 92px', file_get_contents(resource_path('views/pdf/loan-agreement/_styles.blade.php')) ?: '');
     }
+
+    public function test_square_canvas_with_vertical_ink_is_rotated_horizontal_and_original_untouched(): void
+    {
+        $path = storage_path('framework/testing/signature-square-vertical-test.png');
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0755, true);
+        }
+
+        $image = imagecreatetruecolor(200, 200);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+        $clear = imagecolorallocatealpha($image, 0, 0, 0, 127);
+        imagefilledrectangle($image, 0, 0, 199, 199, $clear);
+        $ink = imagecolorallocate($image, 20, 20, 20);
+        imagefilledrectangle($image, 80, 30, 120, 170, $ink);
+        imagepng($image, $path);
+        imagedestroy($image);
+
+        $before = md5_file($path);
+        $presented = app(LegalSettingsService::class)->presentedSignaturePath($path);
+        $this->assertSame($before, md5_file($path));
+        $info = getimagesize($presented);
+        $this->assertGreaterThan($info[1], $info[0]);
+    }
 }

@@ -361,7 +361,7 @@ return [
         'my_queue' => 'My queue',
         'my_queue_subtitle' => 'Applications assigned to you that still need work',
         'restore_application' => 'Restore application',
-        'restore_incomplete_confirm' => 'Restore :number to Incomplete Applications? This is the same application. It does not create a new application, does not run First Gate, and does not invite a guarantor.',
+        'restore_incomplete_confirm' => 'Restore :number to Incomplete Applications? This is the same application number. Cancellation history remains. First Gate is not run because of restoration, and no guarantor is invited.',
         'restore_incomplete_reason' => 'Reason for restoration',
         'restore_incomplete_done' => ':number was restored to Incomplete Applications.',
         'restore_incomplete_blocked' => 'This application cannot be restored.',
