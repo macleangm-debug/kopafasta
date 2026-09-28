@@ -10,12 +10,15 @@ class ApplicationIntakeReconciliationService
     public function __construct(
         private readonly ApplicationIntakeReadinessService $readiness,
         private readonly ApplicationIntakeTransitionService $transitions,
+        private readonly CreditEligibilityPolicyService $eligibility,
+        private readonly CapacityAutoRejectService $capacity,
         private readonly AuditService $audit,
     ) {}
 
     /**
-     * Identify submitted applications stranded as Draft, leftover awaiting-guarantor
-     * stages on closed records, and Steward-like complete files.
+     * Identify contradictory drafts, awaiting-guarantor files whose borrower
+     * already failed Gate One, ready-for-screening files still waiting, and
+     * closed rows with a stale open stage.
      *
      * @param  list<string>  $numbers
      * @return list<array<string, mixed>>
@@ -49,7 +52,7 @@ class ApplicationIntakeReconciliationService
             $proposal['after_status'] = (string) $fresh->status;
             $proposal['after_stage'] = (string) $fresh->current_stage;
             $proposal['applied'] = true;
-            $proposal['notified'] = $notify;
+            $proposal['notified'] = $notify && in_array($proposal['action'], ['park', 'transition'], true);
             $this->audit->log(null, 'application.intake_reconciled', $fresh, [
                 'status' => $beforeStatus,
                 'current_stage' => $beforeStage,
@@ -76,8 +79,13 @@ class ApplicationIntakeReconciliationService
                 $q->where(function ($q) {
                     $q->where('status', 'draft')->whereNotNull('submitted_at');
                 })->orWhere(function ($q) {
+                    $q->where('status', 'awaiting_guarantor')
+                        ->orWhere('current_stage', ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR);
+                })->orWhere(function ($q) {
                     $q->whereIn('status', ApplicationIntakeReadinessService::CLOSED_STATUSES)
                         ->where('current_stage', 'awaiting_guarantor');
+                })->orWhere(function ($q) {
+                    $q->where('current_stage', ApplicationIntakeReadinessService::STATE_HOLD);
                 });
             })
             ->orderBy('id')
@@ -92,36 +100,89 @@ class ApplicationIntakeReconciliationService
         $fromStage = (string) $application->current_stage;
         $closed = in_array($fromStatus, ApplicationIntakeReadinessService::CLOSED_STATUSES, true);
 
-        if ($closed && $fromStage === 'awaiting_guarantor') {
-            return $this->row($application, $resolved, 'clear_closed_stage', $fromStatus, $fromStatus, 'Closed application must not keep an awaiting-guarantor stage.');
+        if ($closed) {
+            if ($fromStage === 'awaiting_guarantor') {
+                return $this->row($application, $resolved, 'clear_closed_stage', $fromStatus, $fromStatus, 'Closed application must not keep an awaiting-guarantor stage.');
+            }
+
+            return $this->row($application, $resolved, 'none', $fromStatus, $fromStage, 'Closed application — no First Gate and no guarantor work.');
         }
 
-        if ($fromStatus !== 'draft' || blank($application->submitted_at)) {
-            return $this->row($application, $resolved, 'none', $fromStatus, $fromStatus, 'No intake correction required.');
+        if ($this->alreadyParked($application)) {
+            return $this->row($application, $resolved, 'none', $fromStatus, $fromStage, 'Already Parked Screening. Leave timestamps unchanged.');
         }
 
-        $borrowerComplete = (bool) ($resolved['borrower_complete'] ?? false);
+        $isContradictoryDraft = $fromStatus === 'draft' && filled($application->submitted_at);
+        $isAwaiting = $fromStatus === 'awaiting_guarantor' || $fromStage === 'awaiting_guarantor';
+
+        if ($isContradictoryDraft && ! ($resolved['borrower_complete'] ?? false)) {
+            return $this->row(
+                $application,
+                $resolved,
+                'none',
+                'draft',
+                'draft',
+                'submitted_at is set but Profile is incomplete — remain Draft. First Gate is not evaluated.',
+            );
+        }
+
+        if (! $isContradictoryDraft && ! $isAwaiting) {
+            return $this->row($application, $resolved, 'none', $fromStatus, $fromStage, 'No intake correction required.');
+        }
+
+        $eval = $this->eligibility->evaluate($application->fresh(['customer', 'product']), verified: false);
+        $resolved['gate_one_action'] = $eval['application_action'] ?? null;
+        $resolved['gate_one_reason'] = $eval['reason'] ?? null;
+
+        if ($this->transitions->borrowerFailedFirstGate($eval)) {
+            return $this->row(
+                $application,
+                $resolved,
+                'park',
+                'submitted',
+                ApplicationIntakeReadinessService::STATE_HOLD,
+                'Borrower failed Gate One. Guarantor is not the next action. Parked Screening.',
+            );
+        }
+
         $guarantor = $resolved['guarantor'] ?? [];
         $progress = (string) ($guarantor['progress'] ?? 'not_nominated');
         $required = (bool) ($resolved['guarantor_required'] ?? false);
 
-        if (! $borrowerComplete) {
-            return $this->row($application, $resolved, 'none', 'draft', 'draft', 'Borrower still has named profile gaps; remain Draft.');
-        }
-
         if ($required && $progress === 'not_nominated') {
-            return $this->row($application, $resolved, 'transition', 'submitted', ApplicationIntakeReadinessService::STATE_GUARANTOR_MISSING, 'Submitted borrower file without a nominated guarantor.');
+            return $this->row($application, $resolved, 'transition', 'submitted', ApplicationIntakeReadinessService::STATE_GUARANTOR_MISSING, 'Gate One passed. Guarantor not nominated.');
         }
 
         if ($required && $progress === 'completed') {
-            return $this->row($application, $resolved, 'transition', 'submitted', ApplicationIntakeReadinessService::STATE_READY, 'Borrower and guarantor complete. Ready for screening.');
+            return $this->row($application, $resolved, 'transition', 'submitted', ApplicationIntakeReadinessService::STATE_READY, 'Gate One passed and guarantor complete. Ready for screening.');
+        }
+
+        if ($required && $isAwaiting) {
+            return $this->row(
+                $application,
+                $resolved,
+                'none',
+                'awaiting_guarantor',
+                ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR,
+                'Gate One passed. Still awaiting guarantor ('.$progress.').',
+            );
         }
 
         if ($required) {
-            return $this->row($application, $resolved, 'transition', 'awaiting_guarantor', ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR, 'Borrower submitted and nominated a guarantor. Waiting for guarantor.');
+            return $this->row($application, $resolved, 'transition', 'awaiting_guarantor', ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR, 'Gate One passed. Guarantor nominated but not complete ('.$progress.').');
         }
 
-        return $this->row($application, $resolved, 'transition', 'submitted', ApplicationIntakeReadinessService::STATE_READY, 'Borrower submitted a complete file. Ready for screening.');
+        return $this->row($application, $resolved, 'transition', 'submitted', ApplicationIntakeReadinessService::STATE_READY, 'Gate One passed. No outstanding guarantor requirement. Ready for screening.');
+    }
+
+    private function alreadyParked(LoanApplication $application): bool
+    {
+        if ($this->capacity->isPending($application)) {
+            return true;
+        }
+
+        return (string) $application->current_stage === ApplicationIntakeReadinessService::STATE_HOLD
+            && data_get($application->screening_payload, 'intake.initial_gate.result') === 'failed';
     }
 
     /**
@@ -151,6 +212,8 @@ class ApplicationIntakeReconciliationService
             'profile_percent' => $resolved['profile_percent'] ?? null,
             'profile_gaps' => $resolved['profile_gaps'] ?? [],
             'guarantor_progress' => $resolved['guarantor']['progress'] ?? null,
+            'gate_one_action' => $resolved['gate_one_action'] ?? null,
+            'gate_one_reason' => $resolved['gate_one_reason'] ?? null,
             'notified' => false,
             'applied' => false,
         ];
@@ -165,6 +228,12 @@ class ApplicationIntakeReconciliationService
             return;
         }
 
+        if (($proposal['action'] ?? '') === 'park') {
+            $this->transitions->parkFailedFirstGate($application->fresh(['customer', 'product']), notify: $notify);
+
+            return;
+        }
+
         if (($proposal['action'] ?? '') !== 'transition') {
             return;
         }
@@ -173,6 +242,10 @@ class ApplicationIntakeReconciliationService
             'status' => $proposal['to_status'],
             'current_stage' => $proposal['to_stage'],
         ]);
+
+        if ($proposal['to_stage'] === ApplicationIntakeReadinessService::STATE_READY) {
+            $application->update(['guarantor_deadline_at' => null]);
+        }
 
         if ($notify && $proposal['to_stage'] === ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR) {
             $this->transitions->dispatchGuarantorInvitation($application->fresh(['customer', 'product']));

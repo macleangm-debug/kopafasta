@@ -31,41 +31,11 @@ class ApplicationIntakeTransitionService
         ]);
 
         $eval = $this->eligibility->evaluate($application, verified: false);
-        $failed = ($eval['application_action'] ?? null) === CreditEligibilityPolicyService::ACTION_PENDING_REJECTION
-            && str_starts_with((string) ($eval['reason'] ?? ''), 'Borrower failed');
-        $hours = max(1, $this->settings->capacityAutoRejectDelayHours());
-        $releaseAt = now()->addHours($hours);
 
-        if ($failed) {
-            $payload['intake']['initial_gate'] = [
-                'result' => 'failed',
-                'reason' => $eval['reason'] ?? 'initial_eligibility_failed',
-                'rules' => $eval['participants'] ?? [],
-                'feedback_release_at' => $releaseAt->toIso8601String(),
-                'evaluated_at' => now()->toIso8601String(),
-            ];
-            $application->update([
-                'status' => 'submitted',
-                'current_stage' => ApplicationIntakeReadinessService::STATE_INITIAL_CHECK,
-                'screening_payload' => $payload,
-            ]);
-            $parked = $this->capacity->evaluateAndPark($application->fresh(['customer', 'product']));
-            $application = $application->fresh();
-            $payload = is_array($application->screening_payload) ? $application->screening_payload : $payload;
-            $payload['intake']['initial_gate']['feedback_release_at'] = data_get($parked, 'auto_reject_at')
-                ?? $payload['intake']['initial_gate']['feedback_release_at'];
-            $payload['intake']['initial_gate']['parked_at'] = data_get($parked, 'parked_at');
-            $payload['intake']['initial_gate']['settings_key'] = data_get($parked, 'settings_key')
-                ?: 'underwriting.capacity_auto_reject_delay_hours';
-            $application->update([
-                'status' => 'submitted',
-                'current_stage' => ApplicationIntakeReadinessService::STATE_HOLD,
-                'screening_payload' => $payload,
-            ]);
-            $this->record($application, ApplicationIntakeReadinessService::STATE_HOLD, 'Borrower failed initial eligibility. Parked for review. Guarantor not invited.');
-            $this->notifyBorrower($application, 'intake_received', 'borrower.intake.received_title', 'borrower.intake.received_hold_body');
+        if ($this->borrowerFailedFirstGate($eval)) {
+            $application->update(['screening_payload' => $payload]);
 
-            return $application->fresh();
+            return $this->parkFailedFirstGate($application->fresh(['customer', 'product']), $eval, notify: true);
         }
 
         $payload['intake']['initial_gate'] = [
@@ -76,6 +46,68 @@ class ApplicationIntakeTransitionService
         $application->update(['screening_payload' => $payload]);
 
         return $this->continueAfterPassedGate($application->fresh(['customer', 'product']));
+    }
+
+    public function borrowerFailedFirstGate(array $eval): bool
+    {
+        return ($eval['application_action'] ?? null) === CreditEligibilityPolicyService::ACTION_PENDING_REJECTION
+            && str_starts_with((string) ($eval['reason'] ?? ''), 'Borrower failed');
+    }
+
+    public function parkFailedFirstGate(LoanApplication $application, ?array $eval = null, bool $notify = true): LoanApplication
+    {
+        $application->refresh()->loadMissing(['customer', 'product']);
+        $eval ??= $this->eligibility->evaluate($application, verified: false);
+        $hours = max(1, $this->settings->capacityAutoRejectDelayHours());
+        $releaseAt = now()->addHours($hours);
+        $alreadyParked = $this->capacity->isPending($application);
+
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        $payload['intake'] = array_merge((array) ($payload['intake'] ?? []), [
+            'initial_gate' => array_merge((array) ($payload['intake']['initial_gate'] ?? []), [
+                'result' => 'failed',
+                'reason' => $eval['reason'] ?? data_get($payload, 'intake.initial_gate.reason') ?? 'initial_eligibility_failed',
+                'rules' => $eval['participants'] ?? data_get($payload, 'intake.initial_gate.rules') ?? [],
+                'evaluated_at' => data_get($payload, 'intake.initial_gate.evaluated_at') ?: now()->toIso8601String(),
+            ]),
+        ]);
+
+        $application->update([
+            'status' => 'submitted',
+            'current_stage' => $alreadyParked
+                ? ApplicationIntakeReadinessService::STATE_HOLD
+                : ApplicationIntakeReadinessService::STATE_INITIAL_CHECK,
+            'guarantor_deadline_at' => null,
+            'screening_payload' => $payload,
+        ]);
+
+        $parked = $this->capacity->evaluateAndPark($application->fresh(['customer', 'product']));
+        $application = $application->fresh();
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : $payload;
+        $payload['intake']['initial_gate']['feedback_release_at'] = data_get($parked, 'auto_reject_at')
+            ?? data_get($payload, 'intake.initial_gate.feedback_release_at')
+            ?? $releaseAt->toIso8601String();
+        $payload['intake']['initial_gate']['parked_at'] = data_get($parked, 'parked_at')
+            ?? data_get($payload, 'intake.initial_gate.parked_at');
+        $payload['intake']['initial_gate']['settings_key'] = data_get($parked, 'settings_key')
+            ?: 'underwriting.capacity_auto_reject_delay_hours';
+
+        $fromStage = (string) $application->current_stage;
+        $application->update([
+            'status' => 'submitted',
+            'current_stage' => ApplicationIntakeReadinessService::STATE_HOLD,
+            'guarantor_deadline_at' => null,
+            'screening_payload' => $payload,
+        ]);
+
+        if (! $alreadyParked) {
+            $this->record($application, ApplicationIntakeReadinessService::STATE_HOLD, 'Borrower failed initial eligibility. Parked for review. Guarantor work is not the next action.', $fromStage);
+            if ($notify) {
+                $this->notifyBorrower($application, 'intake_received', 'borrower.intake.received_title', 'borrower.intake.received_hold_body');
+            }
+        }
+
+        return $application->fresh();
     }
 
     public function dispatchGuarantorInvitation(LoanApplication $application): void
@@ -130,6 +162,10 @@ class ApplicationIntakeTransitionService
         $onHold = (string) $application->status === 'awaiting_guarantor'
             || (string) $application->current_stage === 'awaiting_guarantor';
         if (! $onHold || $this->guarantors->guarantorHoldBlocker($application) !== null) {
+            return false;
+        }
+        if ($this->capacity->isPending($application)
+            || data_get($application->screening_payload, 'intake.initial_gate.result') === 'failed') {
             return false;
         }
 

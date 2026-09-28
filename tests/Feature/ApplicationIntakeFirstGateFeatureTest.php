@@ -184,6 +184,13 @@ class ApplicationIntakeFirstGateFeatureTest extends TestCase
             $mock->shouldReceive('hasReadyGuarantor')->andReturn(true);
             $mock->shouldReceive('guarantorHoldBlocker')->andReturn(null);
         });
+        $this->mock(CreditEligibilityPolicyService::class, function ($mock): void {
+            $mock->shouldReceive('evaluate')->andReturn([
+                'application_action' => CreditEligibilityPolicyService::ACTION_CONTINUE,
+                'reason' => 'Eligible to continue screening.',
+                'participants' => [],
+            ]);
+        });
 
         $plan = app(ApplicationIntakeReconciliationService::class)->plan(['APP-IL-LQU6']);
         $this->assertNotEmpty($plan);

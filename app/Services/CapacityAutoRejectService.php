@@ -120,6 +120,8 @@ class CapacityAutoRejectService
             'submitted',
             'submitted_initial_check',
             'initial_decision_hold',
+            'awaiting_guarantor',
+            'draft',
             'screening',
             'credit_appraisal',
         ], true);

@@ -14,7 +14,7 @@ class ReconcileApplicationIntakeCommand extends Command
         {--notify : Dispatch notifications when applying (never in dry-run)}
         {--approve : Required to write in production}';
 
-    protected $description = 'Idempotent intake reconciliation for stranded Drafts and contradictory closed+awaiting-guarantor rows.';
+    protected $description = 'Idempotent intake reconciliation for contradictory drafts, Gate-One FAIL files still awaiting guarantor, and stale closed stages.';
 
     public function handle(ApplicationIntakeReconciliationService $service): int
     {
