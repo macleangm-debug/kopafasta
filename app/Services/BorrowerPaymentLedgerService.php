@@ -27,6 +27,9 @@ class BorrowerPaymentLedgerService
                 'status'     => $payment->status,
                 'status_label' => $payment->statusLabel(),
                 'url'        => route('site.borrower.payments.show', $payment),
+                'receipt_url' => $payment->isVerified()
+                    ? route('site.borrower.payments.show', $payment)
+                    : null,
             ]);
 
         $refunds = BorrowerRefund::query()

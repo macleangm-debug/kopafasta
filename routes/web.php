@@ -452,6 +452,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::post('/borrower/payments', [BorrowerPaymentController::class, 'store'])->name('borrower.payments.store');
             Route::get('/borrower/payments/refund/{borrowerRefund}', [BorrowerPaymentController::class, 'showRefund'])->name('borrower.payments.refund');
             Route::get('/borrower/payments/{payment}', [BorrowerPaymentController::class, 'show'])->name('borrower.payments.show');
+            Route::get('/borrower/payments/{payment}/receipt.pdf', [BorrowerPaymentController::class, 'receipt'])->name('borrower.payments.receipt');
             Route::get('/borrower/payments/{payment}/status', [BorrowerPaymentController::class, 'status'])->name('borrower.payments.status');
             Route::post('/borrower/payments/{payment}/adjust', [BorrowerPaymentController::class, 'adjust'])->name('borrower.payments.adjust');
             Route::post('/borrower/payments/{payment}/pay', [BorrowerPaymentController::class, 'pay'])->name('borrower.payments.pay');

@@ -8,6 +8,7 @@ use App\Models\LoanApplication;
 use App\Models\NotificationLog;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class ApplicationIntakeTransitionService
 {
@@ -336,10 +337,16 @@ class ApplicationIntakeTransitionService
             return;
         }
 
+        $needle = '%'.$application->id.'%';
         $already = NotificationLog::query()
             ->where('customer_id', $customer->id)
             ->where('template', $event)
-            ->where('action_url', 'like', '%'.$application->id.'%')
+            ->where(function ($q) use ($needle) {
+                $q->where('recipient', 'like', $needle);
+                if (Schema::hasColumn('notification_logs', 'action_url')) {
+                    $q->orWhere('action_url', 'like', $needle);
+                }
+            })
             ->exists();
         if ($already) {
             return;

@@ -131,19 +131,26 @@
                                     default => 'bg-amber-50 text-amber-800',
                                 };
                             @endphp
-                            <a href="{{ $entry['url'] }}" class="block px-4 py-4 hover:bg-brand-muted/20 transition">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0">
-                                        <p class="font-mono text-xs font-semibold text-brand truncate">{{ $entry['reference'] }}</p>
-                                        <p class="text-sm text-gray-700 mt-1">{{ $entry['type_label'] }}</p>
-                                        <p class="text-xs text-gray-400 mt-1">{{ $entry['date']?->format('d M Y') }}</p>
+                            <div class="px-4 py-4">
+                                <a href="{{ $entry['url'] }}" class="block hover:bg-brand-muted/20 -mx-4 -mt-4 px-4 pt-4 transition">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <p class="font-mono text-xs font-semibold text-brand truncate">{{ $entry['reference'] }}</p>
+                                            <p class="text-sm text-gray-700 mt-1">{{ $entry['type_label'] }}</p>
+                                            <p class="text-xs text-gray-400 mt-1">{{ $entry['date']?->format('d M Y') }}</p>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <p class="font-semibold tabular-nums text-gray-900">{{ format_money($entry['amount']) }}</p>
+                                            <span class="inline-flex mt-1 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badge }}">{{ $entry['status_label'] }}</span>
+                                        </div>
                                     </div>
-                                    <div class="text-right shrink-0">
-                                        <p class="font-semibold tabular-nums text-gray-900">{{ format_money($entry['amount']) }}</p>
-                                        <span class="inline-flex mt-1 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badge }}">{{ $entry['status_label'] }}</span>
-                                    </div>
-                                </div>
-                            </a>
+                                </a>
+                                @if (! empty($entry['receipt_url']))
+                                    <a href="{{ $entry['receipt_url'] }}" class="inline-flex mt-3 text-xs font-bold text-brand hover:underline">
+                                        {{ __('borrower.payments_page.view_receipt') }}
+                                    </a>
+                                @endif
+                            </div>
                         @endforeach
                     </div>
                     <div class="hidden sm:block overflow-x-auto">
@@ -155,6 +162,7 @@
                                     <th class="px-5 py-3.5 font-semibold">{{ __('borrower.payments_page.col_type') }}</th>
                                     <th class="px-5 py-3.5 font-semibold">{{ __('borrower.payments_page.col_amount') }}</th>
                                     <th class="px-5 py-3.5 font-semibold">{{ __('borrower.payments_page.col_status') }}</th>
+                                    <th class="px-5 py-3.5 font-semibold"></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -176,6 +184,13 @@
                                             <span class="rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badge }}">
                                                 {{ $entry['status_label'] }}
                                             </span>
+                                        </td>
+                                        <td class="px-5 py-3.5 text-right">
+                                            @if (! empty($entry['receipt_url']))
+                                                <a href="{{ $entry['receipt_url'] }}" class="text-xs font-bold text-brand hover:underline" onclick="event.stopPropagation()">
+                                                    {{ __('borrower.payments_page.view_receipt') }}
+                                                </a>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach

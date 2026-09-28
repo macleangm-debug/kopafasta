@@ -2,81 +2,108 @@
     'payment',
     'continueUrl' => null,
     'continueLabel' => null,
+    'actions' => true,
 ])
 
 @php
     $payments = app(\App\Services\CustomerPaymentService::class);
+    $receipt = $payments->receiptPayload($payment);
     $continueUrl = $continueUrl ?: $payments->successRedirectUrl($payment);
     $continueLabel = $continueLabel ?: $payments->continueLabel($payment);
-    $paidAt = $payment->paid_at ?? $payment->verified_at ?? $payment->created_at;
-    $markUrl = asset(ltrim((string) (brand('logo_mark_url') ?: '/images/brand/kopafasta-mark.png'), '/'));
-    $filename = 'kopafasta-receipt-'.preg_replace('/[^A-Za-z0-9\-]/', '', (string) $payment->reference).'.png';
+    $rows = array_values(array_filter([
+        ['label' => __('borrower.payments_page.show.type'), 'value' => $receipt['type']],
+        ['label' => __('borrower.payments_page.show.payment_reference'), 'value' => $receipt['reference']],
+        filled($receipt['provider_ref'] ?? null)
+            ? ['label' => __('borrower.payments_page.show.provider_reference'), 'value' => $receipt['provider_ref']]
+            : null,
+        ['label' => __('borrower.payments_page.show.date'), 'value' => $receipt['paid_at_label']],
+        ['label' => __('borrower.payments_page.show.status'), 'value' => $receipt['status']],
+        filled($receipt['member_name'] ?? null)
+            ? ['label' => __('borrower.payments_page.show.member_name'), 'value' => $receipt['member_name']]
+            : null,
+        filled($receipt['member_number'] ?? null)
+            ? ['label' => __('borrower.payments_page.show.member_number'), 'value' => $receipt['member_number']]
+            : null,
+        filled($receipt['application_number'] ?? null)
+            ? ['label' => __('borrower.payments_page.show.application_number'), 'value' => $receipt['application_number']]
+            : null,
+        filled($receipt['loan_number'] ?? null)
+            ? ['label' => __('borrower.payments_page.show.loan_number'), 'value' => $receipt['loan_number']]
+            : null,
+        filled($receipt['phone_masked'] ?? null)
+            ? ['label' => __('borrower.payments_page.show.mobile_number'), 'value' => $receipt['phone_masked']]
+            : null,
+    ]));
+    if (is_array($receipt['allocation'] ?? null)) {
+        $rows[] = ['label' => __('borrower.payments_page.show.amount_paid'), 'value' => format_money($receipt['allocation']['paid'])];
+        $rows[] = ['label' => __('borrower.payments_page.show.amount_allocated'), 'value' => format_money($receipt['allocation']['allocated'])];
+        $rows[] = ['label' => __('borrower.payments_page.show.remaining_due'), 'value' => format_money($receipt['allocation']['remaining'])];
+    }
+    $footerParts = array_values(array_filter([
+        $receipt['legal_name'] ?? null,
+        $receipt['support_phone'] ?? null,
+        $receipt['support_email'] ?? null,
+        $receipt['website'] ?? null,
+    ]));
 @endphp
 
 <div class="space-y-4">
     <div id="kf-payment-receipt"
          data-kf-receipt
-         data-brand="{{ brand_name() }}"
-         data-mark="{{ $markUrl }}"
-         data-filename="{{ $filename }}"
-         data-kicker="{{ __('borrower.payments_page.show.receipt') }}"
-         data-amount="{{ format_money((float) $payment->amount) }}"
-         data-type-label="{{ __('borrower.payments_page.show.type') }}"
-         data-type="{{ $payment->typeLabel() }}"
-         data-reference-label="{{ __('borrower.payments_page.show.payment_reference') }}"
-         data-reference="{{ $payment->reference }}"
-         data-date-label="{{ __('borrower.payments_page.show.date') }}"
-         data-date="{{ $paidAt?->format('d M Y') }}"
-         data-status-label="{{ __('borrower.payments_page.show.status') }}"
-         data-status="{{ $payment->statusLabel() }}"
-         data-phone-label="{{ __('borrower.payments_page.show.mobile_number') }}"
-         data-phone="{{ $payment->mobile_number ?: '' }}"
+         data-brand="{{ $receipt['brand'] }}"
+         data-mark="{{ $receipt['mark_url'] }}"
+         data-filename="{{ $receipt['filename'] }}"
+         data-kicker="{{ $receipt['kicker'] }}"
+         data-amount="{{ $receipt['amount'] }}"
+         data-keep="{{ $receipt['keep_line'] }}"
+         data-footer="{{ implode(' · ', $footerParts) }}"
+         data-rows="{{ json_encode($rows, JSON_UNESCAPED_UNICODE) }}"
          class="kf-receipt rounded-2xl bg-white ring-1 ring-gray-200 px-5 py-6 sm:px-7 space-y-5">
         <div class="flex items-start justify-between gap-3">
             <x-site.brand-mark size="md" variant="dark" />
-            <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-gray-500 pt-1">{{ __('borrower.payments_page.show.receipt') }}</p>
+            <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-gray-500 pt-1">{{ $receipt['kicker'] }}</p>
         </div>
 
         <div>
             <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.amount') }}</p>
-            <p class="mt-1 text-3xl font-extrabold tabular-nums tracking-tight text-gray-900">{{ format_money((float) $payment->amount) }}</p>
+            <p class="mt-1 text-3xl font-extrabold tabular-nums tracking-tight text-gray-900">{{ $receipt['amount'] }}</p>
         </div>
 
         <dl class="grid sm:grid-cols-2 gap-4">
-            <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.type') }}</dt>
-                <dd class="mt-1 text-sm font-semibold text-gray-900">{{ $payment->typeLabel() }}</dd>
-            </div>
-            <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.payment_reference') }}</dt>
-                <dd class="mt-1 font-mono text-sm font-semibold text-gray-900">{{ $payment->reference }}</dd>
-            </div>
-            <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.date') }}</dt>
-                <dd class="mt-1 text-sm font-semibold text-gray-900">{{ $paidAt?->format('d M Y') }}</dd>
-            </div>
-            <div>
-                <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.status') }}</dt>
-                <dd class="mt-1 text-sm font-semibold text-gray-900">{{ $payment->statusLabel() }}</dd>
-            </div>
-            @if ($payment->mobile_number)
-                <div class="sm:col-span-2">
-                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.payments_page.show.mobile_number') }}</dt>
-                    <dd class="mt-1 font-mono text-sm font-semibold text-gray-900">{{ $payment->mobile_number }}</dd>
+            @foreach ($rows as $row)
+                <div>
+                    <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $row['label'] }}</dt>
+                    <dd class="mt-1 text-sm font-semibold text-gray-900 {{ str_contains((string) $row['label'], __('borrower.payments_page.show.payment_reference')) || str_contains((string) $row['label'], __('borrower.payments_page.show.member_number')) ? 'font-mono' : '' }}">{{ $row['value'] }}</dd>
                 </div>
-            @endif
+            @endforeach
         </dl>
+
+        @if ($footerParts !== [])
+            <p class="text-xs text-gray-600 leading-relaxed">{{ implode(' · ', $footerParts) }}</p>
+        @endif
+        <p class="text-xs font-semibold text-gray-800">{{ $receipt['keep_line'] }}</p>
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-2">
-        <button type="button"
-                data-kf-save-receipt="#kf-payment-receipt"
-                class="inline-flex justify-center rounded-xl bg-white ring-1 ring-gray-200 text-gray-900 text-sm font-bold px-5 py-3 hover:bg-gray-50">
-            {{ __('borrower.payments_page.show.save_receipt') }}
-        </button>
-        <a href="{{ $continueUrl }}"
-           class="inline-flex justify-center rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-3 hover:brightness-95">
-            {{ $continueLabel }}
-        </a>
-    </div>
+    @if ($actions)
+        <div class="flex flex-col sm:flex-row gap-2">
+            <button type="button"
+                    data-kf-save-receipt="#kf-payment-receipt"
+                    class="inline-flex justify-center rounded-xl bg-white ring-1 ring-gray-200 text-gray-900 text-sm font-bold px-5 py-3 hover:bg-gray-50">
+                {{ __('borrower.payments_page.show.save_receipt') }}
+            </button>
+            <button type="button"
+                    data-kf-share-receipt="#kf-payment-receipt"
+                    class="inline-flex justify-center rounded-xl bg-white ring-1 ring-gray-200 text-gray-900 text-sm font-bold px-5 py-3 hover:bg-gray-50">
+                {{ __('borrower.payments_page.show.share_receipt') }}
+            </button>
+            <a href="{{ route('site.borrower.payments.receipt', $payment) }}"
+               class="inline-flex justify-center rounded-xl bg-white ring-1 ring-gray-200 text-gray-900 text-sm font-bold px-5 py-3 hover:bg-gray-50">
+                {{ __('borrower.payments_page.show.pdf_receipt') }}
+            </a>
+            <a href="{{ $continueUrl }}"
+               class="inline-flex justify-center rounded-xl bg-brand-gold text-brand text-sm font-bold px-5 py-3 hover:brightness-95">
+                {{ $continueLabel }}
+            </a>
+        </div>
+    @endif
 </div>

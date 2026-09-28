@@ -76,8 +76,10 @@ class ApplicationDashboardQueueAlignmentTest extends TestCase
             ->get(route('admin.loan-applications.pipeline.under-review'))
             ->assertOk();
         $screening->assertSee('APP-IL-SCRN', false)
+            ->assertSee('APP-IL-LQU6', false)
+            ->assertSee(__('admin.intake.start_screening'), false)
+            ->assertSee(__('admin.intake.continue_screening'), false)
             ->assertDontSee('APP-IL-FF24', false)
-            ->assertDontSee('APP-IL-LQU6', false)
             ->assertDontSee('APP-IL-RZNT', false)
             ->assertDontSee('APP-IL-ZR93', false);
 

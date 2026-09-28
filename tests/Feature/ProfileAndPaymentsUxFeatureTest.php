@@ -241,7 +241,8 @@ class ProfileAndPaymentsUxFeatureTest extends TestCase
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.payments'))
-            ->assertRedirect(route('site.borrower.payments.create', ['loan' => $loan->id]));
+            ->assertOk()
+            ->assertSee(__('borrower.payments_page.make_repayment'), false);
     }
 
     public function test_residence_profile_save_persists_officer_and_address(): void

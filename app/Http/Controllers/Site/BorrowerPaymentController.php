@@ -10,7 +10,9 @@ use App\Models\CustomerPayment;
 use App\Models\Loan;
 use App\Models\Repayment;
 use App\Services\ActiveLoanServicingService;
+use App\Services\BorrowerPaymentLedgerService;
 use App\Services\CustomerPaymentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\LoyaltyRedemptionService;
 use App\Services\PaymentAccountService;
 use App\Services\PaymentGateService;
@@ -46,21 +48,40 @@ class BorrowerPaymentController extends Controller
         return $bound;
     }
 
-    public function index(): RedirectResponse
+    public function index(): View
     {
-        // Fee history stays in admin. Open repay from an active loan (or loan list).
         $customer = $this->customer();
-        $loan = Loan::query()
+        $loans = Loan::query()
             ->where('customer_id', $customer->id)
             ->whereIn('status', ['active', 'disbursed', 'arrears'])
+            ->with(['product', 'repaymentSchedules'])
             ->orderByDesc('id')
-            ->first();
-
-        if ($loan) {
-            return redirect()->route('site.borrower.payments.create', ['loan' => $loan->id]);
+            ->get();
+        $focusLoan = null;
+        if ($loans->isNotEmpty()) {
+            $focusLoan = array_merge(
+                app(ActiveLoanServicingService::class)->forLoan($loans->first()),
+                ['loan' => $loans->first()],
+            );
         }
+        $entries = app(BorrowerPaymentLedgerService::class)->entriesFor($customer);
 
-        return redirect()->route('site.borrower.loans');
+        return view('site.borrower.payments.index', compact('customer', 'loans', 'focusLoan', 'entries'));
+    }
+
+    public function receipt(CustomerPayment $payment)
+    {
+        $this->customerForPayment($payment);
+        abort_unless(app(CustomerPaymentService::class)->canIssueReceipt($payment), 404);
+
+        $payment->load(['customer', 'loan', 'source']);
+        $receipt = app(CustomerPaymentService::class)->receiptPayload($payment);
+        $pdf = Pdf::loadView('pdf.payment-receipt', [
+            'payment' => $payment,
+            'receipt' => $receipt,
+        ])->setPaper('a4');
+
+        return $pdf->download('kopafasta-receipt-'.preg_replace('/[^A-Za-z0-9\-]/', '', (string) $payment->reference).'.pdf');
     }
 
     public function create(Request $request): View|RedirectResponse

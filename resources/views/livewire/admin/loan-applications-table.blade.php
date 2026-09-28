@@ -140,8 +140,19 @@
                 <td class="px-5 py-3 text-gray-500">{{ $r->created_at?->format('Y-m-d') }}</td>
                 <td class="px-5 py-3 text-right">
                     @if ($pipeline === 'under_review')
-                        @php $guidedCta = app(\App\Services\ScreeningNextActionService::class)->forApplication($r, auth()->user()); @endphp
-                        <a href="{{ $guidedCta['href'] }}" class="text-xs font-medium text-brand hover:text-brand-light">{{ $guidedCta['cta'] }} →</a>
+                        @php
+                            $canStart = $intake->canStartScreening($r);
+                            $guidedCta = $canStart
+                                ? null
+                                : app(\App\Services\ScreeningNextActionService::class)->forApplication($r, auth()->user());
+                            $ctaHref = $canStart
+                                ? route('admin.loan-applications.show', $r).'#application-360'
+                                : ($guidedCta['href'] ?? route('admin.loan-applications.show', $r));
+                            $ctaLabel = $canStart
+                                ? __('admin.intake.start_screening')
+                                : __('admin.intake.continue_screening');
+                        @endphp
+                        <a href="{{ $ctaHref }}" class="text-xs font-medium text-brand hover:text-brand-light">{{ $ctaLabel }} →</a>
                     @elseif ($pipeline === 'system_sorted')
                         @php
                             $cta = ($copy['state'] ?? '') === 'ready_for_screening'

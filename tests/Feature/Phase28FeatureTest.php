@@ -91,7 +91,8 @@ class Phase28FeatureTest extends TestCase
 
         $this->actingAs($customer->user)
             ->get(route('site.borrower.payments'))
-            ->assertRedirect(route('site.borrower.loans'));
+            ->assertOk()
+            ->assertSee(__('borrower.payments_page.title'), false);
     }
 
     public function test_guarantor_notifications_page_shows_translated_action_labels(): void

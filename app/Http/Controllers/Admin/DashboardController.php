@@ -33,7 +33,7 @@ class DashboardController extends Controller
         $capitalMetrics->reconcileDeployedBalances();
         $capital = $capitalMetrics->platformSummary();
 
-        $stageKeys = ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'approval', 'disbursement'];
+        $stageKeys = ['submitted', 'screening', 'credit_appraisal', 'pre_approval', 'approval', 'disbursement', 'ready_for_screening'];
         $stageCountsRaw = LoanApplication::query()
             ->selectRaw('current_stage, COUNT(*) as aggregate')
             ->whereIn('current_stage', $stageKeys)
@@ -59,7 +59,9 @@ class DashboardController extends Controller
             'collections_month'      => (float) Repayment::query()
                 ->where('paid_at', '>=', now()->startOfMonth())
                 ->sum('amount'),
-            'credit_review_queue'    => (int) ($stageCounts['screening'] ?? 0) + (int) ($stageCounts['credit_appraisal'] ?? 0),
+            'credit_review_queue'    => (int) ($stageCounts['screening'] ?? 0)
+                + (int) ($stageCounts['credit_appraisal'] ?? 0)
+                + (int) ($stageCounts['ready_for_screening'] ?? 0),
             'committee_queue'        => (int) ($stageCounts['pre_approval'] ?? 0),
             'my_assigned_queue'      => app(ApplicationIntakeReadinessService::class)->assignedQueueCount((int) auth()->id()),
             'capital_available'      => $capital['capital_available'],

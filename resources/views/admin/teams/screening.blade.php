@@ -31,15 +31,15 @@
                 <div class="mt-2 flex flex-wrap gap-2">
                     <a href="{{ route('admin.loan-applications.pipeline.system-sorted', ['section' => 'parked']) }}"
                        class="inline-flex rounded-xl px-3 py-2 text-xs font-bold bg-amber-50 text-amber-950 ring-1 ring-amber-200">
-                        {{ __('admin.intake.system_sorted_parked') }} · {{ $sorted['parked'] }}
+                        {{ __('admin.intake.system_sorted_chip_parked') }} · {{ $sorted['parked'] }}
                     </a>
                     <a href="{{ route('admin.loan-applications.pipeline.system-sorted', ['section' => 'ready_for_screening']) }}"
                        class="inline-flex rounded-xl px-3 py-2 text-xs font-bold bg-sky-50 text-sky-950 ring-1 ring-sky-200">
-                        {{ __('admin.intake.ready') }} · {{ $sorted['ready_for_screening'] }}
+                        {{ __('admin.intake.system_sorted_chip_ready') }} · {{ $sorted['ready_for_screening'] }}
                     </a>
                     <a href="{{ route('admin.loan-applications.pipeline.system-sorted', ['section' => 'awaiting_guarantor']) }}"
                        class="inline-flex rounded-xl px-3 py-2 text-xs font-bold bg-purple-50 text-purple-950 ring-1 ring-purple-200">
-                        {{ __('admin.intake.waiting_guarantor') }} · {{ $sorted['awaiting_guarantor'] }}
+                        {{ __('admin.intake.system_sorted_chip_awaiting') }} · {{ $sorted['awaiting_guarantor'] }}
                     </a>
                 </div>
             </div>

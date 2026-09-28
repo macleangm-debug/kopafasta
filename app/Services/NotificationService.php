@@ -238,6 +238,11 @@ class NotificationService
             $payload['user_id'] = $customer->user_id;
         }
 
+        $normalizedAction = $this->normalizeActionRecipient($actionUrl);
+        if (filled($normalizedAction) && Schema::hasColumn('notification_logs', 'action_url')) {
+            $payload['action_url'] = $normalizedAction;
+        }
+
         if (is_array($i18n) && (filled($i18n['title_key'] ?? null) || filled($i18n['body_key'] ?? null) || isset($i18n['customer_guarantor_id']) || isset($i18n['loan_application_id']) || isset($i18n['loan_application_document_request_id']) || isset($i18n['due_on']))) {
             $payload['meta'] = array_filter([
                 'title_key' => $i18n['title_key'] ?? null,

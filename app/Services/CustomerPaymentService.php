@@ -890,6 +890,68 @@ class CustomerPaymentService
         ];
     }
 
+    /**
+     * One borrower receipt payload. Screen, PNG, share, and PDF read this — no second receipt engine.
+     *
+     * @return array<string, mixed>
+     */
+    public function receiptPayload(CustomerPayment $payment): array
+    {
+        $payment->loadMissing(['customer', 'loan', 'source']);
+        $paidAt = $payment->paid_at ?? $payment->verified_at ?? $payment->created_at;
+        $phone = $payment->mobile_number
+            ?: data_get($payment->provider_meta, 'attempted_phone')
+            ?: data_get($payment->provider_meta, 'phone');
+        $context = $payment->adminContext();
+        $customer = $payment->customer;
+        $repayment = $payment->source instanceof Repayment ? $payment->source : null;
+        $isRepayment = CustomerPayment::canonicalType((string) $payment->payment_type) === 'loan_repayment'
+            && $payment->loan;
+        $allocation = null;
+        if ($payment->isVerified() && $isRepayment) {
+            $allocation = [
+                'paid' => (float) $payment->amount,
+                'allocated' => $repayment && in_array((string) $repayment->status, ['allocated', 'posted'], true)
+                    ? (float) $repayment->amount
+                    : (float) $payment->amount,
+                'remaining' => (float) ($payment->loan->outstanding_balance ?? 0),
+            ];
+        }
+
+        $website = class_exists(Setting::class) ? Setting::get('company.website') : null;
+        $legalName = class_exists(Setting::class) ? Setting::get('company.legal_name') : null;
+
+        return [
+            'brand' => brand_name(),
+            'legal_name' => filled($legalName) ? (string) $legalName : brand_legal_name(),
+            'mark_url' => asset(ltrim((string) (brand('logo_mark_url') ?: '/images/brand/kopafasta-mark.png'), '/')),
+            'kicker' => __('borrower.payments_page.show.receipt'),
+            'amount' => format_money((float) $payment->amount),
+            'type' => $payment->typeLabel(),
+            'reference' => (string) $payment->reference,
+            'provider_ref' => filled($payment->provider_ref) ? (string) $payment->provider_ref : null,
+            'paid_at' => $paidAt,
+            'paid_at_label' => $paidAt?->timezone((string) config('app.timezone'))->format('d M Y · H:i'),
+            'status' => $payment->statusLabel(),
+            'member_name' => $customer?->legalDisplayName(),
+            'member_number' => filled($customer?->customer_number) ? (string) $customer->customer_number : null,
+            'application_number' => filled($context['application_number'] ?? null) ? (string) $context['application_number'] : null,
+            'loan_number' => filled($context['loan_number'] ?? null) ? (string) $context['loan_number'] : null,
+            'phone_masked' => $this->maskPhoneForDisplay(is_string($phone) ? $phone : null),
+            'allocation' => $allocation,
+            'support_phone' => support_contact('phone'),
+            'support_email' => support_contact('email'),
+            'website' => filled($website) ? (string) $website : null,
+            'keep_line' => __('borrower.payments_page.show.keep_receipt'),
+            'filename' => 'kopafasta-receipt-'.preg_replace('/[^A-Za-z0-9\-]/', '', (string) $payment->reference).'.png',
+        ];
+    }
+
+    public function canIssueReceipt(CustomerPayment $payment): bool
+    {
+        return $payment->isVerified();
+    }
+
     public function maskPhoneForDisplay(?string $phone): ?string
     {
         if (! filled($phone)) {

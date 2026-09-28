@@ -130,7 +130,7 @@ class LoanApplicationsTable extends Component
                 };
             })
             ->when($this->pipeline === 'under_review', function ($q) {
-                $q->whereIn('current_stage', ['screening', 'credit_appraisal'])
+                $q->whereIn('current_stage', ['ready_for_screening', 'screening', 'credit_appraisal'])
                     ->whereNotIn('status', ['approved', 'disbursed', 'rejected', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
                     ->whereNotIn('current_stage', ['awaiting_guarantor', 'expired', 'rejected']);
             })
@@ -192,7 +192,8 @@ class LoanApplicationsTable extends Component
                 }
             )
             ->when($this->pipeline === 'under_review', function ($q) {
-                $q->orderByDesc('engagement_priority');
+                $q->orderByRaw("CASE WHEN current_stage = 'ready_for_screening' THEN 0 ELSE 1 END")
+                    ->orderByDesc('engagement_priority');
             })
             ->when($this->pipeline === 'system_sorted', function ($q) {
                 $q->orderByRaw("CASE
