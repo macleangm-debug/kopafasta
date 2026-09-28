@@ -38,6 +38,30 @@ if (! function_exists('app_display_timezone')) {
     }
 }
 
+if (! function_exists('localized_time_greeting')) {
+    /**
+     * Time-of-day greeting for Borrower/Partner shells using territory timezone.
+     * Does not use browser geolocation.
+     */
+    function localized_time_greeting(?string $name = null, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        $hour = (int) now(app_display_timezone())->format('G');
+        $period = match (true) {
+            $hour >= 5 && $hour < 12 => 'morning',
+            $hour >= 12 && $hour < 17 => 'afternoon',
+            $hour >= 17 && $hour < 22 => 'evening',
+            default => 'night',
+        };
+        $key = 'site.greetings.'.$period;
+        $name = trim((string) $name);
+
+        return $name !== ''
+            ? __($key.'_named', ['name' => $name], $locale)
+            : __($key, [], $locale);
+    }
+}
+
 if (! function_exists('format_app_datetime')) {
     /**
      * Format a stored timestamp in the local display timezone (default EAT).

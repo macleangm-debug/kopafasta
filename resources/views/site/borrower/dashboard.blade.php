@@ -2,8 +2,8 @@
 
     @php
         $hero = $dashboardHero ?? [];
-        $fullName = trim((string) ($customer->full_name ?? Auth::user()->name ?? ''));
-        $hero['greeting'] = $fullName !== '' ? $fullName : (__('borrower.welcome').', '.(explode(' ', (string) (Auth::user()->name ?? ''))[0] ?? ''));
+        $firstName = explode(' ', trim((string) ($customer->full_name ?? Auth::user()->name ?? '')))[0] ?? '';
+        $hero['greeting'] = localized_time_greeting($firstName !== '' ? $firstName : null);
         $hero['membership_no'] = $customer->member_no ?? null;
         $hero['grade'] = $customer->grade ?? 'bronze';
         $hero['plus_active'] = (bool) ($plusActive ?? false);

@@ -118,8 +118,15 @@ function paintReceipt(root) {
         }
     }
 
+    // Match on-screen receipt: logo + kicker, amount hierarchy, two-column fields.
     const width = 720;
-    const height = 280 + (rows.length * 72) + (data.footer ? 70 : 0) + (data.keep ? 50 : 0);
+    const pad = 48;
+    const contentW = width - pad * 2;
+    const colGap = 24;
+    const colW = (contentW - colGap) / 2;
+    const rowH = 64;
+    const pairs = Math.ceil(rows.length / 2);
+    const height = 280 + (pairs * rowH) + (data.footer ? 56 : 0) + (data.keep ? 40 : 0) + 40;
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -136,41 +143,70 @@ function paintReceipt(root) {
         ctx.strokeRect(24, 24, width - 48, height - 48);
 
         if (logo) {
-            ctx.drawImage(logo, 56, 56, 52, 52);
+            ctx.drawImage(logo, pad, 52, 48, 48);
+            ctx.fillStyle = '#111827';
+            ctx.font = '700 26px ui-sans-serif, system-ui, sans-serif';
+            ctx.fillText(data.brand || 'kopafasta', pad + 60, 84);
+        } else {
+            ctx.fillStyle = '#111827';
+            ctx.font = '700 28px ui-sans-serif, system-ui, sans-serif';
+            ctx.fillText(data.brand || 'kopafasta', pad, 84);
         }
 
-        ctx.fillStyle = '#111827';
-        ctx.font = '700 30px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(data.brand || 'kopafasta', logo ? 124 : 56, 92);
         ctx.fillStyle = '#6b7280';
-        ctx.font = '600 13px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(String(data.kicker || 'RECEIPT').toUpperCase(), 56, 150);
+        ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
+        const kicker = String(data.kicker || 'RECEIPT').toUpperCase();
+        const kickerW = ctx.measureText(kicker).width;
+        ctx.fillText(kicker, width - pad - kickerW, 78);
 
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText(String(data.amountLabel || 'AMOUNT').toUpperCase(), pad, 140);
         ctx.fillStyle = '#111827';
-        ctx.font = '800 44px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(data.amount || '', 56, 230);
+        ctx.font = '800 40px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText(data.amount || '', pad, 184);
 
-        let y = 300;
-        rows.forEach((row) => {
-            ctx.fillStyle = '#6b7280';
-            ctx.font = '600 13px ui-sans-serif, system-ui, sans-serif';
-            ctx.fillText(String(row.label || '').toUpperCase(), 56, y);
-            ctx.fillStyle = '#111827';
-            ctx.font = '700 20px ui-sans-serif, system-ui, sans-serif';
-            ctx.fillText(String(row.value || ''), 56, y + 28);
-            y += 72;
-        });
+        let y = 230;
+        for (let i = 0; i < rows.length; i += 2) {
+            const left = rows[i];
+            const right = rows[i + 1];
+            [
+                { row: left, x: pad },
+                { row: right, x: pad + colW + colGap },
+            ].forEach(({ row, x }) => {
+                if (! row) {
+                    return;
+                }
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+                ctx.fillText(String(row.label || '').toUpperCase(), x, y);
+                ctx.fillStyle = '#111827';
+                ctx.font = '700 16px ui-sans-serif, system-ui, sans-serif';
+                const value = String(row.value || '');
+                const maxW = colW - 4;
+                if (ctx.measureText(value).width > maxW) {
+                    let clipped = value;
+                    while (clipped.length > 3 && ctx.measureText(`${clipped}…`).width > maxW) {
+                        clipped = clipped.slice(0, -1);
+                    }
+                    ctx.fillText(`${clipped}…`, x, y + 24);
+                } else {
+                    ctx.fillText(value, x, y + 24);
+                }
+            });
+            y += rowH;
+        }
 
         if (data.footer) {
             ctx.fillStyle = '#4b5563';
-            ctx.font = '500 14px ui-sans-serif, system-ui, sans-serif';
-            wrapText(ctx, String(data.footer), 56, y, width - 112, 20);
-            y += 48;
+            ctx.font = '500 13px ui-sans-serif, system-ui, sans-serif';
+            wrapText(ctx, String(data.footer), pad, y, contentW, 18);
+            y += 44;
         }
         if (data.keep) {
             ctx.fillStyle = '#111827';
-            ctx.font = '600 14px ui-sans-serif, system-ui, sans-serif';
-            ctx.fillText(String(data.keep), 56, y);
+            ctx.font = '600 13px ui-sans-serif, system-ui, sans-serif';
+            ctx.fillText(String(data.keep), pad, y);
         }
     };
 

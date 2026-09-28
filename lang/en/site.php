@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'greetings' => [
+        'morning' => 'Good morning',
+        'morning_named' => 'Good morning, :name',
+        'afternoon' => 'Good afternoon',
+        'afternoon_named' => 'Good afternoon, :name',
+        'evening' => 'Good evening',
+        'evening_named' => 'Good evening, :name',
+        'night' => 'Good evening',
+        'night_named' => 'Good evening, :name',
+    ],
     'brand' => [
         'tagline' => 'Capital that moves at your pace.',
     ],
@@ -2015,7 +2025,7 @@ return [
         'figure_processing' => 'Pending / processing withdrawal',
         'figure_earned' => 'Total earned',
         'nav_profile' => 'Profile',
-        'greeting' => 'Good afternoon, :name',
+        'greeting' => ':name', // prefer localized_time_greeting()
         'hero_available' => 'Balance',
         'hero_pending' => 'Pending commission :amount',
         'hero_in_progress' => 'Withdrawal in progress :amount',
@@ -2095,7 +2105,7 @@ return [
         'agreement_expired' => 'Agreement expired',
         'accepted_on' => 'Accepted on :date',
         'premium_partner' => 'Premium Affiliate',
-        'standard_partner' => 'Standard Affiliate',
+        'standard_partner' => 'Affiliate',
         'share_title' => 'Share & Earn',
         'share_subtitle' => 'Share your referral link. Commission is earned only when referred members complete the qualifying activity.',
         'referral_link' => 'Referral link',
@@ -2353,8 +2363,14 @@ return [
         'quick_results' => 'Performance',
         'quick_wallet' => 'Wallet',
         'quick_profile' => 'Profile',
+                'review_accept_agreement' => 'Review & accept agreement',
+                'notify_welcome_subject' => 'Welcome to Kopafasta Affiliate',
+                'notify_promo_subject' => 'Your promo code is ready',
+                'notify_promo_body' => 'Your promo code :code is ready to share. You can personalise it from Share & Earn if you prefer.',
+                'promo_edit_on_share' => 'Change your promo code in Share & Earn — one code updates Profile, Hero, and your public referral link.',
         'hero_type_premium' => 'Premium Affiliate',
-        'hero_type_standard' => 'Standard Affiliate',
+        'hero_type_standard' => 'Affiliate',
+        'hero_type_affiliate' => 'Affiliate',
         'hero_wallet_label' => 'Available balance',
         'reference_title' => 'Trusted contact',
         'reference_hint' => 'A person Kopafasta may contact if we cannot reach you or need to verify essential Affiliate account information. This person is not a guarantor and has no financial responsibility.',

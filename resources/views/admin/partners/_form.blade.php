@@ -92,9 +92,8 @@
             if (! this.personTypes.includes(value)) {
                 this.applicantCategory = 'company';
             }
-            $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
-        });
-        $watch('applicantCategory', () => {
+            // Entity type (Company/Individual) only toggles fields — do not rebuild
+            // the wizard or clear Premium / commercial Alpine state.
             $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
         });
         $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
@@ -135,38 +134,40 @@
         </template>
     </x-admin.step>
 
-    <div data-step-gate x-show="isDebtCollector" x-cloak>
-        <x-admin.step title="Service capabilities">
-            <div class="md:col-span-2 space-y-3">
-                <p class="text-xs text-gray-500">
-                    Tick what this partner can do. When both are selected, a repossessed asset can stay with the same partner for auctioning.
-                </p>
-                <template x-for="role in roles" :key="'hidden-'+role">
-                    <input type="hidden" name="roles[]" :value="role">
-                </template>
-                <div class="grid sm:grid-cols-2 gap-3">
-                    <label class="flex items-start gap-3 rounded-xl border border-brand/15 bg-white px-4 py-3 cursor-pointer">
-                        <input type="checkbox" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
-                               :checked="hasRole('debt_collector')"
-                               @change="toggleRole('debt_collector')">
-                        <span>
-                            <span class="block text-sm font-semibold text-gray-900">Repossession / field collection</span>
-                            <span class="block text-xs text-gray-500 mt-0.5">Visits, collateral checks, and completing repossession.</span>
-                        </span>
-                    </label>
-                    <label class="flex items-start gap-3 rounded-xl border border-brand/15 bg-white px-4 py-3 cursor-pointer">
-                        <input type="checkbox" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
-                               :checked="hasRole('auctioneer')"
-                               @change="toggleRole('auctioneer')">
-                        <span>
-                            <span class="block text-sm font-semibold text-gray-900">Auctioning</span>
-                            <span class="block text-xs text-gray-500 mt-0.5">List and sell repossessed assets after the hold period.</span>
-                        </span>
-                    </label>
+    <template x-if="isDebtCollector">
+        <div data-step-gate>
+            <x-admin.step title="Service capabilities">
+                <div class="md:col-span-2 space-y-3">
+                    <p class="text-xs text-gray-500">
+                        Tick what this partner can do. When both are selected, a repossessed asset can stay with the same partner for auctioning.
+                    </p>
+                    <template x-for="role in roles" :key="'hidden-'+role">
+                        <input type="hidden" name="roles[]" :value="role">
+                    </template>
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        <label class="flex items-start gap-3 rounded-xl border border-brand/15 bg-white px-4 py-3 cursor-pointer">
+                            <input type="checkbox" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
+                                   :checked="hasRole('debt_collector')"
+                                   @change="toggleRole('debt_collector')">
+                            <span>
+                                <span class="block text-sm font-semibold text-gray-900">Repossession / field collection</span>
+                                <span class="block text-xs text-gray-500 mt-0.5">Visits, collateral checks, and completing repossession.</span>
+                            </span>
+                        </label>
+                        <label class="flex items-start gap-3 rounded-xl border border-brand/15 bg-white px-4 py-3 cursor-pointer">
+                            <input type="checkbox" class="mt-0.5 rounded border-gray-300 text-brand focus:ring-brand"
+                                   :checked="hasRole('auctioneer')"
+                                   @change="toggleRole('auctioneer')">
+                            <span>
+                                <span class="block text-sm font-semibold text-gray-900">Auctioning</span>
+                                <span class="block text-xs text-gray-500 mt-0.5">List and sell repossessed assets after the hold period.</span>
+                            </span>
+                        </label>
+                    </div>
                 </div>
-            </div>
-        </x-admin.step>
-    </div>
+            </x-admin.step>
+        </div>
+    </template>
 
     <x-admin.step title="Basic info">
         @if ($r)
@@ -436,8 +437,7 @@
                     <input type="checkbox" name="affiliate_premium" value="1"
                            class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand"
                            x-model="premiumAffiliate"
-                           @if ($commercialLocked) disabled @endif
-                           @checked((bool) old('affiliate_premium', $r?->affiliate_premium))>
+                           @if ($commercialLocked) disabled @endif>
                     <span>
                         <span class="block text-sm font-semibold text-gray-900">Premium Affiliate</span>
                         <span class="block text-xs text-gray-500 mt-0.5">Reach / brand partner. Paying Members targets, KPI progress, missed-target warnings, and target consequences do not apply. Referrals, commissions, wallet, and withdrawals stay.</span>
@@ -449,23 +449,13 @@
                 $affSettings = app(\App\Services\AffiliateSettingsService::class);
                 $affForm = $affSettings->forForm();
                 $membershipCfg = \App\Services\AffiliateMembershipService::config();
-                $applicationFee = (float) ($affForm['application_fee_amount'] ?? config('affiliates.application_fee_amount', 0));
                 $plusDefault = (float) ($affForm['default_plus_discount_percent'] ?? config('affiliates.default_plus_discount_percent', 10));
                 $plusOverride = old('plus_discount_percent', data_get($r?->metadata, 'plus_discount_percent'));
-                $isPremiumAffiliate = (bool) old('affiliate_premium', $r?->affiliate_premium);
-                $showMembershipFee = (bool) ($membershipCfg['enabled'] ?? false)
-                    && (! $isPremiumAffiliate || $affSettings->premiumMembershipRequired());
-            @endphp
-            <div class="md:col-span-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm text-gray-700 space-y-1">
-                <p><span class="font-semibold">Application / registration fee:</span> {{ $applicationFee > 0 ? format_money($applicationFee) : __('site.affiliate_apply.fee_not_required') }}</p>
-                @if ($showMembershipFee)
-                    <p><span class="font-semibold">Annual membership:</span> {{ format_money((float) ($membershipCfg['fee_amount'] ?? 0)) }} · {{ (int) ($membershipCfg['duration_days'] ?? 365) }} days</p>
-                @else
-                    <p><span class="font-semibold">Annual membership:</span> {{ __('site.affiliate_apply.fee_not_required') }}</p>
-                @endif
-                <p><span class="font-semibold">Kopafasta Plus customer discount:</span> {{ rtrim(rtrim(number_format($plusDefault, 2), '0'), '.') }}%</p>
-            </div>
-            @php
+                $membershipEnabled = (bool) ($membershipCfg['enabled'] ?? false);
+                $premiumMembershipRequired = $affSettings->premiumMembershipRequired();
+                $registrationBenefitApplies = $affSettings->benefitAppliesInTerritory('registration_fee');
+                $applicationBenefitApplies = $affSettings->benefitAppliesInTerritory('application_fee');
+                $plusBenefitApplies = $affSettings->benefitAppliesInTerritory('kopafasta_plus');
                 $settingsRates = [
                     'registration' => (float) ($affForm['default_registration_discount_percent'] ?? config('affiliates.default_registration_discount_percent', 10)),
                     'application' => (float) ($affForm['default_application_discount_percent'] ?? config('affiliates.default_application_discount_percent', 10)),
@@ -474,6 +464,25 @@
                 ];
                 $fmtPct = fn (float $v) => rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.').'%';
             @endphp
+            {{-- Admin-created partners are not charged the self-serve application fee. Membership only when Settings require it. --}}
+            <div class="md:col-span-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm text-gray-700 space-y-1"
+                 x-show="{{ $membershipEnabled ? 'true' : 'false' }} && (!premiumAffiliate || {{ $premiumMembershipRequired ? 'true' : 'false' }})"
+                 x-cloak>
+                <p><span class="font-semibold">Annual membership:</span> {{ format_money((float) ($membershipCfg['fee_amount'] ?? 0)) }} · {{ (int) ($membershipCfg['duration_days'] ?? 365) }} days</p>
+            </div>
+            <div class="md:col-span-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-4 py-3 text-sm text-gray-700 space-y-1">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Customer benefits (from Settings)</p>
+                @if ($registrationBenefitApplies)
+                    <p><span class="font-semibold">Registration fee discount:</span> {{ $fmtPct($settingsRates['registration']) }}</p>
+                @endif
+                @if ($applicationBenefitApplies)
+                    <p><span class="font-semibold">Application fee discount:</span> {{ $fmtPct($settingsRates['application']) }}</p>
+                @endif
+                @if ($plusBenefitApplies)
+                    <p><span class="font-semibold">Kopafasta Plus customer discount:</span> {{ $fmtPct($settingsRates['plus']) }}</p>
+                @endif
+                <p><span class="font-semibold">Affiliate commission (on qualifying referrals):</span> {{ $fmtPct($settingsRates['commission']) }}</p>
+            </div>
             <div class="md:col-span-2" x-show="showPremiumTerms && ! {{ $commercialLocked ? 'true' : 'false' }}" x-cloak>
                 <input type="hidden" name="commercial_rate_source" value="standard">
                 <p class="text-sm font-semibold text-gray-900">Commercial terms</p>
@@ -485,10 +494,10 @@
                         <span>
                             <span class="block text-sm font-semibold text-gray-900">Use standard Affiliate rates</span>
                             <span class="block text-xs text-gray-500 mt-0.5">
-                                Registration {{ $fmtPct($settingsRates['registration']) }}
-                                · Application {{ $fmtPct($settingsRates['application']) }}
-                                · Commission {{ $fmtPct($settingsRates['commission']) }}
-                                · Plus {{ $fmtPct($settingsRates['plus']) }}
+                                @if ($registrationBenefitApplies) Registration discount {{ $fmtPct($settingsRates['registration']) }} · @endif
+                                @if ($applicationBenefitApplies) Application discount {{ $fmtPct($settingsRates['application']) }} · @endif
+                                Commission {{ $fmtPct($settingsRates['commission']) }}
+                                @if ($plusBenefitApplies) · Plus discount {{ $fmtPct($settingsRates['plus']) }} @endif
                             </span>
                         </span>
                     </label>
@@ -512,10 +521,22 @@
             </div>
             <div class="contents" x-show="showNegotiatedRates && ! {{ $commercialLocked ? 'true' : 'false' }}" x-cloak>
                 @if ($canNegotiateRates)
-                    <x-admin.input name="registration_discount_percent" label="Registration discount (%)" type="number" step="0.01" :value="old('registration_discount_percent', $r?->registration_discount_percent ?? $settingsRates['registration'])" />
-                    <x-admin.input name="application_discount_percent" label="Application discount (%)" type="number" step="0.01" :value="old('application_discount_percent', $r?->application_discount_percent ?? $settingsRates['application'])" />
-                    <x-admin.input name="affiliate_commission_percent" label="Commission (%)" type="number" step="0.01" :value="old('affiliate_commission_percent', $r?->affiliate_commission_percent ?? $settingsRates['commission'])" />
-                    <x-admin.input name="plus_discount_percent" label="Kopafasta Plus discount (%)" type="number" step="0.1" min="0" max="100" :value="old('plus_discount_percent', $plusOverride ?? $plusDefault)" />
+                    <div class="md:col-span-2">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Commission</p>
+                    </div>
+                    <x-admin.input name="affiliate_commission_percent" label="Affiliate commission on qualifying referrals (%)" type="number" step="0.01" :value="old('affiliate_commission_percent', $r?->affiliate_commission_percent ?? $settingsRates['commission'])" />
+                    <div class="md:col-span-2">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 mt-1">Customer benefit / discount</p>
+                    </div>
+                    @if ($registrationBenefitApplies)
+                        <x-admin.input name="registration_discount_percent" label="Registration fee discount (%)" type="number" step="0.01" :value="old('registration_discount_percent', $r?->registration_discount_percent ?? $settingsRates['registration'])" />
+                    @endif
+                    @if ($applicationBenefitApplies)
+                        <x-admin.input name="application_discount_percent" label="Application fee discount (%)" type="number" step="0.01" :value="old('application_discount_percent', $r?->application_discount_percent ?? $settingsRates['application'])" />
+                    @endif
+                    @if ($plusBenefitApplies)
+                        <x-admin.input name="plus_discount_percent" label="Kopafasta Plus customer discount (%)" type="number" step="0.1" min="0" max="100" :value="old('plus_discount_percent', $plusOverride ?? $plusDefault)" />
+                    @endif
                 @endif
             </div>
         </x-admin.step>

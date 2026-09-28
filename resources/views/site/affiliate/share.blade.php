@@ -75,7 +75,7 @@
             </template>
         </section>
 
-        <section class="kf-premium-panel rounded-2xl relative overflow-hidden lg:h-full lg:flex lg:flex-col"
+        <section id="promo-code" class="kf-premium-panel rounded-2xl relative overflow-hidden lg:h-full lg:flex lg:flex-col"
                  x-data="affiliatePromoEditor({
                     initial: @js(old('affiliate_code', $vendor->affiliate_code)),
                     startEditing: @js((bool) old('affiliate_code')),
@@ -87,7 +87,8 @@
                         updated: @js(__('site.affiliate_portal.code_updated')),
                         update: @js(__('site.affiliate_portal.save_code')),
                     },
-                 })">
+                 })"
+                 x-init="if (window.location.hash === '#promo-code') { editing = true; }">
             <div class="relative px-4 sm:px-5 py-4 lg:flex-1 lg:flex lg:flex-col">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">{{ __('site.affiliate_portal.your_promo_code') }}</p>
                 <div class="lg:flex-1 lg:flex lg:flex-col lg:items-center lg:justify-center lg:text-center py-4 lg:py-0 space-y-3">

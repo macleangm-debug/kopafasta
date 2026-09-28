@@ -109,19 +109,9 @@ class AffiliateController extends Controller
         return redirect()->route('site.affiliate.performance', ['tab' => $tab]);
     }
 
-    public function agreement(): View
+    public function agreement(): View|RedirectResponse
     {
-        $vendor = $this->affiliate();
-        $accountTabs = [];
-
-        return view('site.affiliate.agreement', app(AffiliatePortalPresenter::class)->agreementDocument($vendor) + [
-            'partner' => $vendor,
-            'portal' => 'affiliate',
-            'profileRoute' => 'site.affiliate.profile',
-            'accountTabs' => $accountTabs,
-            'eyebrow' => __('site.affiliate_portal.title'),
-            'title' => __('site.affiliate_portal.agreement_title'),
-        ]);
+        return redirect()->route('site.affiliate.profile', ['section' => 'agreement']);
     }
 
     public function profile(Request $request, ?string $section = null): View|RedirectResponse
@@ -169,7 +159,7 @@ class AffiliateController extends Controller
 
         if ($section === 'membership') {
             if ($vendor->isPremiumAffiliate() && ! app(AffiliateSettingsService::class)->premiumMembershipRequired()) {
-                return redirect()->route('site.affiliate.agreement');
+                return redirect()->route('site.affiliate.profile', ['section' => 'agreement']);
             }
 
             return view('site.affiliate.membership', $common + [
@@ -199,15 +189,7 @@ class AffiliateController extends Controller
 
     public function terms(Request $request): View|RedirectResponse
     {
-        $vendor = $this->affiliate();
-        $terms = app(AffiliateTermsService::class);
-        $document = app(AffiliatePortalPresenter::class)->agreementDocument($vendor);
-
-        return view('site.affiliate.terms', $document + [
-            'vendor' => $vendor,
-            'rendered' => $terms->render($vendor),
-            'accepted' => $terms->latestAcceptance($vendor),
-        ]);
+        return redirect()->route('site.affiliate.profile', ['section' => 'agreement']);
     }
 
     public function acceptTerms(Request $request): RedirectResponse
@@ -242,7 +224,7 @@ class AffiliateController extends Controller
         $cfg = AffiliateMembershipService::config();
 
         if ($vendor->isPremiumAffiliate() && ! app(AffiliateSettingsService::class)->premiumMembershipRequired()) {
-            return redirect()->route('site.affiliate.agreement');
+            return redirect()->route('site.affiliate.profile', ['section' => 'agreement']);
         }
 
         if (! $cfg['enabled']) {
@@ -252,7 +234,7 @@ class AffiliateController extends Controller
         if (($cfg['require_terms_before_activation'] ?? true)
             && ! app(AffiliateTermsService::class)->hasAccepted($vendor)
             && ! $service->isActive($vendor)) {
-            return redirect()->route('site.affiliate.terms')
+            return redirect()->route('site.affiliate.profile', ['section' => 'agreement'])
                 ->with('error', __('affiliate_terms.required_before_membership'));
         }
 

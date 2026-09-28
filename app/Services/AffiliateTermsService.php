@@ -43,13 +43,21 @@ class AffiliateTermsService
             'premium_contract_label' => $contractLabel,
             'affiliate_type' => $premium
                 ? __('site.affiliate_portal.premium_partner')
-                : __('site.affiliate_portal.standard_partner'),
+                : __('site.affiliate_portal.hero_type_affiliate'),
             'rate_source' => $commercial['commercial_rate_source_label'],
             'commission_percent' => $commercial['commission_percent'],
-            'registration_discount_percent' => $commercial['registration_discount_percent'],
-            'application_discount_percent' => $commercial['application_discount_percent'],
-            'plus_discount_percent' => $commercial['plus_discount_percent'],
+            'registration_discount_percent' => $settings->benefitAppliesInTerritory('registration_fee', $settings->assessmentCountry($affiliate))
+                ? $commercial['registration_discount_percent']
+                : __('admin.partners.commercial_not_applicable'),
+            'application_discount_percent' => $settings->benefitAppliesInTerritory('application_fee', $settings->assessmentCountry($affiliate))
+                ? $commercial['application_discount_percent']
+                : __('admin.partners.commercial_not_applicable'),
+            'plus_discount_percent' => $settings->benefitAppliesInTerritory('kopafasta_plus', $settings->assessmentCountry($affiliate))
+                ? $commercial['plus_discount_percent']
+                : __('admin.partners.commercial_not_applicable'),
             'commercial_effective_from' => $commercial['commercial_effective_from'],
+            'membership_clause' => $this->membershipClause($affiliate, $locale),
+            'territory' => $settings->assessmentCountry($affiliate),
             'agreement_start' => $affiliate?->membership_started_at?->format('d M Y') ?? '—',
             'agreement_end' => $affiliate?->membership_expires_at?->format('d M Y') ?? '—',
             'assessment_period' => $premium ? __('admin.partners.commercial_not_applicable') : (string) $settings->evaluationPeriodDays(),
@@ -173,17 +181,49 @@ class AffiliateTermsService
             'affiliate_code' => $affiliate->affiliate_code,
             'affiliate_type' => $affiliate->isPremiumAffiliate()
                 ? __('site.affiliate_portal.premium_partner')
-                : __('site.affiliate_portal.standard_partner'),
+                : __('site.affiliate_portal.hero_type_affiliate'),
             'agreement_version' => $acceptance?->agreement_version ?? $this->agreementVersion(),
             'policy_version' => $acceptance?->policy_version ?? $this->policyVersion(),
             'effective_date' => $acceptance?->accepted_at?->format('d M Y') ?? now()->format('d M Y'),
             'contract_term' => $commercial['premium'] ?? false
                 ? $this->contractDurationLabel((int) ($commercial['duration_months'] ?? app(AffiliateSettingsService::class)->premiumContractDurationMonths()))
-                : __('affiliate_terms.annual_membership_term', ['days' => AffiliateMembershipService::config()['duration_days'] ?? 365]),
+                : $this->standardContractTerm($affiliate),
             'start_date' => $commercial['started_at']?->format('d M Y'),
             'end_date' => $commercial['expires_at']?->format('d M Y'),
             'accepted_at' => $acceptance?->accepted_at?->format('d M Y'),
         ];
+    }
+
+    private function standardContractTerm(?Vendor $affiliate): string
+    {
+        $membership = app(AffiliateMembershipService::class);
+        if ($affiliate && $membership->usesPremiumAgreement($affiliate)) {
+            return __('admin.partners.commercial_not_applicable');
+        }
+        if (! AffiliateMembershipService::config()['enabled']) {
+            return __('admin.partners.commercial_not_applicable');
+        }
+
+        return __('affiliate_terms.annual_membership_term', ['days' => AffiliateMembershipService::config()['duration_days'] ?? 365]);
+    }
+
+    private function membershipClause(?Vendor $affiliate, string $locale): string
+    {
+        $membership = app(AffiliateMembershipService::class);
+        $cfg = AffiliateMembershipService::config();
+        if ($affiliate && $membership->usesPremiumAgreement($affiliate)) {
+            return __('affiliate_terms.membership_not_required_premium', [], $locale);
+        }
+        if (! ($cfg['enabled'] ?? false)) {
+            return __('affiliate_terms.membership_not_required_territory', [], $locale);
+        }
+
+        return __('affiliate_terms.membership_required_clause', [
+            'membership_fee_individual' => format_money((float) $cfg['fee_amount_individual']),
+            'membership_fee_company' => format_money((float) $cfg['fee_amount_company']),
+            'membership_duration' => (string) ($cfg['duration_days'] ?? 365),
+            'membership_grace_hours' => (string) ($cfg['grace_period_hours'] ?? 48),
+        ], $locale);
     }
 
     /** @return list<array{title: string, body: string}> */

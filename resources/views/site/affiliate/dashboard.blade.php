@@ -3,17 +3,26 @@
         $funnelKeys = $funnelKeys ?? ['visited', 'registered', 'applied'];
         $typeLabel = ($progress['premium'] ?? false)
             ? __('site.affiliate_portal.hero_type_premium')
-            : __('site.affiliate_portal.hero_type_standard');
+            : __('site.affiliate_portal.hero_type_affiliate');
         $shareUrl = ($eligibility['can_share'] ?? false)
             ? route('site.affiliate.share')
             : ($attention['cta_url'] ?? route('site.affiliate.share'));
+        $agreementCta = ! empty($hero['cta_url']) ? $hero : null;
+        if (! $agreementCta && in_array(($attention['kind'] ?? ''), ['terms', 'agreement'], true)) {
+            $agreementCta = $attention;
+        }
     @endphp
 
     <section class="kf-premium-panel rounded-3xl mb-5">
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <div class="relative p-5 sm:p-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
             <div class="min-w-0">
-                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ strtoupper((string) ($hero['grade_label'] ?? $typeLabel)) }}</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ strtoupper((string) $typeLabel) }}</p>
+                    @if (! empty($hero['grade']))
+                        <x-site.grade-badge :grade="$hero['grade']" :label="$hero['grade_label'] ?? 'Premium'" size="sm" />
+                    @endif
+                </div>
                 <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $hero['greeting'] ?? $vendor->name }}</h1>
                 <p class="text-sm text-white/70 mt-1 font-mono">{{ $vendor->partner_number ?? $vendor->vendor_number }}</p>
                 <p class="text-sm text-white/80 mt-2 max-w-lg">{{ $standing['status_label'] ?? '' }}</p>
@@ -23,7 +32,12 @@
                         <span class="text-sm font-mono font-bold text-white" data-kf-promo-code>{{ $vendor->affiliate_code }}</span>
                     </p>
                 @endif
-                @if (($attention['kind'] ?? '') === 'profile' && ! empty($attention['cta_url']))
+                @if ($agreementCta && ! empty($agreementCta['cta_url']))
+                    <a href="{{ $agreementCta['cta_url'] }}"
+                       class="inline-flex mt-4 justify-center bg-brand-gold text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                        {{ $agreementCta['cta_label'] ?? __('site.affiliate_portal.review_accept_agreement') }} →
+                    </a>
+                @elseif (($attention['kind'] ?? '') === 'profile' && ! empty($attention['cta_url']))
                     <a href="{{ $attention['cta_url'] }}"
                        class="inline-flex mt-4 justify-center bg-brand-gold text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
                         {{ $attention['cta_label'] }} →
@@ -39,7 +53,7 @@
         </div>
     </section>
 
-    @if (($attention ?? null) && ($attention['kind'] ?? '') !== 'profile')
+    @if (($attention ?? null) && ! in_array(($attention['kind'] ?? ''), ['profile', 'terms', 'agreement'], true) && empty($attention['hero_only']))
         <section class="glass-card p-5 mb-6 ring-1 ring-amber-200 bg-amber-50/70">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>

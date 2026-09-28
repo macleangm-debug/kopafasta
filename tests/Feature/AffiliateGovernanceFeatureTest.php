@@ -201,7 +201,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('site.affiliate.membership.pay'))
-            ->assertRedirect(route('site.affiliate.terms'));
+            ->assertRedirect(route('site.affiliate.profile', ['section' => 'agreement']));
 
         app(AffiliateTermsService::class)->accept($affiliate, Request::create('/terms', 'POST'));
 

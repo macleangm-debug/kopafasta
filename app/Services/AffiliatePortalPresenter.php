@@ -268,9 +268,7 @@ class AffiliatePortalPresenter
         array $eligibility,
         ?array $attention,
     ): array {
-        $greeting = __('site.affiliate_portal.greeting', [
-            'name' => strtok($vendor->name, ' ') ?: $vendor->name,
-        ]);
+        $greeting = localized_time_greeting(strtok($vendor->name, ' ') ?: $vendor->name);
         $statusLabel = $standing['status_label'] ?? AffiliatePerformanceStatus::label((string) ($standing['status'] ?? ''));
         $code = $links['affiliate_code'] ?? $vendor->affiliate_code;
 
@@ -287,6 +285,9 @@ class AffiliatePortalPresenter
             $metaParts[] = __('site.affiliate_portal.hero_membership_until', ['date' => $commercial['expires_at']?->format('d M Y')]);
         }
 
+        $agreementPending = in_array('terms_unaccepted', $eligibility['reasons'] ?? [], true)
+            || in_array('agreement_inactive', $eligibility['reasons'] ?? [], true);
+
         return [
             'variant' => 'applications',
             'greeting' => $greeting,
@@ -301,13 +302,18 @@ class AffiliatePortalPresenter
             'amount_label' => __('site.affiliate_portal.hero_available'),
             'meta' => $code,
             'amount_compact' => format_money_compact($available),
-            'cta_label' => null,
-            'cta_url' => null,
+            'cta_label' => $agreementPending
+                ? __('site.affiliate_portal.review_accept_agreement')
+                : null,
+            'cta_url' => $agreementPending
+                ? route('site.affiliate.profile', ['section' => 'agreement'])
+                : null,
             'secondary_cta_label' => null,
             'secondary_cta_url' => null,
             'tertiary_cta_label' => null,
             'tertiary_cta_url' => null,
             'compact_mobile' => true,
+            'agreement_pending' => $agreementPending,
         ];
     }
 
@@ -327,7 +333,8 @@ class AffiliatePortalPresenter
                 'title' => __('site.affiliate_portal.lock_terms_title'),
                 'body' => __('site.affiliate_portal.lock_terms_body'),
                 'cta_label' => __('site.affiliate_portal.lock_terms_cta'),
-                'cta_url' => route('site.affiliate.terms'),
+                'cta_url' => route('site.affiliate.profile', ['section' => 'agreement']),
+                'hero_only' => true,
             ];
         }
         if (in_array('profile_incomplete', $reasons, true) || in_array('kyc_unverified', $reasons, true)) {
@@ -345,8 +352,9 @@ class AffiliatePortalPresenter
                     'kind' => 'agreement',
                     'title' => __('site.affiliate_portal.attention_agreement_title'),
                     'body' => __('site.affiliate_portal.attention_agreement_body'),
-                    'cta_label' => __('site.affiliate_portal.view_agreement'),
-                    'cta_url' => route('site.affiliate.agreement'),
+                    'cta_label' => __('site.affiliate_portal.review_accept_agreement'),
+                    'cta_url' => route('site.affiliate.profile', ['section' => 'agreement']),
+                    'hero_only' => true,
                 ];
             }
 

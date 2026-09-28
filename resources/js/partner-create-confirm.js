@@ -8,7 +8,7 @@ export function registerPartnerCreateConfirm(Alpine) {
         pinConfirm: '',
         formError: '',
         submitting: false,
-        summary: { name: '', category: '', entity: '', phone: '', email: '' },
+        summary: { name: '', category: '', entity: '', phone: '', email: '', arrangement: '' },
         categoryLabels,
 
         fieldValue(form, name) {
@@ -23,6 +23,11 @@ export function registerPartnerCreateConfirm(Alpine) {
                 const checked = fields.find((field) => field.checked);
 
                 return (checked?.value || '').trim();
+            }
+            if (fields[0].type === 'checkbox') {
+                const checked = fields.filter((field) => field.type === 'checkbox' && field.checked && field.value !== '0');
+
+                return checked.length ? (checked[checked.length - 1].value || '1') : '';
             }
 
             return (fields[0].value || '').trim();
@@ -58,12 +63,21 @@ export function registerPartnerCreateConfirm(Alpine) {
             const category = this.fieldValue(this.form, 'category');
             const applicant = this.fieldValue(this.form, 'applicant_category');
             const personType = ['valuer', 'affiliate'].includes(category);
+            let arrangement = '';
+            if (category === 'affiliate') {
+                const premium = this.fieldValue(this.form, 'affiliate_premium') === '1';
+                const rateSource = this.fieldValue(this.form, 'commercial_rate_source') || 'standard';
+                arrangement = premium
+                    ? (rateSource === 'negotiated' ? 'Premium · Negotiated rates' : 'Premium · Standard rates')
+                    : 'Affiliate';
+            }
             this.summary = {
                 name: this.fieldValue(this.form, 'name') || 'New partner',
                 category: this.categoryLabels[category] || category || 'Partner',
                 entity: personType ? (applicant === 'individual' ? 'Individual' : 'Company') : '',
                 phone: this.syncPhone(this.form) || '—',
                 email: this.fieldValue(this.form, 'email') || '—',
+                arrangement,
             };
         },
 

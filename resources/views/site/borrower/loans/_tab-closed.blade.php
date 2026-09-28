@@ -4,7 +4,6 @@
         ->sortByDesc(fn (array $row) => (int) ($row['sort_at'] ?? 0))
         ->values()
         ->all();
-    $viewMode = $viewMode ?? 'cards';
     $toneClasses = [
         'gray'    => 'bg-gray-100 text-gray-700',
         'amber'   => 'bg-brand-muted text-brand',
@@ -15,22 +14,8 @@
     ];
 @endphp
 
-<div class="flex items-center justify-between flex-wrap gap-3 mb-6">
-    <div>
-        <h2 class="text-lg font-semibold">{{ __('borrower.applications_list.closed_title') }}</h2>
-    </div>
-    <div class="hidden lg:inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
-        <a href="{{ route('site.borrower.loans', ['tab' => 'closed', 'view' => 'cards']) }}"
-           data-kf-motion="tab"
-           class="px-3 py-1.5 rounded-lg font-semibold {{ $viewMode === 'cards' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
-            {{ __('borrower.applications_list.cards') }}
-        </a>
-        <a href="{{ route('site.borrower.loans', ['tab' => 'closed', 'view' => 'table']) }}"
-           data-kf-motion="tab"
-           class="px-3 py-1.5 rounded-lg font-semibold {{ $viewMode === 'table' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
-            {{ __('borrower.applications_list.table') }}
-        </a>
-    </div>
+<div class="mb-6">
+    <h2 class="text-lg font-semibold">{{ __('borrower.applications_list.closed_title') }}</h2>
 </div>
 
 @if ($closedRows === [])
@@ -41,13 +26,9 @@
     />
 @else
     <div class="lg:hidden">
-        @include('site.borrower.loans._applications-closed', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
+        @include('site.borrower.loans._applications-cards', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
     </div>
     <div class="hidden lg:block">
-        @if ($viewMode === 'cards')
-            @include('site.borrower.loans._applications-closed', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
-        @else
-            @include('site.borrower.loans._applications-table', ['rows' => $closedRows, 'closed' => true])
-        @endif
+        @include('site.borrower.loans._applications-table', ['rows' => $closedRows, 'closed' => true])
     </div>
 @endif

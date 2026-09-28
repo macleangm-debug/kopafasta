@@ -38,7 +38,15 @@
             </div>
 
             @if ($isClosed && ($row['requested_amount'] ?? null))
-                <p class="text-sm font-bold tabular-nums text-gray-900 mb-4">{{ format_money($row['requested_amount']) }}</p>
+                <p class="text-sm font-bold tabular-nums text-gray-900 mb-1">{{ format_money($row['requested_amount']) }}</p>
+                @php
+                    $closedDate = optional($row['updated_at'] ?? null)->format('d M Y') ?: ($row['last_updated_human'] ?? null);
+                @endphp
+                @if ($closedDate)
+                    <p class="text-xs text-gray-500 mb-4">{{ $closedDate }}</p>
+                @else
+                    <div class="mb-4"></div>
+                @endif
             @endif
 
             <div class="grid grid-cols-2 gap-3 mb-4">

@@ -77,4 +77,24 @@
 
     <x-site.branded-agreement :header="$header" :sections="$sections" />
 
+    @if (! $accepted)
+        <form method="POST" action="{{ route('site.affiliate.terms.accept') }}" class="glass-card p-6 space-y-4 mt-5"
+              x-data
+              @submit.prevent="window.confirmForm($el, {
+                  title: @js(__('affiliate_terms.title')),
+                  message: @js(__('affiliate_terms.accept')),
+                  confirmLabel: @js(__('affiliate_terms.accept_button')),
+                  tone: 'confirm',
+              })">
+            @csrf
+            <label class="flex items-start gap-2 text-sm">
+                <input type="checkbox" name="affiliate_terms_accepted" value="1" required class="mt-1 rounded border-gray-300 text-brand">
+                {{ __('affiliate_terms.accept') }}
+            </label>
+            <button type="submit" class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-5 py-3 rounded-xl text-sm">
+                {{ __('affiliate_terms.accept_button') }}
+            </button>
+        </form>
+    @endif
+
 </x-site.affiliate-layout>

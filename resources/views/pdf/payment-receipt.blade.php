@@ -75,9 +75,10 @@
             <tr>
                 <td>
                     @if ($mark)
-                        <img class="mark" src="{{ $mark }}" alt="">
+                        <img class="mark" src="{{ $mark }}" alt="{{ $receipt['brand'] }}">
+                    @else
+                        <div style="font-size:13px;font-weight:bold;">{{ $receipt['brand'] }}</div>
                     @endif
-                    <div style="font-size:13px;font-weight:bold;margin-top:6px;">{{ $receipt['brand'] }}</div>
                 </td>
                 <td class="kicker">{{ $receipt['kicker'] }}</td>
             </tr>

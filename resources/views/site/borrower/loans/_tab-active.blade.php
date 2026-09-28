@@ -1,20 +1,6 @@
-<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-    <div>
-        <h2 class="text-lg font-bold text-gray-900 mb-1">{{ __('borrower.loans_page.tab_active') }}</h2>
-        <p class="text-sm text-gray-500">{{ __('borrower.loans_page.active_hint') }}</p>
-    </div>
-    <div class="inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
-        <a href="{{ route('site.borrower.loans', ['tab' => 'active', 'view' => 'cards']) }}"
-           data-kf-motion="tab"
-           class="px-3 py-1.5 rounded-lg font-semibold {{ ($viewMode ?? 'cards') === 'cards' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
-            {{ __('borrower.applications_list.cards') }}
-        </a>
-        <a href="{{ route('site.borrower.loans', ['tab' => 'active', 'view' => 'table']) }}"
-           data-kf-motion="tab"
-           class="px-3 py-1.5 rounded-lg font-semibold {{ ($viewMode ?? 'cards') === 'table' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
-            {{ __('borrower.applications_list.table') }}
-        </a>
-    </div>
+<div class="mb-6">
+    <h2 class="text-lg font-bold text-gray-900 mb-1">{{ __('borrower.loans_page.tab_active') }}</h2>
+    <p class="text-sm text-gray-500">{{ __('borrower.loans_page.active_hint') }}</p>
 </div>
 
 @if ($loans->isEmpty())
@@ -26,7 +12,7 @@
         :action-url="route('site.borrower.loan-products')"
     />
 @else
-    @if (($viewMode ?? 'cards') === 'table')
+    <div class="hidden lg:block">
         <div class="glass-card overflow-hidden">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50/80 text-left text-xs uppercase text-gray-500">
@@ -53,8 +39,8 @@
                 </tbody>
             </table>
         </div>
-    @else
-    <div class="space-y-4">
+    </div>
+    <div class="lg:hidden space-y-4">
         @foreach ($loans as $loan)
             @php
                 $paid = max(0, $loan->principal_amount - $loan->outstanding_balance);
@@ -124,5 +110,4 @@
             </div>
         @endforeach
     </div>
-    @endif
 @endif

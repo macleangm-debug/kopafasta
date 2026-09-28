@@ -34,6 +34,7 @@
                     <p class="text-gray-600 mt-0.5">
                         <span x-text="summary.category"></span><span x-show="summary.entity" x-cloak x-text="' · ' + summary.entity"></span>
                     </p>
+                    <p class="text-sm text-brand font-semibold mt-1" x-show="summary.arrangement" x-cloak x-text="summary.arrangement"></p>
                     <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
                         <div>
                             <dt class="text-gray-500">Phone (from Contact)</dt>

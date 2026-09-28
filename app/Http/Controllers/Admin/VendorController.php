@@ -479,9 +479,24 @@ class VendorController extends ResourceController
 
         // Category from the form is authoritative. Roles may add capabilities
         // (e.g. debt_collector + auctioneer) but must not demote the partner type.
+        // On create, do not inherit stray roles from a previous Partner type in the wizard.
+        // On update, preserve legitimate multi-role partners when the form omits roles[].
         if ($category !== '') {
-            if ($roles === []) {
-                $roles = [$category];
+            $multiRoleCategories = ['debt_collector', 'auctioneer'];
+            if (! $existing instanceof Vendor) {
+                if (in_array($category, $multiRoleCategories, true)) {
+                    $roles = array_values(array_unique(array_merge(
+                        [$category],
+                        array_values(array_intersect($roles, $multiRoleCategories))
+                    )));
+                } else {
+                    $roles = [$category];
+                }
+            } elseif ($roles === []) {
+                $existingRoles = is_array($existing->roles) ? $existing->roles : [];
+                $roles = $existingRoles !== []
+                    ? array_values(array_unique(array_merge([$category], $existingRoles)))
+                    : [$category];
             } else {
                 $roles = array_values(array_unique(array_merge([$category], $roles)));
             }

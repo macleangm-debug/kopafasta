@@ -3,7 +3,7 @@
     $viewMode = $viewMode ?? 'cards';
 @endphp
 
-@if ($viewMode === 'table')
+<div class="hidden lg:block">
     <div class="glass-card overflow-hidden ring-1 ring-brand/15">
         <table class="w-full text-sm">
             <thead class="bg-brand-muted/30 text-left text-xs uppercase text-gray-500">
@@ -44,7 +44,8 @@
             </tbody>
         </table>
     </div>
-@else
+</div>
+<div class="lg:hidden">
     <div class="grid gap-4 sm:grid-cols-2">
         @foreach ($rows as $row)
             @php
@@ -99,4 +100,4 @@
             </div>
         @endforeach
     </div>
-@endif
+</div>

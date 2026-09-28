@@ -63,7 +63,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('site.affiliate.membership.pay'))
-            ->assertRedirect(route('site.affiliate.agreement'));
+            ->assertRedirect(route('site.affiliate.profile', ['section' => 'agreement']));
 
         $this->actingAs($user)
             ->get(route('site.affiliate.dashboard'))
@@ -182,7 +182,6 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             'site.affiliate.notifications',
             'site.affiliate.profile',
             'site.affiliate.settings',
-            'site.affiliate.terms',
         ];
 
         foreach (['en', 'sw'] as $locale) {
@@ -196,6 +195,19 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
                 $this->assertDoesNotMatchRegularExpression('/site\.affiliate_portal\.[a-z0-9_]+/', $html, $route.' '.$locale);
                 $this->assertDoesNotMatchRegularExpression('/affiliate_terms\.[a-z0-9_]+/', $html, $route.' '.$locale);
             }
+
+            $this->actingAs($standardUser)
+                ->withSession(['locale' => $locale, 'country' => 'TZ'])
+                ->get(route('site.affiliate.terms'))
+                ->assertRedirect(route('site.affiliate.profile', ['section' => 'agreement']));
+
+            $agreementHtml = $this->actingAs($standardUser)
+                ->withSession(['locale' => $locale, 'country' => 'TZ'])
+                ->get(route('site.affiliate.profile', ['section' => 'agreement']))
+                ->assertOk()
+                ->getContent();
+            $this->assertDoesNotMatchRegularExpression('/site\.affiliate_portal\.[a-z0-9_]+/', $agreementHtml, 'agreement '.$locale);
+            $this->assertDoesNotMatchRegularExpression('/affiliate_terms\.[a-z0-9_]+/', $agreementHtml, 'agreement '.$locale);
 
             $premiumDashboard = $this->actingAs($premiumUser)
                 ->withSession(['locale' => $locale, 'country' => 'TZ'])
@@ -212,7 +224,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
 
             $this->actingAs($premiumUser)
                 ->withSession(['locale' => $locale, 'country' => 'TZ'])
-                ->get(route('site.affiliate.agreement'))
+                ->get(route('site.affiliate.profile', ['section' => 'agreement']))
                 ->assertOk()
                 ->assertSee(__('site.affiliate_portal.premium_agreement', [], $locale), false)
                 ->assertDontSee(__('site.affiliate_portal.membership_pay', [], $locale), false);
@@ -440,12 +452,12 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
             $this->actingAs($user)
                 ->withSession($session)
                 ->get(route('site.affiliate.profile', ['section' => 'membership']))
-                ->assertRedirect(route('site.affiliate.agreement'));
+                ->assertRedirect(route('site.affiliate.profile', ['section' => 'agreement']));
 
             $this->actingAs($user)
                 ->withSession($session)
                 ->get(route('site.affiliate.membership.pay'))
-                ->assertRedirect(route('site.affiliate.agreement'));
+                ->assertRedirect(route('site.affiliate.profile', ['section' => 'agreement']));
 
             $pages = [
                 $this->actingAs($user)->withSession($session)->get(route('site.affiliate.dashboard'))->assertOk()->getContent(),
@@ -464,7 +476,7 @@ class AffiliatePortalOverhaulFeatureTest extends TestCase
 
             $agreement = $this->actingAs($user)
                 ->withSession($session)
-                ->get(route('site.affiliate.agreement'))
+                ->get(route('site.affiliate.profile', ['section' => 'agreement']))
                 ->assertOk()
                 ->assertSee(__('site.affiliate_portal.premium_agreement', [], $locale), false)
                 ->assertDontSee(__('site.affiliate_portal.membership_pay', [], $locale), false)

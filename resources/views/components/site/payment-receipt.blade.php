@@ -55,6 +55,7 @@
          data-filename="{{ $receipt['filename'] }}"
          data-kicker="{{ $receipt['kicker'] }}"
          data-amount="{{ $receipt['amount'] }}"
+         data-amount-label="{{ __('borrower.payments_page.show.amount') }}"
          data-keep="{{ $receipt['keep_line'] }}"
          data-footer="{{ implode(' · ', $footerParts) }}"
          data-rows="{{ json_encode($rows, JSON_UNESCAPED_UNICODE) }}"
@@ -69,7 +70,8 @@
             <p class="mt-1 text-3xl font-extrabold tabular-nums tracking-tight text-gray-900">{{ $receipt['amount'] }}</p>
         </div>
 
-        <dl class="grid sm:grid-cols-2 gap-4">
+        {{-- Single stacked column on narrow; two columns from sm up — mirrored by PDF + paintReceipt. --}}
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             @foreach ($rows as $row)
                 <div>
                     <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $row['label'] }}</dt>

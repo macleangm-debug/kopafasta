@@ -95,8 +95,9 @@ class AccountWelcomeService
             'gps_installer' => 'gps_installer',
             'insurance' => 'insurance',
             'supplier' => 'supplier',
-            'call_center', 'debt_collector', 'auctioneer', 'legal_partner' => 'recovery',
-            default => null,
+            'yard' => 'supplier',
+            'call_center', 'debt_collector', 'auctioneer', 'legal_partner', 'towing' => 'recovery',
+            default => 'recovery',
         };
     }
 }

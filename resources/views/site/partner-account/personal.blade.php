@@ -294,32 +294,27 @@
                 :complete="filled($partner->affiliate_code)"
                 :collapsible="true">
                 <x-slot:view>
-                    <p class="text-sm font-mono font-bold text-brand">{{ $partner->affiliate_code ?: '—' }}</p>
+                    <p class="text-sm font-mono font-bold text-brand" data-kf-promo-code>{{ $partner->affiliate_code ?: '—' }}</p>
                     <p class="text-xs text-gray-500 mt-2">
                         {{ $canChangeCode ? __('site.affiliate_portal.code_change_hint') : __('site.affiliate_portal.code_locked_hint') }}
                     </p>
                     @if ($partner->affiliate_code)
                         <a href="{{ route('site.affiliate.verify', $partner->affiliate_code) }}" target="_blank" class="inline-flex mt-3 text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.verify_link') }} →</a>
                     @endif
+                    @if ($canChangeCode)
+                        <a href="{{ route('site.affiliate.share') }}#promo-code"
+                           class="inline-flex mt-3 ml-0 sm:ml-3 text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.change_promo_code') }} →</a>
+                    @endif
                 </x-slot:view>
                 <x-slot:form>
-                    <form method="POST" action="{{ route($updateRoute, ['section' => 'personal']) }}" class="space-y-4">
-                        @csrf @method('PUT')
-                        <input type="hidden" name="focus" value="promo">
+                    <div class="space-y-3">
                         <p class="text-sm text-gray-600">{{ __('site.affiliate_portal.code_rules') }}</p>
-                        <p class="text-xs text-amber-700">{{ $canChangeCode ? __('site.affiliate_portal.code_change_hint') : __('site.affiliate_portal.code_locked_hint') }}</p>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_portal.promo_code') }}</label>
-                            <input name="affiliate_code" value="{{ old('affiliate_code', $partner->affiliate_code) }}"
-                                   pattern="[A-Za-z0-9_-]{3,24}" maxlength="24"
-                                   @disabled(! $canChangeCode)
-                                   class="w-full rounded-xl border-gray-200 ring-1 ring-gray-200 px-3 py-2.5 text-sm font-mono uppercase focus:border-brand focus:ring-brand/10 outline-none disabled:bg-gray-50 disabled:text-gray-500">
-                            @error('affiliate_code')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-                        </div>
-                        @if ($canChangeCode)
-                            <x-site.gated-submit class="rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5" :label="__('site.partner_account.save_profile')" />
-                        @endif
-                    </form>
+                        <p class="text-xs text-amber-700">{{ __('site.affiliate_portal.promo_edit_on_share') }}</p>
+                        <a href="{{ route('site.affiliate.share') }}#promo-code"
+                           class="inline-flex rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
+                            {{ __('site.affiliate_portal.change_promo_code') }} →
+                        </a>
+                    </div>
                 </x-slot:form>
             </x-site.profile-section-card>
         @endif
