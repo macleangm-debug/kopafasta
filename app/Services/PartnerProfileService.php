@@ -556,11 +556,21 @@ class PartnerProfileService
         if ($entity instanceof Partner && $entity->isAffiliate()) {
             $affiliates = app(AffiliateService::class);
             $links = $affiliates->messageContext($entity);
+            $nextChange = $affiliates->nextCodeChangeAt($entity);
             $payload['promo'] = [
                 'code' => $links['affiliate_code'],
                 'link' => $links['affiliate_link'],
                 'message' => $affiliates->shareInvitation($entity),
                 'qr_url' => 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='.urlencode($links['affiliate_link']),
+                'can_change' => $affiliates->canChangeCode($entity),
+                'next_change_at' => $nextChange
+                    ? $nextChange->timezone(app_display_timezone())->translatedFormat('d M Y')
+                    : null,
+                'next_change_label' => $nextChange && ! $affiliates->canChangeCode($entity)
+                    ? __('site.affiliate_portal.code_cooldown_on', [
+                        'date' => $nextChange->timezone(app_display_timezone())->translatedFormat('d M Y'),
+                    ])
+                    : null,
             ];
         }
 

@@ -286,7 +286,7 @@
         @endif
 
         @if ($isAffiliate)
-            {{-- Promo code --}}
+            {{-- Promo code — read-only here; Share & Earn is the one editor --}}
             <x-site.profile-section-card
                 section-id="section-promo"
                 icon="🏷️"
@@ -295,24 +295,22 @@
                 :collapsible="true">
                 <x-slot:view>
                     <p class="text-sm font-mono font-bold text-brand" data-kf-promo-code>{{ $partner->affiliate_code ?: '—' }}</p>
-                    <p class="text-xs text-gray-500 mt-2">
-                        {{ $canChangeCode ? __('site.affiliate_portal.code_change_hint') : __('site.affiliate_portal.code_locked_hint') }}
-                    </p>
-                    @if ($partner->affiliate_code)
-                        <a href="{{ route('site.affiliate.verify', $partner->affiliate_code) }}" target="_blank" class="inline-flex mt-3 text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.verify_link') }} →</a>
-                    @endif
-                    @if ($canChangeCode)
+                    <p class="text-xs text-gray-500 mt-2">{{ __('site.affiliate_portal.promo_managed_on_share') }}</p>
+                    <div class="flex flex-wrap gap-3 mt-3">
+                        @if ($partner->affiliate_code)
+                            <a href="{{ route('site.affiliate.verify', $partner->affiliate_code) }}" target="_blank" class="inline-flex text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.verify_link') }} →</a>
+                        @endif
                         <a href="{{ route('site.affiliate.share') }}#promo-code"
-                           class="inline-flex mt-3 ml-0 sm:ml-3 text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.change_promo_code') }} →</a>
-                    @endif
+                           class="inline-flex text-sm font-semibold text-brand hover:underline">{{ __('site.affiliate_portal.manage_promo_code') }} →</a>
+                    </div>
                 </x-slot:view>
                 <x-slot:form>
                     <div class="space-y-3">
-                        <p class="text-sm text-gray-600">{{ __('site.affiliate_portal.code_rules') }}</p>
-                        <p class="text-xs text-amber-700">{{ __('site.affiliate_portal.promo_edit_on_share') }}</p>
+                        <p class="text-sm font-mono font-bold text-brand" data-kf-promo-code>{{ $partner->affiliate_code ?: '—' }}</p>
+                        <p class="text-sm text-gray-600">{{ __('site.affiliate_portal.promo_managed_on_share') }}</p>
                         <a href="{{ route('site.affiliate.share') }}#promo-code"
                            class="inline-flex rounded-xl bg-brand hover:bg-brand-light text-white text-sm font-semibold px-5 py-2.5">
-                            {{ __('site.affiliate_portal.change_promo_code') }} →
+                            {{ __('site.affiliate_portal.manage_promo_code') }} →
                         </a>
                     </div>
                 </x-slot:form>

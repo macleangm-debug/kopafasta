@@ -614,8 +614,11 @@ class AffiliateService
         }
 
         if (! $this->canChangeCode($affiliate)) {
-            throw new \InvalidArgumentException(__('site.affiliate_portal.code_cooldown', [
-                'days' => app(AffiliateSettingsService::class)->promoChangeCooldownDays(),
+            $next = $this->nextCodeChangeAt($affiliate);
+            throw new \InvalidArgumentException(__('site.affiliate_portal.code_cooldown_on', [
+                'date' => $next
+                    ? $next->timezone(app_display_timezone())->translatedFormat('d M Y')
+                    : '—',
             ]));
         }
 

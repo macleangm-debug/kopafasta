@@ -78,60 +78,109 @@
         <section id="promo-code" class="kf-premium-panel rounded-2xl relative overflow-hidden lg:h-full lg:flex lg:flex-col"
                  x-data="affiliatePromoEditor({
                     initial: @js(old('affiliate_code', $vendor->affiliate_code)),
-                    startEditing: @js((bool) old('affiliate_code')),
+                    startEditing: @js((bool) old('affiliate_code') && ($canChangeCode ?? false)),
+                    canChange: @js((bool) ($canChangeCode ?? false)),
+                    nextChangeLabel: @js(($nextCodeChangeAt && ! ($canChangeCode ?? false))
+                        ? __('site.affiliate_portal.code_cooldown_on', [
+                            'date' => $nextCodeChangeAt->timezone(app_display_timezone())->translatedFormat('d M Y'),
+                        ])
+                        : null),
                     checkUrl: @js(route('site.affiliate.share.promo-check')),
                     saveUrl: @js(route('site.affiliate.profile.update', ['section' => 'personal'])),
                     csrf: @js(csrf_token()),
+                    consequence: @js(__('site.affiliate_portal.code_change_consequence')),
                     labels: {
                         updating: @js(__('site.affiliate_portal.code_updating')),
                         updated: @js(__('site.affiliate_portal.code_updated')),
-                        update: @js(__('site.affiliate_portal.save_code')),
+                        save: @js(__('site.affiliate_portal.save_code_short')),
+                        cancel: @js(__('site.affiliate_portal.cancel_edit')),
+                        change: @js(__('site.affiliate_portal.change_action')),
+                        copy: @js(__('site.affiliate_portal.copy_code')),
+                        copied: @js(__('site.affiliate_portal.code_copied')),
                     },
                  })"
-                 x-init="if (window.location.hash === '#promo-code') { editing = true; }">
+                 x-init="if (window.location.hash === '#promo-code' && canChange) { editing = true; }">
             <div class="relative px-4 sm:px-5 py-4 lg:flex-1 lg:flex lg:flex-col">
                 <p class="text-[10px] uppercase tracking-[0.18em] text-brand-gold font-bold">{{ __('site.affiliate_portal.your_promo_code') }}</p>
+
                 <div class="lg:flex-1 lg:flex lg:flex-col lg:items-center lg:justify-center lg:text-center py-4 lg:py-0 space-y-3">
-                    <p class="text-3xl sm:text-5xl font-extrabold font-mono tracking-wide text-white leading-none" data-kf-promo-code>{{ $vendor->affiliate_code }}</p>
-                    <button type="button"
-                            class="inline-flex rounded-xl bg-brand-gold text-brand px-3.5 py-2 text-sm font-bold"
-                            @click="navigator.clipboard.writeText(code || @js($vendor->affiliate_code))">{{ __('site.affiliate_portal.copy_code') }}</button>
+                    {{-- Display mode: large code is the hero --}}
+                    <p x-show="!editing"
+                       class="text-3xl sm:text-5xl font-extrabold font-mono tracking-wide text-white leading-none"
+                       data-kf-promo-code
+                       x-text="code">{{ $vendor->affiliate_code }}</p>
+
+                    {{-- Edit mode: same position, same large typography --}}
+                    <input x-show="editing"
+                           x-cloak
+                           type="text"
+                           name="affiliate_code_display"
+                           x-model="code"
+                           @input="onInput()"
+                           @blur="check()"
+                           maxlength="24"
+                           autocomplete="off"
+                           spellcheck="false"
+                           class="w-full max-w-md mx-auto bg-transparent border-0 border-b-2 border-brand-gold/70 focus:border-brand-gold focus:ring-0 text-center text-3xl sm:text-5xl font-extrabold font-mono tracking-wide text-white leading-none px-1 py-1 placeholder:text-white/40"
+                           :class="error ? 'border-rose-300' : ''"
+                           placeholder="{{ __('site.affiliate_portal.promo_code') }}">
+
+                    <p x-show="editing && error" x-cloak x-text="error" class="text-xs text-rose-100"></p>
+                    @error('affiliate_code')
+                        <p class="text-xs text-rose-100" x-show="editing && !error">{{ $message }}</p>
+                    @enderror
+
+                    <p x-show="editing" x-cloak class="text-xs text-white/80 leading-relaxed max-w-sm mx-auto">
+                        {{ __('site.affiliate_portal.code_change_consequence') }}
+                    </p>
+
+                    {{-- Actions: Copy + Change, or Save · Cancel while editing --}}
+                    <div class="flex flex-wrap items-center justify-center gap-2 pt-1" x-show="!editing">
+                        <button type="button"
+                                class="inline-flex rounded-xl bg-brand-gold text-brand px-3.5 py-2 text-sm font-bold"
+                                @click="copyCode()">
+                            <span x-text="copied ? labels.copied : labels.copy">{{ __('site.affiliate_portal.copy_code') }}</span>
+                        </button>
+                        <button type="button"
+                                x-show="canChange"
+                                x-cloak
+                                class="inline-flex rounded-xl ring-1 ring-white/35 text-white px-3.5 py-2 text-sm font-bold hover:bg-white/10"
+                                @click="editing = true">
+                            {{ __('site.affiliate_portal.change_action') }}
+                        </button>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-center gap-3 pt-1" x-show="editing" x-cloak>
+                        <button type="button"
+                                @click="save()"
+                                :disabled="saving || !!error || ! code || code === String(configInitial || '').toUpperCase()"
+                                class="inline-flex items-center gap-2 rounded-xl bg-brand-gold text-brand px-4 py-2 text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed">
+                            <svg x-show="saving" x-cloak class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                                <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
+                            </svg>
+                            <span x-text="saving ? labels.updating : labels.save">{{ __('site.affiliate_portal.save_code_short') }}</span>
+                        </button>
+                        <button type="button"
+                                @click="cancelEdit()"
+                                :disabled="saving"
+                                class="text-sm font-semibold text-white/90 hover:text-white underline-offset-2 hover:underline disabled:opacity-50">
+                            {{ __('site.affiliate_portal.cancel_edit') }}
+                        </button>
+                    </div>
                 </div>
 
-                @if ($nextCodeChangeAt && ! $canChangeCode)
-                    <div class="mt-3">
-                        <p class="text-[10px] uppercase tracking-widest text-white/60 font-semibold">{{ __('site.affiliate_portal.next_change') }}</p>
-                        <p class="mt-0.5 text-sm font-semibold text-white">{{ $nextCodeChangeAt->timezone(config('app.timezone'))->translatedFormat('d M Y') }}</p>
-                    </div>
-                @endif
+                <p x-show="!canChange && nextChangeLabel"
+                   class="text-xs text-white/85 leading-relaxed mt-3"
+                   x-text="nextChangeLabel">
+                    @if ($nextCodeChangeAt && ! ($canChangeCode ?? false))
+                        {{ __('site.affiliate_portal.code_cooldown_on', [
+                            'date' => $nextCodeChangeAt->timezone(app_display_timezone())->translatedFormat('d M Y'),
+                        ]) }}
+                    @endif
+                </p>
 
-                <p class="text-xs text-white/75 leading-relaxed mt-2">{{ __('site.affiliate_portal.promo_link_unchanged') }}</p>
-
-                @if ($canChangeCode)
-                    <div x-show="!editing">
-                        <button type="button" @click="editing = true"
-                                class="text-sm font-bold text-brand-gold hover:underline">{{ __('site.affiliate_portal.change_promo_code') }} →</button>
-                    </div>
-                    <form method="POST" action="{{ route('site.affiliate.profile.update', ['section' => 'personal']) }}"
-                          class="space-y-2.5" x-show="editing" x-cloak
-                          @submit.prevent="save()">
-                        @csrf @method('PUT')
-                        <input type="hidden" name="focus" value="promo">
-                        <input name="affiliate_code" x-model="code"
-                               @blur="check()"
-                               pattern="[A-Za-z0-9_-]{3,24}" maxlength="24"
-                               class="w-full rounded-xl border-0 ring-1 px-3 py-2.5 text-sm font-mono uppercase text-gray-900"
-                               :class="error ? 'ring-red-300' : 'ring-white/40'">
-                        <p x-show="error" x-cloak x-text="error" class="text-xs text-rose-100"></p>
-                        @error('affiliate_code')<p class="text-xs text-rose-100" x-show="!error">{{ $message }}</p>@enderror
-                        <div class="flex flex-wrap gap-2">
-                            <button type="submit" :disabled="saving || !!error"
-                                    class="bg-brand-gold text-brand font-semibold px-4 py-2 rounded-xl text-sm disabled:opacity-60"
-                                    x-text="saving ? labels.updating : labels.update"></button>
-                            <button type="button" @click="editing = false; error = ''" class="rounded-xl ring-1 ring-white/30 px-3 py-2 text-sm font-semibold text-white">{{ __('site.affiliate_portal.cancel_edit') }}</button>
-                        </div>
-                    </form>
-                @endif
+                <p class="text-xs text-white/60 leading-relaxed mt-2">{{ __('site.affiliate_portal.code_rules') }}</p>
             </div>
         </section>
     </div>
@@ -142,15 +191,36 @@
         function affiliatePromoEditor(config) {
             return {
                 editing: !!config.startEditing,
-                code: config.initial || '',
+                code: String(config.initial || '').toUpperCase(),
+                configInitial: String(config.initial || '').toUpperCase(),
                 error: '',
                 saving: false,
+                copied: false,
+                canChange: !!config.canChange,
+                nextChangeLabel: config.nextChangeLabel || '',
                 labels: config.labels || {},
                 timer: null,
+                onInput() {
+                    this.code = String(this.code || '').replace(/\s+/g, '').toUpperCase();
+                    this.check();
+                },
+                cancelEdit() {
+                    if (this.saving) return;
+                    this.editing = false;
+                    this.error = '';
+                    this.code = this.configInitial;
+                },
+                copyCode() {
+                    const value = this.code || this.configInitial;
+                    navigator.clipboard.writeText(value).then(() => {
+                        this.copied = true;
+                        setTimeout(() => { this.copied = false; }, 1600);
+                    }).catch(() => {});
+                },
                 check() {
-                    const value = String(this.code || '').trim().toUpperCase();
+                    const value = String(this.code || '').replace(/\s+/g, '').toUpperCase();
                     this.code = value;
-                    if (! value || value === String(config.initial || '').toUpperCase()) {
+                    if (! value || value === this.configInitial) {
                         this.error = '';
                         return;
                     }
@@ -179,15 +249,16 @@
                 },
                 async save() {
                     if (this.saving || this.error) return;
+                    const value = String(this.code || '').replace(/\s+/g, '').toUpperCase();
+                    this.code = value;
+                    if (! value || value === this.configInitial) return;
+
                     this.saving = true;
-                    if (typeof window.kfShowInlineSaving === 'function') {
-                        window.kfShowInlineSaving(this.labels.updating || 'Updating…');
-                    }
                     const body = new FormData();
                     body.append('_token', config.csrf);
                     body.append('_method', 'PUT');
                     body.append('focus', 'promo');
-                    body.append('affiliate_code', this.code);
+                    body.append('affiliate_code', value);
                     try {
                         const res = await fetch(config.saveUrl, {
                             method: 'POST',
@@ -202,22 +273,18 @@
                         const data = await res.json().catch(() => ({}));
                         if (! res.ok || data.ok === false) {
                             this.error = data.message || Object.values(data.errors || {})[0]?.[0] || '';
-                            if (typeof window.kfShowSaveError === 'function') {
-                                window.kfShowSaveError(this.error);
-                            } else if (typeof window.kfHideSaving === 'function') {
-                                window.kfHideSaving();
-                            }
                             return;
                         }
-                        if (typeof window.kfFlashInlineSaved === 'function') {
-                            window.kfFlashInlineSaved(this.labels.updated || 'Updated');
-                        }
                         const promo = data.promo || {};
-                        const code = promo.code || this.code;
+                        const code = String(promo.code || value).toUpperCase();
                         this.code = code;
-                        config.initial = code;
+                        this.configInitial = code;
                         this.editing = false;
-                        document.querySelectorAll('[data-kf-promo-code]').forEach((el) => { el.textContent = code; });
+                        this.canChange = promo.can_change === true;
+                        this.nextChangeLabel = promo.next_change_label || '';
+                        document.querySelectorAll('[data-kf-promo-code]').forEach((el) => {
+                            if (el.tagName !== 'INPUT') el.textContent = code;
+                        });
                         if (promo.link) {
                             document.querySelectorAll('[data-kf-promo-link]').forEach((el) => { el.textContent = promo.link; });
                         }
@@ -228,7 +295,7 @@
                             document.querySelectorAll('[data-kf-promo-qr]').forEach((el) => { el.setAttribute('src', promo.qr_url); });
                         }
                     } catch (e) {
-                        if (typeof window.kfHideSaving === 'function') window.kfHideSaving();
+                        this.error = config.labels?.updated ? '' : (this.error || '');
                     } finally {
                         this.saving = false;
                     }

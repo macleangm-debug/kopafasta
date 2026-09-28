@@ -185,8 +185,9 @@
                                    :value="$promo['min_length'] ?? 3" />
                     <x-admin.input name="promo_max_length" label="Maximum length" type="number" min="3"
                                    :value="$promo['max_length'] ?? 24" />
-                    <x-admin.input name="promo_change_cooldown_days" label="Change cooldown (days)" type="number" min="0"
-                                   :value="$promo['change_cooldown_days'] ?? 30" />
+                    <x-admin.input name="promo_change_cooldown_days" label="Affiliate promo code change interval (days)" type="number" min="0"
+                                   :value="$promo['change_cooldown_days'] ?? 30"
+                                   help="How often an Affiliate may change their promo code after a successful self-service change. Default 30. Admin corrections are not limited by this interval." />
                     <x-admin.input name="promo_old_code_grace_days" label="Old-code alias grace (days)" type="number" min="0"
                                    :value="$promo['old_code_grace_days'] ?? 14" />
                 </div>
