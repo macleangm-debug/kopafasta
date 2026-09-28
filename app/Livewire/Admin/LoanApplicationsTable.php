@@ -130,14 +130,15 @@ class LoanApplicationsTable extends Component
                 };
             })
             ->when($this->pipeline === 'under_review', function ($q) {
-                $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal', 'ready_for_screening'])
+                $q->whereIn('current_stage', ['screening', 'credit_appraisal'])
                     ->whereNotIn('status', ['approved', 'disbursed', 'rejected', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
                     ->whereNotIn('current_stage', ['awaiting_guarantor', 'expired', 'rejected']);
             })
             ->when($this->pipeline === 'system_sorted', function ($q) {
-                $q->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
-                    ->whereNotIn('status', ['approved', 'disbursed', 'rejected', 'awaiting_guarantor', 'expired', 'withdrawn', 'cancelled'])
-                    ->where('screening_payload->capacity_auto_reject->status', CapacityAutoRejectService::STATUS_PENDING);
+                app(ApplicationIntakeReadinessService::class)->constrainSystemSorted($q, $this->intakeSection);
+            })
+            ->when($this->pipeline === 'assigned', function ($q) {
+                app(ApplicationIntakeReadinessService::class)->constrainAssignedQueue($q, (int) auth()->id());
             })
             ->when($this->pipeline === 'under_review' && $this->hideSystemSorted, function ($q) {
                 $q->where(function ($q) {
@@ -194,7 +195,11 @@ class LoanApplicationsTable extends Component
                 $q->orderByDesc('engagement_priority');
             })
             ->when($this->pipeline === 'system_sorted', function ($q) {
-                $q->orderBy('screening_payload->capacity_auto_reject->auto_reject_at');
+                $q->orderByRaw("CASE
+                    WHEN current_stage IN ('submitted_initial_check', 'initial_decision_hold') THEN 0
+                    WHEN current_stage = 'ready_for_screening' THEN 1
+                    ELSE 2 END")
+                    ->orderBy('screening_payload->capacity_auto_reject->auto_reject_at');
             })
             ->orderBy($this->sort, $this->direction)
             ->paginate($this->perPage);

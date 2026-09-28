@@ -97,7 +97,7 @@ class ConsoleNavService
                     ['— Credit committee —', '__group__'],
                     ['Committee home',        'admin.teams.committee', null, null, ['roles' => ['credit_committee', 'admin', 'super_admin']]],
                     ['Credit committee',      'admin.loan-applications.pre-approvals', null, null, ['roles' => ['credit_committee', 'admin', 'super_admin', 'manager']]],
-                    ['System sorted',         'admin.loan-applications.pipeline.system-sorted', null, null, ['roles' => ['credit_committee', 'admin', 'super_admin']]],
+                    ['System sorted',         'admin.loan-applications.pipeline.system-sorted', null, null, ['roles' => ['officer', 'credit_analyst', 'credit_committee', 'admin', 'super_admin']]],
                     ['— Credit management —', '__group__'],
                     ['Management home',       'admin.teams.management', null, null, ['roles' => ['manager', 'admin', 'super_admin']]],
                     ['Management approval',   'admin.loan-applications.pipeline.management-approval', null, null, ['roles' => ['manager', 'admin', 'super_admin']]],

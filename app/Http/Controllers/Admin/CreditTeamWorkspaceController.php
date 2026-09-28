@@ -7,7 +7,6 @@ use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\User;
 use App\Models\Vendor;
-use App\Services\CapacityAutoRejectService;
 use App\Services\PartnerCoverageRequestService;
 use App\Services\PartnerStaffService;
 use Illuminate\View\View;
@@ -40,10 +39,7 @@ class CreditTeamWorkspaceController extends Controller
                 ->where('current_stage', 'pre_approval')
                 ->whereNotNull('recommendation_type')
                 ->count(),
-            'system_sorted' => LoanApplication::query()
-                ->whereIn('current_stage', ['submitted', 'screening', 'credit_appraisal'])
-                ->where('screening_payload->capacity_auto_reject->status', CapacityAutoRejectService::STATUS_PENDING)
-                ->count(),
+            'system_sorted' => app(\App\Services\ApplicationIntakeReadinessService::class)->systemSortedCount(),
         ];
 
         return view('admin.teams.committee', compact('counts'));

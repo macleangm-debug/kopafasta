@@ -25,6 +25,24 @@
                     Every open file stays visible. Guided Review is the easiest way through the same Review Checklist.
                 </p>
             </div>
+            @php $sorted = app(\App\Services\ApplicationIntakeReadinessService::class)->systemSortedCounts(); @endphp
+            <div class="bg-white px-4 sm:px-6 py-4 border-b border-slate-100">
+                <p class="text-[10px] uppercase tracking-widest font-semibold text-slate-500">{{ __('admin.intake.system_sorted_title') }}</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    <a href="{{ route('admin.loan-applications.pipeline.system-sorted', ['section' => 'parked']) }}"
+                       class="inline-flex rounded-xl px-3 py-2 text-xs font-bold bg-amber-50 text-amber-950 ring-1 ring-amber-200">
+                        {{ __('admin.intake.system_sorted_parked') }} · {{ $sorted['parked'] }}
+                    </a>
+                    <a href="{{ route('admin.loan-applications.pipeline.system-sorted', ['section' => 'ready_for_screening']) }}"
+                       class="inline-flex rounded-xl px-3 py-2 text-xs font-bold bg-sky-50 text-sky-950 ring-1 ring-sky-200">
+                        {{ __('admin.intake.ready') }} · {{ $sorted['ready_for_screening'] }}
+                    </a>
+                    <a href="{{ route('admin.loan-applications.pipeline.system-sorted', ['section' => 'awaiting_guarantor']) }}"
+                       class="inline-flex rounded-xl px-3 py-2 text-xs font-bold bg-purple-50 text-purple-950 ring-1 ring-purple-200">
+                        {{ __('admin.intake.waiting_guarantor') }} · {{ $sorted['awaiting_guarantor'] }}
+                    </a>
+                </div>
+            </div>
             <div class="bg-white px-4 sm:px-6 py-4 flex flex-wrap gap-2">
                 @foreach ([
                     'do_now' => 'Do now · '.count($queue['do_now']),

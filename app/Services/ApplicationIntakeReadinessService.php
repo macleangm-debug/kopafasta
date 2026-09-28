@@ -327,6 +327,112 @@ class ApplicationIntakeReadinessService
         ];
     }
 
+    public function constrainSystemSorted($query, ?string $section = null)
+    {
+        $query->whereNotIn('status', self::CLOSED_STATUSES);
+
+        match ($section) {
+            'parked', 'initial_check' => $this->constrainParked($query),
+            'ready_for_screening' => $query->where('current_stage', self::STATE_READY),
+            'awaiting_guarantor' => $this->constrainAwaitingGuarantor($query),
+            default => $query->where(function ($q) {
+                $q->where(fn ($inner) => $this->constrainParked($inner))
+                    ->orWhere('current_stage', self::STATE_READY)
+                    ->orWhere(fn ($inner) => $this->constrainAwaitingGuarantor($inner));
+            }),
+        };
+
+        return $query;
+    }
+
+    public function systemSortedQuery(?string $section = null)
+    {
+        return $this->constrainSystemSorted(LoanApplication::query(), $section);
+    }
+
+    public function systemSortedCount(?string $section = null): int
+    {
+        return $this->systemSortedQuery($section)->count();
+    }
+
+    /** @return array{parked: int, ready_for_screening: int, awaiting_guarantor: int, total: int} */
+    public function systemSortedCounts(): array
+    {
+        return [
+            'parked' => $this->systemSortedCount('parked'),
+            'ready_for_screening' => $this->systemSortedCount('ready_for_screening'),
+            'awaiting_guarantor' => $this->systemSortedCount('awaiting_guarantor'),
+            'total' => $this->systemSortedCount(),
+        ];
+    }
+
+    public function constrainAssignedQueue($query, int $userId)
+    {
+        return $query
+            ->where('assigned_analyst_id', $userId)
+            ->whereNotIn('status', ['rejected', 'withdrawn', 'cancelled'])
+            ->whereNotIn('current_stage', ['disbursement', 'rejected']);
+    }
+
+    public function assignedQueueCount(int $userId): int
+    {
+        return $this->constrainAssignedQueue(LoanApplication::query(), $userId)->count();
+    }
+
+    /** @return array{state: string, next_label: string, reason: ?string, release_at: mixed} */
+    public function operationalCopy(LoanApplication $application): array
+    {
+        $state = $this->resolve($application)['state'] ?? '';
+        $nomination = $this->guarantorNomination($application);
+        $gate = $this->initialGate($application);
+
+        $nextLabel = match ($state) {
+            self::STATE_HOLD, self::STATE_INITIAL_CHECK => __('admin.intake.await_feedback_release'),
+            self::STATE_READY => __('admin.intake.initiate_screening'),
+            self::STATE_AWAITING_GUARANTOR => match ($nomination['progress'] ?? '') {
+                'declined', 'rejected' => __('admin.intake.guarantor_replacement_required'),
+                'expired' => __('admin.intake.guarantor_expired'),
+                'profile_incomplete' => __('admin.intake.guarantor_profile_incomplete'),
+                'invited', 'nominated' => __('admin.intake.guarantor_invited'),
+                default => __('admin.intake.waiting_guarantor'),
+            },
+            default => (string) $state,
+        };
+
+        $reason = in_array($state, [self::STATE_HOLD, self::STATE_INITIAL_CHECK], true)
+            ? ($gate['reason'] ?? null)
+            : null;
+
+        return [
+            'state' => (string) $state,
+            'next_label' => $nextLabel,
+            'reason' => $reason && $reason !== 'capacity_hold' ? $reason : null,
+            'release_at' => $gate['release_at'] ?? null,
+        ];
+    }
+
+    private function constrainParked($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereIn('current_stage', [self::STATE_INITIAL_CHECK, self::STATE_HOLD])
+                ->orWhere(function ($q) {
+                    $q->where('screening_payload->capacity_auto_reject->status', CapacityAutoRejectService::STATUS_PENDING)
+                        ->whereNotIn('current_stage', [self::STATE_READY, self::STATE_AWAITING_GUARANTOR])
+                        ->where('status', '!=', self::STATE_AWAITING_GUARANTOR);
+                });
+        });
+    }
+
+    private function constrainAwaitingGuarantor($query)
+    {
+        return $query
+            ->where(function ($q) {
+                $q->where('status', self::STATE_AWAITING_GUARANTOR)
+                    ->orWhere('current_stage', self::STATE_AWAITING_GUARANTOR);
+            })
+            ->whereNotIn('current_stage', [self::STATE_HOLD, self::STATE_INITIAL_CHECK, self::STATE_READY]);
+    }
+
     public function draftReasonLabel(?string $reason): string
     {
         return match ($reason) {

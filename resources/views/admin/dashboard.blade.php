@@ -20,7 +20,7 @@
             ['Credit screening', format_number($stats['credit_review_queue'] ?? 0), route('admin.loan-applications.pipeline.under-review')],
             ['Committee', format_number($stats['committee_queue'] ?? 0), route('admin.loan-applications.pre-approvals')],
             ['Incomplete', format_number($stats['incomplete_applications']), route('admin.loan-applications.incomplete')],
-            ['Applications', format_number($stats['applications']), route('admin.loan-applications.index')],
+            ['Applications', format_number($stats['applications']), route('admin.loan-applications.pipeline.system-sorted')],
             ['Active loans', format_number($stats['active_loans']), route('admin.loans.index')],
             ['Capital free', format_money($stats['capital_available']), route('admin.capital-funding.index')],
         ];

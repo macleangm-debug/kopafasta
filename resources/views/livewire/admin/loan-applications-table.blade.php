@@ -1,11 +1,13 @@
 @php
     $contextHeader = match ($pipeline) {
-        'under_review' => 'Product',
+        'under_review', 'system_sorted' => 'Product',
         'committee' => 'Recommended by',
         'approved' => 'Next step',
         'disbursement' => 'Release',
         default => 'Analyst',
     };
+    $intake = app(\App\Services\ApplicationIntakeReadinessService::class);
+    $autoReject = app(\App\Services\CapacityAutoRejectService::class);
 @endphp
 <div>
 <div class="mb-3 flex flex-wrap items-center gap-2">
@@ -14,6 +16,45 @@
         My assigned queue
     </label>
 </div>
+
+@if ($pipeline === 'system_sorted')
+    <div class="md:hidden space-y-3 mb-4">
+        @forelse ($rows as $r)
+            @php
+                $copy = $intake->operationalCopy($r);
+                $pendingCapacity = $autoReject->isPending($r);
+                $hoursLeft = $pendingCapacity ? $autoReject->hoursRemaining($r) : null;
+                $cta = ($copy['state'] ?? '') === 'ready_for_screening'
+                    ? __('admin.intake.initiate_screening')
+                    : __('admin.intake.view_file');
+            @endphp
+            <a href="{{ route('admin.loan-applications.show', $r) }}" class="block rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-4">
+                <p class="font-mono text-xs font-bold text-slate-900">{{ $r->application_number ?? '—' }}</p>
+                <p class="text-sm font-semibold text-slate-800 mt-1">{{ $r->partyLabel() }}</p>
+                <p class="text-xs text-slate-500 mt-0.5">{{ $r->product?->name ?? '—' }}</p>
+                <p class="text-xs font-semibold text-slate-800 mt-2">{{ display_label($copy['state'] ?? $r->status, 'application_status') ?: ($copy['state'] ?? $r->status) }}</p>
+                <p class="text-[11px] text-slate-600 mt-1">{{ $copy['next_label'] }}</p>
+                @if (! empty($copy['reason']))
+                    <p class="text-[11px] text-amber-950 mt-1">{{ $copy['reason'] }}</p>
+                @endif
+                @if ($pendingCapacity)
+                    <p class="text-[11px] font-semibold text-amber-900 mt-1">
+                        @if ($hoursLeft === 0)
+                            {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin_due') }}
+                        @else
+                            {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin', ['hours' => $hoursLeft ?? '—']) }}
+                        @endif
+                    </p>
+                @endif
+                <p class="text-xs font-bold text-brand mt-3">{{ $cta }} →</p>
+            </a>
+        @empty
+            <p class="text-sm text-slate-600">{{ __('admin.intake.system_sorted_empty') }}</p>
+        @endforelse
+    </div>
+    <div class="hidden md:block">
+@endif
+
 <x-admin.table-shell :records="$rows" :statuses="$statuses" statusGroup="application_status" searchPlaceholder="Search application #, customer, phone, NIDA, product…">
     <x-slot:headers>
         <x-admin.th :sort="$sort" :direction="$direction" col="application_number" label="App #" />
@@ -27,22 +68,27 @@
     <x-slot:rows>
         @forelse ($rows as $r)
             @php
+                $copy = $intake->operationalCopy($r);
                 $contextValue = match ($pipeline) {
-                    'under_review' => $r->product?->name ?? '—',
+                    'under_review', 'system_sorted' => $r->product?->name ?? '—',
                     'committee' => $r->recommendedByUser?->name ?? '—',
                     'approved', 'disbursement' => $pipelineStages[$r->id] ?? '—',
                     default => $r->assignedAnalyst?->name ?? '—',
                 };
+                $displayStatus = $intake->displayStatus($r);
+                $displayStage = $intake->displayStage($r);
+                $pendingCapacity = in_array($pipeline, ['under_review', 'system_sorted'], true) && $autoReject->isPending($r);
+                $hoursLeft = $pendingCapacity ? $autoReject->hoursRemaining($r) : null;
+                $g = ($copy['state'] ?? '') === 'awaiting_guarantor' ? $intake->guarantorNomination($r) : null;
             @endphp
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3 font-mono text-xs">{{ $r->application_number ?? '—' }}</td>
                 <td class="px-5 py-3">
                     {{ $r->partyLabel() }}
                     <div class="text-xs text-gray-500">{{ $r->customer?->phone }}</div>
-                    @if (($pipeline ?? null) === 'intake' && ($intakeSection ?? null) === 'awaiting_guarantor')
-                        @php $g = $intake->guarantorNomination($r); @endphp
+                    @if ($g)
                         <div class="text-[10px] text-gray-500 mt-1">
-                            {{ $g['name'] ?? '—' }} · {{ $g['progress'] ?? '—' }}
+                            {{ $g['name'] ?? '—' }} · {{ $copy['next_label'] }}
                             @if (! empty($g['created_at'])) · {{ $g['created_at']->diffForHumans() }} @endif
                         </div>
                     @endif
@@ -50,11 +96,6 @@
                 <td class="px-5 py-3">{{ format_money( ($r->requested_amount ?? 0)) }}</td>
                 <td class="px-5 py-3 text-xs text-gray-600">{{ $contextValue }}</td>
                 <td class="px-5 py-3">
-                    @php
-                        $intake = app(\App\Services\ApplicationIntakeReadinessService::class);
-                        $displayStatus = $intake->displayStatus($r);
-                        $displayStage = $intake->displayStage($r);
-                    @endphp
                     <x-admin.badge :value="$displayStatus" group="application_status" :map="[
                         'approved'     => 'bg-emerald-100 text-emerald-800',
                         'pre_approved'   => 'bg-sky-100 text-sky-800',
@@ -70,11 +111,6 @@
                         'withdrawn' => 'bg-gray-200 text-gray-700',
                         'expired'            => 'bg-gray-200 text-gray-700',
                     ]" />
-                    @php
-                        $autoReject = app(\App\Services\CapacityAutoRejectService::class);
-                        $pendingCapacity = in_array($pipeline, ['under_review', 'system_sorted'], true) && $autoReject->isPending($r);
-                        $hoursLeft = $pendingCapacity ? $autoReject->hoursRemaining($r) : null;
-                    @endphp
                     @if ($pendingCapacity)
                         <div class="mt-1 inline-flex max-w-[14rem] text-[10px] font-semibold leading-snug rounded-md px-1.5 py-1 bg-amber-50 text-amber-900 ring-1 ring-amber-200">
                             @if ($hoursLeft === 0)
@@ -83,6 +119,11 @@
                                 {{ __('borrower.loan_profile.capacity_auto_reject_pending_admin', ['hours' => $hoursLeft ?? '—']) }}
                             @endif
                         </div>
+                        @if (! empty($copy['reason']))
+                            <div class="mt-1 text-[10px] text-amber-950 max-w-[16rem] leading-snug">{{ $copy['reason'] }}</div>
+                        @endif
+                    @elseif ($pipeline === 'system_sorted' && ! empty($copy['next_label']))
+                        <div class="mt-1 text-[10px] text-gray-500 max-w-[16rem] leading-snug">{{ $copy['next_label'] }}</div>
                     @endif
                     @if (! in_array($pipeline, ['approved', 'disbursement'], true)
                         && $displayStage
@@ -101,6 +142,13 @@
                     @if ($pipeline === 'under_review')
                         @php $guidedCta = app(\App\Services\ScreeningNextActionService::class)->forApplication($r, auth()->user()); @endphp
                         <a href="{{ $guidedCta['href'] }}" class="text-xs font-medium text-brand hover:text-brand-light">{{ $guidedCta['cta'] }} →</a>
+                    @elseif ($pipeline === 'system_sorted')
+                        @php
+                            $cta = ($copy['state'] ?? '') === 'ready_for_screening'
+                                ? __('admin.intake.initiate_screening')
+                                : __('admin.intake.view_file');
+                        @endphp
+                        <a href="{{ route('admin.loan-applications.show', $r) }}" class="text-xs font-medium text-brand hover:text-brand-light">{{ $cta }} →</a>
                     @else
                         <a href="{{ route('admin.loan-applications.show', $r) }}" class="text-xs font-medium text-brand hover:text-brand-light">View →</a>
                     @endif
@@ -111,4 +159,7 @@
         @endforelse
     </x-slot:rows>
 </x-admin.table-shell>
+@if ($pipeline === 'system_sorted')
+    </div>
+@endif
 </div>
