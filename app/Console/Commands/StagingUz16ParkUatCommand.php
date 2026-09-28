@@ -119,8 +119,16 @@ class StagingUz16ParkUatCommand extends Command
             ]);
         }
 
-        $fresh = app(ApplicationIntakeTransitionService::class)
-            ->afterBorrowerSubmit($application->fresh(['customer', 'product']));
+        try {
+            $fresh = app(ApplicationIntakeTransitionService::class)
+                ->afterBorrowerSubmit($application->fresh(['customer', 'product']));
+        } catch (\Throwable $e) {
+            $fresh = $application->fresh(['customer', 'product']);
+            if (! app(CapacityAutoRejectService::class)->isPending($fresh)) {
+                throw $e;
+            }
+            $this->warn('Parked via First Gate. Notification log skipped: '.$e->getMessage());
+        }
 
         if ((string) $fresh->current_stage !== ApplicationIntakeReadinessService::STATE_HOLD
             || ! app(CapacityAutoRejectService::class)->isPending($fresh)) {
