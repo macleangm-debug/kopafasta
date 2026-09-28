@@ -14,6 +14,8 @@ class CapacityAutoRejectService
 
     public const ADVICE_CODE = 'reapply_smaller_amount';
 
+    public const ADVICE_CODE_LONGER = 'reapply_smaller_or_longer';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_FIRED = 'fired';
@@ -321,24 +323,23 @@ class CapacityAutoRejectService
         $locale ??= $this->localeFor($application);
 
         if (! empty($state['is_group']) && ! empty($state['failed_members'])) {
-            $names = collect($state['failed_members'])
-                ->map(fn ($m) => $m['name'] ?? 'Member')
-                ->filter()
-                ->values()
-                ->all();
-
-            return __('borrower.loan_profile.capacity_auto_reject_reason_group', [
-                'amount' => format_money((float) ($state['requested_amount'] ?? $application->requested_amount ?? 0)),
-                'members' => implode(', ', $names),
-                'ratio' => rtrim(rtrim(number_format((float) ($state['repayment_ratio_pct'] ?? 33.33), 2), '0'), '.'),
-            ], $locale);
+            return __('borrower.loan_profile.capacity_auto_reject_reason_group', [], $locale);
         }
 
-        return __('borrower.loan_profile.capacity_auto_reject_reason', [
-            'amount' => format_money((float) ($state['requested_amount'] ?? $application->requested_amount ?? 0)),
-            'installment' => format_money((float) ($state['proposed_installment'] ?? 0)),
-            'capacity' => format_money((float) ($state['available_capacity'] ?? 0)),
-        ], $locale);
+        return __('borrower.loan_profile.capacity_auto_reject_reason', [], $locale);
+    }
+
+    public function affordabilityAdviceCode(LoanApplication $application): string
+    {
+        $application->loadMissing('product');
+        $requested = (int) ($application->requested_tenure_months ?? 0);
+        $max = (int) ($application->product?->tenure_max_months ?? 0);
+
+        if ($max > 0 && $requested > 0 && $requested < $max) {
+            return self::ADVICE_CODE_LONGER;
+        }
+
+        return self::ADVICE_CODE;
     }
 
     /** Hours remaining until feedback is sent (ceil), or null. */
@@ -401,6 +402,7 @@ class CapacityAutoRejectService
 
             $locale = $this->localeFor($application);
             $message = $this->borrowerReasonMessage($application, $state, $locale);
+            $adviceCode = $this->affordabilityAdviceCode($application);
             $from = $application->current_stage ?? 'screening';
 
             $state['status'] = self::STATUS_FIRED;
@@ -417,7 +419,7 @@ class CapacityAutoRejectService
                 'rejection_reason_code' => self::REASON_CODE,
                 'rejection_reason_codes' => [self::REASON_CODE],
                 'rejection_reason' => $message,
-                'rejection_advice_code' => self::ADVICE_CODE,
+                'rejection_advice_code' => $adviceCode,
                 'rejection_advice' => null,
                 'rejection_internal_notes' => $immediate
                     ? 'Capacity auto-reject sent immediately'
@@ -454,7 +456,11 @@ class CapacityAutoRejectService
             return;
         }
 
-        $advice = $this->rejectionReasons->resolveBorrowerAdvice(self::ADVICE_CODE, null, $locale);
+        $advice = $this->rejectionReasons->resolveBorrowerAdvice(
+            (string) ($application->rejection_advice_code ?: self::ADVICE_CODE),
+            $application->rejection_advice,
+            $locale,
+        );
         $body = $message;
         if ($advice) {
             $body .= "\n".$advice;

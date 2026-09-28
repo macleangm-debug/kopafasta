@@ -788,21 +788,19 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $this->assertStringContainsString('Muda wa msamaha', $html);
     }
 
-    public function test_rejection_letter_lists_catalog_reasons_in_borrower_language_and_keeps_capacity_figures(): void
+    public function test_rejection_letter_lists_catalog_reasons_in_borrower_language_without_internal_capacity(): void
     {
         Storage::fake('public');
 
         $this->borrower()->user->update(['preferences' => ['preferred_locale' => 'sw']]);
+        $product = $this->product();
+        $product->update(['name_sw' => 'Bidhaa ya Makubaliano']);
 
-        $capacity = __('borrower.loan_profile.capacity_auto_reject_reason', [
-            'amount' => format_money(2_000_000),
-            'installment' => format_money(380_000),
-            'capacity' => format_money(33_330),
-        ], 'en');
+        $capacity = __('borrower.loan_profile.capacity_auto_reject_reason', [], 'en');
 
         $application = LoanApplication::create([
             'customer_id' => $this->borrower()->id,
-            'loan_product_id' => $this->product()->id,
+            'loan_product_id' => $product->id,
             'application_number' => 'APP-RJ-PLAT',
             'requested_amount' => 2_000_000,
             'requested_tenure_months' => 6,
@@ -840,7 +838,9 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $this->assertSame(['repayment_exceeds_limit', 'incomplete_kyc'], $snapshot['rejection_codes']);
         $this->assertSame($reasons['labels'], $snapshot['rejection_reasons']);
         $this->assertSame($capacity, $snapshot['rejection_detail']);
+        $this->assertSame('Bidhaa ya Makubaliano', $snapshot['product_name']);
         $this->assertSame(__('rejection.advice.reapply_smaller_amount', [], 'sw'), $snapshot['rejection_advice']);
+        $this->assertSame(33_330.0, (float) ($snapshot['capacity_auto_reject']['available_capacity'] ?? 0));
 
         $html = view('pdf.rejection-letter', [
             'application' => $application,
@@ -850,9 +850,10 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
 
         $this->assertStringContainsString(__('rejection.reasons.repayment_exceeds_limit', [], 'sw'), $html);
         $this->assertStringContainsString(__('rejection.reasons.incomplete_kyc', [], 'sw'), $html);
+        $this->assertStringContainsString('Bidhaa ya Makubaliano', $html);
         $this->assertStringContainsString(format_money(2_000_000), $html);
         $this->assertStringContainsString(format_money(380_000), $html);
-        $this->assertStringContainsString(format_money(33_330), $html);
+        $this->assertStringNotContainsString(format_money(33_330), $html);
         $this->assertStringContainsString(__('rejection.advice.reapply_smaller_amount', [], 'sw'), $html);
         $this->assertStringContainsString('<li>', $html);
     }
@@ -879,5 +880,35 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $corner = imagecolorsforindex($processed, imagecolorat($processed, 0, 0));
         $this->assertGreaterThan(100, $corner['alpha']);
         imagedestroy($processed);
+    }
+
+    public function test_shared_signature_renderer_makes_portrait_asset_horizontal_without_changing_original(): void
+    {
+        $path = storage_path('framework/testing/signature-portrait-test.png');
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0755, true);
+        }
+
+        $image = imagecreatetruecolor(40, 120);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+        $clear = imagecolorallocatealpha($image, 0, 0, 0, 127);
+        imagefilledrectangle($image, 0, 0, 39, 119, $clear);
+        $ink = imagecolorallocate($image, 20, 20, 20);
+        imagefilledrectangle($image, 8, 20, 32, 100, $ink);
+        imagepng($image, $path);
+        imagedestroy($image);
+
+        $before = md5_file($path);
+        $presented = app(LegalSettingsService::class)->presentedSignaturePath($path);
+        $this->assertNotSame($path, $presented);
+        $this->assertSame($before, md5_file($path));
+        $info = getimagesize($presented);
+        $this->assertGreaterThan($info[1], $info[0]);
+
+        $offer = file_get_contents(resource_path('views/pdf/offer-letter.blade.php')) ?: '';
+        $this->assertStringContainsString('pdf.loan-agreement._signatories', $offer);
+        $this->assertStringContainsString('sig-img', file_get_contents(resource_path('views/pdf/loan-agreement/_signatories.blade.php')) ?: '');
+        $this->assertStringContainsString('max-height: 92px', file_get_contents(resource_path('views/pdf/loan-agreement/_styles.blade.php')) ?: '');
     }
 }

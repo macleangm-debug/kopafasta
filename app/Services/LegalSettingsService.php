@@ -48,7 +48,7 @@ class LegalSettingsService
 
         $full = storage_path('app/public/'.ltrim((string) $path, '/'));
 
-        return is_file($full) ? $full : null;
+        return is_file($full) ? $this->presentedSignaturePath($full) : null;
     }
 
     public function stampFilesystemPath(): ?string
@@ -62,6 +62,92 @@ class LegalSettingsService
         $full = storage_path('app/public/'.ltrim((string) $path, '/'));
 
         return is_file($full) ? $this->transparentStampPath($full) : null;
+    }
+
+    /**
+     * Presentation-only signature: honor EXIF, keep a natural horizontal orientation,
+     * preserve aspect ratio. Does not overwrite the uploaded asset.
+     */
+    public function presentedSignaturePath(string $full): string
+    {
+        if (! is_file($full) || ! function_exists('imagecreatefromstring') || ! function_exists('imagerotate')) {
+            return $full;
+        }
+
+        $hash = md5($full.'|'.(string) filemtime($full).'|sig-h1');
+        $dir = storage_path('app/pdf-cache/signatures');
+        $cache = $dir.'/'.$hash.'.png';
+        if (is_file($cache)) {
+            return $cache;
+        }
+
+        $raw = @file_get_contents($full);
+        if ($raw === false) {
+            return $full;
+        }
+
+        $src = @imagecreatefromstring($raw);
+        if ($src === false) {
+            return $full;
+        }
+
+        $src = $this->applyExifOrientation($src, $this->exifOrientation($full));
+        if (imagesy($src) > imagesx($src)) {
+            $rotated = $this->rotatePreservingAlpha($src, 270);
+            if ($rotated !== false) {
+                imagedestroy($src);
+                $src = $rotated;
+            }
+        }
+
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        imagesavealpha($src, true);
+        imagepng($src, $cache);
+        imagedestroy($src);
+
+        return is_file($cache) ? $cache : $full;
+    }
+
+    private function exifOrientation(string $full): int
+    {
+        if (! function_exists('exif_read_data')) {
+            return 1;
+        }
+
+        $exif = @exif_read_data($full);
+        $orientation = (int) ($exif['Orientation'] ?? 1);
+
+        return $orientation >= 1 && $orientation <= 8 ? $orientation : 1;
+    }
+
+    /** @param \GdImage|resource $src */
+    private function applyExifOrientation($src, int $orientation)
+    {
+        return match ($orientation) {
+            3 => $this->rotatePreservingAlpha($src, 180) ?: $src,
+            6 => $this->rotatePreservingAlpha($src, 270) ?: $src,
+            8 => $this->rotatePreservingAlpha($src, 90) ?: $src,
+            default => $src,
+        };
+    }
+
+    /** @param \GdImage|resource $src */
+    private function rotatePreservingAlpha($src, int $angle)
+    {
+        imagealphablending($src, true);
+        imagesavealpha($src, true);
+        $transparent = imagecolorallocatealpha($src, 0, 0, 0, 127);
+        $rotated = imagerotate($src, $angle, $transparent);
+        if ($rotated === false) {
+            return false;
+        }
+        imagealphablending($rotated, false);
+        imagesavealpha($rotated, true);
+
+        return $rotated;
     }
 
     /**

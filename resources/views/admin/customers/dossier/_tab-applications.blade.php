@@ -172,7 +172,47 @@
                                 <span class="text-gray-400">No resulting loan yet</span>
                             @endif
                         </div>
-                        <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-xs font-semibold text-brand hover:underline">Open application →</a>
+                        <div class="flex flex-wrap items-center gap-3">
+                            @php
+                                $canRestoreIncomplete = app(\App\Services\ApplicationIntakeTransitionService::class)
+                                    ->canRestoreIncompleteBorrowerCancel($app);
+                            @endphp
+                            @if ($canRestoreIncomplete)
+                                <div x-data="{ restoreOpen: false }">
+                                    <button type="button" @click="restoreOpen = true"
+                                            class="text-xs font-semibold text-brand hover:underline">
+                                        {{ __('admin.intake.restore_application') }}
+                                    </button>
+                                    <x-site.action-panel :title="__('admin.intake.restore_application')" open="restoreOpen">
+                                        <form method="POST"
+                                              action="{{ route('admin.loan-applications.restore-incomplete-cancel', $app) }}"
+                                              class="space-y-4"
+                                              data-no-draft>
+                                            @csrf
+                                            <input type="hidden" name="confirmed" value="1">
+                                            <p class="text-sm text-slate-700">
+                                                {{ __('admin.intake.restore_incomplete_confirm', ['number' => $app->application_number]) }}
+                                            </p>
+                                            <label class="block text-sm font-semibold text-slate-800">
+                                                {{ __('admin.intake.restore_incomplete_reason') }}
+                                                <textarea name="reason" required minlength="8" maxlength="500"
+                                                          class="mt-1 w-full rounded-xl border-slate-200 text-sm"></textarea>
+                                            </label>
+                                            <div class="flex flex-wrap gap-2">
+                                                <button type="submit" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-bold">
+                                                    {{ __('admin.intake.restore_application') }}
+                                                </button>
+                                                <button type="button" @click="restoreOpen = false"
+                                                        class="inline-flex items-center px-4 py-2.5 rounded-xl bg-white ring-1 ring-slate-200 text-sm font-semibold text-slate-700">
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </x-site.action-panel>
+                                </div>
+                            @endif
+                            <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-xs font-semibold text-brand hover:underline">Open application →</a>
+                        </div>
                     </div>
                 </article>
             @endforeach

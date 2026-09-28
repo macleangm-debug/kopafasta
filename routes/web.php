@@ -810,6 +810,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             ->name('loan-applications.screening-checklist');
         Route::post('loan-applications/{loan_application}/start-screening', [LoanApplicationController::class, 'startScreening'])
             ->name('loan-applications.start-screening');
+        Route::post('loan-applications/{loan_application}/restore-incomplete-cancel', [LoanApplicationController::class, 'restoreIncompleteCancel'])
+            ->name('loan-applications.restore-incomplete-cancel');
         Route::get('loan-applications/{loan_application}/guided-screening', [LoanApplicationController::class, 'guidedScreening'])
             ->name('loan-applications.guided-screening');
         Route::post('loan-applications/{loan_application}/guided-screening', [LoanApplicationController::class, 'saveGuidedScreening'])

@@ -46,7 +46,7 @@
     <p>{{ pdf_text(__('borrower.rejection_letter.pdf.greeting', ['name' => $snapshot['customer_name'] ?: __('borrower.rejection_letter.pdf.customer_fallback', [], $locale)], $locale)) }}</p>
     <p>{{ pdf_text(__('borrower.rejection_letter.pdf.intro', [], $locale)) }}</p>
 
-    <h2>{{ pdf_text(__('borrower.rejection_letter.pdf.details_heading', [], $locale)) }}</h2>
+    <h2>{{ pdf_text(__('borrower.loan_profile.decision_heading', [], $locale)) }}</h2>
     <table class="kv">
         <tr><td class="label">{{ pdf_text(__('borrower.rejection_letter.pdf.application_number', [], $locale)) }}</td><td class="value">{{ $snapshot['application_number'] }}</td></tr>
         <tr><td class="label">{{ pdf_text(__('borrower.rejection_letter.pdf.product', [], $locale)) }}</td><td class="value">{{ pdf_text($snapshot['product_name']) }} ({{ $snapshot['product_code'] }})</td></tr>
@@ -78,11 +78,9 @@
                 <tr><td class="label">{{ $t('Amount requested', 'Kiasi kilichoombwa') }}</td><td class="value">{{ format_money($capacity['requested_amount']) }}</td></tr>
             @endif
             @if (isset($capacity['proposed_installment']))
-                <tr><td class="label">{{ $t('Proposed instalment', 'Malipo yaliyopendekezwa') }}</td><td class="value">{{ format_money($capacity['proposed_installment']) }}</td></tr>
+                <tr><td class="label">{{ $t('Indicative monthly repayment', 'Malipo ya mwezi yanayokisiwa') }}</td><td class="value">{{ format_money($capacity['proposed_installment']) }}</td></tr>
             @endif
-            @if (isset($capacity['available_capacity']))
-                <tr><td class="label">{{ $t('Available capacity', 'Uwezo unaopatikana') }}</td><td class="value">{{ format_money($capacity['available_capacity']) }}</td></tr>
-            @endif
+            {{-- Internal capacity/formula stays in admin/audit only. --}}
         </table>
     @endif
 
@@ -98,7 +96,6 @@
                         @endif
                         — {{ pdf_text(__('borrower.rejection_letter.pdf.member_share', [], $locale)) }}: {{ format_money($member['requested_amount'] ?? 0) }}
                         · {{ pdf_text(__('borrower.rejection_letter.pdf.member_installment', [], $locale)) }}: {{ format_money($member['proposed_installment'] ?? 0) }}
-                        · {{ pdf_text(__('borrower.rejection_letter.pdf.member_capacity', [], $locale)) }}: {{ format_money($member['available_capacity'] ?? 0) }}
                     </li>
                 @endforeach
             </ul>

@@ -211,7 +211,7 @@ class BorrowerApplicationsDashboardService
                 ], true),
             'action_url'         => route('site.borrower.application', $application->id),
             'action_label'       => match (true) {
-                $isRejected => __('borrower.loan_profile.actions.view_reason'),
+                $isRejected => __('borrower.loan_profile.see_reason'),
                 $statusCode === 'awaiting_valuation_fee' => __('borrower.collateral_secure.pay_valuation_now'),
                 default => __('borrower.applications_list.view'),
             },

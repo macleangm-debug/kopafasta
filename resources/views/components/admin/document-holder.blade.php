@@ -4,6 +4,7 @@
     'groups' => [],
     'active' => null,
     'expanded' => true,
+    'fitPage' => false,
 ])
 
 @php
@@ -37,6 +38,13 @@
          x-data="{
             doc: @js($active),
             tabs: @js(collect($presentTabs)->mapWithKeys(fn ($tab) => [$tab['key'] => $tab])->all()),
+            fitPage: @js((bool) $fitPage),
+            fitted(url) {
+                if (!url) return '';
+                if (!this.fitPage) return url;
+                const base = String(url).split('#')[0];
+                return base + (window.matchMedia('(max-width: 767px)').matches ? '#view=FitH' : '#view=Fit');
+            }
          }">
         <div class="px-4 sm:px-5 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
             @foreach ($presentTabs as $tab)
@@ -73,11 +81,21 @@
             </div>
         @endforeach
 
-        <div class="bg-[#cfd6d2] px-4 sm:px-10 py-8">
-            <div class="mx-auto w-full max-w-[794px] bg-white shadow-[0_24px_48px_-16px_rgba(15,61,46,0.45)] ring-1 ring-black/10">
-                <iframe :src="tabs[doc]?.url"
+        <div class="bg-[#cfd6d2] px-3 sm:px-10 py-6 sm:py-8">
+            <div @class([
+                    'mx-auto w-full max-w-[794px] bg-white shadow-[0_24px_48px_-16px_rgba(15,61,46,0.45)] ring-1 ring-black/10',
+                    'overflow-hidden kf-doc-fit' => $fitPage,
+                ])
+                @if ($fitPage)
+                    style="aspect-ratio: 210 / 297; max-height: min(80vh, 1123px); width: min(794px, 100%);"
+                @endif>
+                <iframe :src="fitted(tabs[doc]?.url)"
                         :title="tabs[doc]?.label || 'Document'"
-                        class="w-full h-[80vh] min-h-[640px] border-0 bg-white"></iframe>
+                        @class([
+                            'w-full border-0 bg-white',
+                            'h-full' => $fitPage,
+                            'h-[80vh] min-h-[640px]' => ! $fitPage,
+                        ])></iframe>
             </div>
             <p class="text-center text-[11px] text-[#5c6b64] mt-3">A4 preview - one document at a time</p>
         </div>

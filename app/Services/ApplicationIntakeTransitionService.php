@@ -270,6 +270,8 @@ class ApplicationIntakeTransitionService
         $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
         $payload['intake'] = array_merge((array) ($payload['intake'] ?? []), [
             'cancelled_by_borrower_at' => now()->toIso8601String(),
+            'cancelled_from_status' => $fromStatus,
+            'cancelled_from_stage' => $fromStage,
         ]);
 
         $application->update([
@@ -297,6 +299,136 @@ class ApplicationIntakeTransitionService
         );
 
         return $application->fresh();
+    }
+
+    public function canRestoreIncompleteBorrowerCancel(LoanApplication $application): bool
+    {
+        return $this->restoreIncompleteBorrowerCancelBlocker($application) === null;
+    }
+
+    public function restoreIncompleteBorrowerCancelBlocker(LoanApplication $application): ?string
+    {
+        $application->refresh()->loadMissing(['customer', 'product', 'loan']);
+
+        if ((string) $application->status !== 'withdrawn' || (string) $application->current_stage !== 'withdrawn') {
+            return 'not_withdrawn';
+        }
+
+        if (! data_get($application->screening_payload, 'intake.cancelled_by_borrower_at')) {
+            return 'not_borrower_self_cancel';
+        }
+
+        $fromStatus = (string) (data_get($application->screening_payload, 'intake.cancelled_from_status') ?: 'draft');
+        $fromStage = (string) (data_get($application->screening_payload, 'intake.cancelled_from_stage') ?: 'draft');
+        if ($fromStatus !== 'draft' || ! in_array($fromStage, ['draft', ApplicationIntakeReadinessService::STATE_DRAFT], true)) {
+            return 'not_pre_submit';
+        }
+
+        if (data_get($application->screening_payload, 'intake.initial_gate.result')) {
+            return 'first_gate_ran';
+        }
+
+        if (data_get($application->screening_payload, 'intake.initial_gate.parked_at')
+            || data_get($application->screening_payload, 'capacity_auto_reject.status')) {
+            return 'later_pipeline';
+        }
+
+        if ($application->loan || filled($application->rejection_reason_code) || filled($application->offered_amount)) {
+            return 'later_pipeline';
+        }
+
+        $later = ApplicationStageHistory::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('to_stage', [
+                'submitted',
+                'submitted_initial_check',
+                ApplicationIntakeReadinessService::STATE_READY,
+                'screening',
+                'credit_appraisal',
+                'awaiting_offer',
+                'offer_issued',
+                'approved',
+                'disbursed',
+                'rejected',
+                ApplicationIntakeReadinessService::STATE_REJECTED_GATE,
+            ])
+            ->exists();
+        if ($later) {
+            return 'later_pipeline';
+        }
+
+        $cancelEvent = ApplicationStageHistory::query()
+            ->where('loan_application_id', $application->id)
+            ->where('to_stage', ApplicationIntakeReadinessService::STATE_WITHDRAWN)
+            ->where('remarks', 'like', 'Borrower cancelled an incomplete application%')
+            ->exists();
+        if (! $cancelEvent) {
+            return 'not_borrower_self_cancel';
+        }
+
+        $openSibling = LoanApplication::query()
+            ->where('customer_id', $application->customer_id)
+            ->where('id', '!=', $application->id)
+            ->whereNotIn('status', array_merge(LoanApplication::CLOSED_STATUSES, ['closed', 'completed', 'settled']))
+            ->whereNotIn('current_stage', LoanApplication::CLOSED_STATUSES)
+            ->exists();
+        if ($openSibling) {
+            return 'conflicting_application';
+        }
+
+        return null;
+    }
+
+    public function restoreIncompleteBorrowerCancel(LoanApplication $application, User $actor, string $reason): LoanApplication
+    {
+        $blocker = $this->restoreIncompleteBorrowerCancelBlocker($application);
+        if ($blocker) {
+            throw new \RuntimeException(__('admin.intake.restore_incomplete_blocked'));
+        }
+
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new \RuntimeException(__('admin.intake.restore_incomplete_reason'));
+        }
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($application, $actor, $reason) {
+            $application->refresh()->loadMissing(['customer', 'product']);
+            $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+            $payload['intake'] = array_merge((array) ($payload['intake'] ?? []), [
+                'restored_from_borrower_cancel_at' => now()->toIso8601String(),
+                'restored_by' => $actor->id,
+                'restore_reason' => $reason,
+            ]);
+
+            $application->update([
+                'status' => 'draft',
+                'current_stage' => ApplicationIntakeReadinessService::STATE_DRAFT,
+                'screening_payload' => $payload,
+            ]);
+
+            app(LoanApplicationDraftService::class)->ensureResumeDraftForApplication($application->fresh(['customer', 'product']));
+
+            $this->record(
+                $application->fresh(),
+                ApplicationIntakeReadinessService::STATE_DRAFT,
+                'Admin restored a mistaken incomplete cancellation. '.$reason,
+                'withdrawn',
+                'withdrawn',
+                $actor,
+            );
+
+            $this->audit->log($actor, 'application.restore_incomplete_cancel', $application->fresh(), [
+                'status' => 'withdrawn',
+                'current_stage' => 'withdrawn',
+            ], [
+                'status' => 'draft',
+                'current_stage' => ApplicationIntakeReadinessService::STATE_DRAFT,
+                'application_number' => $application->application_number,
+                'reason' => $reason,
+            ]);
+
+            return $application->fresh(['customer', 'product']);
+        });
     }
 
     public function feedbackReleaseAt(LoanApplication $application): ?Carbon

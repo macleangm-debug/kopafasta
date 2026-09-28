@@ -28,7 +28,7 @@
     .charges td { padding: 4px 6px; border: 1px solid #e5ebe7; vertical-align: top; }
     .charges td:first-child { background: #f7faf8; width: 32%; font-weight: 600; }
     .signbox { margin-top: 16px; padding: 10px; border: 1px dashed #0f3d2e; background: #f7faf8; }
-    .sig-img { max-height: 56px; max-width: 160px; }
+    .sig-img { max-height: 92px; max-width: 240px; width: auto; height: auto; display: block; object-fit: contain; }
     .stamp-img { max-height: 128px; max-width: 128px; margin-top: 4px; }
     .na { color: #8a9a92; font-style: italic; }
     .annex { page-break-before: always; }

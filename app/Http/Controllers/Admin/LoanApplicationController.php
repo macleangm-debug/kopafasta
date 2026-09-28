@@ -639,6 +639,35 @@ class LoanApplicationController extends ResourceController
             ->with('status', __('admin.intake.start_screening_started'));
     }
 
+    public function restoreIncompleteCancel(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review'), 403);
+        abort_unless(
+            app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $loan_application),
+            403
+        );
+        $data = $request->validate([
+            'confirmed' => ['required', 'accepted'],
+            'reason' => ['required', 'string', 'min:8', 'max:500'],
+        ]);
+
+        try {
+            app(ApplicationIntakeTransitionService::class)
+                ->restoreIncompleteBorrowerCancel($loan_application, auth()->user(), $data['reason']);
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['reason' => $e->getMessage()]);
+        }
+
+        return redirect()
+            ->route('admin.customers.show', [
+                'customer' => $loan_application->customer_id,
+                'tab' => 'applications',
+            ])
+            ->with('status', __('admin.intake.restore_incomplete_done', [
+                'number' => $loan_application->application_number,
+            ]));
+    }
+
     public function guidedScreening(Request $request, LoanApplication $loan_application): View|RedirectResponse
     {
         abort_unless(

@@ -37,6 +37,10 @@
                 </div>
             </div>
 
+            @if ($isClosed && ($row['requested_amount'] ?? null))
+                <p class="text-sm font-bold tabular-nums text-gray-900 mb-4">{{ format_money($row['requested_amount']) }}</p>
+            @endif
+
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div class="rounded-xl bg-gray-50 px-3 py-2.5">
                     <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.profile') }}</p>
@@ -48,10 +52,12 @@
                         @endif
                     </p>
                 </div>
-                <div class="rounded-xl bg-gray-50 px-3 py-2.5">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.application') }}</p>
-                    <p class="font-semibold text-sm mt-0.5">{{ $row['application_percent'] ?? 0 }}%</p>
-                </div>
+                @if (! $isClosed)
+                    <div class="rounded-xl bg-gray-50 px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.application') }}</p>
+                        <p class="font-semibold text-sm mt-0.5">{{ $row['application_percent'] ?? 0 }}%</p>
+                    </div>
+                @endif
             </div>
 
             @if (! empty($row['progress_steps']) && ! $isClosed)
@@ -63,8 +69,8 @@
                 />
             @endif
 
-            @if (! empty($row['detail']))
-                <p class="text-xs {{ $isClosed ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>
+            @if (! empty($row['detail']) && ! $isClosed)
+                <p class="text-xs text-gray-600 mb-3">{{ $row['detail'] }}</p>
             @endif
 
             <div class="flex items-center gap-2 text-xs flex-wrap">

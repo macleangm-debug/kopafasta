@@ -78,8 +78,13 @@ class CapacityAutoRejectFeatureTest extends TestCase
         $this->assertSame('rejected', $application->status);
         $this->assertSame('rejected', $application->current_stage);
         $this->assertSame(CapacityAutoRejectService::REASON_CODE, $application->rejection_reason_code);
-        $this->assertStringContainsString(format_money(2_000_000), (string) $application->rejection_reason);
-        $this->assertStringContainsString('per month', (string) $application->rejection_reason);
+        $this->assertSame(CapacityAutoRejectService::ADVICE_CODE_LONGER, $application->rejection_advice_code);
+        $this->assertContains((string) $application->rejection_reason, [
+            __('borrower.loan_profile.capacity_auto_reject_reason', [], 'en'),
+            __('borrower.loan_profile.capacity_auto_reject_reason', [], 'sw'),
+        ]);
+        $this->assertStringNotContainsString('per month', (string) $application->rejection_reason);
+        $this->assertArrayHasKey('available_capacity', data_get($application->screening_payload, 'capacity_auto_reject', []));
         $this->assertDatabaseHas('loan_agreements', [
             'loan_application_id' => $application->id,
             'document_type' => 'rejection_letter',
@@ -95,7 +100,11 @@ class CapacityAutoRejectFeatureTest extends TestCase
             __('rejection.reasons.repayment_exceeds_limit', [], 'sw'),
             $letter->snapshot['rejection_reasons'] ?? [],
         );
-        $this->assertStringContainsString(format_money(2_000_000), (string) ($letter->snapshot['rejection_detail'] ?? ''));
+        $this->assertSame(
+            (string) $application->rejection_reason,
+            (string) ($letter->snapshot['rejection_detail'] ?? $letter->snapshot['rejection_reason'] ?? '')
+        );
+        $this->assertArrayHasKey('available_capacity', $letter->snapshot['capacity_auto_reject'] ?? []);
 
         Carbon::setTestNow();
     }

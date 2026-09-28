@@ -30,7 +30,7 @@
                 'post_approval_fees',
             ], true);
         $showTimeline = ! $isDraft && ! $isRejected && $isPostApproval && ! empty($progress['timeline']);
-        $showGuarantorBlock = (
+        $showGuarantorBlock = ! $isRejected && (
                 ($profile['requires_guarantor'] ?? false)
                 || ($application?->product?->requires_guarantor ?? false)
                 || (($profile['guarantor_invitations'] ?? collect())->isNotEmpty())

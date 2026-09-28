@@ -48,6 +48,7 @@
                         </div>
                     </div>
 
+                    @if (empty($row['is_closed']) && ! in_array((string) ($row['status'] ?? ''), ['withdrawn', 'offer_declined', 'rejected'], true))
                     <div class="mb-4">
                         <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
                             <span>{{ __('borrower.applications_list.progress') }}</span>
@@ -57,13 +58,16 @@
                             <div class="h-full bg-amber-500" style="width: {{ $row['progress_percent'] }}%"></div>
                         </div>
                     </div>
+                    @elseif (! empty($row['requested_amount']))
+                        <p class="text-sm font-bold tabular-nums text-gray-900 mb-4">{{ format_money($row['requested_amount']) }}</p>
+                    @endif
 
                     <p class="text-[11px] text-gray-400 mb-4">
                         {{ __('borrower.applications_list.last_updated') }}: {{ optional($row['updated_at'])->format('d M Y') ?? '—' }}
                     </p>
 
-                    @if (! empty($row['detail']))
-                        <p class="text-xs {{ ($row['status'] ?? '') === 'rejected' ? 'text-red-600' : 'text-gray-600' }} mb-3">{{ $row['detail'] }}</p>
+                    @if (! empty($row['detail']) && ($row['status'] ?? '') !== 'rejected')
+                        <p class="text-xs text-gray-600 mb-3">{{ $row['detail'] }}</p>
                     @endif
 
                     @if (! empty($row['underwriting_actions']))

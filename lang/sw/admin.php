@@ -231,5 +231,10 @@ return [
         'guarantor_invited' => 'Inasubiri jibu la mdhamini',
         'my_queue' => 'Foleni yangu',
         'my_queue_subtitle' => 'Maombi yaliyokabidhiwa kwako ambayo bado yanahitaji kazi',
+        'restore_application' => 'Rejesha ombi',
+        'restore_incomplete_confirm' => 'Rejesha :number kwenye Maombi Yasiyokamilika? Hili ni ombi lile lile. Halitengenezi ombi jipya, haliendeshi Lango la Kwanza, wala kualika mdhamini.',
+        'restore_incomplete_reason' => 'Sababu ya kurejesha',
+        'restore_incomplete_done' => ':number limerejeshwa kwenye Maombi Yasiyokamilika.',
+        'restore_incomplete_blocked' => 'Ombi hili haliwezi kurejeshwa.',
     ],
 ];

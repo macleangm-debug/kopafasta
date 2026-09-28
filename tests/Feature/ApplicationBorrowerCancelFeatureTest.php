@@ -10,11 +10,13 @@ use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
+use App\Models\ApplicationStageHistory;
 use App\Models\NotificationLog;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\ApplicationIntakeReadinessService;
 use App\Services\ApplicationIntakeReconciliationService;
+use App\Services\ApplicationIntakeTransitionService;
 use App\Services\CapacityAutoRejectService;
 use App\Services\CreditEligibilityPolicyService;
 use App\Services\LoanApplicationDraftService;
@@ -72,6 +74,72 @@ class ApplicationBorrowerCancelFeatureTest extends TestCase
         $this->assertSame('pending', $invitation->fresh()->status);
         $this->assertNull(data_get($fresh->screening_payload, 'intake.guarantor_invited_at'));
         $this->assertNull(data_get($fresh->screening_payload, 'intake.initial_gate.result'));
+    }
+
+    public function test_admin_can_restore_mistaken_incomplete_cancel_without_first_gate(): void
+    {
+        [$user, $application, $draft] = $this->draftCase();
+        $number = $application->application_number;
+        $this->actingAs($user)->post(route('site.borrower.application.withdraw', $application));
+        $withdrawn = $application->fresh();
+        $this->assertTrue(app(ApplicationIntakeTransitionService::class)->canRestoreIncompleteBorrowerCancel($withdrawn));
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->gateMustNotRun();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.restore-incomplete-cancel', $withdrawn), [
+                'confirmed' => '1',
+                'reason' => 'Borrower cancelled the draft by mistake.',
+            ])
+            ->assertRedirect();
+
+        $restored = $application->fresh();
+        $this->assertSame('draft', $restored->status);
+        $this->assertSame('draft', $restored->current_stage);
+        $this->assertSame($number, $restored->application_number);
+        $this->assertNotNull(data_get($restored->screening_payload, 'intake.cancelled_by_borrower_at'));
+        $this->assertNotNull(data_get($restored->screening_payload, 'intake.restored_from_borrower_cancel_at'));
+        $this->assertTrue(app(LoanApplicationDraftService::class)->hasAlignedIncompleteDraft($restored));
+        $this->assertTrue(
+            ApplicationStageHistory::query()
+                ->where('loan_application_id', $restored->id)
+                ->where('remarks', 'like', 'Borrower cancelled an incomplete application%')
+                ->exists()
+        );
+        $this->assertTrue(
+            ApplicationStageHistory::query()
+                ->where('loan_application_id', $restored->id)
+                ->where('remarks', 'like', 'Admin restored a mistaken incomplete cancellation%')
+                ->exists()
+        );
+        $this->assertFalse(app(ApplicationIntakeTransitionService::class)->canRestoreIncompleteBorrowerCancel($restored));
+    }
+
+    public function test_submitted_withdrawal_cannot_be_restored(): void
+    {
+        [, $application] = $this->openCase(status: 'withdrawn', stage: 'withdrawn');
+        $application->update([
+            'screening_payload' => [
+                'intake' => [
+                    'submitted_at' => now()->toIso8601String(),
+                    'cancelled_from_status' => 'submitted',
+                    'cancelled_from_stage' => 'submitted',
+                ],
+            ],
+        ]);
+
+        $this->assertFalse(app(ApplicationIntakeTransitionService::class)->canRestoreIncompleteBorrowerCancel($application->fresh()));
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.customers.show', $application->customer_id))
+            ->post(route('admin.loan-applications.restore-incomplete-cancel', $application), [
+                'confirmed' => '1',
+                'reason' => 'Trying to reopen a submitted withdrawal.',
+            ])
+            ->assertSessionHasErrors('reason');
+        $this->assertSame('withdrawn', $application->fresh()->status);
     }
 
     public function test_submitted_borrower_cannot_withdraw_via_endpoint(): void

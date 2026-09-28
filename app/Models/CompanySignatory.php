@@ -31,7 +31,9 @@ class CompanySignatory extends Model
 
         $full = storage_path('app/public/'.ltrim($this->signature_path, '/'));
 
-        return is_file($full) ? $full : null;
+        return is_file($full)
+            ? app(\App\Services\LegalSettingsService::class)->presentedSignaturePath($full)
+            : null;
     }
 
     public function signaturePublicUrl(): ?string

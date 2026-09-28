@@ -1232,6 +1232,8 @@ class LoanAgreementService
             $locale,
         );
         $snapshot['requested_amount'] = (float) ($application->requested_amount ?? $snapshot['principal'] ?? 0);
+        $snapshot['product_name'] = $application->product?->localizedName($locale)
+            ?: ($snapshot['product_name'] ?? null);
         $snapshot['rejected_at'] = $application->updated_at?->toDateString() ?? now()->toDateString();
         $snapshot['locale'] = $locale;
         $snapshot['letter_kind'] = 'decision';
