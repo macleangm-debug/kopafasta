@@ -119,7 +119,7 @@ class AffiliatePortalPresenter
             'funnelKeys' => $this->visibleFunnelKeys(),
             'overviewKeys' => $this->overviewFunnelKeys(),
             'monthlyCard' => $this->monthlyPerformanceCard($vendor),
-            'pipeline' => $this->referralPipeline($vendor),
+            'pipeline' => $this->recentEarnings($vendor),
             'warningLadder' => [
                 ['label' => __('site.affiliate_portal.performance_needs_attention'), 'periods' => $this->settings->volumeMissesBeforeNudge()],
                 ['label' => __('site.affiliate_portal.performance_at_risk'), 'periods' => $this->settings->volumeMissesBeforeWatchlist()],
@@ -653,39 +653,88 @@ class AffiliatePortalPresenter
                     ->where('event_type', 'like', 'commission_%')
                     ->latest('id')
                     ->first();
+                $commercial = $this->commercialCommissionState($vendor, $commission);
 
                 return [
                     'member_no' => MemberNumberFormatter::raw($customer?->member_no ?: $customer?->customer_number),
-                    'stage' => $this->referralMilestone($customer, $event, $commission),
+                    'stage' => $commercial['label'],
+                    'status' => $commercial['key'],
+                    'status_label' => $commercial['label'],
                     'source' => $this->referralSourceLabel($event, $customer),
                     'date' => $event->created_at,
                     'commission_amount' => $commission ? (float) $commission->commission_amount : null,
-                    'commission_status' => $commission ? __('site.affiliate_portal.commission_status_complete') : null,
+                    'commission_status' => $commercial['label'],
                 ];
             });
     }
 
-    private function referralMilestone(?Customer $customer, AffiliateEvent $event, ?AffiliateEvent $commission): string
+    /**
+     * Overview earnings slice — commission-producing referral rows with commercial status only.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function recentEarnings(Vendor $vendor): Collection
     {
-        $application = $customer?->applications()->latest('id')->first();
-        if ($application) {
-            $status = (string) $application->status;
+        return $this->referralPipeline($vendor)
+            ->filter(fn (array $row) => (float) ($row['commission_amount'] ?? 0) > 0)
+            ->take(5)
+            ->values();
+    }
 
-            return match (true) {
-                $status === 'disbursed' => __('site.affiliate_portal.stage_disbursed'),
-                in_array($status, ['approved', 'pre_approved', 'awaiting_offer', 'offer_issued'], true) => __('site.affiliate_portal.stage_approved'),
-                in_array($status, ['rejected', 'declined', 'cancelled'], true) => __('site.affiliate_portal.stage_declined'),
-                default => __('site.affiliate_portal.stage_application_submitted'),
-            };
+    /**
+     * Map existing PartnerPayment / commission lifecycle — never borrower credit outcomes.
+     *
+     * @return array{key: string, label: string}
+     */
+    private function commercialCommissionState(Vendor $vendor, ?AffiliateEvent $commission): array
+    {
+        if (! $commission) {
+            return [
+                'key' => 'pending',
+                'label' => __('site.affiliate_portal.commission_status_pending'),
+            ];
         }
 
-        if ($commission || str_starts_with((string) $event->event_type, 'commission_')) {
-            return __('site.affiliate_portal.stage_fee_paid');
+        $payment = \App\Models\PartnerPayment::query()
+            ->where('partner_id', $vendor->id)
+            ->where('source_type', AffiliateCommissionWalletService::SOURCE_TYPE)
+            ->where('source_id', $commission->id)
+            ->latest('id')
+            ->first();
+
+        if (! $payment) {
+            if ((float) $commission->commission_amount > 0) {
+                return [
+                    'key' => 'earned',
+                    'label' => __('site.affiliate_portal.commission_status_earned'),
+                ];
+            }
+
+            return [
+                'key' => 'pending',
+                'label' => __('site.affiliate_portal.commission_status_pending'),
+            ];
         }
 
-        return $event->event_type === 'application'
-            ? __('site.affiliate_portal.stage_application_submitted')
-            : __('site.affiliate_portal.stage_registered');
+        $key = $this->commercialStatusKey((string) $payment->status);
+
+        return [
+            'key' => $key,
+            'label' => __('site.affiliate_portal.commission_status_'.$key),
+        ];
+    }
+
+    private function commercialStatusKey(string $status): string
+    {
+        return match ($status) {
+            'paid' => 'paid',
+            'disputed' => 'disputed',
+            'pending' => 'pending',
+            'reserved' => 'reserved',
+            'complete', 'approved', 'earned' => 'earned',
+            'cancelled', 'reversed' => 'reversed',
+            default => 'pending',
+        };
     }
 
     private function referralSourceLabel(AffiliateEvent $event, ?Customer $customer): string

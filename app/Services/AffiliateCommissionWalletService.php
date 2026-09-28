@@ -103,7 +103,8 @@ class AffiliateCommissionWalletService
         $feeType = $this->feeTypeFromEvent($event);
         $status = (string) $row->status;
         $displayStatus = match ($status) {
-            'approved' => in_array((int) $row->id, $reservedIds, true) ? 'reserved' : 'complete',
+            'approved' => in_array((int) $row->id, $reservedIds, true) ? 'reserved' : 'earned',
+            'complete' => 'earned',
             default => $status,
         };
 

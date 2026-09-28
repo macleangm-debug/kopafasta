@@ -35,10 +35,10 @@
                         <td class="px-5 py-3">
                             <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1
                                 {{ match($row['status']) {
-                                    'complete', 'approved' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+                                    'complete', 'approved', 'earned' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
                                     'reserved' => 'bg-sky-100 text-sky-800 ring-sky-200',
                                     'paid' => 'bg-sky-100 text-sky-800 ring-sky-200',
-                                    'disputed' => 'bg-red-100 text-red-800 ring-red-200',
+                                    'disputed', 'reversed' => 'bg-red-100 text-red-800 ring-red-200',
                                     default => 'bg-amber-100 text-amber-900 ring-amber-200',
                                 } }}">
                                 {{ __('site.affiliate_portal.commission_status_'.$row['status']) }}
@@ -56,10 +56,10 @@
                     <p class="font-mono text-xs text-gray-500">{{ $row['payment_id'] }}</p>
                     <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1 shrink-0
                         {{ match($row['status']) {
-                            'complete', 'approved' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+                            'complete', 'approved', 'earned' => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
                             'reserved' => 'bg-sky-100 text-sky-800 ring-sky-200',
                             'paid' => 'bg-sky-100 text-sky-800 ring-sky-200',
-                            'disputed' => 'bg-red-100 text-red-800 ring-red-200',
+                            'disputed', 'reversed' => 'bg-red-100 text-red-800 ring-red-200',
                             default => 'bg-amber-100 text-amber-900 ring-amber-200',
                         } }}">
                         {{ __('site.affiliate_portal.commission_status_'.$row['status']) }}

@@ -175,18 +175,18 @@
                 @if ($pipeline->isEmpty())
                     <x-site.empty-state
                         class="mb-0"
-                        icon="👥"
-                        :title="__('site.affiliate_portal.no_referrals_title')"
-                        :description="__('site.affiliate_portal.no_referrals_body')"
+                        icon="💰"
+                        :title="__('site.affiliate_portal.no_earnings_title')"
+                        :description="__('site.affiliate_portal.no_earnings_body')"
                         :action-label="__('site.affiliate_portal.nav_share')"
                         :action-url="route('site.affiliate.share')"
                     />
                 @else
                     <div class="px-4 sm:px-5 pb-5">
                         <div class="flex items-center justify-between gap-3 mb-3">
-                            <h2 class="font-semibold text-gray-900">{{ __('site.affiliate_portal.recent_referrals') }}</h2>
-                            <a href="{{ route('site.affiliate.reports') }}" class="text-xs font-semibold text-brand">
-                                {{ __('site.affiliate_portal.view_monthly_report') }} →
+                            <h2 class="font-semibold text-gray-900">{{ __('site.affiliate_portal.recent_earnings') }}</h2>
+                            <a href="{{ route('site.affiliate.performance', ['tab' => 'commissions']) }}" class="text-xs font-semibold text-brand">
+                                {{ __('site.affiliate_portal.view_all_commissions') }} →
                             </a>
                         </div>
                         <div class="hidden lg:block overflow-x-auto rounded-xl ring-1 ring-gray-100">
@@ -195,9 +195,9 @@
                                     <tr>
                                         <th class="px-4 py-3">{{ __('site.affiliate_portal.col_member') }}</th>
                                         <th class="px-4 py-3">{{ __('site.affiliate_portal.col_source') }}</th>
-                                        <th class="px-4 py-3">{{ __('site.affiliate_portal.col_milestone') }}</th>
                                         <th class="px-4 py-3">{{ __('site.affiliate_portal.col_date') }}</th>
-                                        <th class="px-4 py-3 lg:text-right">{{ __('site.affiliate_portal.col_commission') }}</th>
+                                        <th class="px-4 py-3">{{ __('site.affiliate_portal.col_status') }}</th>
+                                        <th class="px-4 py-3 text-right">{{ __('site.affiliate_portal.col_commission') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
@@ -205,20 +205,25 @@
                                         <tr>
                                             <td class="px-4 py-3 font-mono text-xs font-semibold">{{ $referral['member_no'] ?: '—' }}</td>
                                             <td class="px-4 py-3">{{ $referral['source'] }}</td>
-                                            <td class="px-4 py-3 text-brand font-medium">{{ $referral['stage'] }}</td>
                                             <td class="px-4 py-3 text-gray-500">{{ $referral['date']?->format('d M Y') }}</td>
-                                            <td class="px-4 py-3 tabular-nums lg:text-right">{{ format_money($referral['commission_amount'] ?? 0) }}</td>
+                                            <td class="px-4 py-3 text-brand font-medium">{{ $referral['status_label'] ?? $referral['stage'] }}</td>
+                                            <td class="px-4 py-3 tabular-nums text-right font-semibold">{{ format_money($referral['commission_amount'] ?? 0) }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
-                        <div class="lg:hidden space-y-3">
+                        <div class="lg:hidden space-y-2">
                             @foreach ($pipeline as $referral)
-                                <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-4 py-3">
-                                    <p class="font-semibold text-gray-900 font-mono">{{ $referral['member_no'] ?: '—' }}</p>
-                                    <p class="text-sm text-brand font-medium mt-1">{{ $referral['stage'] }}</p>
-                                    <p class="text-xs text-gray-500 mt-0.5">{{ $referral['source'] }} · {{ $referral['date']?->format('d M Y') }}</p>
+                                <div class="rounded-xl bg-white ring-1 ring-brand/10 px-3.5 py-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <p class="font-semibold text-gray-900 font-mono text-sm">{{ $referral['member_no'] ?: '—' }}</p>
+                                        <p class="tabular-nums text-sm font-bold text-gray-900 shrink-0">{{ format_money($referral['commission_amount'] ?? 0) }}</p>
+                                    </div>
+                                    <div class="flex items-start justify-between gap-3 mt-1">
+                                        <p class="text-xs text-gray-500">{{ $referral['source'] }} · {{ $referral['date']?->format('d M Y') }}</p>
+                                        <p class="text-xs font-semibold text-brand shrink-0">{{ $referral['status_label'] ?? $referral['stage'] }}</p>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>

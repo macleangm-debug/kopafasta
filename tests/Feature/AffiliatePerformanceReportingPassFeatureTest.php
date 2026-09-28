@@ -139,16 +139,23 @@ class AffiliatePerformanceReportingPassFeatureTest extends TestCase
         $this->assertSame('KPF-TZ-WLN5', $row['member_no']);
         $this->assertSame(90.0, $row['commission_amount']);
         $this->assertNotEmpty($row['source']);
-        $this->assertNotEmpty($row['stage']);
+        $this->assertSame(__('site.affiliate_portal.commission_status_earned'), $row['stage']);
+        $this->assertStringNotContainsString('Application declined', $row['stage']);
+        $this->assertStringNotContainsString('Application approved', $row['stage']);
 
         $html = $this->actingAs($affiliate->user)
             ->get(route('site.affiliate.performance', ['tab' => 'overview']))
             ->assertOk()
             ->assertSee('KPF-TZ-WLN5', false)
+            ->assertSee(__('site.affiliate_portal.recent_earnings'), false)
+            ->assertSee(__('site.affiliate_portal.commission_status_earned'), false)
+            ->assertSee(format_money(90), false)
             ->assertSee(__('site.affiliate_portal.funnel_earned'), false)
             ->assertSee(__('site.affiliate_portal.figure_available'), false)
             ->assertSee(__('site.affiliate_portal.funnel_paying'), false)
-            ->assertSee('lg:text-right', false)
+            ->assertSee('text-right', false)
+            ->assertDontSee('Application declined', false)
+            ->assertDontSee('Application approved', false)
             ->assertDontSee('Qualifying members', false)
             ->assertDontSee('Successful customers', false)
             ->assertDontSee('Successful members', false)

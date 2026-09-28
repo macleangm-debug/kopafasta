@@ -23,15 +23,17 @@
             :action-url="route('site.affiliate.share')"
         />
     @else
-        <div class="space-y-3">
+        <div class="space-y-2">
             @foreach ($pipeline as $referral)
-                <div class="glass-card p-4 flex items-center justify-between gap-4">
-                    <div>
-                        <p class="font-semibold text-gray-900 font-mono">{{ $referral['member_no'] ?: '—' }}</p>
-                        <p class="text-sm text-brand font-medium mt-0.5">{{ $referral['stage'] }}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $referral['source'] ?? '' }}</p>
+                <div class="rounded-xl bg-white ring-1 ring-brand/10 px-3.5 py-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <p class="font-semibold text-gray-900 font-mono text-sm">{{ $referral['member_no'] ?: '—' }}</p>
+                        <p class="tabular-nums text-sm font-bold text-gray-900 shrink-0">{{ format_money($referral['commission_amount'] ?? 0) }}</p>
                     </div>
-                    <p class="text-sm text-gray-500">{{ $referral['date']?->format('d M Y') }}</p>
+                    <div class="flex items-start justify-between gap-3 mt-1">
+                        <p class="text-xs text-gray-500">{{ $referral['source'] ?? '' }} · {{ $referral['date']?->format('d M Y') }}</p>
+                        <p class="text-xs font-semibold text-brand shrink-0">{{ $referral['status_label'] ?? $referral['stage'] }}</p>
+                    </div>
                 </div>
             @endforeach
         </div>

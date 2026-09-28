@@ -121,7 +121,7 @@ class AffiliateCommissionWalletPassFeatureTest extends TestCase
             ->assertSee('PAY-PLUS90', false)
             ->assertSee('KPF-TZ-WLN5', false)
             ->assertSee('Kopafasta Plus', false)
-            ->assertSee(__('site.affiliate_portal.commission_status_complete', [], 'en'), false)
+            ->assertSee(__('site.affiliate_portal.commission_status_earned', [], 'en'), false)
             ->assertSee(__('site.affiliate_portal.hero_available', [], 'en'), false)
             ->assertSee('withdrawHint', false)
             ->assertDontSee('INV-', false)
