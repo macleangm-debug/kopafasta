@@ -2263,6 +2263,8 @@ return [
         'col_paid_for' => 'Paid for',
         'col_payment_amount' => 'Payment amount',
         'col_your_commission' => 'Your commission',
+        'commission_calc_detail' => 'Remaining :base · Rate :rate',
+        'commission_rate_of_remaining' => 'Commission rate: :rate of the applicable remaining amount',
         'col_commission_status' => 'Commission status',
         'commission_status_pending' => 'Pending',
         'commission_status_complete' => 'Earned',

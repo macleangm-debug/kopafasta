@@ -31,7 +31,17 @@
                         <td class="px-5 py-3 font-mono text-xs">{{ $row['member_no'] }}</td>
                         <td class="px-5 py-3">{{ $row['paid_for'] }}</td>
                         <td class="px-5 py-3 tabular-nums lg:text-right">{{ $row['payment_amount'] !== null ? format_money($row['payment_amount']) : '—' }}</td>
-                        <td class="px-5 py-3 font-semibold tabular-nums lg:text-right">{{ format_money($row['commission']) }}</td>
+                        <td class="px-5 py-3 font-semibold tabular-nums lg:text-right">
+                            {{ format_money($row['commission']) }}
+                            @if (! empty($row['commission_base']) && ! empty($row['commission_rate_percent']))
+                                <p class="text-[10px] font-normal text-gray-500 mt-0.5">
+                                    {{ __('site.affiliate_portal.commission_calc_detail', [
+                                        'base' => format_money($row['commission_base']),
+                                        'rate' => rtrim(rtrim(number_format((float) $row['commission_rate_percent'], 2, '.', ''), '0'), '.').'%',
+                                    ]) }}
+                                </p>
+                            @endif
+                        </td>
                         <td class="px-5 py-3">
                             <span class="inline-flex text-[10px] font-bold uppercase tracking-wide rounded-full px-2.5 py-1 ring-1
                                 {{ match($row['status']) {

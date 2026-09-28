@@ -2246,6 +2246,8 @@ return [
         'col_paid_for' => 'Imelipiwa',
         'col_payment_amount' => 'Kiasi kilicholipwa',
         'col_your_commission' => 'Kamisheni yako',
+        'commission_calc_detail' => 'Kinachobaki :base · Kiwango :rate',
+        'commission_rate_of_remaining' => 'Kiwango cha kamisheni: :rate ya kiasi husika kinachobaki',
         'col_commission_status' => 'Hali ya kamisheni',
         'commission_status_pending' => 'Inasubiri',
         'commission_status_complete' => 'Imepatikana',

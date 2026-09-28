@@ -108,6 +108,8 @@ class AffiliateCommissionWalletService
             default => $status,
         };
 
+        $meta = is_array($row->meta) ? $row->meta : [];
+
         return [
             'id' => $row->id,
             'payment_id' => $customerPayment?->reference ?: '—',
@@ -120,9 +122,14 @@ class AffiliateCommissionWalletService
             'payment_amount' => $customerPayment
                 ? CustomerPaymentService::collectableAmount($customerPayment)
                 : null,
+            'commission_base' => isset($meta['commission_base']) ? (float) $meta['commission_base'] : null,
+            'commission_rate_percent' => isset($meta['commission_rate_percent']) ? (float) $meta['commission_rate_percent'] : null,
+            'calculation_base' => $meta['calculation_base'] ?? null,
             'commission' => (float) $row->amount,
             'status' => $displayStatus,
             'domain_status' => $status,
+            'qualifying_payment_reference' => $meta['qualifying_payment_reference']
+                ?? ($customerPayment?->reference ?: null),
         ];
     }
 
@@ -181,7 +188,10 @@ class AffiliateCommissionWalletService
             'disputed_at'    => now(),
         ]);
 
-        return $payment->refresh();
+        $fresh = $payment->refresh();
+        app(PartnerSettlementService::class)->reverseAffiliateCommissionEarnedJournal($fresh);
+
+        return $fresh;
     }
 
     private function attachCustomerPaymentReference(PartnerPayment $row): void

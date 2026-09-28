@@ -22,6 +22,7 @@ class PartnerPayment extends Model
             'paid_at'      => 'datetime',
             'approved_at'  => 'datetime',
             'disputed_at'  => 'datetime',
+            'meta'         => 'array',
         ];
     }
 

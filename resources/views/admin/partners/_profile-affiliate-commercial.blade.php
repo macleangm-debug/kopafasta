@@ -45,6 +45,10 @@
                     ]) }}
                 </dd>
             </div>
+            <div>
+                <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">{{ __('admin.partners.commercial_commission_basis') }}</dt>
+                <dd class="mt-1 font-semibold text-gray-900">{{ __('admin.partners.commercial_commission_basis_value') }}</dd>
+            </div>
             @if ($commercial['note'])
                 <div class="sm:col-span-2">
                     <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">{{ __('admin.partners.commercial_note') }}</dt>

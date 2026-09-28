@@ -72,6 +72,35 @@ class AffiliateSettingsService
         return in_array($base, ['original_amount', 'discounted_amount'], true) ? $base : 'discounted_amount';
     }
 
+    /**
+     * Human label for the monetary base used by percentage commission.
+     * discounted_amount is the applicable remaining amount after configured discounts.
+     */
+    public function commissionBasisLabel(?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+
+        return $this->commissionCalculationBase() === 'discounted_amount'
+            ? (string) __('affiliate_terms.commission_basis_remaining', [], $locale)
+            : (string) __('affiliate_terms.commission_basis_original', [], $locale);
+    }
+
+    public function applicationFeeRequired(): bool
+    {
+        return (bool) Setting::get(
+            'affiliates.application_fee_required',
+            config('affiliates.application_fee_required', true)
+        );
+    }
+
+    public function applicationFeeAmount(): float
+    {
+        return (float) Setting::get(
+            'affiliates.application_fee_amount',
+            config('affiliates.application_fee_amount', 10000)
+        );
+    }
+
     public function commissionMode(): string
     {
         $mode = (string) Setting::get('affiliates.commission_mode', config('affiliates.commission_mode', 'percentage'));
@@ -141,7 +170,8 @@ class AffiliateSettingsService
             'message_welcome_partner' => $messages['welcome_partner'],
             'require_kyc_for_verification' => $this->requireKycForVerification(),
             'minimum_payout_amount' => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
-            'application_fee_amount' => (float) Setting::get('affiliates.application_fee_amount', config('affiliates.application_fee_amount', 10000)),
+            'application_fee_required' => $this->applicationFeeRequired(),
+            'application_fee_amount' => $this->applicationFeeAmount(),
             'membership' => AffiliateMembershipService::config(),
             'premium' => $this->premiumSettings(),
             'attribution' => $this->attributionSettings(),

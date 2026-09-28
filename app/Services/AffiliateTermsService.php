@@ -75,6 +75,9 @@ class AffiliateTermsService
                 : __('site.affiliate_portal.hero_type_affiliate'),
             'rate_source' => $commercial['commercial_rate_source_label'],
             'commission_percent' => $commercial['commission_percent'],
+            'commission_rate' => $commercial['commission_percent'],
+            'commission_basis' => $settings->commissionBasisLabel($locale),
+            'commission_basis_clause' => (string) __('affiliate_terms.commission_basis_clause', [], $locale),
             'registration_discount_percent' => $settings->benefitAppliesInTerritory('registration_fee', $settings->assessmentCountry($affiliate))
                 ? $commercial['registration_discount_percent']
                 : __('admin.partners.commercial_not_applicable'),
@@ -137,17 +140,17 @@ class AffiliateTermsService
     {
         $this->ensurePublishedContractContent();
 
-        // Content revision 2: Owner EN/SW Affiliate + Premium partnership copy (no promo code).
-        return max(2, (int) Setting::get('affiliates.terms.version', 2));
+        // Content revision 3: commission basis = % of applicable remaining amount.
+        return max(3, (int) Setting::get('affiliates.terms.version', 3));
     }
 
     /**
-     * Publish Owner contract pack v2 into Settings SoT and clear stale Hub body overrides
+     * Publish Owner contract pack into Settings SoT and clear stale Hub body overrides
      * so existing Affiliates see the new EN/SW templates (re-acceptance required).
      */
     public function ensurePublishedContractContent(): void
     {
-        if ((int) Setting::get('affiliates.terms.content_revision', 0) >= 2) {
+        if ((int) Setting::get('affiliates.terms.content_revision', 0) >= 3) {
             return;
         }
 
@@ -160,9 +163,9 @@ class AffiliateTermsService
             Setting::set($key, '');
         }
 
-        $current = max(2, (int) Setting::get('affiliates.terms.version', 1));
+        $current = max(3, (int) Setting::get('affiliates.terms.version', 1));
         Setting::set('affiliates.terms.version', $current);
-        Setting::set('affiliates.terms.content_revision', 2);
+        Setting::set('affiliates.terms.content_revision', 3);
     }
 
     public function template(?string $locale = null, ?Vendor $affiliate = null): string
@@ -487,6 +490,7 @@ class AffiliateTermsService
         $country = $settings->assessmentCountry($affiliate);
         $rows = [
             __('affiliate_terms.rate_commission', [], $locale).': '.$commercial['commission_percent'],
+            __('affiliate_terms.commission_basis_label', [], $locale).': '.$settings->commissionBasisLabel($locale),
         ];
         if ($settings->benefitAppliesInTerritory('registration_fee', $country)) {
             $rows[] = __('affiliate_terms.rate_registration', [], $locale).': '.$commercial['registration_discount_percent'];

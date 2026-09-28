@@ -93,7 +93,7 @@ class PartnerApplicationController extends Controller
         );
 
         $feeService = app(\App\Services\AffiliateApplicationFeePaymentService::class);
-        if ($feeService->feeAmount() > 0) {
+        if ($feeService->isRequired()) {
             $payment = $feeService->open($application);
 
             return redirect()->to($feeService->payUrl($payment));

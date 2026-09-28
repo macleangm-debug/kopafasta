@@ -13,6 +13,9 @@ use Illuminate\Support\Str;
 
 class PartnerSettlementService
 {
+    /**
+     * @param  array<string, mixed>|null  $meta
+     */
     public function accrue(
         Vendor $vendor,
         int $amount,
@@ -21,6 +24,7 @@ class PartnerSettlementService
         ?string $description = null,
         ?int $vendorTaskId = null,
         ?string $reference = null,
+        ?array $meta = null,
     ): VendorPayment {
         if ($amount <= 0) {
             throw new \InvalidArgumentException('Settlement amount must be positive.');
@@ -36,6 +40,7 @@ class PartnerSettlementService
             'source_id'       => $sourceId,
             'description'     => $description,
             'reference'       => $reference,
+            'meta'            => $meta,
         ]);
 
         if ($this->shouldAutoApprove($vendor, $sourceType, $amount)) {
@@ -139,7 +144,106 @@ class PartnerSettlementService
             'approved_by' => $user->id,
         ]);
 
-        return $payment->refresh();
+        $fresh = $payment->refresh();
+        if ($fresh->source_type === 'affiliate_commission') {
+            $this->postAffiliateCommissionEarnedJournal($fresh);
+        }
+
+        return $fresh;
+    }
+
+    /**
+     * Recognize earned Affiliate commission once (Dr expense / Cr wallet liability).
+     * Pending wallet rows must not post this journal.
+     */
+    private function postAffiliateCommissionEarnedJournal(PartnerPayment $payment): void
+    {
+        $amount = round((float) $payment->amount, 2);
+        if ($amount <= 0 || $payment->source_type !== 'affiliate_commission') {
+            return;
+        }
+
+        if ($this->hasJournalKind($payment, 'affiliate_commission_earned')) {
+            return;
+        }
+
+        $ledger = app(LedgerService::class);
+        $expenseId = $ledger->affiliateCommissionExpenseAccountId();
+        $payableId = $ledger->affiliateCommissionPayableAccountId();
+        if (! $expenseId || ! $payableId) {
+            \Illuminate\Support\Facades\Log::warning('Affiliate commission earned without GL accounts', [
+                'payment_id' => $payment->id,
+            ]);
+
+            return;
+        }
+
+        $ledger->post(
+            [
+                ['account_id' => $expenseId, 'debit' => $amount, 'credit' => 0, 'description' => 'Affiliate commission expense'],
+                ['account_id' => $payableId, 'debit' => 0, 'credit' => $amount, 'description' => 'Affiliate commission payable'],
+            ],
+            'Affiliate commission earned '.$payment->invoice_number,
+            $payment,
+            now()->toDateString(),
+            'kind=affiliate_commission_earned',
+        );
+    }
+
+    private function hasJournalKind(PartnerPayment $payment, string $kind): bool
+    {
+        return \App\Models\JournalEntry::query()
+            ->whereIn('source_type', [PartnerPayment::class, VendorPayment::class])
+            ->where('source_id', $payment->id)
+            ->where('status', 'posted')
+            ->where('memo', 'like', 'kind='.$kind.'%')
+            ->exists();
+    }
+
+    /**
+     * Reverse earned Affiliate commission when disputed (idempotent).
+     */
+    public function reverseAffiliateCommissionEarnedJournal(PartnerPayment $payment): void
+    {
+        if ($payment->source_type !== 'affiliate_commission') {
+            return;
+        }
+
+        if ($this->hasJournalKind($payment, 'affiliate_commission_earned_reversal')) {
+            return;
+        }
+
+        $earned = \App\Models\JournalEntry::query()
+            ->whereIn('source_type', [PartnerPayment::class, VendorPayment::class])
+            ->where('source_id', $payment->id)
+            ->where('status', 'posted')
+            ->where('memo', 'like', 'kind=affiliate_commission_earned%')
+            ->where('memo', 'not like', '%reversal%')
+            ->latest('id')
+            ->first();
+
+        if (! $earned) {
+            return;
+        }
+
+        $amount = round((float) $payment->amount, 2);
+        $ledger = app(LedgerService::class);
+        $expenseId = $ledger->affiliateCommissionExpenseAccountId();
+        $payableId = $ledger->affiliateCommissionPayableAccountId();
+        if (! $expenseId || ! $payableId || $amount <= 0) {
+            return;
+        }
+
+        $ledger->post(
+            [
+                ['account_id' => $payableId, 'debit' => $amount, 'credit' => 0, 'description' => 'Reverse affiliate commission payable'],
+                ['account_id' => $expenseId, 'debit' => 0, 'credit' => $amount, 'description' => 'Reverse affiliate commission expense'],
+            ],
+            'Affiliate commission dispute reverse '.$payment->invoice_number,
+            $payment,
+            now()->toDateString(),
+            'kind=affiliate_commission_earned_reversal;reverses='.$earned->id,
+        );
     }
 
     public function markPaymentPaid(
@@ -188,19 +292,32 @@ class PartnerSettlementService
             return;
         }
 
-        $already = \App\Models\JournalEntry::query()
-            ->whereIn('source_type', [PartnerPayment::class, VendorPayment::class])
-            ->where('source_id', $payment->id)
-            ->where('status', 'posted')
-            ->exists();
-        if ($already) {
+        if ($this->hasJournalKind($payment, 'partner_payout_paid')) {
             return;
         }
 
+        // Legacy rows posted before kind= memos — keep single-payout idempotency.
+        if (! in_array((string) $payment->source_type, ['affiliate_commission'], true)) {
+            $already = \App\Models\JournalEntry::query()
+                ->whereIn('source_type', [PartnerPayment::class, VendorPayment::class])
+                ->where('source_id', $payment->id)
+                ->where('status', 'posted')
+                ->exists();
+            if ($already) {
+                return;
+            }
+        }
+
         $ledger = app(LedgerService::class);
-        $payableId = in_array((string) $payment->source_type, ['supplier_deposit', 'asset_principal'], true)
-            ? ($ledger->supplierPayableAccountId() ?? $ledger->recoveryPartnerPayableAccountId())
-            : ($ledger->recoveryPartnerPayableAccountId() ?? $ledger->supplierPayableAccountId());
+        $payableId = match ((string) $payment->source_type) {
+            'supplier_deposit', 'asset_principal' => $ledger->supplierPayableAccountId()
+                ?? $ledger->recoveryPartnerPayableAccountId(),
+            'affiliate_commission' => $ledger->affiliateCommissionPayableAccountId()
+                ?? $ledger->recoveryPartnerPayableAccountId()
+                ?? $ledger->supplierPayableAccountId(),
+            default => $ledger->recoveryPartnerPayableAccountId()
+                ?? $ledger->supplierPayableAccountId(),
+        };
         $cashId = $ledger->cashAccountId();
         if (! $payableId || ! $cashId) {
             \Illuminate\Support\Facades\Log::warning('Partner payout paid without GL accounts', [
@@ -218,7 +335,7 @@ class PartnerSettlementService
             'Partner payout '.$payment->invoice_number,
             $payment,
             now()->toDateString(),
-            $payment->description ?: 'Partner payout marked paid',
+            'kind=partner_payout_paid;'.($payment->description ?: 'Partner payout marked paid'),
         );
     }
 

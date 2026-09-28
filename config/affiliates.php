@@ -8,7 +8,11 @@ return [
     'default_plus_discount_percent' => (float) env('AFFILIATE_PLUS_DISCOUNT', 10),
     'default_commission_percent' => (float) env('AFFILIATE_COMMISSION_PERCENT', 10),
 
-    /** Paid via payment.show before affiliate application enters review. */
+    /**
+     * Public Affiliate application fee gate (Settings Hub).
+     * When required and amount > 0: obligation → payment.show body → verified → review queue.
+     */
+    'application_fee_required' => (bool) env('AFFILIATE_APPLICATION_FEE_REQUIRED', true),
     'application_fee_amount' => (float) env('AFFILIATE_APPLICATION_FEE', 10000),
 
     /**

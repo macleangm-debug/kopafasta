@@ -226,6 +226,48 @@ class LedgerService
             ->value('id');
     }
 
+    public function affiliateCommissionPayableAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.affiliate_commission_payable_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where('type', 'liability')
+            ->where(function ($q) {
+                $q->where('name', 'like', '%affiliate%commission%payable%')
+                    ->orWhere('name', 'like', '%affiliate%payable%')
+                    ->orWhere('code', '2140');
+            })
+            ->orderBy('code')
+            ->value('id')
+            ?? $this->recoveryPartnerPayableAccountId();
+    }
+
+    public function affiliateCommissionExpenseAccountId(): ?int
+    {
+        $id = (int) (Setting::get('finance.affiliate_commission_expense_gl_account_id') ?? 0);
+        if ($id > 0 && ChartOfAccount::whereKey($id)->exists()) {
+            return $id;
+        }
+
+        return ChartOfAccount::query()
+            ->where('type', 'expense')
+            ->where(function ($q) {
+                $q->where('name', 'like', '%affiliate%commission%')
+                    ->orWhere('name', 'like', '%acquisition%expense%')
+                    ->orWhere('code', '5130');
+            })
+            ->orderBy('code')
+            ->value('id')
+            ?? ChartOfAccount::query()
+                ->where('type', 'expense')
+                ->where('name', 'like', '%marketing%')
+                ->orderBy('code')
+                ->value('id');
+    }
+
     public function assetLendingPrincipalClearingAccountId(): ?int
     {
         $id = (int) (Setting::get('finance.asset_lending_principal_clearing_gl_account_id') ?? 0);

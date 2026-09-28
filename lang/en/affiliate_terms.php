@@ -20,7 +20,12 @@ return [
     'membership_not_required_premium' => 'Premium Affiliates do not pay an annual membership fee unless Settings explicitly require it.',
     'membership_not_required_territory' => 'Annual Affiliate membership does not apply under the current territory Settings.',
     'membership_required_clause' => 'Affiliates may require payment of the annual membership fee. The individual fee is :membership_fee_individual and the company fee is :membership_fee_company, for a duration of :membership_duration days, with a payment grace of :membership_grace_hours hours as configured in Settings.',
-    'rate_commission' => 'Affiliate commission on qualifying referrals',
+    'rate_commission' => 'Commission rate',
+    'commission_basis_label' => 'Commission basis',
+    'commission_basis_remaining' => 'Percentage of applicable remaining amount',
+    'commission_basis_original' => 'Percentage of original amount before discounts',
+    'commission_basis_clause' => 'Where commission is expressed as a percentage, the percentage is applied to the applicable remaining amount determined under Kopafasta\'s applicable Affiliate commercial rules.',
+    'commission_rate_display' => 'Commission rate: :rate of the applicable remaining amount',
     'rate_registration' => 'Registration fee discount',
     'rate_application' => 'Application fee discount',
     'rate_plus' => 'Kopafasta Plus customer discount',
@@ -28,9 +33,9 @@ return [
     'exclusivity_none' => 'Non-exclusive',
     'negotiated_none' => 'None',
     'withdrawal_terms_text' => 'Withdrawals are subject to the applicable minimum withdrawal amount, account verification, available wallet balance and Kopafasta\'s applicable payment controls.',
-    'application_commission_description' => 'Commission linked to qualifying application-related events according to the effective commercial rates.',
-    'plus_commission_description' => 'Commission linked to qualifying Kopafasta Plus events according to the effective commercial rates.',
-    'other_commission_description' => 'Any other qualifying commission event configured for this Affiliate under the effective commercial rates.',
+    'application_commission_description' => 'Commission linked to qualifying application-related events according to the effective commercial rates, calculated as the commission rate multiplied by the applicable remaining amount.',
+    'plus_commission_description' => 'Commission linked to qualifying Kopafasta Plus events according to the effective commercial rates, calculated as the commission rate multiplied by the applicable remaining amount.',
+    'other_commission_description' => 'Any other qualifying commission event configured for this Affiliate under the effective commercial rates, using the same applicable remaining amount basis unless an expressly negotiated and snapshotted basis applies.',
     'body' => <<<'TEXT'
 # {{brand}} Affiliate Agreement
 
@@ -73,6 +78,9 @@ The Affiliate earns commissions and referral benefits according to the commercia
 {{effective_rates_table}}
 
 These rates are obtained from Kopafasta's Affiliate configuration and the applicable agreement snapshot.
+
+**Commission basis**
+{{commission_basis_clause}}
 
 Commission becomes payable only when the event required by the applicable commission rule has been successfully completed and verified.
 
@@ -227,6 +235,9 @@ The Premium Affiliate may not independently alter or promise additional Kopafast
 
 ## 7. Commission calculation and payment
 Commission is calculated using the qualifying events and rates stated in the applicable commercial terms.
+
+**Commission basis**
+{{commission_basis_clause}}
 
 **Application-related commission**
 {{application_commission_description}}

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\CustomerPayment;
 use App\Models\PartnerApplication;
-use App\Models\Setting;
 use Illuminate\Support\Str;
 
 /**
@@ -19,18 +18,25 @@ class AffiliateApplicationFeePaymentService
 
     public function feeAmount(): float
     {
-        $amount = (float) Setting::get(
-            'affiliates.application_fee_amount',
-            config('affiliates.application_fee_amount', 10_000)
-        );
+        $amount = app(AffiliateSettingsService::class)->applicationFeeAmount();
 
         return app(\App\Services\Staging\StagingPaymentsService::class)
             ->effective('affiliate_application_fee', max(0, $amount));
     }
 
+    /**
+     * Settings SoT: required ON and amount > 0 → gate through payment.show body.
+     */
+    public function isRequired(): bool
+    {
+        return app(AffiliateSettingsService::class)->applicationFeeRequired()
+            && $this->feeAmount() > 0;
+    }
+
     public function open(PartnerApplication $application): CustomerPayment
     {
         abort_unless($application->resolvedCategory() === 'affiliate', 422);
+        abort_unless($this->isRequired(), 422);
 
         $amount = round($this->feeAmount(), 2);
         $existingId = (int) data_get($application->payload, 'application_fee.payment_id', 0);

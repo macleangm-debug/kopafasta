@@ -87,6 +87,8 @@
                         ['borrower_refunds_payable_gl_account_id',  'Borrower refunds payable',         'Credited when auction surplus is owed to borrowers; debited on payout.'],
                         ['recovery_revenue_gl_account_id',          'Recovery revenue',                 'Company markup on recovery/repossession charges (not interest or penalty).'],
                         ['recovery_partner_payable_gl_account_id',  'Recovery partner payable',         'Partner cost accrual (recovery, valuation, GPS, insurance) until payout.'],
+                        ['affiliate_commission_payable_gl_account_id', 'Affiliate commission payable',  'Wallet liability when Affiliate commission is earned; cleared on withdrawal.'],
+                        ['affiliate_commission_expense_gl_account_id', 'Affiliate commission expense',  'Debited when Affiliate commission is recognized as earned (not on withdrawal).'],
                         ['supplier_payable_gl_account_id',          'Asset supplier payable',           'Principal repayments owed to managed-loan suppliers.'],
                         ['asset_lending_principal_clearing_gl_account_id', 'Asset lending principal clearing', 'Debit when principal is allocated to supplier payable (defaults to loan receivable).'],
                         ['valuation_revenue_gl_account_id',         'Valuation revenue',                'Company markup on valuation fees (not the valuer’s base cost).'],

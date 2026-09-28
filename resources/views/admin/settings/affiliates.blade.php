@@ -153,16 +153,16 @@
                         <input type="radio" name="commission_calculation_base" value="discounted_amount"
                                @checked(($values['commission_calculation_base'] ?? 'discounted_amount') === 'discounted_amount')
                                class="text-brand">
-                        Discounted amount (recommended)
+                        Applicable remaining amount (after configured discounts) — recommended
                     </label>
                     <label class="inline-flex items-center gap-2">
                         <input type="radio" name="commission_calculation_base" value="original_amount"
                                @checked(($values['commission_calculation_base'] ?? '') === 'original_amount')
                                class="text-brand">
-                        Original amount
+                        Original amount (before discounts)
                     </label>
                 </div>
-                <p class="text-xs text-gray-500">Example: 10,000 fee with 10% discount → paid 9,000. At 10% commission on discounted base = 900.</p>
+                <p class="text-xs text-gray-500">Percentage commission = rate × this base. Example: 10,000 fee with 10% discount → remaining 9,000. At 10% commission = 900. One calculator serves portal, contracts, 360 and Accounting.</p>
             </div>
         </x-admin.settings-panel>
 
@@ -230,11 +230,18 @@
         <x-admin.settings-panel id="membership">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
                 <div>
-                    <h3 class="text-sm font-semibold text-gray-900">Affiliate application fee</h3>
-                    <p class="text-xs text-gray-500 mt-1">Paid through payment.show before the application enters Admin review. Separate from annual membership. Snapshotted at payment creation.</p>
+                    <h3 class="text-sm font-semibold text-gray-900">Affiliate applications</h3>
+                    <p class="text-xs text-gray-500 mt-1">Public Become an Affiliate applications. When the fee is required, Settings amount → one obligation → payment.show → verified payment → pending review. Paying is not approval.</p>
                 </div>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                    <input type="hidden" name="application_fee_required" value="0">
+                    <input type="checkbox" name="application_fee_required" value="1"
+                           @checked((bool) ($values['application_fee_required'] ?? true))
+                           class="rounded border-gray-300 text-brand">
+                    Application fee required
+                </label>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <x-admin.input name="application_fee_amount" label="Application fee (TZS)" type="number" step="1000" min="0"
+                    <x-admin.input name="application_fee_amount" label="Application fee amount (TZS)" type="number" step="1000" min="0"
                                    :value="$values['application_fee_amount'] ?? 10000" money />
                 </div>
                 <div>

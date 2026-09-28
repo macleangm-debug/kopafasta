@@ -20,7 +20,12 @@ return [
     'general_provisions' => 'Masharti ya jumla',
     'contract_years' => '{1} mwaka :count|[2,*] miaka :count',
     'contract_months' => '{1} mkataba wa miezi :count|[2,*] mkataba wa miezi :count',
-    'rate_commission' => 'Kamisheni ya Msambazaji kwa rufaa stahiki',
+    'rate_commission' => 'Kiwango cha kamisheni',
+    'commission_basis_label' => 'Msingi wa kamisheni',
+    'commission_basis_remaining' => 'Asilimia ya kiasi husika kinachobaki',
+    'commission_basis_original' => 'Asilimia ya kiasi asilia kabla ya punguzo',
+    'commission_basis_clause' => 'Pale ambapo kamisheni imeainishwa kwa asilimia, asilimia hiyo itatumika kwenye kiasi husika kinachobaki kwa mujibu wa masharti ya kibiashara ya Msambazaji ya Kopafasta.',
+    'commission_rate_display' => 'Kiwango cha kamisheni: :rate ya kiasi husika kinachobaki',
     'rate_registration' => 'Punguzo la ada ya usajili',
     'rate_application' => 'Punguzo la ada ya maombi',
     'rate_plus' => 'Punguzo la mteja wa Kopafasta Plus',
@@ -28,9 +33,9 @@ return [
     'exclusivity_none' => 'Si wa kipekee',
     'negotiated_none' => 'Hakuna',
     'withdrawal_terms_text' => 'Utoaji wa fedha unategemea kiwango cha chini kinachotumika, uthibitishaji wa akaunti, salio linalopatikana kwenye Wallet na taratibu za malipo za Kopafasta.',
-    'application_commission_description' => 'Kamisheni inayohusiana na matukio stahiki ya maombi kulingana na viwango halisi vya kibiashara.',
-    'plus_commission_description' => 'Kamisheni inayohusiana na matukio stahiki ya Kopafasta Plus kulingana na viwango halisi vya kibiashara.',
-    'other_commission_description' => 'Kamisheni nyingine stahiki iliyowekwa kwa Msambazaji huyu chini ya viwango halisi vya kibiashara.',
+    'application_commission_description' => 'Kamisheni inayohusiana na matukio stahiki ya maombi kulingana na viwango halisi vya kibiashara, ikikokotolewa kama kiwango cha kamisheni mara kiasi husika kinachobaki.',
+    'plus_commission_description' => 'Kamisheni inayohusiana na matukio stahiki ya Kopafasta Plus kulingana na viwango halisi vya kibiashara, ikikokotolewa kama kiwango cha kamisheni mara kiasi husika kinachobaki.',
+    'other_commission_description' => 'Kamisheni nyingine stahiki iliyowekwa kwa Msambazaji huyu chini ya viwango halisi vya kibiashara, kwa kutumia msingi ule ule wa kiasi husika kinachobaki isipokuwa msingi mwingine umejadiliwa na kuhifadhiwa wazi.',
     'body' => <<<'TEXT'
 # Mkataba wa Msambazaji wa {{brand}}
 
@@ -73,6 +78,9 @@ Msambazaji atapata kamisheni na manufaa ya rufaa kulingana na masharti ya kibias
 {{effective_rates_table}}
 
 Viwango hivi vinatokana na mipangilio ya Msambazaji ya Kopafasta na nakala ya masharti yaliyohifadhiwa kwa Mkataba husika.
+
+**Msingi wa kukokotoa kamisheni**
+{{commission_basis_clause}}
 
 Kamisheni italipwa pale tu tukio linalohitajika kwa mujibu wa kanuni husika ya kamisheni litakapokamilika na kuthibitishwa.
 
@@ -190,6 +198,9 @@ Mabadiliko ya baadaye ya viwango vya kawaida vya Kopafasta hayatabadilisha Mkata
 Msambazaji wa Premium hatakiwi kubadilisha au kuahidi punguzo au manufaa mengine ya Kopafasta ambayo hayajaidhinishwa.
 
 ## 7. Kukokotoa na kulipa kamisheni
+**Msingi wa kukokotoa kamisheni**
+{{commission_basis_clause}}
+
 **Kamisheni inayohusiana na maombi**
 {{application_commission_description}}
 

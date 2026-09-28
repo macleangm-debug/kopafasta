@@ -778,18 +778,36 @@ class AffiliateService
     /**
      * Affiliate discount quote (referral takes precedence elsewhere).
      *
-     * @return array{base: float, discount: float, after_discount: float, commission: float, affiliate: Vendor|null, has_affiliate: bool}
+     * Canonical commission math lives here (and AffiliateCommissionCalculatorService).
+     * commission_base is the applicable remaining amount when Settings uses discounted_amount.
+     *
+     * @return array{
+     *   base: float,
+     *   discount: float,
+     *   after_discount: float,
+     *   commission_base: float,
+     *   commission_rate_percent: float,
+     *   calculation_base: string,
+     *   commission: float,
+     *   affiliate: Vendor|null,
+     *   has_affiliate: bool
+     * }
      */
     public function quoteFee(Customer $customer, float $baseAmount, string $feeType, ?Vendor $affiliate = null): array
     {
         $feeType = CustomerPayment::canonicalType($feeType);
         $affiliate = $affiliate ?: $this->relationshipAffiliate($customer);
+        $settings = app(AffiliateSettingsService::class);
+        $calculationBase = $settings->commissionCalculationBase();
 
-        if (! $affiliate || $baseAmount <= 0 || ! app(AffiliateSettingsService::class)->appliesToFeeType($feeType)) {
+        if (! $affiliate || $baseAmount <= 0 || ! $settings->appliesToFeeType($feeType)) {
             return [
                 'base' => round($baseAmount, 2),
                 'discount' => 0.0,
                 'after_discount' => round($baseAmount, 2),
+                'commission_base' => 0.0,
+                'commission_rate_percent' => 0.0,
+                'calculation_base' => $calculationBase,
                 'commission' => 0.0,
                 'affiliate' => null,
                 'has_affiliate' => false,
@@ -811,15 +829,21 @@ class AffiliateService
             $afterDiscount = $promotion['after_discount'];
         }
 
-        $commissionBase = app(AffiliateSettingsService::class)->commissionCalculationBase() === 'discounted_amount'
+        // discounted_amount = applicable remaining amount after configured discounts/exclusions.
+        $commissionBase = $calculationBase === 'discounted_amount'
             ? $afterDiscount
             : $baseAmount;
-        $commission = app(AffiliateCommissionCalculatorService::class)->calculate($affiliate, $commissionBase, $feeType);
+        $calculator = app(AffiliateCommissionCalculatorService::class);
+        $commission = $calculator->calculate($affiliate, $commissionBase, $feeType);
+        $ratePercent = $calculator->percentFor($affiliate);
 
         return [
             'base' => round($baseAmount, 2),
             'discount' => $discount,
             'after_discount' => $afterDiscount,
+            'commission_base' => round($commissionBase, 2),
+            'commission_rate_percent' => round($ratePercent, 4),
+            'calculation_base' => $calculationBase,
             'commission' => $commission,
             'affiliate' => $affiliate,
             'has_affiliate' => true,
@@ -896,6 +920,14 @@ class AffiliateService
                 'Affiliate commission on '.str_replace('_', ' ', $feeType),
                 null,
                 $payment?->reference,
+                [
+                    'commission_base' => $quote['commission_base'],
+                    'commission_rate_percent' => $quote['commission_rate_percent'],
+                    'calculation_base' => $quote['calculation_base'],
+                    'fee_type' => $feeType,
+                    'qualifying_payment_id' => $payment?->id,
+                    'qualifying_payment_reference' => $payment?->reference,
+                ],
             );
 
             return $event;

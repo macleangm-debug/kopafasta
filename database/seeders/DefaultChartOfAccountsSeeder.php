@@ -20,6 +20,7 @@ class DefaultChartOfAccountsSeeder extends Seeder
             ['code' => '2110', 'name' => 'Deferred Fee Liability', 'type' => 'liability'],
             ['code' => '2120', 'name' => 'Recovery Partner Payable', 'type' => 'liability'],
             ['code' => '2130', 'name' => 'Asset Supplier Payable', 'type' => 'liability'],
+            ['code' => '2140', 'name' => 'Affiliate Commission Payable', 'type' => 'liability'],
             ['code' => '4000', 'name' => 'Interest Income', 'type' => 'income'],
             ['code' => '4010', 'name' => 'Penalty Income', 'type' => 'income'],
             ['code' => '4020', 'name' => 'Application Fee Income', 'type' => 'income'],
@@ -42,6 +43,7 @@ class DefaultChartOfAccountsSeeder extends Seeder
             ['code' => '5100', 'name' => 'Insurance Expense', 'type' => 'expense'],
             ['code' => '5110', 'name' => 'Office & Admin Expense', 'type' => 'expense'],
             ['code' => '5120', 'name' => 'Travel Expense', 'type' => 'expense'],
+            ['code' => '5130', 'name' => 'Affiliate Commission Expense', 'type' => 'expense'],
         ];
 
         foreach ($accounts as $row) {
