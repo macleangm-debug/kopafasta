@@ -26,9 +26,6 @@
 
     @if ($section === 'drafts')
         @livewire('admin.loan-application-drafts-table')
-        <div class="mt-4">
-            @livewire('admin.loan-applications-table', ['pipeline' => 'intake', 'intakeSection' => 'drafts'])
-        </div>
     @else
         @livewire('admin.loan-applications-table', ['pipeline' => 'intake', 'intakeSection' => $section])
     @endif

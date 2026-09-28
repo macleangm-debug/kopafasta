@@ -67,7 +67,7 @@ class ApplicationIntakeReadinessService
             'stage' => $stage,
             'closed' => $closed,
             'borrower_complete' => $borrowerComplete,
-            'borrower_submitted' => filled($application->submitted_at),
+            'borrower_submitted' => filled($application->submitted_at) && ! $application->isPreSubmit(),
             'profile_percent' => (int) ($profile['percent'] ?? 0),
             'profile_gaps' => collect($profile['actionable'] ?? [])->pluck('label')->filter()->values()->all(),
             'guarantor_required' => $guarantorRequired,
@@ -171,6 +171,10 @@ class ApplicationIntakeReadinessService
     /** @return array{result: string, reason: ?string, release_at: ?string} */
     public function initialGate(LoanApplication $application): array
     {
+        if ($application->isPreSubmit()) {
+            return ['result' => 'not_run', 'reason' => null, 'release_at' => null];
+        }
+
         $stored = data_get($application->screening_payload, 'intake.initial_gate');
         if (is_array($stored) && filled($stored['result'] ?? null)) {
             return [
@@ -227,6 +231,9 @@ class ApplicationIntakeReadinessService
                 ? self::STATE_REJECTED_GATE
                 : $status;
         }
+        if ($application->isPreSubmit()) {
+            return self::STATE_DRAFT;
+        }
         if ($stage === self::STATE_HOLD || ($gate['result'] ?? null) === 'failed' && $status !== 'rejected') {
             return self::STATE_HOLD;
         }
@@ -244,9 +251,6 @@ class ApplicationIntakeReadinessService
         }
         if (in_array($stage, ['screening', 'credit_appraisal', 'pre_approval'], true)) {
             return self::STATE_SCREENING;
-        }
-        if ($application->isPreSubmit()) {
-            return self::STATE_DRAFT;
         }
 
         return $stage !== '' ? $stage : self::STATE_INITIAL_CHECK;
@@ -313,7 +317,7 @@ class ApplicationIntakeReadinessService
                 ->where(fn ($q) => $q->where('status', 'awaiting_guarantor')->orWhere('current_stage', self::STATE_AWAITING_GUARANTOR))->count(),
             'ready_for_screening' => (clone $base)->whereNotIn('status', self::CLOSED_STATUSES)
                 ->where('current_stage', self::STATE_READY)->count(),
-            'drafts' => (clone $base)->where('status', 'draft')->count(),
+            'drafts' => app(LoanApplicationDraftService::class)->countIncomplete(),
             'closed' => (clone $base)->whereIn('status', ['withdrawn', 'rejected'])->count(),
         ];
     }

@@ -12,6 +12,7 @@ class ApplicationIntakeReconciliationService
         private readonly ApplicationIntakeTransitionService $transitions,
         private readonly CreditEligibilityPolicyService $eligibility,
         private readonly CapacityAutoRejectService $capacity,
+        private readonly LoanApplicationDraftService $drafts,
         private readonly AuditService $audit,
     ) {}
 
@@ -116,13 +117,24 @@ class ApplicationIntakeReconciliationService
         $isAwaiting = $fromStatus === 'awaiting_guarantor' || $fromStage === 'awaiting_guarantor';
 
         if ($isContradictoryDraft && ! ($resolved['borrower_complete'] ?? false)) {
+            if ($this->drafts->hasAlignedIncompleteDraft($application)) {
+                return $this->row(
+                    $application,
+                    $resolved,
+                    'none',
+                    'draft',
+                    'draft',
+                    'Incomplete Application. Historical submitted_at does not override readiness. First Gate is not evaluated.',
+                );
+            }
+
             return $this->row(
                 $application,
                 $resolved,
-                'none',
+                'return_to_incomplete',
                 'draft',
                 'draft',
-                'submitted_at is set but Profile is incomplete — remain Draft. First Gate is not evaluated.',
+                'Incomplete Application. Leave submitted/intake queues. Resume under Incomplete Applications. First Gate is not evaluated.',
             );
         }
 
@@ -230,6 +242,16 @@ class ApplicationIntakeReconciliationService
 
         if (($proposal['action'] ?? '') === 'park') {
             $this->transitions->parkFailedFirstGate($application->fresh(['customer', 'product']), notify: $notify);
+
+            return;
+        }
+
+        if (($proposal['action'] ?? '') === 'return_to_incomplete') {
+            $application->update([
+                'status' => 'draft',
+                'current_stage' => 'draft',
+            ]);
+            $this->drafts->ensureResumeDraftForApplication($application->fresh(['customer', 'product']));
 
             return;
         }

@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 class ReconcilePrematureApplicationsCommand extends Command
 {
     protected $signature = 'applications:reconcile-premature
-        {--numbers=* : Application numbers (defaults to the three production legacy cases)}
+        {--numbers=* : Application numbers (defaults to the incomplete production legacy cases)}
         {--dry-run : Report the plan without writing}
         {--force : Required to write outside local/testing}';
 

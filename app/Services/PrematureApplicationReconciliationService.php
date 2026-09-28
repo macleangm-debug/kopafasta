@@ -15,7 +15,6 @@ class PrematureApplicationReconciliationService
 {
     /** @var list<string> */
     public const TARGET_NUMBERS = [
-        'APP-IL-LQU6',
         'APP-IL-84SH',
         'APP-IL-ZR93',
     ];
@@ -23,6 +22,7 @@ class PrematureApplicationReconciliationService
     public function __construct(
         private readonly AuditService $audit,
         private readonly ProfileCompletionService $completion,
+        private readonly LoanApplicationDraftService $drafts,
     ) {}
 
     /**
@@ -124,7 +124,7 @@ class PrematureApplicationReconciliationService
                     ]);
                 }
 
-                $draft = $this->ensureResumeDraft($application->fresh(['customer', 'product']));
+                $draft = $this->drafts->ensureResumeDraftForApplication($application->fresh(['customer', 'product']));
 
                 $this->audit->log(null, 'application.returned_to_incomplete', $application, $before, [
                     'status' => 'draft',
@@ -154,81 +154,5 @@ class PrematureApplicationReconciliationService
         }
 
         return $results;
-    }
-
-    private function ensureResumeDraft(LoanApplication $application): LoanApplicationDraft
-    {
-        $customer = $application->customer;
-        $product = $application->product;
-        if (! $customer || ! $product) {
-            throw new \RuntimeException('Application '.$application->application_number.' is missing customer or product.');
-        }
-
-        $candidates = LoanApplicationDraft::query()
-            ->where('customer_id', $customer->id)
-            ->where('loan_product_id', $product->id)
-            ->orderBy('id')
-            ->get();
-
-        $draft = $candidates->first(
-            fn (LoanApplicationDraft $row) => $row->draft_reference === $application->application_number
-        ) ?? $candidates->first();
-
-        $feeStatus = (string) ($application->application_fee_status ?? '');
-        $feePaid = in_array($feeStatus, ['paid', 'waived', 'charged'], true);
-        $existingPayload = is_array($draft?->payload) ? $draft->payload : [];
-        $existingForm = is_array($existingPayload['form'] ?? null) ? $existingPayload['form'] : [];
-        $existingFee = is_array($existingPayload['application_fee'] ?? null) ? $existingPayload['application_fee'] : [];
-
-        $payload = array_replace($existingPayload, [
-            'application_started' => true,
-            'draft_reference' => $application->application_number,
-            'step_key' => $existingPayload['step_key'] ?? 'submit',
-            'form' => array_replace($existingForm, [
-                'loan_product_id' => $product->id,
-                'requested_amount' => (float) $application->requested_amount,
-                'requested_tenure_months' => (int) $application->requested_tenure_months,
-                'purpose' => $application->purpose ?: ($existingForm['purpose'] ?? 'business'),
-            ]),
-            'application_fee' => $feePaid
-                ? array_replace($existingFee, [
-                    'status' => $feeStatus === 'waived' ? 'waived' : 'paid',
-                    'reference' => $application->application_fee_reference ?: ($existingFee['reference'] ?? null),
-                    'channel' => $application->application_fee_channel ?: ($existingFee['channel'] ?? null),
-                    'amount' => (int) round((float) ($application->application_fee_amount ?? 0)),
-                    'paid_at' => optional($application->application_fee_paid_at)?->toIso8601String()
-                        ?: ($existingFee['paid_at'] ?? now()->toIso8601String()),
-                    'draft_reference' => $application->application_number,
-                ])
-                : ($existingFee !== [] ? $existingFee : null),
-        ]);
-
-        if ($draft) {
-            $draft->update([
-                'phase' => 'application',
-                'draft_reference' => $application->application_number,
-                'payload' => $payload,
-                'saved_at' => now(),
-            ]);
-
-            // Collapse competing same-product drafts into one resumable journey.
-            LoanApplicationDraft::query()
-                ->where('customer_id', $customer->id)
-                ->where('loan_product_id', $product->id)
-                ->where('id', '!=', $draft->id)
-                ->delete();
-
-            return $draft->fresh();
-        }
-
-        return LoanApplicationDraft::create([
-            'customer_id' => $customer->id,
-            'loan_product_id' => $product->id,
-            'phase' => 'application',
-            'step' => 0,
-            'draft_reference' => $application->application_number,
-            'saved_at' => now(),
-            'payload' => $payload,
-        ]);
     }
 }
