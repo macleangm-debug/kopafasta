@@ -106,8 +106,20 @@ STAGEDIR="$(mktemp -d /tmp/kopafasta-release.XXXXXX)"
 cleanup() { rm -rf "$STAGEDIR"; }
 trap cleanup EXIT
 
+# shellcheck disable=SC1091
+source "$ROOT/scripts/assert-release-ready.sh"
+
 echo "==> Exporting Git commit ${SHORT_COMMIT} (${DEPLOY_COMMIT}) for ${DEPLOY_ENV}"
-git archive --format=tar "$DEPLOY_COMMIT" | tar -x -C "$STAGEDIR"
+if ! git archive --format=tar "$DEPLOY_COMMIT" | tar -x -C "$STAGEDIR"; then
+  echo "Error: archive extraction failed — refusing rsync --delete"
+  exit 1
+fi
+printf '%s\n' "$DEPLOY_COMMIT" > "$STAGEDIR/.release-sha"
+
+if ! assert_release_ready "$STAGEDIR" "$DEPLOY_COMMIT"; then
+  echo "Error: extracted release failed closed checks — production tree will not be mutated"
+  exit 1
+fi
 
 echo "==> Syncing ${SHORT_COMMIT} to ${SERVER}:${APP_DIR}"
 SSH_BASE=(ssh -p "${SSH_PORT}")
