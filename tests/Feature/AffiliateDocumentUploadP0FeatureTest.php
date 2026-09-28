@@ -31,7 +31,7 @@ class AffiliateDocumentUploadP0FeatureTest extends TestCase
         $affiliate = file_get_contents(resource_path('views/site/affiliate/apply.blade.php'));
         $partner = file_get_contents(resource_path('views/site/partners/apply.blade.php'));
 
-        $this->assertStringContainsString('x-site.form-document-field', $affiliate);
+        $this->assertStringContainsString('x-site.form-nida-capture', $affiliate);
         $this->assertStringContainsString('doc_national_id_front', $affiliate);
         $this->assertStringContainsString('doc_national_id_back', $affiliate);
         $this->assertStringContainsString('x-site.form-document-field', $partner);

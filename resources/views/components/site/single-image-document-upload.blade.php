@@ -32,6 +32,7 @@
         'cameraDenied' => __('borrower.profile.camera_denied'),
         'cameraUnsupported' => __('borrower.profile.camera_unsupported'),
         'cameraInsecure' => __('borrower.profile.camera_insecure'),
+        'cameraInterrupted' => __('borrower.profile.camera_interrupted'),
         'useFrontCamera' => __('borrower.profile.use_front_camera'),
         'useBackCamera' => __('borrower.profile.use_back_camera'),
         'addPicture' => __('borrower.profile.add_picture'),
@@ -346,9 +347,14 @@
                     } catch (e) {
                         this.cameraOpen = false;
                         this.stopStream();
+                        const raw = String(e?.message || '');
+                        const interrupted = e?.name === 'AbortError'
+                            || /play\(\).*interrupted|interrupted by a new load/i.test(raw);
                         this.cameraNotice = e?.name === 'NotAllowedError'
                             ? this.labels.cameraDenied
-                            : (e?.message || this.labels.cameraDenied);
+                            : (interrupted
+                                ? (this.labels.cameraInterrupted || this.labels.cameraDenied)
+                                : (this.labels.cameraDenied));
                     }
                 },
                 async toggleFacing() {
@@ -363,9 +369,14 @@
                         video.muted = true;
                         await video.play();
                     } catch (e) {
+                        const raw = String(e?.message || '');
+                        const interrupted = e?.name === 'AbortError'
+                            || /play\(\).*interrupted|interrupted by a new load/i.test(raw);
                         this.cameraNotice = e?.name === 'NotAllowedError'
                             ? this.labels.cameraDenied
-                            : (e?.message || this.labels.cameraDenied);
+                            : (interrupted
+                                ? (this.labels.cameraInterrupted || this.labels.cameraDenied)
+                                : (this.labels.cameraDenied));
                     }
                 },
                 async requestCameraStream(facing) {

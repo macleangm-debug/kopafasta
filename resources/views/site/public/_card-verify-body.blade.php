@@ -132,6 +132,12 @@
                             </div>
                         </div>
                     @endif
+                    @if (($result['type'] ?? '') === 'affiliate' || ($result['partner']->category ?? null) === 'affiliate')
+                        <div class="relative mt-5 rounded-xl bg-black/25 px-4 py-3 ring-1 ring-white/15">
+                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.card_verify.for_your_protection') }}</p>
+                            <p class="mt-1.5 text-sm text-white/90 leading-relaxed">{{ __('site.card_verify.affiliate_safety') }}</p>
+                        </div>
+                    @endif
                 </div>
             @elseif ($found)
                 <div class="relative {{ $panelClass }} rounded-[1.5rem] p-6">
@@ -144,7 +150,14 @@
                     <h2 class="mt-2 text-xl font-bold tracking-wide">{{ $name ?: '—' }}</h2>
                     <p class="mt-1 text-xs uppercase tracking-wider text-white/70">{{ $result['role'] ?? '' }}</p>
                     <p class="mt-2 font-mono text-sm text-white/85">{{ $result['id_display'] ?? '' }}</p>
-                    <p class="mt-4 text-sm text-white/80">{{ __('site.card_verify.inactive_body') }}</p>
+                    <p class="mt-4 text-sm text-white/80">
+                        {{ (($result['type'] ?? '') === 'affiliate' || ($result['partner']->category ?? null) === 'affiliate')
+                            ? __('site.card_verify.affiliate_unauthorized')
+                            : __('site.card_verify.inactive_body') }}
+                    </p>
+                    @if (($result['type'] ?? '') === 'affiliate' || ($result['partner']->category ?? null) === 'affiliate')
+                        <p class="mt-3 text-sm text-white/90 leading-relaxed">{{ __('site.card_verify.affiliate_safety') }}</p>
+                    @endif
                 </div>
             @else
                 <div class="rounded-[1.5rem] bg-white/95 backdrop-blur ring-1 ring-brand/10 shadow-[0_20px_50px_rgba(8,47,39,0.1)] p-8 text-center">

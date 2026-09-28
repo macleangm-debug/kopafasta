@@ -119,8 +119,18 @@ Msambazaji atakusanya au kushiriki taarifa zinazohitajika kwa shughuli halali ya
 
 Msambazaji hatakiwi kuomba au kuhifadhi PIN, nenosiri au taarifa nyingine za siri za usalama za mteja.
 
-## 10. Vitendo vilivyokatazwa
-Msambazaji hatakiwi kutengeneza wateja au miamala ya uongo; kutoa taarifa za uongo; kuchezea rufaa au malipo ili kupata kamisheni; kuwatoza wateja malipo yasiyoidhinishwa; kutoa au kupokea rushwa; kutumia vibaya taarifa za wateja; kujifanya mfanyakazi wa Kopafasta; au kufanya udanganyifu.
+## 10. Vitendo vilivyokatazwa na majukumu ya Msambazaji
+Msambazaji ni mshirika wa kibiashara huru na haaruhusiwi kujiwakilisha kama mfanyakazi wa Kopafasta, kuidhinisha ufadhili, kuhakikishia idhini, kubadilisha masharti ya Kopafasta, au kutoa ahadi zisizoidhinishwa kwa niaba ya Kopafasta.
+
+Msambazaji hatakiwi kuelekeza au kukusanya malipo ya wateja wa Kopafasta kupitia akaunti binafsi za benki, namba za pesa za simu au njia nyingine zisizoidhinishwa. Wateja watumie njia rasmi za malipo za Kopafasta pekee.
+
+Msambazaji hatakiwi kuomba au kuhifadhi PIN, nenosiri au taarifa za uthibitishaji za mteja, na atashughulikia taarifa za wateja kwa madhumuni ya rufaa yaliyoruhusiwa pekee.
+
+Msambazaji hatakiwi kupotosha kuhusu bei, ustahiki, idhini, ada, bidhaa, manufaa, mipango ya kamisheni au huduma; hatakiwi kutengeneza rufaa, wateja au miamala ya uongo; hatakiwi kujichezea shughuli zinazostahiki; hatakiwi kuingilia rufaa ya Msambazaji mwingine; wala kudhibiti mfumo wa kamisheni au rufaa.
+
+Msambazaji atatumia chapa na nyenzo za matangazo za Kopafasta kama ilivyoruhusiwa pekee, na hatakiwi kuchapisha taarifa za kupotosha au zisizoidhinishwa kana kwamba zimetoka Kopafasta.
+
+Kopafasta inaweza kuchunguza tabia inayoshukiwa, malalamiko ya wateja, rufaa zisizo za kawaida au udanganyifu unaoshukiwa kulingana na taratibu zake. Kulingana na Mkataba huu na sheria zinazotumika, ukiukaji uliothibitishwa unaweza kusababisha matibabu sahihi ya kamisheni kupitia mzunguko wa kibiashara uliopo (Inayosubiri, Iliyopatikana, Iliyolipwa, Iliyohifadhiwa, Inayobishaniwa au Iliyobatilishwa), kuzuia, kusimamisha au kusitisha. Malalamiko au ishara peke yake hayathibitishi hatia.
 
 ## 11. Kumbukumbu na uhakiki
 Kumbukumbu za miamala na kamisheni zilizothibitishwa kwenye mfumo wa Kopafasta ndizo zitakazotumika kama kumbukumbu kuu za uendeshaji katika kukokotoa kamisheni.
@@ -238,7 +248,17 @@ Viwango vya kibiashara visivyo vya umma, mipango ya kampeni, taarifa za wateja n
 Msambazaji wa Premium hatakiwi kuomba PIN, nenosiri au taarifa nyingine za siri za usalama za mteja.
 
 ## 15. Uadilifu na vitendo vilivyokatazwa
-Msambazaji wa Premium hatakiwi kutengeneza rufaa au miamala ya uongo; kuchezea mfumo ili kupata kamisheni; kutoa taarifa za uongo kuhusu wateja; kuwatoza wateja malipo yasiyoidhinishwa; au kutumia vibaya taarifa za siri.
+Msambazaji wa Premium ni mshirika wa kibiashara huru na haaruhusiwi kujiwakilisha kama mfanyakazi wa Kopafasta, kuidhinisha ufadhili, kuhakikishia idhini, kubadilisha masharti ya Kopafasta, au kutoa ahadi zisizoidhinishwa kwa niaba ya Kopafasta. Cheo cha Premium hakiwaondolei majukumu haya ya mwenendo.
+
+Msambazaji wa Premium hatakiwi kuelekeza au kukusanya malipo ya wateja wa Kopafasta kupitia akaunti binafsi za benki, namba za pesa za simu au njia nyingine zisizoidhinishwa. Wateja watumie njia rasmi za malipo za Kopafasta pekee.
+
+Msambazaji wa Premium hatakiwi kuomba au kuhifadhi PIN, nenosiri au taarifa za uthibitishaji za mteja, na atashughulikia taarifa za wateja kwa madhumuni ya rufaa yaliyoruhusiwa pekee.
+
+Msambazaji wa Premium hatakiwi kupotosha kuhusu bei, ustahiki, idhini, ada, bidhaa, manufaa, mipango ya kamisheni au huduma; hatakiwi kutengeneza rufaa, wateja au miamala ya uongo; hatakiwi kujichezea shughuli zinazostahiki; hatakiwi kuingilia rufaa ya Msambazaji mwingine; wala kudhibiti mfumo wa kamisheni au rufaa.
+
+Msambazaji wa Premium atatumia chapa na nyenzo za matangazo za Kopafasta kama ilivyoruhusiwa pekee, na hatakiwi kuchapisha taarifa za kupotosha au zisizoidhinishwa kana kwamba zimetoka Kopafasta.
+
+Kopafasta inaweza kuchunguza tabia inayoshukiwa, malalamiko ya wateja, rufaa zisizo za kawaida au udanganyifu unaoshukiwa kulingana na taratibu zake. Kulingana na Mkataba huu na sheria zinazotumika, ukiukaji uliothibitishwa unaweza kusababisha matibabu sahihi ya kamisheni kupitia mzunguko wa kibiashara uliopo (Inayosubiri, Iliyopatikana, Iliyolipwa, Iliyohifadhiwa, Inayobishaniwa au Iliyobatilishwa), kuzuia, kusimamisha au kusitisha. Malalamiko au ishara peke yake hayathibitishi hatia.
 
 ## 16. Mabadiliko ya masharti ya kibiashara
 Masharti ya kibiashara yaliyojadiliwa binafsi yatabadilishwa kupitia utaratibu rasmi wa Kopafasta wa Kubadilisha Masharti ya Kibiashara.

@@ -140,17 +140,18 @@ class AffiliateTermsService
     {
         $this->ensurePublishedContractContent();
 
-        // Content revision 3: commission basis = % of applicable remaining amount.
-        return max(3, (int) Setting::get('affiliates.terms.version', 3));
+        // Content revision 4: strengthened Affiliate conduct / customer-protection obligations.
+        return max(4, (int) Setting::get('affiliates.terms.version', 4));
     }
 
     /**
      * Publish Owner contract pack into Settings SoT and clear stale Hub body overrides
      * so existing Affiliates see the new EN/SW templates (re-acceptance required).
+     * Prior PartnerAgreementAcceptance rows remain immutable evidence of older versions.
      */
     public function ensurePublishedContractContent(): void
     {
-        if ((int) Setting::get('affiliates.terms.content_revision', 0) >= 3) {
+        if ((int) Setting::get('affiliates.terms.content_revision', 0) >= 4) {
             return;
         }
 
@@ -163,9 +164,9 @@ class AffiliateTermsService
             Setting::set($key, '');
         }
 
-        $current = max(3, (int) Setting::get('affiliates.terms.version', 1));
+        $current = max(4, (int) Setting::get('affiliates.terms.version', 1));
         Setting::set('affiliates.terms.version', $current);
-        Setting::set('affiliates.terms.content_revision', 3);
+        Setting::set('affiliates.terms.content_revision', 4);
     }
 
     public function template(?string $locale = null, ?Vendor $affiliate = null): string

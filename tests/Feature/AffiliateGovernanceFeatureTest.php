@@ -74,8 +74,9 @@ class AffiliateGovernanceFeatureTest extends TestCase
             ->assertDontSee('application/review fee', false)
             ->assertDontSee('Application fee', false)
             ->assertSee('kf-premium-panel', false)
-            ->assertSee(__('site.affiliate_apply.decl_paragraph'), false)
+            ->assertSee(__('site.affiliate_apply.decl_body', ['name' => '__NAME__']), false)
             ->assertSee(__('site.affiliate_apply.decl_agree'), false)
+            ->assertSee(__('site.affiliate_apply.conduct_title'), false)
             ->assertDontSee('name="declaration_accurate"', false)
             ->assertDontSee('window.confirmForm($el', false)
             ->assertDontSee('Prefer not to say', false)
@@ -163,13 +164,17 @@ class AffiliateGovernanceFeatureTest extends TestCase
         $affiliate = $this->commerciallyEligibleAffiliate();
         $terms = app(AffiliateTermsService::class);
 
-        $rendered = $terms->render($affiliate, 'en');
-        $this->assertStringContainsString('every 3 months', $rendered);
-        $this->assertStringContainsString('10', $rendered);
-        $this->assertStringContainsString('25,000', $rendered);
+        $vars = $terms->variables($affiliate, 'en');
+        $this->assertSame('every 3 months', $vars['assessment_period_label']);
+        $this->assertSame('10', $vars['minimum_qualified_referrals']);
 
-        $sw = $terms->render($affiliate, 'sw');
-        $this->assertStringContainsString('kila miezi 3', $sw);
+        $rendered = $terms->render($affiliate, 'en');
+        $this->assertStringContainsString('25,000', $rendered);
+        $this->assertStringContainsString('applicable remaining amount', $rendered);
+        $this->assertStringContainsString('Prohibited conduct and Affiliate obligations', $rendered);
+
+        $swVars = $terms->variables($affiliate, 'sw');
+        $this->assertSame('kila miezi 3', $swVars['assessment_period_label']);
 
         $acceptance = $terms->accept($affiliate, Request::create('/affiliate-portal/terms', 'POST'));
         $original = $acceptance->rendered_text;
@@ -181,10 +186,10 @@ class AffiliateGovernanceFeatureTest extends TestCase
         $eval['monthly_registration_target'] = 15;
         Setting::set('affiliates.evaluation', $eval);
 
-        $updated = $terms->render($affiliate->fresh(), 'en');
-        $this->assertStringContainsString('180', $updated);
+        $updatedVars = $terms->variables($affiliate->fresh(), 'en');
+        $this->assertSame('180', $updatedVars['assessment_period']);
+        $this->assertSame('15', $updatedVars['minimum_qualified_referrals']);
         $this->assertSame($original, $acceptance->fresh()->rendered_text);
-        $this->assertNotSame($original, $updated);
         $this->assertSame(1, $acceptance->fresh()->policy_version);
     }
 
@@ -308,15 +313,24 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'full_name' => 'Governance Applicant',
             'email' => 'gov-apply@example.com',
             'phone' => '+255712345801',
+            'date_of_birth' => '1990-05-12',
+            'gender' => 'female',
+            'district' => 'Ilala',
+            'ward' => 'Kariakoo',
             'region' => 'Dar es Salaam',
             'occupation' => 'Shop owner',
             'sales_experience' => 'I sell airtime and assist customers daily.',
             'languages' => ['sw', 'en'],
+            'previous_agent' => 'no',
             'why_affiliate' => 'I already advise customers on mobile money.',
             'acquisition_methods' => ['existing_customers', 'community'],
+            'channels' => ['whatsapp'],
             'monthly_reach' => '11-30',
+            'how_heard' => 'Friend',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
+            'registered_business' => 'no',
             'declaration_accepted' => '1',
+            'conduct_accepted' => '1',
             'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();
@@ -340,14 +354,23 @@ class AffiliateGovernanceFeatureTest extends TestCase
                 'full_name' => 'Online Only Affiliate',
                 'email' => 'online-aff@example.com',
                 'phone' => '+255712345802',
+                'date_of_birth' => '1990-05-12',
+                'gender' => 'male',
+                'district' => 'Ilala',
+                'ward' => 'Kariakoo',
                 'occupation' => 'Content creator',
                 'sales_experience' => 'I promote products to an online audience.',
                 'languages' => ['sw'],
+                'previous_agent' => 'no',
                 'why_affiliate' => 'I already advise followers about loans.',
                 'acquisition_methods' => ['social_media'],
+                'channels' => ['instagram'],
                 'monthly_reach' => '100+',
+                'how_heard' => 'Social media',
                 'first_10_customers' => 'I will share from my existing online audience.',
+                'registered_business' => 'no',
                 'declaration_accepted' => '1',
+                'conduct_accepted' => '1',
                 'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
                 'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
             ])->assertRedirect(route('site.affiliate.apply'))
@@ -358,15 +381,24 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'full_name' => 'Online Only Affiliate',
             'email' => 'online-aff@example.com',
             'phone' => '+255712345802',
+            'date_of_birth' => '1990-05-12',
+            'gender' => 'male',
+            'district' => 'Ilala',
+            'ward' => 'Kariakoo',
             'region' => 'Dar es Salaam',
             'occupation' => 'Content creator',
             'sales_experience' => 'I promote products to an online audience.',
             'languages' => ['sw'],
+            'previous_agent' => 'no',
             'why_affiliate' => 'I already advise followers about loans.',
             'acquisition_methods' => ['social_media'],
+            'channels' => ['instagram'],
             'monthly_reach' => '100+',
+            'how_heard' => 'Social media',
             'first_10_customers' => 'I will share from my existing online audience.',
+            'registered_business' => 'no',
             'declaration_accepted' => '1',
+            'conduct_accepted' => '1',
             'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();

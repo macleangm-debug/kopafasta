@@ -141,20 +141,29 @@ class Phase17FeatureTest extends TestCase
     {
         \Illuminate\Support\Facades\Storage::fake('public');
 
-        $response =         $response = $this->post(route('site.affiliate.apply.post'), [
+        $response = $this->post(route('site.affiliate.apply.post'), [
             'applicant_category' => 'individual',
             'full_name'     => 'Affiliate Applicant',
             'email'         => 'affiliate@example.com',
             'phone'         => '+255712345800',
+            'date_of_birth' => '1990-05-12',
+            'gender'        => 'female',
+            'district'      => 'Ilala',
+            'ward'          => 'Kariakoo',
             'region'        => 'Dar es Salaam',
             'occupation'    => 'Shop owner',
             'sales_experience' => 'I sell airtime and assist customers daily.',
             'languages'     => ['sw', 'en'],
+            'previous_agent' => 'no',
             'why_affiliate' => 'I already advise customers on mobile money.',
             'acquisition_methods' => ['existing_customers', 'community'],
+            'channels' => ['whatsapp'],
             'monthly_reach' => '11-30',
+            'how_heard' => 'Friend',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
+            'registered_business' => 'no',
             'declaration_accepted' => '1',
+            'conduct_accepted' => '1',
             'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
         ]);

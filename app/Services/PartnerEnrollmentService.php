@@ -218,6 +218,19 @@ class PartnerEnrollmentService
                 if (is_array($application->payload)) {
                     $meta = is_array($partner->metadata) ? $partner->metadata : [];
                     $meta['affiliate_application'] = $application->payload;
+                    $identity = is_array($application->payload['identity'] ?? null)
+                        ? $application->payload['identity']
+                        : [];
+                    if ($identity !== []) {
+                        $existingIdentity = is_array($meta['identity'] ?? null) ? $meta['identity'] : [];
+                        $meta['identity'] = array_merge($existingIdentity, array_filter([
+                            'date_of_birth' => $identity['date_of_birth'] ?? null,
+                            'gender' => $identity['gender'] ?? null,
+                            'phone_alt' => $identity['phone_alt'] ?? null,
+                            'district' => $identity['district'] ?? null,
+                            'ward' => $identity['ward'] ?? null,
+                        ], fn ($v) => $v !== null && $v !== ''));
+                    }
                     $partner->update(['metadata' => $meta]);
                 }
             }

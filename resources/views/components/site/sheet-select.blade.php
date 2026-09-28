@@ -40,6 +40,9 @@
         otherText: @js((string) old($otherField, '')),
         labelFor(val) {
             if (!val) return this.placeholder;
+            if (val === this.otherValue && (this.otherText || '').trim() !== '') {
+                return this.otherText.trim();
+            }
             const hit = this.optionEntries.find((o) => o.value === val);
             return hit ? hit.label : val;
         },
@@ -50,9 +53,21 @@
             const sel = this.$refs.native;
             if (sel) sel.value = this.selected || '';
         },
+        cancelOther() {
+            this.selected = '';
+            this.otherText = '';
+            this.$nextTick(() => this.syncNative());
+        },
+        confirmOther() {
+            if ((this.otherText || '').trim() === '') return;
+            this.pickerOpen = false;
+            this.desktopOpen = false;
+            this.$nextTick(() => this.syncNative());
+        },
         choose(val) {
             this.selected = val == null ? '' : String(val);
             if (this.selected !== this.otherValue) {
+                this.otherText = '';
                 this.pickerOpen = false;
                 this.desktopOpen = false;
             }
@@ -124,32 +139,46 @@
 
             <x-site.bottom-sheet :title="$label ?: $placeholder" open="pickerOpen" layer="z-[10100]">
                 <div class="space-y-1 max-h-[60vh] overflow-y-auto">
-                    @if (! $required)
-                        <button type="button" @click="choose('')"
-                                class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50"
-                                :class="!currentValue() ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
-                            {{ $placeholder }}
-                        </button>
-                    @endif
-                    <template x-for="opt in optionEntries" :key="opt.value">
-                        <button type="button" @click="choose(opt.value)"
-                                class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
-                                :class="currentValue() === opt.value ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
-                                x-text="opt.label"></button>
-                    </template>
+                    {{-- Standard options: hide entirely once Other is chosen (same-surface replacement). --}}
+                    <div x-show="selected !== otherValue" x-cloak>
+                        @if (! $required)
+                            <button type="button" @click="choose('')"
+                                    class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50"
+                                    :class="!currentValue() ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''">
+                                {{ $placeholder }}
+                            </button>
+                        @endif
+                        <template x-for="opt in optionEntries" :key="opt.value">
+                            <button type="button" @click="choose(opt.value)"
+                                    class="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50"
+                                    :class="currentValue() === opt.value ? 'bg-brand-muted text-brand ring-1 ring-brand/20' : ''"
+                                    x-text="opt.label"></button>
+                        </template>
+                    </div>
                     @if ($hasOther)
-                        <div class="pt-3 mt-2 border-t border-gray-100 space-y-3" x-show="selected === otherValue" x-cloak>
-                            <label class="block text-xs font-medium text-gray-600">
+                        <div class="space-y-3" x-show="selected === otherValue" x-cloak>
+                            <label class="block text-sm font-semibold text-gray-800">
                                 {{ $otherFieldLabel }} <span class="text-red-500">*</span>
                             </label>
                             <input type="text"
                                    x-model="otherText"
                                    maxlength="80"
-                                   class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand">
-                            <button type="button" @click="pickerOpen = false"
-                                    class="w-full rounded-xl bg-brand text-white text-sm font-semibold py-3">
-                                {{ __('borrower.apply.continue') }}
-                            </button>
+                                   x-ref="otherInput"
+                                   x-init="$watch('selected', (v) => { if (v === otherValue) $nextTick(() => $refs.otherInput?.focus()); })"
+                                   class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand"
+                                   placeholder="{{ $otherFieldLabel }}">
+                            <div class="flex items-center justify-between gap-3 pt-1">
+                                <button type="button" @click="cancelOther()"
+                                        class="text-sm font-semibold text-gray-600 px-3 py-2.5">
+                                    {{ __('borrower.apply.cancel') }}
+                                </button>
+                                <button type="button" @click="confirmOther()"
+                                        class="rounded-xl bg-brand text-white text-sm font-semibold px-5 py-2.5"
+                                        :disabled="!(otherText || '').trim()"
+                                        :class="!(otherText || '').trim() ? 'opacity-40 pointer-events-none' : ''">
+                                    {{ __('borrower.apply.continue') }}
+                                </button>
+                            </div>
                         </div>
                     @endif
                 </div>

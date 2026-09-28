@@ -125,10 +125,18 @@ Customer credentials, PINs, passwords or other security credentials must never b
 
 Personal information obtained through Affiliate activities must be handled only for its authorized purpose and in accordance with applicable data-protection requirements.
 
-## 10. Prohibited conduct
-The Affiliate must not create fictitious customers or transactions; submit false information; manipulate referrals or payments to generate commission; collect unauthorized charges from customers; offer bribes or improper inducements; misuse customer information; impersonate Kopafasta staff; or engage in fraud, harassment or unlawful marketing.
+## 10. Prohibited conduct and Affiliate obligations
+The Affiliate is an independent commercial partner and is not authorized to represent themselves as a Kopafasta employee, approve financing, guarantee approval, alter Kopafasta terms, or make unauthorized commitments on Kopafasta's behalf.
 
-Kopafasta may investigate suspicious activity and suspend affected commissions while an investigation is underway.
+The Affiliate must not direct or collect Kopafasta customer payments through personal bank accounts, mobile-money numbers or other unauthorized payment channels. Customers must use Kopafasta-approved payment channels only.
+
+The Affiliate must never request or retain customer PINs, passwords or authentication credentials and must handle customer information only for permitted referral purposes.
+
+The Affiliate must not misrepresent pricing, eligibility, approval, fees, products, benefits, commission arrangements or services; must not create fictitious referrals, customers or transactions; must not self-manipulate qualifying activity; must not interfere with another Affiliate's attribution; and must not otherwise manipulate the commission or referral system.
+
+The Affiliate must use Kopafasta branding and marketing materials only as authorized and must not publish misleading or unauthorized representations as though they originated from Kopafasta.
+
+Kopafasta may investigate suspected misconduct, customer complaints, abnormal referral activity or suspected manipulation according to its applicable procedures. Subject to this Agreement and applicable rules, confirmed breaches may result in appropriate commission treatment using the existing commercial lifecycle (Pending, Earned, Paid, Reserved, Disputed or Reversed), restriction, suspension or termination. A complaint or anomaly alone does not establish guilt.
 
 ## 11. Records and reconciliation
 Kopafasta's verified transaction and commission records are the primary operational record for calculating commissions.
@@ -290,7 +298,17 @@ The Premium Affiliate must not collect customer PINs, passwords or security cred
 Personal information accessed through an authorized activity may be used only for the permitted purpose and must be appropriately protected.
 
 ## 15. Integrity and prohibited practices
-The Premium Affiliate must not create artificial referrals or transactions, manipulate commission attribution, submit false customer information, charge unauthorized customer fees, make misleading financial claims, misuse confidential/customer information, or offer or accept improper inducements connected with the relationship.
+The Premium Affiliate is an independent commercial partner and is not authorized to represent themselves as a Kopafasta employee, approve financing, guarantee approval, alter Kopafasta terms, or make unauthorized commitments on Kopafasta's behalf. Premium status does not waive these conduct requirements.
+
+The Premium Affiliate must not direct or collect Kopafasta customer payments through personal bank accounts, mobile-money numbers or other unauthorized payment channels. Customers must use Kopafasta-approved payment channels only.
+
+The Premium Affiliate must never request or retain customer PINs, passwords or authentication credentials and must handle customer information only for permitted referral purposes.
+
+The Premium Affiliate must not misrepresent pricing, eligibility, approval, fees, products, benefits, commission arrangements or services; must not create fictitious referrals, customers or transactions; must not self-manipulate qualifying activity; must not interfere with another Affiliate's attribution; and must not otherwise manipulate the commission or referral system.
+
+The Premium Affiliate must use Kopafasta branding and marketing materials only as authorized and must not publish misleading or unauthorized representations as though they originated from Kopafasta.
+
+Kopafasta may investigate suspected misconduct, customer complaints, abnormal referral activity or suspected manipulation according to its applicable procedures. Subject to this Agreement and applicable rules, confirmed breaches may result in appropriate commission treatment using the existing commercial lifecycle (Pending, Earned, Paid, Reserved, Disputed or Reversed), restriction, suspension or termination. A complaint or anomaly alone does not establish guilt.
 
 ## 16. Changes to commercial terms
 Individually negotiated commercial terms may only be changed through Kopafasta's authorized Change Commercial Terms process.

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vendor;
+use App\Services\AffiliateApplicationFeePaymentService;
 use App\Services\PartnerEnrollmentService;
 use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
@@ -15,55 +16,88 @@ class PartnerApplicationController extends Controller
 {
     public function create(): View
     {
+        $feeService = app(AffiliateApplicationFeePaymentService::class);
+
         return view('site.affiliate.apply', [
             'regions' => array_keys(config('tanzania_locations', [])),
+            'feeRequired' => $feeService->isRequired(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $isCompany = $request->input('applicant_category') === 'company';
+        $registeredBusiness = $request->input('registered_business') === 'yes';
+
         $data = $request->validate([
             'applicant_category' => ['required', 'in:individual,company'],
             'full_name' => ['required', 'string', 'max:150'],
+            'date_of_birth' => ['required', 'date', 'before:today'],
+            'gender' => ['required', 'in:male,female,other'],
             'email' => ['required', 'email', 'max:150'],
             'phone' => ['required', 'string', 'max:30'],
+            'phone_alt' => ['nullable', 'string', 'max:30'],
             'business_name' => ['nullable', 'string', 'max:150'],
             'legal_name' => ['nullable', 'string', 'max:150'],
             'registration_number' => ['nullable', 'string', 'max:80'],
             'tin' => ['nullable', 'string', 'max:40'],
             'region' => ['required', 'string', 'max:100'],
+            'district' => ['required', 'string', 'max:100'],
+            'ward' => ['required', 'string', 'max:100'],
             'coverage_regions' => ['nullable', 'array'],
             'coverage_regions.*' => ['string', 'max:100'],
             'occupation' => ['required', 'string', 'max:150'],
+            'occupation_other' => ['nullable', 'string', 'max:150', 'required_if:occupation,other'],
             'sales_experience' => ['required', 'string', 'max:2000'],
             'financial_services_experience' => ['nullable', 'string', 'max:2000'],
             'languages' => ['required', 'array', 'min:1'],
             'languages.*' => ['string', 'max:40'],
+            'previous_agent' => ['required', 'in:yes,no'],
+            'previous_agent_details' => ['nullable', 'string', 'max:2000', 'required_if:previous_agent,yes'],
             'why_affiliate' => ['required', 'string', 'max:2000'],
             'acquisition_methods' => ['required', 'array', 'min:1'],
             'acquisition_methods.*' => ['string', 'max:40'],
+            'channels' => ['required', 'array', 'min:1'],
+            'channels.*' => ['string', 'in:whatsapp,instagram,tiktok,facebook,physical,business,other'],
+            'social_profile_url' => ['nullable', 'url', 'max:255'],
             'monthly_reach' => ['required', 'in:1-10,11-30,31-50,51-100,100+'],
+            'how_heard' => ['required', 'string', 'max:500'],
             'first_10_customers' => ['required', 'string', 'max:2000'],
-            'occupation_other' => ['nullable', 'string', 'max:150', 'required_if:occupation,other'],
+            'registered_business' => ['required', 'in:yes,no'],
             'declaration_accepted' => ['accepted'],
-            'doc_brela' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'doc_tin_certificate' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'conduct_accepted' => ['accepted'],
+            'doc_brela' => [$isCompany ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_tin_certificate' => [$isCompany ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_business_licence' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'doc_national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'doc_national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_front' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_back' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        if ($data['applicant_category'] === 'company' && blank($data['business_name'] ?? null)) {
+        if ($isCompany && blank($data['business_name'] ?? null)) {
             return back()->withErrors(['business_name' => __('site.affiliate_apply.business_required')])->withInput();
         }
 
-        if ($data['applicant_category'] === 'individual') {
+        if (! $isCompany && $registeredBusiness) {
+            if (blank($data['business_name'] ?? null)) {
+                return back()->withErrors(['business_name' => __('site.affiliate_apply.business_required')])->withInput();
+            }
+            if (blank($data['registration_number'] ?? null)) {
+                return back()->withErrors(['registration_number' => __('site.partner_apply.registration_required')])->withInput();
+            }
+            if (blank($data['tin'] ?? null)) {
+                return back()->withErrors(['tin' => __('site.partner_apply.tin_required')])->withInput();
+            }
+        }
+
+        if ($data['applicant_category'] === 'individual' && ! $registeredBusiness) {
             $data['business_name'] = ($data['business_name'] ?? null) ?: $data['full_name'];
         }
 
         if (($data['occupation'] ?? '') === 'other' && filled($data['occupation_other'] ?? null)) {
             $data['occupation'] = $data['occupation_other'];
         }
+
+        $acceptedAt = now()->toIso8601String();
 
         $application = app(PartnerEnrollmentService::class)->submitApplication(
             [
@@ -72,27 +106,48 @@ class PartnerApplicationController extends Controller
                 'type' => 'affiliate',
                 'message' => $data['why_affiliate'],
                 'payload' => [
+                    'identity' => [
+                        'date_of_birth' => $data['date_of_birth'],
+                        'gender' => $data['gender'],
+                        'phone_alt' => $data['phone_alt'] ?? null,
+                        'district' => $data['district'],
+                        'ward' => $data['ward'],
+                    ],
                     'occupation' => $data['occupation'],
                     'sales_experience' => $data['sales_experience'],
                     'financial_services_experience' => $data['financial_services_experience'] ?? null,
                     'languages' => array_values($data['languages']),
+                    'previous_agent' => $data['previous_agent'],
+                    'previous_agent_details' => $data['previous_agent_details'] ?? null,
                     'why_affiliate' => $data['why_affiliate'],
                     'acquisition_methods' => array_values($data['acquisition_methods']),
+                    'channels' => array_values($data['channels']),
+                    'social_profile_url' => $data['social_profile_url'] ?? null,
+                    'reach' => $data['monthly_reach'],
                     'monthly_reach' => $data['monthly_reach'],
+                    'how_heard' => $data['how_heard'],
                     'first_10_customers' => $data['first_10_customers'],
+                    'registered_business' => $data['registered_business'],
                     'declarations' => [
-                        'accepted' => true,
-                        'accurate' => true,
-                        'standards' => true,
-                        'no_unauthorized_fees' => true,
-                        'not_employment' => true,
+                        'applicant' => [
+                            'accepted' => true,
+                            'accepted_at' => $acceptedAt,
+                            'full_name' => $data['full_name'],
+                            'date_of_birth' => $data['date_of_birth'],
+                            'gender' => $data['gender'],
+                        ],
+                        'conduct' => [
+                            'version' => 'application_conduct_v1',
+                            'accepted' => true,
+                            'accepted_at' => $acceptedAt,
+                        ],
                     ],
                 ],
             ],
             $this->documentUploads($request),
         );
 
-        $feeService = app(\App\Services\AffiliateApplicationFeePaymentService::class);
+        $feeService = app(AffiliateApplicationFeePaymentService::class);
         if ($feeService->isRequired()) {
             $payment = $feeService->open($application);
 

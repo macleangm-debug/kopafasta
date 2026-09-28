@@ -2420,6 +2420,7 @@ return [
         'camera_denied' => 'Camera access was denied. In Chrome or Edge: click the camera icon in the address bar → Allow. In Safari: Safari → Settings → Websites → Camera → Allow for this site. In Firefox: click the permissions icon in the address bar → Allow camera. Then refresh and try again.',
         'camera_unsupported' => 'Camera capture is not supported in this browser. Upload files instead.',
         'camera_insecure' => 'Camera requires a secure connection (HTTPS). Upload files instead.',
+        'camera_interrupted' => 'Camera could not start. Close other apps using the camera, then try again.',
         'save_personal' => 'Save personal information',
         'contact_details' => 'Contact details',
         'residence_letter' => 'Residence verification letter',

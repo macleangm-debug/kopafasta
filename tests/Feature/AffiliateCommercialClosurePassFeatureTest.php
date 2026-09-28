@@ -384,7 +384,7 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
         $premium = $this->premium();
         $terms = app(AffiliateTermsService::class);
 
-        $this->assertGreaterThanOrEqual(3, $terms->agreementVersion());
+        $this->assertGreaterThanOrEqual(4, $terms->agreementVersion());
 
         foreach ([$affiliate, $premium] as $partner) {
             $en = $terms->render($partner, 'en');
@@ -394,11 +394,15 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
             $this->assertStringContainsString('Percentage of applicable remaining amount', $en);
             $this->assertStringContainsString('kiasi husika kinachobaki', $sw);
             $this->assertStringContainsString('Msingi wa kamisheni', $sw);
+            $this->assertStringContainsString('not authorized to represent themselves as a Kopafasta employee', $en);
+            $this->assertStringContainsString('Pending, Earned, Paid, Reserved, Disputed or Reversed', $en);
+            $this->assertStringContainsString('haaruhusiwi kujiwakilisha kama mfanyakazi wa Kopafasta', $sw);
         }
 
         $acceptance = $terms->accept($affiliate, Request::create('/terms', 'POST'), 'en');
-        $this->assertSame(3, (int) $acceptance->agreement_version);
+        $this->assertGreaterThanOrEqual(4, (int) $acceptance->agreement_version);
         $this->assertStringContainsString('applicable remaining amount', (string) $acceptance->rendered_text);
+        $this->assertStringContainsString('Prohibited conduct and Affiliate obligations', (string) $acceptance->rendered_text);
     }
 
     public function test_application_fee_settings_gate_and_payment_show_body(): void
@@ -492,7 +496,7 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
 
     private function postAffiliateApply(string $email, string $phone)
     {
-        return $this->post(route('site.affiliate.apply.post'), [
+        return $this->post(route('site.affiliate.apply.post'), array_merge([
             'applicant_category' => 'individual',
             'full_name' => 'Commercial Closure Applicant',
             'email' => $email,
@@ -508,7 +512,23 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
             'declaration_accepted' => '1',
             'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
-        ]);
+        ], $this->affiliateApplyCompletenessFields()));
+    }
+
+    /** @return array<string, mixed> */
+    private function affiliateApplyCompletenessFields(): array
+    {
+        return [
+            'date_of_birth' => '1990-05-12',
+            'gender' => 'female',
+            'district' => 'Ilala',
+            'ward' => 'Kariakoo',
+            'previous_agent' => 'no',
+            'channels' => ['whatsapp', 'physical'],
+            'how_heard' => 'Friend referral',
+            'registered_business' => 'no',
+            'conduct_accepted' => '1',
+        ];
     }
 
     private function mapFinanceAccounts(): void
