@@ -66,7 +66,7 @@ class CapacityAutoRejectService
             return null;
         }
 
-        if (! in_array((string) $application->current_stage, ['submitted', 'screening', 'credit_appraisal'], true)) {
+        if (! $this->stageAllowsParking((string) $application->current_stage)) {
             return null;
         }
 
@@ -98,7 +98,7 @@ class CapacityAutoRejectService
             return null;
         }
 
-        if (! in_array((string) $application->current_stage, ['submitted', 'screening', 'credit_appraisal'], true)) {
+        if (! $this->stageAllowsParking((string) $application->current_stage)) {
             return null;
         }
 
@@ -111,6 +111,18 @@ class CapacityAutoRejectService
         }
 
         return $this->parkFromPolicy($application, verified: true);
+    }
+
+    /** First-gate hold and submitted intake may reuse this park; do not invent a second timer. */
+    private function stageAllowsParking(string $stage): bool
+    {
+        return in_array($stage, [
+            'submitted',
+            'submitted_initial_check',
+            'initial_decision_hold',
+            'screening',
+            'credit_appraisal',
+        ], true);
     }
 
     public function remainingLabel(LoanApplication $application): ?string
@@ -251,7 +263,11 @@ class CapacityAutoRejectService
         ]);
 
         $fresh = $application->fresh(['customer', 'product', 'loanGroup.members']);
-        // Management kept the file — run the paid CIR + profile cross-check now.
+        if (! in_array((string) $fresh->current_stage, ['screening', 'credit_appraisal'], true)) {
+            return $fresh;
+        }
+
+        // Management kept a file already in Screening — run the paid CIR + profile cross-check now.
         $groupMembers = $fresh->loanGroup?->members
             ?->map(fn ($m) => ['customer_id' => (int) $m->customer_id, 'invitation_id' => $m->invitation_id ?? null])
             ->filter(fn ($row) => ($row['customer_id'] ?? 0) > 0)

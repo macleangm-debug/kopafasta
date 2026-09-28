@@ -46,10 +46,23 @@ class ApplicationIntakeTransitionService
             ];
             $application->update([
                 'status' => 'submitted',
+                'current_stage' => ApplicationIntakeReadinessService::STATE_INITIAL_CHECK,
+                'screening_payload' => $payload,
+            ]);
+            $parked = $this->capacity->evaluateAndPark($application->fresh(['customer', 'product']));
+            $application = $application->fresh();
+            $payload = is_array($application->screening_payload) ? $application->screening_payload : $payload;
+            $payload['intake']['initial_gate']['feedback_release_at'] = data_get($parked, 'auto_reject_at')
+                ?? $payload['intake']['initial_gate']['feedback_release_at'];
+            $payload['intake']['initial_gate']['parked_at'] = data_get($parked, 'parked_at');
+            $payload['intake']['initial_gate']['settings_key'] = data_get($parked, 'settings_key')
+                ?: 'underwriting.capacity_auto_reject_delay_hours';
+            $application->update([
+                'status' => 'submitted',
                 'current_stage' => ApplicationIntakeReadinessService::STATE_HOLD,
                 'screening_payload' => $payload,
             ]);
-            $this->record($application, ApplicationIntakeReadinessService::STATE_HOLD, 'Borrower failed initial eligibility. Guarantor not invited.');
+            $this->record($application, ApplicationIntakeReadinessService::STATE_HOLD, 'Borrower failed initial eligibility. Parked for review. Guarantor not invited.');
             $this->notifyBorrower($application, 'intake_received', 'borrower.intake.received_title', 'borrower.intake.received_hold_body');
 
             return $application->fresh();
@@ -68,6 +81,19 @@ class ApplicationIntakeTransitionService
     public function dispatchGuarantorInvitation(LoanApplication $application): void
     {
         if (data_get($application->screening_payload, 'intake.guarantor_invited_at')) {
+            return;
+        }
+
+        if (data_get($application->screening_payload, 'intake.initial_gate.result') === 'failed') {
+            return;
+        }
+
+        $park = data_get($application->screening_payload, 'capacity_auto_reject.status');
+        if (in_array($park, [CapacityAutoRejectService::STATUS_PENDING, CapacityAutoRejectService::STATUS_FIRED], true)) {
+            return;
+        }
+
+        if (in_array((string) $application->status, ['rejected', 'withdrawn', 'cancelled', 'expired'], true)) {
             return;
         }
 
@@ -147,6 +173,9 @@ class ApplicationIntakeTransitionService
             'current_stage' => ApplicationIntakeReadinessService::STATE_INITIAL_CHECK,
             'screening_payload' => $payload,
         ]);
+        if ($this->capacity->isPending($application->fresh())) {
+            $this->capacity->cancel($application->fresh(), $actor, $reason);
+        }
         $this->record($application, ApplicationIntakeReadinessService::STATE_INITIAL_CHECK, 'Staff overrode initial-gate hold: '.$reason, ApplicationIntakeReadinessService::STATE_HOLD, 'submitted', $actor);
 
         return $this->continueAfterPassedGate($application->fresh(['customer', 'product']));

@@ -10,15 +10,18 @@ use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\NotificationLog;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\ApplicationBorrowerStatusService;
 use App\Services\ApplicationIntakeReadinessService;
 use App\Services\ApplicationIntakeReconciliationService;
 use App\Services\ApplicationIntakeTransitionService;
+use App\Services\CapacityAutoRejectService;
 use App\Services\CreditEligibilityPolicyService;
 use App\Services\GuarantorInvitationService;
 use App\Services\ProfileCompletionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class ApplicationIntakeFirstGateFeatureTest extends TestCase
@@ -61,9 +64,52 @@ class ApplicationIntakeFirstGateFeatureTest extends TestCase
         $fresh = app(ApplicationIntakeTransitionService::class)->afterBorrowerSubmit($application->fresh(['customer', 'product']));
         $this->assertSame('submitted', $fresh->status);
         $this->assertSame('initial_decision_hold', $fresh->current_stage);
+        $this->assertSame(CapacityAutoRejectService::STATUS_PENDING, data_get($fresh->screening_payload, 'capacity_auto_reject.status'));
+        $this->assertNotEmpty(data_get($fresh->screening_payload, 'capacity_auto_reject.parked_at'));
+        $this->assertNotEmpty(data_get($fresh->screening_payload, 'capacity_auto_reject.auto_reject_at'));
+        $this->assertSame(
+            'underwriting.capacity_auto_reject_delay_hours',
+            data_get($fresh->screening_payload, 'capacity_auto_reject.settings_key'),
+        );
+        $this->assertSame(
+            data_get($fresh->screening_payload, 'capacity_auto_reject.auto_reject_at'),
+            data_get($fresh->screening_payload, 'intake.initial_gate.feedback_release_at'),
+        );
         $this->assertNull(data_get($fresh->screening_payload, 'intake.guarantor_invited_at'));
         $this->assertSame(0, NotificationLog::query()->where('template', 'guarantor_request')->count());
         $this->assertSame(0, NotificationLog::query()->where('template', 'guarantor_sent')->count());
+        $this->assertSame(0, NotificationLog::query()->where('template', 'application_rejected')->count());
+
+        app(ApplicationIntakeTransitionService::class)->dispatchGuarantorInvitation($fresh->fresh());
+        $this->assertNull(data_get($fresh->fresh()->screening_payload, 'intake.guarantor_invited_at'));
+    }
+
+    public function test_failed_first_gate_reuses_capacity_park_fire_after_settings_hours(): void
+    {
+        Setting::set('underwriting.enable_capacity_auto_reject', true);
+        Setting::set('underwriting.capacity_auto_reject_delay_hours', 12);
+
+        [, , $application] = $this->application();
+        $this->mock(CreditEligibilityPolicyService::class, function ($mock): void {
+            $mock->shouldReceive('evaluate')->andReturn([
+                'application_action' => CreditEligibilityPolicyService::ACTION_PENDING_REJECTION,
+                'reason' => 'Borrower failed initial affordability. A guarantor cannot rescue this loan.',
+                'participants' => [],
+            ]);
+        });
+
+        $fresh = app(ApplicationIntakeTransitionService::class)->afterBorrowerSubmit($application->fresh(['customer', 'product']));
+        $this->assertSame('submitted', $fresh->status);
+        $this->assertSame(CapacityAutoRejectService::STATUS_PENDING, data_get($fresh->screening_payload, 'capacity_auto_reject.status'));
+
+        Carbon::setTestNow(now()->addHours(13));
+        $fired = app(CapacityAutoRejectService::class)->fireDue();
+        Carbon::setTestNow();
+
+        $this->assertCount(1, $fired);
+        $this->assertSame('rejected', $application->fresh()->status);
+        $this->assertSame(CapacityAutoRejectService::STATUS_FIRED, data_get($application->fresh()->screening_payload, 'capacity_auto_reject.status'));
+        $this->assertNull(data_get($application->fresh()->screening_payload, 'intake.guarantor_invited_at'));
     }
 
     public function test_passed_first_gate_invites_nominated_guarantor_once(): void
