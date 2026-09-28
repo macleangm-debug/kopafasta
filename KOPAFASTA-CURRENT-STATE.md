@@ -12,6 +12,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Affiliate staging baseline (Owner UAT)** | `ee5148c5ecd34c4ec12c6b44dcc68f240776982b` | Prior Performance freeze tip. **Superseded for contracts re-acceptance — see tip below.** |
 | **Affiliate staging tip (contracts re-accept)** | `50665e33a2351c272976f8132dd13a9a02cf9c67` | Owner EN/SW pack v2; existing Affiliates on older acceptance must re-accept. Historical signed v1 retained. |
 | **Affiliate commercial closure (staging tip)** | `6ddc3077` | Commission remaining-amount basis + Accounting earn/payout + public apply fee ON/OFF via payment.show body. Agreement content_revision 3. Staging only. |
+| **Affiliate application UAT blockers (staging tip)** | `8af71a3b` | Public apply mobile carousel, Other same-surface, DOB/gender, single NIDA camera, declarations + completeness gate, contract content_revision 4, Verify Card Affiliate safety. Accounting/commission frozen. Staging only — Owner restarts Affiliate apply UAT. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
