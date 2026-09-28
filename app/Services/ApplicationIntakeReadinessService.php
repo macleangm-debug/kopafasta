@@ -110,6 +110,11 @@ class ApplicationIntakeReadinessService
         ];
     }
 
+    public function borrowerMayCancel(LoanApplication $application): bool
+    {
+        return $application->isPreSubmit() && ! $application->isClosed();
+    }
+
     public function displayStatus(LoanApplication $application): string
     {
         $status = (string) $application->status;

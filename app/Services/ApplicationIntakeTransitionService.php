@@ -251,6 +251,47 @@ class ApplicationIntakeTransitionService
         return $application->fresh();
     }
 
+    public function cancelIncompleteByBorrower(LoanApplication $application): ?LoanApplication
+    {
+        $application->refresh()->loadMissing(['customer', 'product']);
+        if (! $this->readiness->borrowerMayCancel($application)) {
+            return null;
+        }
+
+        $fromStage = (string) $application->current_stage;
+        $fromStatus = (string) $application->status;
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        $payload['intake'] = array_merge((array) ($payload['intake'] ?? []), [
+            'cancelled_by_borrower_at' => now()->toIso8601String(),
+        ]);
+
+        $application->update([
+            'status' => 'withdrawn',
+            'current_stage' => 'withdrawn',
+            'guarantor_deadline_at' => null,
+            'screening_payload' => $payload,
+        ]);
+
+        $application->documentRequests()
+            ->whereIn('status', ['pending', 'rejected', 'uploaded'])
+            ->update(['status' => 'satisfied']);
+
+        if ($application->customer && $application->loan_product_id) {
+            app(LoanApplicationDraftService::class)
+                ->discard($application->customer, (int) $application->loan_product_id);
+        }
+
+        $this->record(
+            $application,
+            ApplicationIntakeReadinessService::STATE_WITHDRAWN,
+            'Borrower cancelled an incomplete application before submission.',
+            $fromStage,
+            $fromStatus,
+        );
+
+        return $application->fresh();
+    }
+
     public function feedbackReleaseAt(LoanApplication $application): ?Carbon
     {
         $raw = data_get($application->screening_payload, 'intake.initial_gate.feedback_release_at');

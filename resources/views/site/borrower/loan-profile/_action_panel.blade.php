@@ -22,9 +22,6 @@
     $continueUrl = $next['url'] ?? ($profile['wizard_url'] ?? null);
     $continueLabel = $next['button_label'] ?? __('borrower.loan_profile.actions.continue_to_form');
     $draft = $profile['draft'] ?? null;
-    $canWithdrawApplication = $application
-        && ! in_array((string) $application->status, ['disbursed', 'withdrawn'], true)
-        && ! $application->loan;
     $canDiscardDraft = $isDraft && $draft;
 
     // Prefer service-built URLs (product-aware quote step). Do not hardcode quote/guarantor.
@@ -151,15 +148,16 @@
                 @if ($canDiscardDraft)
                     <form method="POST" action="{{ route('site.borrower.draft.discard', $draft) }}" class="flex-1 min-w-0"
                           onsubmit="event.preventDefault(); confirmForm(this, {
-                              title: @js(__('borrower.policy.discard_draft_confirm_title')),
-                              message: @js(__('borrower.policy.discard_draft_confirm_body')),
-                              confirmLabel: @js(__('borrower.policy.discard_draft_confirm_action')),
+                              title: @js(__('borrower.policy.cancel_application_confirm_title')),
+                              message: @js(__('borrower.policy.cancel_application_confirm_body')),
+                              confirmLabel: @js(__('borrower.policy.cancel_application_confirm_action')),
+                              cancelLabel: @js(__('borrower.policy.cancel_application_keep')),
                               tone: 'warning',
                               confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
                           }); return false;">
                         @csrf
                         <button type="submit" class="w-full inline-flex justify-center items-center text-sm font-semibold text-red-700 bg-white ring-1 ring-red-300 hover:bg-red-50 px-4 py-3 rounded-xl">
-                            {{ __('borrower.loan_profile.actions.withdraw') }}
+                            {{ __('borrower.policy.cancel_application') }}
                         </button>
                     </form>
                 @endif
@@ -287,21 +285,7 @@
                         @endif
                     </p>
                 </div>
-                @if ($canWithdrawApplication)
-                    <form method="POST" action="{{ route('site.borrower.application.withdraw', $application) }}" class="shrink-0"
-                          onsubmit="event.preventDefault(); confirmForm(this, {
-                              title: @js(__('borrower.policy.withdraw_confirm_title')),
-                              message: @js(__('borrower.policy.withdraw_confirm_body')),
-                              confirmLabel: @js(__('borrower.policy.withdraw_confirm_action')),
-                              tone: 'warning',
-                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
-                          }); return false;">
-                        @csrf
-                        <button type="submit" class="inline-flex text-xs font-bold text-white/95 bg-white/10 ring-1 ring-white/30 hover:bg-red-500/90 hover:ring-red-300 px-3.5 py-2 rounded-xl transition">
-                            {{ __('borrower.loan_profile.actions.withdraw') }}
-                        </button>
-                    </form>
-                @endif
+                {{-- Borrower cancellation is only on Incomplete/Draft. Submitted files have no withdraw. --}}
             </div>
             @if (! empty($progress['is_loan_progress']))
                 <div class="mt-4 flex items-center gap-3 max-w-md">

@@ -32,6 +32,7 @@ use App\Rules\ValidNationalId;
 use App\Rules\ValidNidaNumber;
 use App\Services\ActiveLoanServicingService;
 use App\Services\ApplicationConversionFeePaymentService;
+use App\Services\ApplicationIntakeTransitionService;
 use App\Services\ApplicationDisbursementReadinessService;
 use App\Services\ApplicationDocumentRequestService;
 use App\Services\ApplicationFeeCreditService;
@@ -395,35 +396,22 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
 
-        if (in_array($application->status, ['disbursed', 'withdrawn'], true) || $application->loan) {
-            return back()->with('error', __('borrower.policy.withdraw_not_allowed'));
+        $cancelled = app(ApplicationIntakeTransitionService::class)
+            ->cancelIncompleteByBorrower($application);
+
+        if (! $cancelled) {
+            return back()->with('error', __('borrower.policy.cancel_application_not_allowed'));
         }
 
-        $application->update([
-            'status' => 'withdrawn',
-            'current_stage' => 'withdrawn',
-            'rejection_reason' => $application->rejection_reason ?: 'Withdrawn by borrower',
-        ]);
-
-        // Close outstanding UW requests so withdrawn apps never keep "action required" CTAs.
-        $application->documentRequests()
-            ->whereIn('status', ['pending', 'rejected', 'uploaded'])
-            ->update(['status' => 'satisfied']);
-
-        // Wipe product draft so a new apply cannot resume the deleted application spine.
-        if ($application->loan_product_id) {
-            app(LoanApplicationDraftService::class)
-                ->discard($customer, (int) $application->loan_product_id);
-        }
-
-        $this->auditBorrower('loan_application.withdrawn', $application, [
-            'application_number' => $application->application_number,
+        $this->auditBorrower('loan_application.withdrawn', $cancelled, [
+            'application_number' => $cancelled->application_number,
+            'reason' => 'borrower_cancelled_incomplete',
         ]);
 
         return redirect()
             ->route('site.borrower.loans', ['tab' => 'applications'])
-            ->with('status', __('borrower.policy.withdraw_success', [
-                'number' => $application->application_number,
+            ->with('status', __('borrower.policy.cancel_application_success', [
+                'number' => $cancelled->application_number,
             ]));
     }
 
@@ -456,7 +444,27 @@ class BorrowerController extends Controller
         abort_if($draft->customer_id !== $customer->id, 404);
 
         $productId = (int) $draft->loan_product_id;
-        app(LoanApplicationDraftService::class)->discard($customer, $productId);
+        $reference = trim((string) $draft->draft_reference);
+        $application = $reference !== ''
+            ? LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->where('application_number', $reference)
+                ->first()
+            : null;
+
+        if ($application) {
+            $cancelled = app(ApplicationIntakeTransitionService::class)
+                ->cancelIncompleteByBorrower($application);
+            if (! $cancelled) {
+                return back()->with('error', __('borrower.policy.cancel_application_not_allowed'));
+            }
+            $this->auditBorrower('loan_application.withdrawn', $cancelled, [
+                'application_number' => $cancelled->application_number,
+                'reason' => 'borrower_cancelled_incomplete',
+            ]);
+        } else {
+            app(LoanApplicationDraftService::class)->discard($customer, $productId);
+        }
 
         $reapply = $request->boolean('reapply') && $productId > 0;
 

@@ -113,6 +113,7 @@ class GuarantorHoldReleaseFeatureTest extends TestCase
             ]);
         });
         $this->mock(CapacityAutoRejectService::class, function ($mock): void {
+            $mock->shouldReceive('isPending')->andReturn(false);
             $mock->shouldReceive('evaluateAndPark')->andReturn(null);
         });
         $this->mock(CrbCreditCheckService::class, function ($mock): void {
@@ -199,6 +200,7 @@ class GuarantorHoldReleaseFeatureTest extends TestCase
             $mock->shouldReceive('isFullyComplete')->andReturn(true);
         });
         $this->mock(CapacityAutoRejectService::class, function ($mock): void {
+            $mock->shouldReceive('isPending')->andReturn(false);
             $mock->shouldReceive('evaluateAndPark')->andReturn(null);
         });
         $this->mock(CrbCreditCheckService::class, function ($mock): void {
@@ -220,6 +222,7 @@ class GuarantorHoldReleaseFeatureTest extends TestCase
             $mock->shouldReceive('isFullyComplete')->andReturn(true);
         });
         $this->mock(CapacityAutoRejectService::class, function ($mock): void {
+            $mock->shouldReceive('isPending')->andReturn(false);
             $mock->shouldReceive('evaluateAndPark')->andReturn(null);
         });
         $this->mock(CrbCreditCheckService::class, function ($mock): void {
