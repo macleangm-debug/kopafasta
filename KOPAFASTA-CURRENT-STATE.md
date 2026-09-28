@@ -6,9 +6,10 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 
 | State | SHA | Note |
 | --- | --- | --- |
-| **Accepted production baseline** | `0b292c681f5c110d33bcc8fe324c9c618ea5b0ac` | Release 2 production-closed and **FROZEN**. Do not mix Premium Affiliate work into this SHA. |
+| **Live production (payment hotfix)** | `03beb59bbc6625f2d866bb2d3e0b405ca04dc5c1` | Owner-PASS Continue → `payment.show`. Ancestry includes frozen Release 2 `0b292c68…`. **Do not promote contract SHA here.** |
+| **Accepted production baseline (Release 2 freeze)** | `0b292c681f5c110d33bcc8fe324c9c618ea5b0ac` | Release 2 production-closed ancestry root. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | `03beb59bbc6625f2d866bb2d3e0b405ca04dc5c1` | Continue/Pay → same `payment.show` obligation + MU8Q restore copy readiness. Staging deployed. Promote only after Owner fee UAT; do not restore MU8Q without separate approval. |
+| **Current staging / development baseline** | `e43bced75251a4d8f4be6e5fa018f92d6355436e` | Affiliate EN/SW + Premium EN/SW contracts on existing agreement SoT (no promo code; withdrawal min snapshotted). **Staging only — not for automatic production.** |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
@@ -23,12 +24,14 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 - Document holder status cleanup, KYC 405, native Upload chooser, Remove confirmation
 - Face focus/reload loop fix (preserve no-snap)
 - Partner Experience Consistency (CLOSED) except this owner-authorized Premium Affiliate commercial pass
-- **Release 2 lending** (First Gate, Parked Screening, auto-rejection, Screening wizard, System Sorted, receipts, Borrower Loans IA, application restoration). Do not start Steward. Do not restore MU8Q.
+- **Release 2 lending** (First Gate, Parked Screening, auto-rejection, Screening wizard, System Sorted, receipts, Borrower Loans IA, application restoration). Do not start Steward. **APP-EM-MU8Q is already `awaiting_guarantor` on production — do not re-restore.**
 - Recovery, Supplier, Valuer, Capital Partner, payment posting/provider logic
 
 ## Premium Affiliate (current isolated pass)
 
 Settings Hub → Affiliates → Rates is the **one** default for Standard and Premium. Only Premium may store an individual negotiated override. Affiliate 360 is the commercial-arrangement card. The existing contract renderer snapshots the effective terms. No second portal, commission engine, or Premium rate configuration.
+
+**Contracts (staging `e43bced7`):** Affiliate Agreement + Premium Affiliate Partnership Agreement EN/SW; promo code excluded; minimum withdrawal from wallet Settings SoT snapshotted at accept; live withdraw still uses current Settings.
 
 ## Canonical rules (this pass)
 
