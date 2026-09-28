@@ -26,6 +26,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AffiliateCommercialClosurePassFeatureTest extends TestCase
@@ -196,6 +197,151 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
         $this->assertFalse($journal->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $expenseId));
         if ($recoveryId && (int) $recoveryId !== (int) $payableId) {
             $this->assertFalse($journal->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $recoveryId));
+        }
+    }
+
+    public function test_tzs_90_commission_traces_basis_rate_journal_wallet(): void
+    {
+        Setting::set('affiliates.minimum_payout_amount', 50);
+        $affiliate = $this->affiliate([
+            'affiliate_commission_percent' => 10,
+            'application_discount_percent' => 10,
+            'metadata' => [
+                'plus_discount_percent' => 10,
+                'payout_account' => [
+                    'type' => 'mobile_money',
+                    'mobile_provider' => 'M-Pesa',
+                    'mobile_number' => '255700000090',
+                ],
+            ],
+        ]);
+        $customer = $this->customer(['affiliate_vendor_id' => $affiliate->id, 'member_no' => 'KPF-TZ-UAT90']);
+
+        $quote = app(AffiliateService::class)->quoteFee($customer, 1000, 'kopafasta_plus', $affiliate);
+        $this->assertSame(1000.0, $quote['base']);
+        $this->assertSame(900.0, $quote['commission_base']); // remaining after 10%
+        $this->assertSame(10.0, $quote['commission_rate_percent']);
+        $this->assertSame(90.0, $quote['commission']);
+
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'payment_type' => 'kopafasta_plus',
+            'payment_method' => 'mobile_money',
+            'status' => 'awaiting_payment',
+            'amount' => 900,
+            'currency' => 'TZS',
+            'reference' => 'PAY-UAT90',
+            'provider_meta' => [
+                'pricing' => [
+                    'gross' => 1000,
+                    'net_payable' => 900,
+                    'affiliate_partner_id' => $affiliate->id,
+                ],
+            ],
+        ]);
+        app(CustomerPaymentService::class)->verify($payment);
+
+        $wallet = PartnerPayment::query()
+            ->where('partner_id', $affiliate->id)
+            ->where('reference', 'PAY-UAT90')
+            ->first();
+        $this->assertNotNull($wallet);
+        $this->assertSame(90, (int) $wallet->amount);
+        $this->assertSame(900.0, (float) data_get($wallet->meta, 'commission_base'));
+        $this->assertSame(10.0, (float) data_get($wallet->meta, 'commission_rate_percent'));
+        $this->assertSame('approved', $wallet->status);
+
+        $expense = ChartOfAccount::query()->find(app(LedgerService::class)->affiliateCommissionExpenseAccountId());
+        $payable = ChartOfAccount::query()->find(app(LedgerService::class)->affiliateCommissionPayableAccountId());
+        $this->assertSame('5130', $expense?->code);
+        $this->assertSame('2140', $payable?->code);
+
+        $earned = JournalEntry::query()
+            ->where('source_id', $wallet->id)
+            ->where('memo', 'like', 'kind=affiliate_commission_earned%')
+            ->where('memo', 'not like', '%reversal%')
+            ->first();
+        $this->assertNotNull($earned);
+        $this->assertTrue($earned->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $expense->id && (float) $l->debit === 90.0));
+        $this->assertTrue($earned->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $payable->id && (float) $l->credit === 90.0));
+
+        $this->assertSame(90.0, app(PartnerPayoutRequestService::class)->availableBalance($affiliate, 'affiliate_commission'));
+    }
+
+    public function test_shared_payout_service_routes_liability_by_source_type(): void
+    {
+        Setting::set('affiliates.minimum_payout_amount', 50);
+        $cashId = app(LedgerService::class)->cashAccountId();
+        $affPayable = app(LedgerService::class)->affiliateCommissionPayableAccountId();
+        $recoveryPayable = app(LedgerService::class)->recoveryPartnerPayableAccountId();
+        $supplierPayable = app(LedgerService::class)->supplierPayableAccountId();
+        $this->assertNotNull($cashId);
+        $this->assertNotNull($affPayable);
+        $this->assertNotNull($recoveryPayable);
+        $this->assertNotSame((int) $affPayable, (int) $recoveryPayable);
+
+        $cases = [
+            'affiliate_commission' => $affPayable,
+            'recovery_commission' => $recoveryPayable,
+            'supplier_deposit' => $supplierPayable ?? $recoveryPayable,
+        ];
+
+        foreach ($cases as $sourceType => $expectedPayable) {
+            $vendor = Vendor::create([
+                'user_id' => User::factory()->create(['role' => 'vendor'])->id,
+                'vendor_number' => 'PAY-'.strtoupper(substr($sourceType, 0, 3)).random_int(100, 999),
+                'name' => 'Payout '.$sourceType,
+                'category' => $sourceType === 'affiliate_commission' ? 'affiliate' : 'debt_collector',
+                'status' => 'active',
+                'phone' => '25571'.random_int(1000000, 9999999),
+                'metadata' => ['payout_account' => [
+                    'type' => 'mobile_money',
+                    'mobile_provider' => 'M-Pesa',
+                    'mobile_number' => '255700'.random_int(100000, 999999),
+                ]],
+            ]);
+
+            PartnerPayment::create([
+                'partner_id' => $vendor->id,
+                'invoice_number' => 'INV-'.strtoupper(Str::random(6)),
+                'amount' => 100,
+                'status' => 'approved',
+                'source_type' => $sourceType,
+                'description' => 'Regression '.$sourceType,
+                'approved_at' => now(),
+            ]);
+
+            $payouts = app(PartnerPayoutRequestService::class);
+            $minOk = $sourceType === 'affiliate_commission' ? 100.0 : 100.0;
+            if ($sourceType === 'affiliate_commission') {
+                Setting::set('affiliates.minimum_payout_amount', 50);
+            }
+            $request = $payouts->request($vendor, $sourceType, $minOk);
+            $payouts->markPaid($request, User::factory()->create(['role' => 'admin']));
+
+            $journal = JournalEntry::query()
+                ->where('source_type', PartnerPayoutRequest::class)
+                ->where('source_id', $request->id)
+                ->first();
+            $this->assertNotNull($journal, $sourceType.' missing payout journal');
+            $this->assertTrue(
+                $journal->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $expectedPayable && (float) $l->debit === 100.0),
+                $sourceType.' must debit expected payable'
+            );
+            $this->assertTrue(
+                $journal->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $cashId && (float) $l->credit === 100.0),
+                $sourceType.' must credit cash'
+            );
+
+            if ($sourceType === 'recovery_commission') {
+                $this->assertSame('2120', ChartOfAccount::query()->find($expectedPayable)?->code);
+            }
+            if ($sourceType === 'affiliate_commission') {
+                $this->assertSame('2140', ChartOfAccount::query()->find($expectedPayable)?->code);
+                $this->assertFalse($journal->lines->contains(
+                    fn ($l) => (int) $l->chart_of_account_id === (int) $recoveryPayable
+                ));
+            }
         }
     }
 
