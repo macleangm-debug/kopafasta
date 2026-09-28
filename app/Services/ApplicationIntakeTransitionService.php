@@ -184,6 +184,12 @@ class ApplicationIntakeTransitionService
 
     public function sendToScreening(LoanApplication $application, ?User $actor = null): LoanApplication
     {
+        if (! $this->readiness->canStartScreening($application)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'screening' => 'Only a Ready for Screening application can start Credit Screening.',
+            ]);
+        }
+
         $fromStage = (string) $application->current_stage;
         $application->update([
             'status' => 'submitted',

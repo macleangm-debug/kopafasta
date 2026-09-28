@@ -229,6 +229,25 @@ class Application360Presenter
             'awaiting_disbursement_details', 'contract_generation', 'disbursement',
         ];
 
+        if (app(ApplicationIntakeReadinessService::class)->canStartScreening($application)) {
+            return [
+                'source' => 'intake',
+                'headline' => 'Ready for Screening',
+                'missing' => 'Staff can start Credit Screening',
+                'reason' => 'Ready for Screening',
+                'primary_status' => 'Ready for Screening',
+                'who' => 'Staff',
+                'deadline' => null,
+                'cta' => __('admin.intake.start_screening'),
+                'href' => route('admin.loan-applications.start-screening', $application),
+                'cta_kind' => 'confirm_start_screening',
+                'gate_label' => null,
+                'percent' => null,
+                'bucket' => 'do_now',
+                'subjects' => [],
+            ];
+        }
+
         if ((string) $application->status === 'awaiting_guarantor'
             || $stage === 'awaiting_guarantor') {
             $href = $application->customer

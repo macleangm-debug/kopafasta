@@ -8,6 +8,7 @@
     $isCommitteeStage = $stage === 'pre_approval';
     $isManagementApprovalStage = $stage === 'awaiting_management';
     $isPostApprovalStage = in_array($stage, ['approval', 'post_approval_fees', 'awaiting_disbursement_details', 'contract_generation', 'disbursement'], true);
+    $isReadyForScreening = $stage === 'ready_for_screening';
     $isScreeningStage = in_array($stage, ['submitted', 'screening', 'credit_appraisal'], true);
     $afford = $affordability ?? ($review['affordability'] ?? []);
     $affordPass = (bool) ($afford['pass'] ?? false);
@@ -57,7 +58,7 @@
         } elseif ($checklistDeepLink) {
             $workspace = 'checklist';
         } else {
-            $workspace = $isScreeningStage || $isCommitteeStage || $isManagementApprovalStage || $isPostApprovalStage ? 'overview' : 'checklist';
+            $workspace = $isReadyForScreening || $isScreeningStage || $isCommitteeStage || $isManagementApprovalStage || $isPostApprovalStage ? 'overview' : 'checklist';
         }
     }
 

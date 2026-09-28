@@ -807,6 +807,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             ->name('loan-applications.collateral.request-additional');
         Route::post('loan-applications/{loan_application}/screening-checklist', [LoanApplicationController::class, 'saveScreeningChecklist'])
             ->name('loan-applications.screening-checklist');
+        Route::post('loan-applications/{loan_application}/start-screening', [LoanApplicationController::class, 'startScreening'])
+            ->name('loan-applications.start-screening');
         Route::get('loan-applications/{loan_application}/guided-screening', [LoanApplicationController::class, 'guidedScreening'])
             ->name('loan-applications.guided-screening');
         Route::post('loan-applications/{loan_application}/guided-screening', [LoanApplicationController::class, 'saveGuidedScreening'])

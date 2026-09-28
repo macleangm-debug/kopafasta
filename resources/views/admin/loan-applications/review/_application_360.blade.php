@@ -53,7 +53,29 @@
                 </div>
             </div>
             <div class="shrink-0 flex lg:items-center" x-data="{ notifyOpen: false }">
-                @if (($next['cta_kind'] ?? '') === 'confirm_notify' && ! empty($next['href']))
+                @if (($next['cta_kind'] ?? '') === 'confirm_start_screening' && ! empty($next['href']))
+                    <button type="button" @click="notifyOpen = true"
+                            class="w-full lg:w-auto inline-flex justify-center items-center px-5 py-3 rounded-xl bg-brand text-white text-sm font-bold shadow-sm hover:bg-brand-light">
+                        {{ $next['cta'] }}
+                    </button>
+                    <x-site.action-panel title="{{ __('admin.intake.start_screening') }}" open="notifyOpen">
+                        <form method="POST" action="{{ $next['href'] }}" class="space-y-4" data-no-draft>
+                            @csrf
+                            <input type="hidden" name="confirmed" value="1">
+                            <p class="text-sm text-slate-700">{{ __('admin.intake.start_screening_confirm') }}</p>
+                            <p class="text-sm text-slate-600">{{ __('admin.intake.start_screening_confirm_body', ['number' => $app360['application_number'] ?? $record->application_number, 'member' => $app360['member_name'] ?? $record->partyLabel()]) }}</p>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="submit" class="inline-flex items-center px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-bold">
+                                    {{ __('admin.intake.start_screening') }}
+                                </button>
+                                <button type="button" @click="notifyOpen = false"
+                                        class="inline-flex items-center px-4 py-2.5 rounded-xl bg-white ring-1 ring-slate-200 text-sm font-semibold text-slate-700">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </x-site.action-panel>
+                @elseif (($next['cta_kind'] ?? '') === 'confirm_notify' && ! empty($next['href']))
                     <button type="button" @click="notifyOpen = true"
                             class="w-full lg:w-auto inline-flex justify-center items-center px-5 py-3 rounded-xl bg-brand text-white text-sm font-bold shadow-sm hover:bg-brand-light">
                         {{ $next['cta'] }}

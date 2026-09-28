@@ -115,6 +115,27 @@ class ApplicationIntakeReadinessService
         return $application->isPreSubmit() && ! $application->isClosed();
     }
 
+    public function canStartScreening(LoanApplication $application): bool
+    {
+        if ($application->isClosed() || $application->isPreSubmit()) {
+            return false;
+        }
+        if ((string) $application->current_stage !== self::STATE_READY) {
+            return false;
+        }
+        if ((string) $application->status === self::STATE_AWAITING_GUARANTOR) {
+            return false;
+        }
+        if (app(CapacityAutoRejectService::class)->isPending($application)) {
+            return false;
+        }
+        if (data_get($application->screening_payload, 'intake.initial_gate.result') === 'failed') {
+            return false;
+        }
+
+        return true;
+    }
+
     public function displayStatus(LoanApplication $application): string
     {
         $status = (string) $application->status;

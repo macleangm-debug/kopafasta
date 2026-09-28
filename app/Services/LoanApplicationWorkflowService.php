@@ -116,8 +116,13 @@ class LoanApplicationWorkflowService
             ->filter(fn (array $action, string $key) => $this->permissions->has($user, $action['permission']))
             ->filter(fn (array $action, string $key) => ! (
                 $key === 'acknowledge'
-                && $application->status === 'awaiting_guarantor'
-                && app(UnderwritingSettingsService::class)->blockAcknowledgeWithoutGuarantor()
+                && (
+                    $stage === ApplicationIntakeReadinessService::STATE_READY
+                    || (
+                        $application->status === 'awaiting_guarantor'
+                        && app(UnderwritingSettingsService::class)->blockAcknowledgeWithoutGuarantor()
+                    )
+                )
             ))
             ->filter(fn (array $action, string $key) => ! ($key === 'issue_offer' && (
                 ! app(UnderwritingSettingsService::class)->counterOffersEnabled()

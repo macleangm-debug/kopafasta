@@ -18,6 +18,8 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\AffordabilityService;
 use App\Services\ApplicationBorrowerStatusService;
+use App\Services\ApplicationIntakeReadinessService;
+use App\Services\ApplicationIntakeTransitionService;
 use App\Services\ApplicationDisbursementReadinessService;
 use App\Services\ApplicationDocumentRequestService;
 use App\Services\ApplicationDocumentReviewService;
@@ -618,12 +620,36 @@ class LoanApplicationController extends ResourceController
         return $redirect;
     }
 
+    public function startScreening(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+        $this->assertApplicationMutable($loan_application);
+        abort_unless(
+            app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $loan_application),
+            403
+        );
+        $request->validate([
+            'confirmed' => ['required', 'accepted'],
+        ]);
+
+        app(ApplicationIntakeTransitionService::class)->sendToScreening($loan_application, auth()->user());
+
+        return redirect()
+            ->route('admin.loan-applications.guided-screening', $loan_application)
+            ->with('status', __('admin.intake.start_screening_started'));
+    }
+
     public function guidedScreening(Request $request, LoanApplication $loan_application): View|RedirectResponse
     {
         abort_unless(
             app(CreditDeskAssignmentService::class)->canViewApplication(auth()->user(), $loan_application),
             403
         );
+        if ((string) $loan_application->current_stage === ApplicationIntakeReadinessService::STATE_READY) {
+            return redirect()
+                ->route('admin.loan-applications.show', $loan_application)
+                ->withFragment('application-360');
+        }
         $cursor = array_filter([
             'after_item' => $request->input('after_item'),
             'after_person' => $request->input('after_person'),
