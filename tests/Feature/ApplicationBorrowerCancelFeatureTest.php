@@ -11,6 +11,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 use App\Models\ApplicationStageHistory;
+use App\Models\AuditLog;
 use App\Models\NotificationLog;
 use App\Models\Setting;
 use App\Models\User;
@@ -211,6 +212,44 @@ class ApplicationBorrowerCancelFeatureTest extends TestCase
             ])
             ->assertSessionHasErrors('reason');
         $this->assertSame('withdrawn', $application->fresh()->status);
+    }
+
+    public function test_withdrawn_record_with_reconcile_audit_restores_to_proven_stage(): void
+    {
+        [, $application] = $this->openCase(status: 'withdrawn', stage: 'withdrawn');
+        $number = $application->application_number;
+        $application->update([
+            'submitted_at' => now()->subDay(),
+            'rejection_reason' => 'Withdrawn by borrower',
+            'screening_payload' => ['engagement' => [], 'purpose' => []],
+        ]);
+        AuditLog::query()->create([
+            'event' => 'application.intake_reconciled',
+            'auditable_type' => LoanApplication::class,
+            'auditable_id' => $application->id,
+            'old_values' => ['status' => 'withdrawn', 'current_stage' => 'awaiting_guarantor'],
+            'new_values' => ['status' => 'withdrawn', 'current_stage' => 'withdrawn'],
+        ]);
+
+        $plan = app(ApplicationIntakeTransitionService::class)->withdrawalRestorePlan($application->fresh());
+        $this->assertNotNull($plan);
+        $this->assertSame('awaiting_guarantor', $plan['to_status']);
+        $this->assertSame('awaiting_guarantor', $plan['to_stage']);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->gateMustNotRun();
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.restore-incomplete-cancel', $application), [
+                'confirmed' => '1',
+                'reason' => 'Customer withdrew by mistake',
+            ])
+            ->assertRedirect();
+
+        $restored = $application->fresh();
+        $this->assertSame($number, $restored->application_number);
+        $this->assertSame('awaiting_guarantor', $restored->status);
+        $this->assertSame('awaiting_guarantor', $restored->current_stage);
+        $this->assertSame('Withdrawn by borrower', $restored->rejection_reason);
     }
 
     public function test_submitted_borrower_cannot_withdraw_via_endpoint(): void

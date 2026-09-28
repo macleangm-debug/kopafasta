@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ApplicationStageHistory;
+use App\Models\AuditLog;
 use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\NotificationLog;
@@ -341,8 +342,12 @@ class ApplicationIntakeTransitionService
 
         if ($application->loan
             || filled($application->offered_amount)
-            || filled($application->rejection_reason_code)
-            || filled($application->rejection_reason)) {
+            || filled($application->rejection_reason_code)) {
+            return null;
+        }
+
+        $rejectionNote = strtolower(trim((string) $application->rejection_reason));
+        if ($rejectionNote !== '' && ! str_contains($rejectionNote, 'withdrawn')) {
             return null;
         }
 
@@ -487,6 +492,22 @@ class ApplicationIntakeTransitionService
         $fromStage = (string) (data_get($application->screening_payload, 'intake.cancelled_from_stage') ?? '');
         if ($fromStatus !== '' && $fromStage !== '') {
             return [$fromStatus, $fromStage];
+        }
+
+        $reconcile = AuditLog::query()
+            ->where('auditable_id', $application->id)
+            ->where('auditable_type', LoanApplication::class)
+            ->where('event', 'application.intake_reconciled')
+            ->latest('id')
+            ->first();
+        $reconcileStage = (string) data_get($reconcile?->old_values, 'current_stage');
+        $reconcileStatus = (string) data_get($reconcile?->old_values, 'status');
+        if ($reconcileStage !== '' && $reconcileStage !== ApplicationIntakeReadinessService::STATE_WITHDRAWN) {
+            $status = $reconcileStatus !== '' && $reconcileStatus !== 'withdrawn'
+                ? $reconcileStatus
+                : $this->statusForProvenStage($reconcileStage, $application);
+
+            return [$status, $reconcileStage];
         }
 
         return null;
