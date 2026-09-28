@@ -11,6 +11,7 @@ use App\Models\PartnerPayment;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Models\PartnerPayoutRequest;
 use App\Services\AffiliateApplicationFeePaymentService;
 use App\Services\AffiliateCommissionWalletService;
 use App\Services\AffiliateService;
@@ -18,6 +19,7 @@ use App\Services\AffiliateSettingsService;
 use App\Services\AffiliateTermsService;
 use App\Services\CustomerPaymentService;
 use App\Services\LedgerService;
+use App\Services\PartnerPayoutRequestService;
 use App\Services\PartnerSettlementService;
 use Database\Seeders\DefaultChartOfAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -138,6 +140,63 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
         $this->assertNotNull($payout);
         $this->assertTrue($payout->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $payableId && (float) $l->debit > 0));
         $this->assertFalse($payout->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $expenseId));
+    }
+
+    public function test_affiliate_wallet_withdrawal_settles_affiliate_payable_not_recovery(): void
+    {
+        Setting::set('affiliates.minimum_payout_amount', 50);
+        $affiliate = $this->affiliate([
+            'affiliate_commission_percent' => 10,
+            'application_discount_percent' => 10,
+            'metadata' => [
+                'plus_discount_percent' => 10,
+                'payout_account' => [
+                    'type' => 'mobile_money',
+                    'mobile_provider' => 'M-Pesa',
+                    'mobile_number' => '255700000091',
+                ],
+            ],
+        ]);
+        $customer = $this->customer(['affiliate_vendor_id' => $affiliate->id]);
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'status' => 'awaiting_payment',
+            'amount' => 9000,
+            'currency' => 'TZS',
+            'reference' => 'PAY-WD90',
+            'provider_meta' => [
+                'pricing' => [
+                    'gross' => 10000,
+                    'net_payable' => 9000,
+                    'affiliate_partner_id' => $affiliate->id,
+                ],
+            ],
+        ]);
+        app(CustomerPaymentService::class)->verify($payment);
+
+        $payouts = app(PartnerPayoutRequestService::class);
+        $this->assertSame(900.0, $payouts->availableBalance($affiliate, 'affiliate_commission'));
+        $request = $payouts->request($affiliate->fresh(), 'affiliate_commission', 900);
+        $payouts->markPaid($request, User::factory()->create(['role' => 'admin']));
+
+        $payableId = app(LedgerService::class)->affiliateCommissionPayableAccountId();
+        $recoveryId = app(LedgerService::class)->recoveryPartnerPayableAccountId();
+        $expenseId = app(LedgerService::class)->affiliateCommissionExpenseAccountId();
+
+        $journal = JournalEntry::query()
+            ->where('source_type', PartnerPayoutRequest::class)
+            ->where('source_id', $request->id)
+            ->where('memo', 'like', 'kind=partner_payout_paid%')
+            ->first();
+
+        $this->assertNotNull($journal);
+        $this->assertTrue($journal->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $payableId && (float) $l->debit === 900.0));
+        $this->assertFalse($journal->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $expenseId));
+        if ($recoveryId && (int) $recoveryId !== (int) $payableId) {
+            $this->assertFalse($journal->lines->contains(fn ($l) => (int) $l->chart_of_account_id === (int) $recoveryId));
+        }
     }
 
     public function test_dispute_reverses_earned_journal_once(): void

@@ -225,7 +225,17 @@ class PartnerPayoutRequestService
         }
 
         $ledger = app(LedgerService::class);
-        $payableId = $ledger->recoveryPartnerPayableAccountId();
+        $sourceType = (string) ($request->source_type ?? $request->wallet_type ?? '');
+        // Affiliate withdrawals settle Affiliate Commission Payable (earn already Cr'd it).
+        // Other partner wallets keep the shared recovery/supplier payable mapping.
+        $payableId = match ($sourceType) {
+            'affiliate_commission' => $ledger->affiliateCommissionPayableAccountId()
+                ?? $ledger->recoveryPartnerPayableAccountId(),
+            'supplier_deposit', 'asset_principal' => $ledger->supplierPayableAccountId()
+                ?? $ledger->recoveryPartnerPayableAccountId(),
+            default => $ledger->recoveryPartnerPayableAccountId()
+                ?? $ledger->supplierPayableAccountId(),
+        };
         $cashId = $ledger->cashAccountId();
         if (! $payableId || ! $cashId) {
             Log::warning('Partner payout paid without GL accounts configured', ['request_id' => $request->id]);
@@ -242,7 +252,7 @@ class PartnerPayoutRequestService
                 'Partner payout '.($request->payment_reference ?: '#'.$request->id),
                 $request,
                 now()->toDateString(),
-                'Partner payout request marked paid',
+                'kind=partner_payout_paid;source='.$sourceType,
             );
         } catch (\Throwable $e) {
             Log::error('Failed to post partner payout journal', [
