@@ -404,11 +404,27 @@ class ApplyController extends Controller
         if ($isResume && $savedDraft && $selectedProduct && ! $supplementMode) {
             $resume = app(ApplyFeeResumeService::class);
             // Payment-continuation handshake (session) counts as verified return even if
-            // the query string lost fee_return during a redirect hop.
+            // the query string lost fee_return during a redirect hop — but only when fee
+            // is actually verified. Stale paid flags must not advance unpaid drafts.
             $feeReturn = strtolower(trim((string) $request->query('fee_return', '')));
-            if ($feeReturn === '' && $request->session()->pull('kf_apply_fee_return') === 'paid') {
-                $request->query->set('fee_return', 'paid');
-                $feeReturn = 'paid';
+            $feesGate = app(ApplicationFeePaymentService::class);
+            $feeActuallySatisfied = $feesGate->isSatisfiedFor(
+                $customer,
+                $selectedProduct,
+                is_array($savedDraft) ? $savedDraft : [],
+            );
+            if ($feeReturn === '' && $request->session()->get('kf_apply_fee_return') === 'paid') {
+                if ($feeActuallySatisfied) {
+                    $request->query->set('fee_return', 'paid');
+                    $feeReturn = 'paid';
+                }
+                $request->session()->forget('kf_apply_fee_return');
+            } elseif ($feeReturn === 'paid' && ! $feeActuallySatisfied) {
+                $request->query->set('fee_return', '');
+                $feeReturn = '';
+                $request->session()->forget('kf_apply_fee_return');
+            } elseif ($feeReturn !== '' && $request->session()->has('kf_apply_fee_return')) {
+                $request->session()->forget('kf_apply_fee_return');
             }
             // Active payment return must never treat the draft as discarded.
             if (in_array($feeReturn, ['paid', 'cancel', 'failed', 'back'], true)) {
@@ -422,8 +438,9 @@ class ApplyController extends Controller
             );
             $savedDraft = $resume->applyToSavedDraft($savedDraft, $resolved, $customer, $selectedProduct);
 
-            // Persist the resolved post-payment step so the next plain resume agrees.
-            if (($resolved['intent'] ?? '') === ApplyFeeResumeService::INTENT_PAID) {
+            // Persist the resolved post-payment step only when fee is verified.
+            if (($resolved['intent'] ?? '') === ApplyFeeResumeService::INTENT_PAID
+                && ! empty($resolved['fee_satisfied'])) {
                 $drafts->advancePastApplicationFee(
                     $customer,
                     $selectedProduct->id,

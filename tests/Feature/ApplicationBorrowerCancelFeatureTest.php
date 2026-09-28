@@ -237,6 +237,15 @@ class ApplicationBorrowerCancelFeatureTest extends TestCase
         $this->assertSame('awaiting_guarantor', $plan['to_stage']);
 
         $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.customers.show', ['customer' => $application->customer_id, 'tab' => 'applications']))
+            ->assertOk()
+            ->assertSee(__('admin.intake.restore_application'), false)
+            ->assertSee(__('admin.intake.restore_incomplete_confirm', [
+                'number' => $number,
+                'state' => $plan['state_label'],
+            ]), false);
+
         $this->gateMustNotRun();
         $this->actingAs($admin, 'admin')
             ->post(route('admin.loan-applications.restore-incomplete-cancel', $application), [

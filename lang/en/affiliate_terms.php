@@ -82,7 +82,7 @@ This is an application to become an independent {{brand}} Premium Affiliate and 
 You operate as an independent commercial Affiliate. You must not present yourself as an employee, officer, or agent with authority to bind {{brand}}, and you must not charge customers any unauthorised fee.
 
 ## 2. Premium relationship
-You are classified as a {{affiliate_type}}. Premium Affiliates are reach / visibility / brand partners. Paying Members targets, KPI progress ladders, missed-target warnings, and target consequences do not apply. Referrals, commissions, wallet, and withdrawals remain available subject to eligibility and compliance.
+You are classified as a {{affiliate_type}}. Premium Affiliates are a special partnership focused on brand reach and growing kopafasta. Referrals, commissions, wallet, and withdrawals remain available subject to eligibility and compliance.
 
 {{membership_clause}}
 

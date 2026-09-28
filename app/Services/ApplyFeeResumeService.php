@@ -52,6 +52,12 @@ class ApplyFeeResumeService
 
         $intent = $this->normalizeIntent($intent, $editHop, $feeSatisfied, $requestedStepKey, $draftStepKey);
 
+        // Never treat fee_return=paid / session handshake as satisfaction without a verified payment.
+        if ($intent === self::INTENT_PAID && ! $feeSatisfied) {
+            $intent = self::INTENT_PLAIN;
+            $explicitPaid = false;
+        }
+
         if ($intent === self::INTENT_PAID) {
             $next = $fees->nextStepAfterApplicationFee($customer, $product, $payload);
             if (in_array($next, self::SETUP_KEYS, true)) {
@@ -295,6 +301,11 @@ class ApplyFeeResumeService
     ): string {
         $intent = strtolower(trim((string) $intent));
         if (in_array($intent, [self::INTENT_PAID, self::INTENT_CANCEL, self::INTENT_EDIT, self::INTENT_PLAIN], true)) {
+            // Initiated/pending/failed must never be treated as paid via query/session alone.
+            if ($intent === self::INTENT_PAID && ! $feeSatisfied) {
+                return self::INTENT_PLAIN;
+            }
+
             return $intent;
         }
         if ($editHop) {

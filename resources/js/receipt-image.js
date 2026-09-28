@@ -118,15 +118,13 @@ function paintReceipt(root) {
         }
     }
 
-    // Match on-screen receipt: logo + kicker, amount hierarchy, two-column fields.
-    const width = 720;
-    const pad = 48;
+    // Match on-screen receipt: narrow paper strip, single-column fields, torn edges.
+    const width = 420;
+    const edge = 10;
+    const pad = 36;
     const contentW = width - pad * 2;
-    const colGap = 24;
-    const colW = (contentW - colGap) / 2;
-    const rowH = 64;
-    const pairs = Math.ceil(rows.length / 2);
-    const height = 280 + (pairs * rowH) + (data.footer ? 56 : 0) + (data.keep ? 40 : 0) + 40;
+    const rowH = 52;
+    const height = edge * 2 + 220 + (rows.length * rowH) + (data.footer ? 52 : 0) + (data.keep ? 36 : 0) + 28;
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -135,77 +133,122 @@ function paintReceipt(root) {
         return Promise.reject(new Error('canvas'));
     }
 
-    const paint = (logo) => {
+    const drawTornEdge = (y, flip) => {
+        const step = 12;
+        ctx.beginPath();
+        if (flip) {
+            ctx.moveTo(0, y);
+            for (let x = 0; x <= width; x += step) {
+                ctx.lineTo(x + step / 2, y - 8);
+                ctx.lineTo(x + step, y);
+            }
+            ctx.lineTo(width, y + edge);
+            ctx.lineTo(0, y + edge);
+        } else {
+            ctx.moveTo(0, y + edge);
+            for (let x = 0; x <= width; x += step) {
+                ctx.lineTo(x + step / 2, y + 2);
+                ctx.lineTo(x + step, y + edge);
+            }
+            ctx.lineTo(width, y);
+            ctx.lineTo(0, y);
+        }
+        ctx.closePath();
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
+        ctx.fill();
         ctx.strokeStyle = '#e5e7eb';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(24, 24, width - 48, height - 48);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (flip) {
+            ctx.moveTo(0, y);
+            for (let x = 0; x <= width; x += step) {
+                ctx.lineTo(x + step / 2, y - 8);
+                ctx.lineTo(x + step, y);
+            }
+        } else {
+            ctx.moveTo(0, y + edge);
+            for (let x = 0; x <= width; x += step) {
+                ctx.lineTo(x + step / 2, y + 2);
+                ctx.lineTo(x + step, y + edge);
+            }
+        }
+        ctx.stroke();
+    };
 
+    const paint = (logo) => {
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(0, 0, width, height);
+        drawTornEdge(0, false);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, edge, width, height - edge * 2);
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0.5, edge);
+        ctx.lineTo(0.5, height - edge);
+        ctx.moveTo(width - 0.5, edge);
+        ctx.lineTo(width - 0.5, height - edge);
+        ctx.stroke();
+        drawTornEdge(height - edge, true);
+
+        const top = edge + 28;
         if (logo) {
-            ctx.drawImage(logo, pad, 52, 48, 48);
+            ctx.drawImage(logo, pad, top, 40, 40);
             ctx.fillStyle = '#111827';
-            ctx.font = '700 26px ui-sans-serif, system-ui, sans-serif';
-            ctx.fillText(data.brand || 'kopafasta', pad + 60, 84);
+            ctx.font = '700 22px ui-sans-serif, system-ui, sans-serif';
+            ctx.fillText(data.brand || 'kopafasta', pad + 52, top + 28);
         } else {
             ctx.fillStyle = '#111827';
-            ctx.font = '700 28px ui-sans-serif, system-ui, sans-serif';
-            ctx.fillText(data.brand || 'kopafasta', pad, 84);
+            ctx.font = '700 22px ui-sans-serif, system-ui, sans-serif';
+            ctx.fillText(data.brand || 'kopafasta', pad, top + 28);
         }
-
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
-        const kicker = String(data.kicker || 'RECEIPT').toUpperCase();
-        const kickerW = ctx.measureText(kicker).width;
-        ctx.fillText(kicker, width - pad - kickerW, 78);
 
         ctx.fillStyle = '#6b7280';
         ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(String(data.amountLabel || 'AMOUNT').toUpperCase(), pad, 140);
-        ctx.fillStyle = '#111827';
-        ctx.font = '800 40px ui-sans-serif, system-ui, sans-serif';
-        ctx.fillText(data.amount || '', pad, 184);
+        const kicker = String(data.kicker || 'RECEIPT').toUpperCase();
+        const kickerW = ctx.measureText(kicker).width;
+        ctx.fillText(kicker, width - pad - kickerW, top + 24);
 
-        let y = 230;
-        for (let i = 0; i < rows.length; i += 2) {
-            const left = rows[i];
-            const right = rows[i + 1];
-            [
-                { row: left, x: pad },
-                { row: right, x: pad + colW + colGap },
-            ].forEach(({ row, x }) => {
-                if (! row) {
-                    return;
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText(String(data.amountLabel || 'AMOUNT').toUpperCase(), pad, top + 72);
+        ctx.fillStyle = '#111827';
+        ctx.font = '800 34px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText(data.amount || '', pad, top + 110);
+
+        let y = top + 150;
+        rows.forEach((row) => {
+            if (! row) {
+                return;
+            }
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+            ctx.fillText(String(row.label || '').toUpperCase(), pad, y);
+            ctx.fillStyle = '#111827';
+            ctx.font = '700 15px ui-sans-serif, system-ui, sans-serif';
+            const value = String(row.value || '');
+            const maxW = contentW;
+            if (ctx.measureText(value).width > maxW) {
+                let clipped = value;
+                while (clipped.length > 3 && ctx.measureText(`${clipped}…`).width > maxW) {
+                    clipped = clipped.slice(0, -1);
                 }
-                ctx.fillStyle = '#6b7280';
-                ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
-                ctx.fillText(String(row.label || '').toUpperCase(), x, y);
-                ctx.fillStyle = '#111827';
-                ctx.font = '700 16px ui-sans-serif, system-ui, sans-serif';
-                const value = String(row.value || '');
-                const maxW = colW - 4;
-                if (ctx.measureText(value).width > maxW) {
-                    let clipped = value;
-                    while (clipped.length > 3 && ctx.measureText(`${clipped}…`).width > maxW) {
-                        clipped = clipped.slice(0, -1);
-                    }
-                    ctx.fillText(`${clipped}…`, x, y + 24);
-                } else {
-                    ctx.fillText(value, x, y + 24);
-                }
-            });
+                ctx.fillText(`${clipped}…`, pad, y + 22);
+            } else {
+                ctx.fillText(value, pad, y + 22);
+            }
             y += rowH;
-        }
+        });
 
         if (data.footer) {
             ctx.fillStyle = '#4b5563';
-            ctx.font = '500 13px ui-sans-serif, system-ui, sans-serif';
-            wrapText(ctx, String(data.footer), pad, y, contentW, 18);
-            y += 44;
+            ctx.font = '500 12px ui-sans-serif, system-ui, sans-serif';
+            wrapText(ctx, String(data.footer), pad, y, contentW, 16);
+            y += 40;
         }
         if (data.keep) {
             ctx.fillStyle = '#111827';
-            ctx.font = '600 13px ui-sans-serif, system-ui, sans-serif';
+            ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
             ctx.fillText(String(data.keep), pad, y);
         }
     };

@@ -519,4 +519,88 @@ class ApplicationFeeGateAuditTest extends TestCase
         $this->assertSame('Application fee paid ✓', __('borrower.apply.application_fee.paid_badge', [], 'en'));
         $this->assertSame('Ada ya maombi imelipwa ✓', __('borrower.apply.application_fee.paid_badge', [], 'sw'));
     }
+
+    public function test_fee_return_paid_without_verified_payment_cannot_advance_to_guarantor(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->product();
+
+        LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 1,
+            'draft_reference' => 'APP-IL-BYPASS',
+            'saved_at' => now(),
+            'payload' => array_merge($this->quotePayload($product), [
+                'step_key' => 'quote',
+                'draft_reference' => 'APP-IL-BYPASS',
+            ]),
+        ]);
+
+        $this->actingAs($customer->user)
+            ->withSession(['kf_apply_fee_return' => 'paid'])
+            ->get(route('site.borrower.apply', [
+                'product' => $product->id,
+                'resume' => 1,
+                'fee_return' => 'paid',
+                'step_key' => 'guarantor',
+            ]))
+            ->assertOk()
+            ->assertViewHas('savedDraft', function ($draft) {
+                $step = $draft['step_key'] ?? null;
+                $resume = $draft['resume_target']['step_key'] ?? null;
+
+                return $step !== 'guarantor'
+                    && $resume !== 'guarantor'
+                    && in_array($step, ['quote', 'application_fee'], true);
+            });
+
+        $this->assertFalse(app(ApplicationFeePaymentService::class)->isSatisfiedFor(
+            $customer,
+            $product,
+            LoanApplicationDraft::query()->where('customer_id', $customer->id)->first()?->payload,
+        ));
+    }
+
+    public function test_initiated_fee_obligation_exposes_payment_show_wait_url(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->product();
+        $payload = array_merge($this->quotePayload($product), [
+            'draft_reference' => 'APP-IL-INIT',
+        ]);
+
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 10_000,
+            'currency' => 'TZS',
+            'status' => 'awaiting_payment',
+            'reference' => 'PAY-APP-FEE-INIT',
+            'provider_meta' => [
+                'apply_context' => [
+                    'loan_product_id' => $product->id,
+                    'draft_reference' => 'APP-IL-INIT',
+                ],
+            ],
+        ]);
+
+        LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 1,
+            'draft_reference' => 'APP-IL-INIT',
+            'payload' => $payload,
+            'saved_at' => now(),
+        ]);
+
+        $obligation = app(ApplicationFeePaymentService::class)->obligation($customer, $product, $payload);
+        $this->assertSame('initiated', $obligation['status']);
+        $this->assertSame(route('site.borrower.payments.show', $payment), $obligation['wait_url']);
+        $this->assertFalse(app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $payload));
+    }
 }

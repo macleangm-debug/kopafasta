@@ -1043,3 +1043,65 @@ html.kf-account-shell::view-transition-new(root) {
         background-image: none !important;
     }
 }
+
+/* Narrow paper receipt — restrained torn edges (screen + PNG snapshot). */
+.kf-receipt--paper {
+    position: relative;
+    border-left: 1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
+    filter: drop-shadow(0 10px 24px rgba(15, 23, 42, 0.08));
+}
+
+.kf-receipt--paper::before,
+.kf-receipt--paper::after {
+    content: '';
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    height: 10px;
+    pointer-events: none;
+    background-color: #ffffff;
+    background-image: linear-gradient(135deg, transparent 33%, #e5e7eb 33%, #e5e7eb 66%, transparent 66%),
+        linear-gradient(45deg, transparent 33%, #ffffff 33%, #ffffff 66%, transparent 66%);
+    background-size: 12px 10px;
+    background-repeat: repeat-x;
+    background-position: 0 0;
+}
+
+.kf-receipt--paper::before {
+    top: -9px;
+    mask-image: linear-gradient(135deg, #000 50%, transparent 50%),
+        linear-gradient(45deg, transparent 50%, #000 50%);
+    mask-size: 12px 10px;
+    mask-repeat: repeat-x;
+    -webkit-mask-image: linear-gradient(135deg, #000 50%, transparent 50%),
+        linear-gradient(45deg, transparent 50%, #000 50%);
+    -webkit-mask-size: 12px 10px;
+    -webkit-mask-repeat: repeat-x;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.kf-receipt--paper::after {
+    bottom: -9px;
+    transform: scaleY(-1);
+    mask-image: linear-gradient(135deg, #000 50%, transparent 50%),
+        linear-gradient(45deg, transparent 50%, #000 50%);
+    mask-size: 12px 10px;
+    mask-repeat: repeat-x;
+    -webkit-mask-image: linear-gradient(135deg, #000 50%, transparent 50%),
+        linear-gradient(45deg, transparent 50%, #000 50%);
+    -webkit-mask-size: 12px 10px;
+    -webkit-mask-repeat: repeat-x;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+html.dark .kf-receipt--paper {
+    border-color: #374151;
+    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.35));
+}
+
+html.dark .kf-receipt--paper::before,
+html.dark .kf-receipt--paper::after {
+    background-color: #111827;
+    border-bottom-color: #374151;
+}

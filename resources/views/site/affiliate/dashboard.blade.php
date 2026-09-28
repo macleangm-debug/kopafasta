@@ -16,16 +16,22 @@
     <section class="kf-premium-panel rounded-3xl mb-5">
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <div class="relative p-5 sm:p-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
-            <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                    <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ strtoupper((string) $typeLabel) }}</p>
+            <div class="min-w-0 flex-1">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ strtoupper((string) $typeLabel) }}</p>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $hero['greeting'] ?? $vendor->name }}</h1>
+                        <p class="text-sm text-white/70 mt-1 font-mono">{{ $vendor->partner_number ?? $vendor->vendor_number }}</p>
+                        @if (! empty($progress['premium']))
+                            <p class="text-sm text-white/80 mt-2 max-w-lg">{{ __('site.affiliate_portal.premium_hero_body') }}</p>
+                        @else
+                            <p class="text-sm text-white/80 mt-2 max-w-lg">{{ $standing['status_label'] ?? '' }}</p>
+                        @endif
+                    </div>
                     @if (! empty($hero['grade']))
-                        <x-site.grade-badge :grade="$hero['grade']" :label="$hero['grade_label'] ?? 'Premium'" size="sm" />
+                        <x-site.grade-badge :grade="$hero['grade']" :label="$hero['grade_label'] ?? __('site.affiliate_portal.premium_badge')" size="lg" class="shrink-0" />
                     @endif
                 </div>
-                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $hero['greeting'] ?? $vendor->name }}</h1>
-                <p class="text-sm text-white/70 mt-1 font-mono">{{ $vendor->partner_number ?? $vendor->vendor_number }}</p>
-                <p class="text-sm text-white/80 mt-2 max-w-lg">{{ $standing['status_label'] ?? '' }}</p>
                 @if ($vendor->affiliate_code)
                     <p class="inline-flex items-center gap-2 mt-3 rounded-full bg-white/15 ring-1 ring-white/25 px-3 py-1.5">
                         <span class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.affiliate_portal.promo_code') }}</span>

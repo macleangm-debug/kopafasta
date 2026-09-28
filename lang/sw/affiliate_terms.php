@@ -67,7 +67,7 @@ Hili ni ombi la kuwa Msambazaji huru wa Premium wa {{brand}}; si ombi la ajira.
 Unafanya kazi kama Msambazaji huru wa kibiashara. Usiwajulishe wateja kuwa wewe ni mfanyakazi, afisa, au wakala mwenye mamlaka ya kufunga {{brand}}, wala usitoze ada yoyote isiyoruhusiwa.
 
 ## 2. Mkataba wa Premium
-Umeainishwa kama {{affiliate_type}}. Wasambazaji wa Premium ni washirika wa ufikiaji / chapa. Hawatawaliwi na malengo ya Wanachama Wanaolipa au KPI.
+Umeainishwa kama {{affiliate_type}}. Wasambazaji wa Premium ni ushirikiano maalum wa chapa, ufikiaji na ukuaji wa kopafasta.
 
 Mkataba wa Msambazaji wa Premium unaendelea kwa {{premium_contract_label}} (miezi {{premium_contract_months}}) kuanzia {{agreement_start}} hadi {{agreement_end}}, isipokuwa kusimamishwa au kusitishwa mapema.
 

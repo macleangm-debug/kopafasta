@@ -156,10 +156,10 @@
 
     <template x-teleport="body">
         <div x-show="cameraOpen" x-cloak class="fixed inset-0 z-[95] bg-brand flex flex-col">
-            <div class="relative z-[3] flex items-start justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-brand to-transparent">
-                <x-site.brand-mark size="sm" variant="light" />
+            {{-- Capture chrome: close only — no app shell/brand header while camera is active --}}
+            <div class="relative z-[3] flex justify-end px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
                 <button type="button" @click="closeCamera()"
-                        class="shrink-0 rounded-full bg-white/15 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25 mt-0.5"
+                        class="shrink-0 rounded-full bg-black/40 text-white text-xs font-semibold px-3 py-2 ring-1 ring-white/25"
                         x-text="labels.close"></button>
             </div>
             <video x-ref="camVideo" autoplay playsinline webkit-playsinline muted
@@ -170,8 +170,8 @@
                     <div class="w-[78%] max-w-[340px] aspect-[4/5] rounded-[50%] border-[3px] border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.3)]"></div>
                 </div>
                 @if (filled($guide))
-                    <div class="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none px-6 pb-36 pt-28">
-                        <div class="w-full max-w-md text-center rounded-2xl bg-black/45 backdrop-blur-sm ring-1 ring-white/20 px-4 py-3 text-white shadow-lg">
+                    <div class="absolute inset-x-0 top-[max(3.5rem,calc(env(safe-area-inset-top)+2.75rem))] z-[4] flex justify-center pointer-events-none px-5">
+                        <div class="w-full max-w-sm text-center rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/20 px-4 py-2.5 text-white shadow-lg">
                             <p class="text-sm font-semibold">{{ $guide }}</p>
                             <p class="text-xs text-white/80 mt-1">{{ __('borrower.face_verification_page.oval_hint') }}</p>
                         </div>
@@ -180,13 +180,13 @@
             @elseif ($showIdCard)
                 <div class="absolute inset-0 z-[2] flex flex-col items-center justify-center pointer-events-none px-6 gap-4">
                     @if (filled($guide))
-                        <p class="text-center text-sm sm:text-base font-semibold text-white bg-black/45 backdrop-blur-sm rounded-2xl px-4 py-3 max-w-md leading-snug shadow-sm">{{ $guide }}</p>
+                        <p class="absolute top-[max(3.5rem,calc(env(safe-area-inset-top)+2.75rem))] left-1/2 -translate-x-1/2 w-[calc(100%-2.5rem)] max-w-sm text-center text-sm font-semibold text-white bg-black/50 backdrop-blur-sm rounded-2xl px-4 py-2.5 leading-snug shadow-sm">{{ $guide }}</p>
                     @endif
                     <div class="w-full max-w-md aspect-[1.586] rounded-xl border-[2.5px] border-dashed border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.25)]"></div>
                 </div>
             @elseif (filled($guide))
-                <div class="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none px-6 pb-36 pt-28">
-                    <div class="w-full max-w-md text-center rounded-2xl bg-black/45 backdrop-blur-sm ring-1 ring-white/20 px-4 py-3 text-white shadow-lg">
+                <div class="absolute inset-x-0 top-[max(3.5rem,calc(env(safe-area-inset-top)+2.75rem))] z-[4] flex justify-center pointer-events-none px-5">
+                    <div class="w-full max-w-sm text-center rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/20 px-4 py-2.5 text-white shadow-lg">
                         <p class="text-sm font-semibold">{{ $guide }}</p>
                     </div>
                 </div>

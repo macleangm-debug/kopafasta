@@ -10,12 +10,10 @@
     $receipt = $payments->receiptPayload($payment);
     $continueUrl = $continueUrl ?: $payments->successRedirectUrl($payment);
     $continueLabel = $continueLabel ?: $payments->continueLabel($payment);
+    // Borrower-facing receipt: Kopafasta payment reference only — never PSP/provider_ref.
     $rows = array_values(array_filter([
         ['label' => __('borrower.payments_page.show.type'), 'value' => $receipt['type']],
         ['label' => __('borrower.payments_page.show.payment_reference'), 'value' => $receipt['reference']],
-        filled($receipt['provider_ref'] ?? null)
-            ? ['label' => __('borrower.payments_page.show.provider_reference'), 'value' => $receipt['provider_ref']]
-            : null,
         ['label' => __('borrower.payments_page.show.date'), 'value' => $receipt['paid_at_label']],
         ['label' => __('borrower.payments_page.show.status'), 'value' => $receipt['status']],
         filled($receipt['member_name'] ?? null)
@@ -48,6 +46,7 @@
 @endphp
 
 <div class="space-y-4">
+    <div class="mx-auto w-full max-w-[22rem] sm:max-w-[24rem]">
     <div id="kf-payment-receipt"
          data-kf-receipt
          data-brand="{{ $receipt['brand'] }}"
@@ -59,7 +58,7 @@
          data-keep="{{ $receipt['keep_line'] }}"
          data-footer="{{ implode(' · ', $footerParts) }}"
          data-rows="{{ json_encode($rows, JSON_UNESCAPED_UNICODE) }}"
-         class="kf-receipt rounded-2xl bg-white ring-1 ring-gray-200 px-5 py-6 sm:px-7 space-y-5">
+         class="kf-receipt kf-receipt--paper bg-white px-5 py-6 space-y-5">
         <div class="flex items-start justify-between gap-3">
             <x-site.brand-mark size="md" variant="dark" />
             <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-gray-500 pt-1">{{ $receipt['kicker'] }}</p>
@@ -70,8 +69,8 @@
             <p class="mt-1 text-3xl font-extrabold tabular-nums tracking-tight text-gray-900">{{ $receipt['amount'] }}</p>
         </div>
 
-        {{-- Single stacked column on narrow; two columns from sm up — mirrored by PDF + paintReceipt. --}}
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {{-- Narrow receipt: single stacked column — mirrored by PDF + paintReceipt. --}}
+        <dl class="grid grid-cols-1 gap-3.5">
             @foreach ($rows as $row)
                 <div>
                     <dt class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $row['label'] }}</dt>
@@ -84,6 +83,7 @@
             <p class="text-xs text-gray-600 leading-relaxed">{{ implode(' · ', $footerParts) }}</p>
         @endif
         <p class="text-xs font-semibold text-gray-800">{{ $receipt['keep_line'] }}</p>
+    </div>
     </div>
 
     @if ($actions)

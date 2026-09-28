@@ -46,11 +46,16 @@ class LoanApplicationNextActionService
         }
 
         if ($product && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $draft->payload ?? [])) {
+            $obligation = app(ApplicationFeePaymentService::class)->obligation($customer, $product, $draft->payload ?? []);
+            $payUrl = filled($obligation['wait_url'] ?? null)
+                ? (string) $obligation['wait_url']
+                : $wizardUrl;
+
             return $this->action(
                 'pay_application_fee',
                 __('borrower.loan_profile.next_actions.application_fee'),
                 __('borrower.apply.application_fee.pay_cta'),
-                $wizardUrl,
+                $payUrl,
             );
         }
 
