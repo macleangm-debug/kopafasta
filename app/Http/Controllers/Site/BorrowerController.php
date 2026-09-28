@@ -868,7 +868,13 @@ class BorrowerController extends Controller
             ->latest()
             ->get();
 
-        $allowedTabs = ['applications', 'active'];
+        $closedLoanRows = $applicationsDashboard->closedLoanRowsForCustomer($customer);
+        $closedApplicationRows = collect($applicationRows)
+            ->filter(fn (array $row) => $applicationsDashboard->isClosedRow($row))
+            ->values()
+            ->all();
+
+        $allowedTabs = ['applications', 'active', 'closed'];
         $hasGuarantorExposure = $portal->hasGuarantorWork($customer)
             || $pendingGuarantorRequests->isNotEmpty()
             || $trackingGuarantees->isNotEmpty()
@@ -879,11 +885,18 @@ class BorrowerController extends Controller
         }
 
         $activeTab = $request->query('tab');
+        $guarantorSection = $request->query('section');
+        if ($activeTab === 'guaranteed') {
+            $activeTab = 'guarantor';
+            $guarantorSection = 'guaranteed';
+        }
         if (! $activeTab) {
             if (($pendingGuarantorRequests->isNotEmpty() || $trackingGuarantees->isNotEmpty()) && empty($applicationRows)) {
                 $activeTab = 'guarantor';
+                $guarantorSection = 'requests';
             } elseif ($guaranteedLinks->isNotEmpty() && empty($applicationRows) && $loans->isEmpty() && $pendingGuarantorRequests->isEmpty() && $trackingGuarantees->isEmpty()) {
-                $activeTab = 'guaranteed';
+                $activeTab = 'guarantor';
+                $guarantorSection = 'guaranteed';
             } else {
                 $activeTab = 'applications';
             }
@@ -891,19 +904,24 @@ class BorrowerController extends Controller
         if (! in_array($activeTab, $allowedTabs, true)) {
             if ($pendingGuarantorRequests->isNotEmpty() || $trackingGuarantees->isNotEmpty()) {
                 $activeTab = 'guarantor';
+                $guarantorSection = $guarantorSection ?: 'requests';
             } elseif ($guaranteedLinks->isNotEmpty()) {
-                $activeTab = 'guaranteed';
+                $activeTab = 'guarantor';
+                $guarantorSection = 'guaranteed';
             } else {
                 $activeTab = 'applications';
             }
+        }
+        if ($activeTab === 'guarantor' && ! in_array($guarantorSection, ['requests', 'guaranteed'], true)) {
+            $guarantorSection = 'requests';
         }
 
         $user = Auth::user();
         $viewMode = $request->query('view');
         $viewPrefKey = match ($activeTab) {
             'active' => 'active_loans_view',
-            'guarantor' => 'guarantor_requests_view',
-            'guaranteed' => 'guaranteed_loans_view',
+            'guarantor' => $guarantorSection === 'guaranteed' ? 'guaranteed_loans_view' : 'guarantor_requests_view',
+            'closed' => 'closed_history_view',
             default => 'applications_view',
         };
         if (in_array($viewMode, ['cards', 'table'], true)) {
@@ -915,6 +933,7 @@ class BorrowerController extends Controller
                 'active_loans_view' => 'cards',
                 'guarantor_requests_view' => 'cards',
                 'guaranteed_loans_view' => 'cards',
+                'closed_history_view' => 'cards',
                 'applications_view' => 'table',
             ];
             $viewMode = $user->preferences[$viewPrefKey] ?? ($defaults[$viewPrefKey] ?? 'cards');
@@ -942,6 +961,9 @@ class BorrowerController extends Controller
             'guaranteedLinks',
             'guarantorExposure',
             'isGuarantorPortal',
+            'closedApplicationRows',
+            'closedLoanRows',
+            'guarantorSection',
         ) + [
             'showGuarantorTab' => in_array('guarantor', $allowedTabs, true),
             'showGuaranteedTab' => in_array('guaranteed', $allowedTabs, true),

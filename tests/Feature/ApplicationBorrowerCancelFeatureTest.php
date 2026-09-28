@@ -90,7 +90,12 @@ class ApplicationBorrowerCancelFeatureTest extends TestCase
             ->get(route('admin.customers.show', ['customer' => $withdrawn->customer_id, 'tab' => 'applications']))
             ->assertOk()
             ->assertSee(__('admin.intake.restore_application'), false)
-            ->assertSee(__('admin.intake.restore_incomplete_confirm', ['number' => $number]), false);
+            ->assertSee(__('admin.intake.restore_incomplete_confirm', [
+                'number' => $number,
+                'state' => __('admin.intake.restore_to_draft'),
+            ]), false)
+            ->assertSee(__('admin.intake.restore_incomplete_reason_example'), false)
+            ->assertSee(__('admin.intake.restore_incomplete_notes'), false);
 
         $this->gateMustNotRun();
 
@@ -117,38 +122,92 @@ class ApplicationBorrowerCancelFeatureTest extends TestCase
         $this->assertTrue(
             ApplicationStageHistory::query()
                 ->where('loan_application_id', $restored->id)
-                ->where('remarks', 'like', 'Admin restored a mistaken incomplete cancellation%')
+                ->where('remarks', 'like', 'Admin restored a withdrawal%')
                 ->exists()
         );
         $this->assertFalse(app(ApplicationIntakeTransitionService::class)->canRestoreIncompleteBorrowerCancel($restored));
     }
 
-    public function test_submitted_withdrawal_cannot_be_restored(): void
+    public function test_submitted_withdrawal_with_proven_history_restores_to_that_stage(): void
+    {
+        [, $application] = $this->openCase(status: 'withdrawn', stage: 'withdrawn');
+        $number = $application->application_number;
+        $application->update([
+            'submitted_at' => now()->subHour(),
+            'screening_payload' => [
+                'intake' => [
+                    'submitted_at' => now()->subHour()->toIso8601String(),
+                    'initial_gate' => ['result' => 'passed'],
+                ],
+            ],
+        ]);
+        ApplicationStageHistory::query()->create([
+            'loan_application_id' => $application->id,
+            'from_stage' => ApplicationIntakeReadinessService::STATE_INITIAL_CHECK,
+            'to_stage' => ApplicationIntakeReadinessService::STATE_WITHDRAWN,
+            'remarks' => 'Borrower withdrew after submission.',
+        ]);
+
+        $plan = app(ApplicationIntakeTransitionService::class)->withdrawalRestorePlan($application->fresh());
+        $this->assertNotNull($plan);
+        $this->assertSame('submitted', $plan['to_status']);
+        $this->assertSame(ApplicationIntakeReadinessService::STATE_INITIAL_CHECK, $plan['to_stage']);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->gateMustNotRun();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.loan-applications.restore-incomplete-cancel', $application), [
+                'confirmed' => '1',
+                'reason' => 'Customer withdrew by mistake',
+                'notes' => 'Phone call from member.',
+            ])
+            ->assertRedirect();
+
+        $restored = $application->fresh();
+        $this->assertSame($number, $restored->application_number);
+        $this->assertSame('submitted', $restored->status);
+        $this->assertSame(ApplicationIntakeReadinessService::STATE_INITIAL_CHECK, $restored->current_stage);
+        $this->assertTrue(
+            ApplicationStageHistory::query()
+                ->where('loan_application_id', $restored->id)
+                ->where('to_stage', ApplicationIntakeReadinessService::STATE_WITHDRAWN)
+                ->exists()
+        );
+        $this->assertSame(1, LoanApplication::query()->where('application_number', $number)->count());
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'application.restore_withdrawal',
+            'auditable_id' => $restored->id,
+        ]);
+    }
+
+    public function test_withdrawn_without_proven_prior_state_cannot_be_restored(): void
     {
         [, $application] = $this->openCase(status: 'withdrawn', stage: 'withdrawn');
         $application->update([
+            'submitted_at' => now(),
             'screening_payload' => [
                 'intake' => [
                     'submitted_at' => now()->toIso8601String(),
-                    'cancelled_from_status' => 'submitted',
-                    'cancelled_from_stage' => 'submitted',
                 ],
             ],
         ]);
 
+        $this->assertNull(app(ApplicationIntakeTransitionService::class)->withdrawalRestorePlan($application->fresh()));
         $this->assertFalse(app(ApplicationIntakeTransitionService::class)->canRestoreIncompleteBorrowerCancel($application->fresh()));
 
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin, 'admin')
             ->get(route('admin.customers.show', ['customer' => $application->customer_id, 'tab' => 'applications']))
             ->assertOk()
-            ->assertDontSee(__('admin.intake.restore_application'), false);
+            ->assertDontSee(__('admin.intake.restore_application'), false)
+            ->assertSee(__('admin.intake.restore_incomplete_blocked'), false);
 
         $this->actingAs($admin, 'admin')
             ->from(route('admin.customers.show', $application->customer_id))
             ->post(route('admin.loan-applications.restore-incomplete-cancel', $application), [
                 'confirmed' => '1',
-                'reason' => 'Trying to reopen a submitted withdrawal.',
+                'reason' => 'Trying to reopen an unproven withdrawal.',
             ])
             ->assertSessionHasErrors('reason');
         $this->assertSame('withdrawn', $application->fresh()->status);

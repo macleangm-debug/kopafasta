@@ -174,10 +174,10 @@
                         </div>
                         <div class="flex flex-wrap items-center gap-3">
                             @php
-                                $canRestoreIncomplete = app(\App\Services\ApplicationIntakeTransitionService::class)
-                                    ->canRestoreIncompleteBorrowerCancel($app);
+                                $restorePlan = app(\App\Services\ApplicationIntakeTransitionService::class)
+                                    ->withdrawalRestorePlan($app);
                             @endphp
-                            @if ($canRestoreIncomplete)
+                            @if ($restorePlan)
                                 <div x-data="{ restoreOpen: false }">
                                     <button type="button" @click="restoreOpen = true"
                                             class="text-xs font-semibold text-brand hover:underline">
@@ -191,11 +191,20 @@
                                             @csrf
                                             <input type="hidden" name="confirmed" value="1">
                                             <p class="text-sm text-slate-700">
-                                                {{ __('admin.intake.restore_incomplete_confirm', ['number' => $app->application_number]) }}
+                                                {{ __('admin.intake.restore_incomplete_confirm', [
+                                                    'number' => $app->application_number,
+                                                    'state' => $restorePlan['state_label'],
+                                                ]) }}
                                             </p>
                                             <label class="block text-sm font-semibold text-slate-800">
                                                 {{ __('admin.intake.restore_incomplete_reason') }}
                                                 <textarea name="reason" required minlength="8" maxlength="500"
+                                                          placeholder="{{ __('admin.intake.restore_incomplete_reason_example') }}"
+                                                          class="mt-1 w-full rounded-xl border-slate-200 text-sm"></textarea>
+                                            </label>
+                                            <label class="block text-sm font-semibold text-slate-800">
+                                                {{ __('admin.intake.restore_incomplete_notes') }}
+                                                <textarea name="notes" maxlength="500"
                                                           class="mt-1 w-full rounded-xl border-slate-200 text-sm"></textarea>
                                             </label>
                                             <div class="flex flex-wrap gap-2">
@@ -210,6 +219,8 @@
                                         </form>
                                     </x-site.action-panel>
                                 </div>
+                            @elseif ((string) $app->status === 'withdrawn')
+                                <p class="text-xs text-slate-500">{{ __('admin.intake.restore_incomplete_blocked') }}</p>
                             @endif
                             <a href="{{ route('admin.loan-applications.show', $app) }}" class="text-xs font-semibold text-brand hover:underline">Open application →</a>
                         </div>

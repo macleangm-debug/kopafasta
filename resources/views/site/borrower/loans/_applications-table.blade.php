@@ -58,7 +58,7 @@
                                 @endif
                                 <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ $row['action_label'] }}</a>
                             @else
-                                <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ ! empty($closed) || ! empty($row['is_closed']) ? __('borrower.loan_profile.view_decision') : __('borrower.applications_list.view') }}</a>
+                                <a href="{{ $row['action_url'] }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">{{ $row['action_label'] ?? ((! empty($closed) || ! empty($row['is_closed'])) ? __('borrower.loans_page.view_details') : __('borrower.applications_list.view')) }}</a>
                             @endif
                         </td>
                     </tr>

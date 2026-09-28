@@ -303,67 +303,62 @@ class ApplicationIntakeTransitionService
 
     public function canRestoreIncompleteBorrowerCancel(LoanApplication $application): bool
     {
-        return $this->restoreIncompleteBorrowerCancelBlocker($application) === null;
+        return $this->withdrawalRestorePlan($application) !== null;
     }
 
     public function restoreIncompleteBorrowerCancelBlocker(LoanApplication $application): ?string
     {
+        return $this->withdrawalRestorePlan($application) === null
+            ? 'unproven_prior_state'
+            : null;
+    }
+
+    /**
+     * Proven reversal target for a withdrawn application, or null when Admin must not guess.
+     *
+     * @return array{
+     *     to_status: string,
+     *     to_stage: string,
+     *     from_status: string,
+     *     from_stage: string,
+     *     is_draft: bool,
+     *     withdrawal_history_id: int|null,
+     *     state_label: string
+     * }|null
+     */
+    public function withdrawalRestorePlan(LoanApplication $application): ?array
+    {
         $application->refresh()->loadMissing(['customer', 'product', 'loan']);
 
-        if ((string) $application->status !== 'withdrawn' || (string) $application->current_stage !== 'withdrawn') {
-            return 'not_withdrawn';
+        if ((string) $application->status !== 'withdrawn'
+            || (string) $application->current_stage !== 'withdrawn') {
+            return null;
         }
 
-        if (! data_get($application->screening_payload, 'intake.cancelled_by_borrower_at')) {
-            return 'not_borrower_self_cancel';
+        if ((string) $application->offer_status === 'declined') {
+            return null;
         }
 
-        $fromStatus = (string) (data_get($application->screening_payload, 'intake.cancelled_from_status') ?: 'draft');
-        $fromStage = (string) (data_get($application->screening_payload, 'intake.cancelled_from_stage') ?: 'draft');
-        if ($fromStatus !== 'draft' || ! in_array($fromStage, ['draft', ApplicationIntakeReadinessService::STATE_DRAFT], true)) {
-            return 'not_pre_submit';
+        if ($application->loan
+            || filled($application->offered_amount)
+            || filled($application->rejection_reason_code)
+            || filled($application->rejection_reason)) {
+            return null;
         }
 
-        if (data_get($application->screening_payload, 'intake.initial_gate.result')) {
-            return 'first_gate_ran';
+        $capacityStatus = (string) data_get($application->screening_payload, 'capacity_auto_reject.status');
+        if (in_array($capacityStatus, ['fired', 'pending'], true)) {
+            return null;
         }
 
-        if (data_get($application->screening_payload, 'intake.initial_gate.parked_at')
-            || data_get($application->screening_payload, 'capacity_auto_reject.status')) {
-            return 'later_pipeline';
+        $proven = $this->provenPreWithdrawalState($application);
+        if ($proven === null) {
+            return null;
         }
 
-        if ($application->loan || filled($application->rejection_reason_code) || filled($application->offered_amount)) {
-            return 'later_pipeline';
-        }
-
-        $later = ApplicationStageHistory::query()
-            ->where('loan_application_id', $application->id)
-            ->whereIn('to_stage', [
-                'submitted',
-                'submitted_initial_check',
-                ApplicationIntakeReadinessService::STATE_READY,
-                'screening',
-                'credit_appraisal',
-                'awaiting_offer',
-                'offer_issued',
-                'approved',
-                'disbursed',
-                'rejected',
-                ApplicationIntakeReadinessService::STATE_REJECTED_GATE,
-            ])
-            ->exists();
-        if ($later) {
-            return 'later_pipeline';
-        }
-
-        $cancelEvent = ApplicationStageHistory::query()
-            ->where('loan_application_id', $application->id)
-            ->where('to_stage', ApplicationIntakeReadinessService::STATE_WITHDRAWN)
-            ->where('remarks', 'like', 'Borrower cancelled an incomplete application%')
-            ->exists();
-        if (! $cancelEvent) {
-            return 'not_borrower_self_cancel';
+        [$toStatus, $toStage] = $proven;
+        if (! $this->isSafeRestoreTarget($toStatus, $toStage)) {
+            return null;
         }
 
         $openSibling = LoanApplication::query()
@@ -373,16 +368,39 @@ class ApplicationIntakeTransitionService
             ->whereNotIn('current_stage', LoanApplication::CLOSED_STATUSES)
             ->exists();
         if ($openSibling) {
-            return 'conflicting_application';
+            return null;
         }
 
-        return null;
+        $withdrawalEvent = ApplicationStageHistory::query()
+            ->where('loan_application_id', $application->id)
+            ->where('to_stage', ApplicationIntakeReadinessService::STATE_WITHDRAWN)
+            ->latest('id')
+            ->first();
+
+        $isDraft = $toStatus === 'draft'
+            || in_array($toStage, ['draft', ApplicationIntakeReadinessService::STATE_DRAFT], true);
+
+        return [
+            'to_status' => $toStatus,
+            'to_stage' => $toStage,
+            'from_status' => 'withdrawn',
+            'from_stage' => 'withdrawn',
+            'is_draft' => $isDraft,
+            'withdrawal_history_id' => $withdrawalEvent?->id,
+            'state_label' => $isDraft
+                ? __('admin.intake.restore_to_draft')
+                : __('admin.intake.restore_to_submitted'),
+        ];
     }
 
-    public function restoreIncompleteBorrowerCancel(LoanApplication $application, User $actor, string $reason): LoanApplication
-    {
-        $blocker = $this->restoreIncompleteBorrowerCancelBlocker($application);
-        if ($blocker) {
+    public function restoreIncompleteBorrowerCancel(
+        LoanApplication $application,
+        User $actor,
+        string $reason,
+        ?string $notes = null,
+    ): LoanApplication {
+        $plan = $this->withdrawalRestorePlan($application);
+        if ($plan === null) {
             throw new \RuntimeException(__('admin.intake.restore_incomplete_blocked'));
         }
 
@@ -391,44 +409,140 @@ class ApplicationIntakeTransitionService
             throw new \RuntimeException(__('admin.intake.restore_incomplete_reason'));
         }
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($application, $actor, $reason) {
+        $notes = trim((string) $notes);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($application, $actor, $reason, $notes, $plan) {
             $application->refresh()->loadMissing(['customer', 'product']);
             $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
             $payload['intake'] = array_merge((array) ($payload['intake'] ?? []), [
                 'restored_from_borrower_cancel_at' => now()->toIso8601String(),
+                'restored_from_withdrawal_at' => now()->toIso8601String(),
                 'restored_by' => $actor->id,
                 'restore_reason' => $reason,
+                'restore_notes' => $notes !== '' ? $notes : null,
+                'restored_from_status' => $plan['from_status'],
+                'restored_from_stage' => $plan['from_stage'],
+                'restored_to_status' => $plan['to_status'],
+                'restored_to_stage' => $plan['to_stage'],
+                'original_withdrawal_history_id' => $plan['withdrawal_history_id'],
             ]);
 
             $application->update([
-                'status' => 'draft',
-                'current_stage' => ApplicationIntakeReadinessService::STATE_DRAFT,
+                'status' => $plan['to_status'],
+                'current_stage' => $plan['to_stage'],
                 'screening_payload' => $payload,
             ]);
 
-            app(LoanApplicationDraftService::class)->ensureResumeDraftForApplication($application->fresh(['customer', 'product']));
+            if ($plan['is_draft']) {
+                app(LoanApplicationDraftService::class)
+                    ->ensureResumeDraftForApplication($application->fresh(['customer', 'product']));
+            }
 
             $this->record(
                 $application->fresh(),
-                ApplicationIntakeReadinessService::STATE_DRAFT,
-                'Admin restored a mistaken incomplete cancellation. '.$reason,
+                $plan['to_stage'],
+                'Admin restored a withdrawal. '.$reason,
                 'withdrawn',
                 'withdrawn',
                 $actor,
             );
 
-            $this->audit->log($actor, 'application.restore_incomplete_cancel', $application->fresh(), [
+            $this->audit->log($actor, 'application.restore_withdrawal', $application->fresh(), [
                 'status' => 'withdrawn',
                 'current_stage' => 'withdrawn',
             ], [
-                'status' => 'draft',
-                'current_stage' => ApplicationIntakeReadinessService::STATE_DRAFT,
+                'status' => $plan['to_status'],
+                'current_stage' => $plan['to_stage'],
                 'application_number' => $application->application_number,
                 'reason' => $reason,
+                'notes' => $notes !== '' ? $notes : null,
+                'from_state' => 'withdrawn',
+                'restored_to_state' => $plan['to_status'].'/'.$plan['to_stage'],
+                'original_withdrawal_history_id' => $plan['withdrawal_history_id'],
             ]);
 
             return $application->fresh(['customer', 'product']);
         });
+    }
+
+    /** @return array{0: string, 1: string}|null */
+    private function provenPreWithdrawalState(LoanApplication $application): ?array
+    {
+        $event = ApplicationStageHistory::query()
+            ->where('loan_application_id', $application->id)
+            ->where('to_stage', ApplicationIntakeReadinessService::STATE_WITHDRAWN)
+            ->whereNotNull('from_stage')
+            ->where('from_stage', '!=', '')
+            ->where('from_stage', '!=', ApplicationIntakeReadinessService::STATE_WITHDRAWN)
+            ->latest('id')
+            ->first();
+
+        if ($event) {
+            $stage = (string) $event->from_stage;
+
+            return [$this->statusForProvenStage($stage, $application), $stage];
+        }
+
+        $fromStatus = (string) (data_get($application->screening_payload, 'intake.cancelled_from_status') ?? '');
+        $fromStage = (string) (data_get($application->screening_payload, 'intake.cancelled_from_stage') ?? '');
+        if ($fromStatus !== '' && $fromStage !== '') {
+            return [$fromStatus, $fromStage];
+        }
+
+        return null;
+    }
+
+    private function statusForProvenStage(string $stage, LoanApplication $application): string
+    {
+        $fromPayload = (string) (data_get($application->screening_payload, 'intake.cancelled_from_status') ?? '');
+        if ($fromPayload !== '') {
+            return $fromPayload;
+        }
+
+        return match ($stage) {
+            'draft', ApplicationIntakeReadinessService::STATE_DRAFT => 'draft',
+            ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR, 'awaiting_guarantor' => 'awaiting_guarantor',
+            'under_review', 'credit_appraisal' => 'under_review',
+            default => 'submitted',
+        };
+    }
+
+    private function isSafeRestoreTarget(string $status, string $stage): bool
+    {
+        $unsafeStages = [
+            'rejected',
+            ApplicationIntakeReadinessService::STATE_REJECTED_GATE,
+            'approved',
+            'offer_issued',
+            'awaiting_offer',
+            'disbursed',
+            'closed',
+            'cancelled',
+            'pre_approval',
+            'approval',
+            'disbursement',
+        ];
+        $unsafeStatuses = [
+            'rejected', 'approved', 'pre_approved', 'disbursed', 'closed', 'cancelled', 'offer_declined',
+        ];
+
+        if (in_array($stage, $unsafeStages, true) || in_array($status, $unsafeStatuses, true)) {
+            return false;
+        }
+
+        return in_array($stage, [
+            'draft',
+            ApplicationIntakeReadinessService::STATE_DRAFT,
+            'submitted',
+            ApplicationIntakeReadinessService::STATE_INITIAL_CHECK,
+            ApplicationIntakeReadinessService::STATE_HOLD,
+            ApplicationIntakeReadinessService::STATE_GUARANTOR_MISSING,
+            ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR,
+            'awaiting_guarantor',
+            ApplicationIntakeReadinessService::STATE_READY,
+            ApplicationIntakeReadinessService::STATE_SCREENING,
+            'credit_appraisal',
+        ], true);
     }
 
     public function feedbackReleaseAt(LoanApplication $application): ?Carbon

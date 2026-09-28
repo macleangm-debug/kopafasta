@@ -100,7 +100,7 @@
                             'h-[80vh] min-h-[640px]' => ! $fitPage,
                         ])></iframe>
             </div>
-            <p class="text-center text-[11px] text-[#5c6b64] mt-3">A4 preview - one document at a time</p>
+            <p class="text-center text-[11px] text-[#5c6b64] mt-3">{{ __('borrower.rejection_letter.a4_preview') }}</p>
         </div>
     </div>
 @else

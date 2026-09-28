@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
@@ -171,7 +172,9 @@ class BorrowerApplicationsDashboardService
         $needsDocuments = $underwritingActions !== []
             || in_array($statusCode, ['documents_requested', 'documents_resubmitted'], true);
         $isRejected = $statusCode === 'rejected';
-        $isClosed = in_array($statusCode, ['withdrawn', 'offer_declined'], true);
+        $isClosed = $isRejected || in_array($statusCode, [
+            'withdrawn', 'offer_declined', 'expired', 'cancelled', 'closed', 'completed',
+        ], true);
         $firstUw = $isClosed ? null : ($underwritingActions[0] ?? null);
         if ($isClosed) {
             $underwritingActions = [];
@@ -210,8 +213,10 @@ class BorrowerApplicationsDashboardService
                     'disbursed', 'withdrawn', 'offer_declined', 'approved', 'pre_approved',
                 ], true),
             'action_url'         => route('site.borrower.application', $application->id),
+            'kind'               => 'application',
             'action_label'       => match (true) {
-                $isRejected => __('borrower.loan_profile.view_decision'),
+                $isRejected || $statusCode === 'offer_declined' => __('borrower.loan_profile.view_decision'),
+                $isClosed => __('borrower.loans_page.view_details'),
                 $statusCode === 'awaiting_valuation_fee' => __('borrower.collateral_secure.pay_valuation_now'),
                 default => __('borrower.applications_list.view'),
             },
@@ -285,6 +290,53 @@ class BorrowerApplicationsDashboardService
             ->whereDoesntHave('loan', fn ($query) => $query->whereIn('status', ['active', 'disbursed', 'arrears']))
             ->latest()
             ->get();
+    }
+
+    public function isClosedRow(array $row): bool
+    {
+        if (! empty($row['is_closed'])) {
+            return true;
+        }
+
+        return in_array((string) ($row['status'] ?? ''), [
+            'withdrawn', 'offer_declined', 'rejected', 'expired', 'cancelled', 'closed', 'completed',
+        ], true);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function closedLoanRowsForCustomer(Customer $customer): array
+    {
+        return Loan::with('product')
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['closed', 'completed', 'settled', 'written_off'])
+            ->latest()
+            ->get()
+            ->map(function (Loan $loan): array {
+                $closedAt = $loan->closed_at ?? $loan->updated_at;
+
+                return [
+                    'kind' => 'loan',
+                    'is_draft' => false,
+                    'is_closed' => true,
+                    'id' => 'loan-'.$loan->id,
+                    'loan_id' => $loan->id,
+                    'product_name' => $loan->product?->localizedName() ?? '—',
+                    'application_number' => $loan->loan_number,
+                    'requested_amount' => (float) ($loan->principal_amount ?? $loan->approved_amount ?? 0),
+                    'status' => (string) $loan->status,
+                    'status_label' => display_label((string) $loan->status, 'loan_status'),
+                    'status_tone' => 'emerald',
+                    'application_status' => display_label((string) $loan->status, 'loan_status'),
+                    'updated_at' => $closedAt,
+                    'last_updated_human' => optional($closedAt)->diffForHumans(),
+                    'sort_at' => $closedAt?->timestamp ?? 0,
+                    'action_url' => route('site.borrower.loans.show', $loan),
+                    'action_label' => __('borrower.loans_page.view_details'),
+                ];
+            })
+            ->all();
     }
 
     private function isTerminalApplicationStatus(string $status): bool

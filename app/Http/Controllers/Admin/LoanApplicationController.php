@@ -649,11 +649,19 @@ class LoanApplicationController extends ResourceController
         $data = $request->validate([
             'confirmed' => ['required', 'accepted'],
             'reason' => ['required', 'string', 'min:8', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $plan = app(ApplicationIntakeTransitionService::class)->withdrawalRestorePlan($loan_application);
 
         try {
             app(ApplicationIntakeTransitionService::class)
-                ->restoreIncompleteBorrowerCancel($loan_application, auth()->user(), $data['reason']);
+                ->restoreIncompleteBorrowerCancel(
+                    $loan_application,
+                    auth()->user(),
+                    $data['reason'],
+                    $data['notes'] ?? null,
+                );
         } catch (\RuntimeException $e) {
             return back()->withErrors(['reason' => $e->getMessage()]);
         }
@@ -665,6 +673,7 @@ class LoanApplicationController extends ResourceController
             ])
             ->with('status', __('admin.intake.restore_incomplete_done', [
                 'number' => $loan_application->application_number,
+                'state' => $plan['state_label'] ?? __('admin.intake.restore_to_submitted'),
             ]));
     }
 

@@ -1,10 +1,7 @@
 @php
-    $isClosedRow = fn (array $row): bool => ! empty($row['is_closed'])
-        || in_array((string) ($row['status'] ?? ''), ['withdrawn', 'offer_declined', 'rejected'], true);
-
+    $dashboard = app(\App\Services\BorrowerApplicationsDashboardService::class);
     $rows = $applicationRows ?? [];
-    $activeRows = collect($rows)->reject($isClosedRow)->values()->all();
-    $closedRows = collect($rows)->filter($isClosedRow)->values()->all();
+    $activeRows = collect($rows)->reject(fn (array $row) => $dashboard->isClosedRow($row))->values()->all();
     $viewMode = $viewMode ?? 'table';
     $toneClasses = [
         'gray'    => 'bg-gray-100 text-gray-700',
@@ -57,26 +54,4 @@
             @include('site.borrower.loans._applications-table', ['rows' => $activeRows])
         @endif
     </div>
-@endif
-
-@if ($closedRows !== [])
-    <section class="mt-10 space-y-4">
-        <div>
-            <h2 class="text-lg font-semibold text-gray-900">{{ __('borrower.applications_list.closed_title') }}</h2>
-            <p class="text-sm text-gray-500 mt-0.5">
-                {{ __('borrower.applications_list.closed_hint') }}
-                · {{ trans_choice('borrower.applications_list.closed_count', count($closedRows), ['count' => count($closedRows)]) }}
-            </p>
-        </div>
-        <div class="lg:hidden">
-            @include('site.borrower.loans._applications-closed', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
-        </div>
-        <div class="hidden lg:block">
-            @if ($viewMode === 'cards')
-                @include('site.borrower.loans._applications-closed', ['rows' => $closedRows, 'toneClasses' => $toneClasses])
-            @else
-                @include('site.borrower.loans._applications-table', ['rows' => $closedRows, 'closed' => true])
-            @endif
-        </div>
-    </section>
 @endif

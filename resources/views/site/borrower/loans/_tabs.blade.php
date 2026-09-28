@@ -3,7 +3,7 @@
     'viewMode' => 'cards',
     'inline' => false,
     'showGuarantorTab' => false,
-    'showGuaranteedTab' => false,
+    'guarantorSection' => 'requests',
 ])
 
 @php
@@ -12,11 +12,9 @@
         'active' => __('borrower.loans_page.tab_active'),
     ];
     if ($showGuarantorTab) {
-        $tabs['guarantor'] = __('borrower.loans_page.tab_guarantor_requests');
+        $tabs['guarantor'] = __('borrower.loans_page.tab_guarantor');
     }
-    if ($showGuaranteedTab) {
-        $tabs['guaranteed'] = __('borrower.loans_page.tab_guaranteed');
-    }
+    $tabs['closed'] = __('borrower.loans_page.tab_closed');
 @endphp
 
 <nav class="-mx-1 px-1 overflow-x-auto snap-x snap-mandatory scrollbar-none {{ $inline ? '' : 'mb-6 border-b border-gray-200 pb-3' }}" aria-label="{{ __('borrower.loans_page.title') }}">
@@ -26,6 +24,9 @@
             $params = ['tab' => $key];
             if ($key === 'applications' && in_array($viewMode, ['cards', 'table'], true)) {
                 $params['view'] = $viewMode;
+            }
+            if ($key === 'guarantor' && $guarantorSection === 'guaranteed') {
+                $params['section'] = 'guaranteed';
             }
             $isActive = $activeTab === $key;
         @endphp

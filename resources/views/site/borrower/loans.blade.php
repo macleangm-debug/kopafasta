@@ -1,10 +1,9 @@
 <x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" content-width="wide" :portalMode="($isGuarantorPortal ?? false) ? 'guarantor' : 'borrower'">
 
     @php
-        $isClosedApplicationRow = fn (array $row): bool => ! empty($row['is_closed'])
-            || in_array((string) ($row['status'] ?? ''), ['withdrawn', 'offer_declined', 'rejected'], true);
+        $closedClassifier = app(\App\Services\BorrowerApplicationsDashboardService::class);
         $loanSummary = [
-            'applications' => collect($applicationRows ?? [])->reject($isClosedApplicationRow)->count(),
+            'applications' => collect($applicationRows ?? [])->reject(fn (array $row) => $closedClassifier->isClosedRow($row))->count(),
             'active' => ($loans ?? collect())->count(),
             'guarantor' => ($pendingGuarantorRequests ?? collect())->count()
                 + ($trackingGuarantees ?? collect())->count(),
@@ -80,7 +79,7 @@
     <x-site.account-shell-hero
         mode="contextual"
         :title="__('borrower.loans_page.title')"
-        :body="(($showGuaranteedTab ?? false) && ($activeTab ?? '') === 'guaranteed')
+        :body="(($showGuarantorTab ?? false) && ($activeTab ?? '') === 'guarantor' && ($guarantorSection ?? '') === 'guaranteed')
             ? __('borrower.loans_page.guaranteed_hint')
             : ((($showGuarantorTab ?? false) && ($activeTab ?? '') === 'guarantor')
                 ? __('borrower.guarantor.tab_hint')
@@ -97,7 +96,7 @@
             ['key' => 'applications', 'label' => __('borrower.loans_page.summary_applications'), 'value' => $loanSummary['applications'], 'tone' => 'brand', 'icon' => '📋', 'tab' => 'applications'],
             ['key' => 'active', 'label' => __('borrower.loans_page.summary_active'), 'value' => $loanSummary['active'], 'tone' => 'emerald', 'icon' => '💰', 'tab' => 'active'],
             ['key' => 'guarantor', 'label' => __('borrower.loans_page.summary_guarantor'), 'value' => $loanSummary['guarantor'], 'tone' => 'amber', 'icon' => '🤝', 'tab' => ($showGuarantorTab ?? false) ? 'guarantor' : null],
-            ['key' => 'guaranteed', 'label' => __('borrower.loans_page.summary_guaranteed'), 'value' => $loanSummary['guaranteed'], 'tone' => 'sky', 'icon' => '🛡', 'tab' => ($showGuaranteedTab ?? false) ? 'guaranteed' : null],
+            ['key' => 'guaranteed', 'label' => __('borrower.loans_page.summary_guaranteed'), 'value' => $loanSummary['guaranteed'], 'tone' => 'sky', 'icon' => '🛡', 'tab' => ($showGuarantorTab ?? false) ? 'guarantor' : null],
         ] as $stat)
             @php
                 $toneRing = match ($stat['tone']) {
@@ -106,7 +105,11 @@
                     'sky'     => 'ring-sky-200/80 bg-sky-50/40',
                     default   => 'ring-brand/15 bg-brand-muted/30',
                 };
-                $statHref = $stat['tab'] ? route('site.borrower.loans', ['tab' => $stat['tab']]) : null;
+                $statHref = $stat['tab']
+                    ? route('site.borrower.loans', $stat['key'] === 'guaranteed'
+                        ? ['tab' => 'guarantor', 'section' => 'guaranteed']
+                        : ['tab' => $stat['tab']])
+                    : null;
                 $statClass = 'glass-card h-full min-h-[5.5rem] p-4 ring-1 '.$toneRing.' flex flex-col justify-between';
             @endphp
             @if ($statHref)
@@ -135,28 +138,40 @@
             'viewMode' => $viewMode ?? 'cards',
             'inline' => true,
             'showGuarantorTab' => $showGuarantorTab ?? false,
-            'showGuaranteedTab' => $showGuaranteedTab ?? false,
+            'guarantorSection' => $guarantorSection ?? 'requests',
         ])
     </div>
 
     @if (($activeTab ?? 'applications') === 'active')
         @include('site.borrower.loans._tab-active', ['loans' => $loans ?? collect(), 'viewMode' => $viewMode ?? 'cards'])
     @elseif (($activeTab ?? 'applications') === 'guarantor')
-        @include('site.borrower.loans._tab-guarantor-requests', [
-            'pendingGuarantorRequests' => $pendingGuarantorRequests ?? collect(),
-            'trackingGuarantees' => $trackingGuarantees ?? collect(),
-            'customer' => $customer,
-            'guarantorExposure' => $guarantorExposure ?? null,
+        @include('site.borrower.loans._guarantor-subtabs', [
+            'guarantorSection' => $guarantorSection ?? 'requests',
             'viewMode' => $viewMode ?? 'cards',
         ])
-    @elseif (($activeTab ?? 'applications') === 'guaranteed')
-        @include('site.borrower.loans._tab-guaranteed', [
-            'guaranteedLinks' => $guaranteedLinks ?? collect(),
+        @if (($guarantorSection ?? 'requests') === 'guaranteed')
+            @include('site.borrower.loans._tab-guaranteed', [
+                'guaranteedLinks' => $guaranteedLinks ?? collect(),
+                'viewMode' => $viewMode ?? 'cards',
+            ])
+        @else
+            @include('site.borrower.loans._tab-guarantor-requests', [
+                'pendingGuarantorRequests' => $pendingGuarantorRequests ?? collect(),
+                'trackingGuarantees' => $trackingGuarantees ?? collect(),
+                'customer' => $customer,
+                'guarantorExposure' => $guarantorExposure ?? null,
+                'viewMode' => $viewMode ?? 'cards',
+            ])
+        @endif
+    @elseif (($activeTab ?? 'applications') === 'closed')
+        @include('site.borrower.loans._tab-closed', [
+            'closedApplicationRows' => $closedApplicationRows ?? [],
+            'closedLoanRows' => $closedLoanRows ?? [],
             'viewMode' => $viewMode ?? 'cards',
         ])
     @else
         @include('site.borrower.loans._tab-applications', [
-            'rows' => $applicationRows ?? [],
+            'applicationRows' => $applicationRows ?? [],
             'viewMode' => $viewMode ?? 'cards',
         ])
     @endif

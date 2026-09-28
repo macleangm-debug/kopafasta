@@ -886,7 +886,14 @@ html.kf-account-shell[data-theme="dark"] .hover\:text-brand:hover {
     color: var(--kf-accent-muted) !important;
 }
 
-html.kf-account-shell[data-theme="dark"] :is(.bg-brand-gold, .bg-brand-gold\/95, .bg-white, .bg-yellow-400).text-brand,
+html.kf-account-shell[data-theme="dark"] .document-holder .text-brand,
+html.kf-account-shell[data-theme="dark"] .document-holder .hover\:text-brand:hover,
+html.kf-account-shell[data-theme="dark"] .document-holder .hover\:text-brand-light:hover,
+html.kf-account-shell[data-theme="dark"] .document-holder .text-gray-700 {
+    color: var(--kf-ink) !important;
+}
+
+html.kf-account-shell[data-theme="dark"] :is(.bg-brand-gold, .bg-brand-gold\/95, .bg-yellow-400).text-brand,
 html.kf-account-shell[data-theme="dark"] .kf-chrome-sidebar .bg-brand-gold,
 html.kf-account-shell[data-theme="dark"] .kf-premium-panel .bg-white,
 html.kf-account-shell[data-theme="dark"] .kf-auth-btn-gold {

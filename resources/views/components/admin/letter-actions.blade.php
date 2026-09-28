@@ -16,6 +16,6 @@
     @endif
     <a href="{{ $downloadUrl }}"
        class="text-xs font-semibold text-gray-700 hover:text-brand bg-white ring-1 ring-gray-200 hover:ring-brand/20 px-3 py-1.5 rounded-lg shrink-0">
-        Download PDF
+        {{ __('borrower.rejection_letter.download_pdf') }}
     </a>
 </div>

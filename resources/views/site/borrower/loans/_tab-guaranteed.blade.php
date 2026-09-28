@@ -9,12 +9,12 @@
         <p class="text-sm text-gray-500">{{ __('borrower.loans_page.guaranteed_hint') }}</p>
     </div>
     <div class="inline-flex rounded-xl ring-1 ring-gray-200/80 bg-white/80 p-0.5 text-xs">
-        <a href="{{ route('site.borrower.loans', ['tab' => 'guaranteed', 'view' => 'cards']) }}"
+        <a href="{{ route('site.borrower.loans', ['tab' => 'guarantor', 'section' => 'guaranteed', 'view' => 'cards']) }}"
            data-kf-motion="tab"
            class="px-3 py-1.5 rounded-lg font-semibold {{ $viewMode === 'cards' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
             {{ __('borrower.applications_list.cards') }}
         </a>
-        <a href="{{ route('site.borrower.loans', ['tab' => 'guaranteed', 'view' => 'table']) }}"
+        <a href="{{ route('site.borrower.loans', ['tab' => 'guarantor', 'section' => 'guaranteed', 'view' => 'table']) }}"
            data-kf-motion="tab"
            class="px-3 py-1.5 rounded-lg font-semibold {{ $viewMode === 'table' ? 'bg-brand text-white' : 'text-gray-600 hover:bg-brand-muted/50' }}">
             {{ __('borrower.applications_list.table') }}
