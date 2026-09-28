@@ -242,6 +242,7 @@ class AffiliatePortalPresenter
         $latest = $this->terms->latestAcceptance($vendor);
         $current = $this->terms->hasAccepted($vendor);
         $acceptance = $current ? $latest : null;
+        $document = $this->terms->parseDocument($vendor, $acceptance);
 
         return [
             'vendor' => $vendor,
@@ -251,7 +252,10 @@ class AffiliatePortalPresenter
             'needs_acceptance' => ! $current,
             'rendered' => $acceptance?->rendered_text ?: $this->terms->render($vendor),
             'header' => $this->terms->documentHeader($vendor, $commercial, $acceptance),
-            'sections' => $this->terms->documentSections($vendor, $acceptance),
+            'meta' => $document['meta'],
+            'intro' => $document['intro'],
+            'intro_html' => $document['intro_html'],
+            'sections' => $document['sections'],
         ];
     }
 

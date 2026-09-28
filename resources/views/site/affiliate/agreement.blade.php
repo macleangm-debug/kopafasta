@@ -91,7 +91,13 @@
         </dl>
     </div>
 
-    <x-site.branded-agreement :header="$header" :sections="$sections" />
+    <x-site.branded-agreement
+        :header="$header"
+        :sections="$sections"
+        :meta="$meta ?? []"
+        :intro="$intro ?? null"
+        :intro-html="$intro_html ?? null"
+    />
 
     @if ($needsAcceptance)
         <form method="POST" action="{{ route('site.affiliate.terms.accept') }}" class="glass-card p-6 space-y-4 mt-5"

@@ -346,11 +346,62 @@ class AffiliateTermsService
         ], $locale);
     }
 
-    /** @return list<array{title: string, body: string}> */
-    public function documentSections(Vendor $affiliate, ?PartnerAgreementAcceptance $acceptance = null): array
+    /**
+     * Parse agreement text into meta rows + numbered clause sections.
+     *
+     * @return array{
+     *   meta: list<array{label: string, value: string}>,
+     *   intro: string,
+     *   sections: list<array{title: string, body: string, body_html: string}>
+     * }
+     */
+    public function parseDocument(Vendor $affiliate, ?PartnerAgreementAcceptance $acceptance = null): array
     {
-        $text = $acceptance?->rendered_text ?: $this->render($affiliate);
-        $chunks = preg_split("/\n(?=##\s+)/", trim($text)) ?: [];
+        $text = trim((string) ($acceptance?->rendered_text ?: $this->render($affiliate)));
+        // Title lives in the branded header — drop the markdown H1.
+        $text = preg_replace('/^#\s+[^\n]*\n*/', '', $text) ?? $text;
+
+        $lines = preg_split("/\n/", $text) ?: [];
+        $introLines = [];
+        $meta = [];
+        $i = 0;
+        $count = count($lines);
+
+        while ($i < $count) {
+            $raw = $lines[$i];
+            $line = trim($raw);
+            if ($line === '') {
+                if ($meta !== [] || $introLines !== []) {
+                    // Blank line after meta/intro ends the preamble scan once meta started.
+                    if ($meta !== []) {
+                        $i++;
+                        break;
+                    }
+                }
+                $i++;
+                continue;
+            }
+            if (str_starts_with($line, '## ')) {
+                break;
+            }
+            if (preg_match('/^\*{0,2}\s*(.+?)\s*\*{0,2}:\s*\*{0,2}\s*(.*?)\s*\*{0,2}$/u', $line, $match)) {
+                $label = trim($match[1], " \t*");
+                $value = trim($match[2], " \t*");
+                if ($label !== '' && $value !== '' && $value !== '—') {
+                    $meta[] = ['label' => $label, 'value' => $value];
+                }
+                $i++;
+                continue;
+            }
+            if ($meta !== []) {
+                break;
+            }
+            $introLines[] = $raw;
+            $i++;
+        }
+
+        $remainder = trim(implode("\n", array_slice($lines, $i)));
+        $chunks = $remainder === '' ? [] : (preg_split("/\n(?=##\s+)/", $remainder) ?: []);
         $sections = [];
         foreach ($chunks as $chunk) {
             $chunk = trim($chunk);
@@ -358,19 +409,54 @@ class AffiliateTermsService
                 continue;
             }
             if (preg_match('/^##\s+(.+?)\n(.*)$/s', $chunk, $matches)) {
+                $title = trim($matches[1]);
+                $title = preg_replace('/^\d+\.\s+/', '', $title) ?? $title;
+                $body = trim($matches[2]);
                 $sections[] = [
-                    'title' => trim($matches[1]),
-                    'body' => trim($matches[2]),
-                ];
-            } else {
-                $sections[] = [
-                    'title' => __('affiliate_terms.general_provisions'),
-                    'body' => $chunk,
+                    'title' => $title,
+                    'body' => $this->stripMarkdownMarkers($body),
+                    'body_html' => $this->formatAgreementHtml($body),
                 ];
             }
         }
 
-        return $sections;
+        $intro = trim(implode("\n", $introLines));
+
+        return [
+            'meta' => $meta,
+            'intro' => $this->stripMarkdownMarkers($intro),
+            'intro_html' => $this->formatAgreementHtml($intro),
+            'sections' => $sections,
+        ];
+    }
+
+    /** @return list<array{title: string, body: string, body_html?: string}> */
+    public function documentSections(Vendor $affiliate, ?PartnerAgreementAcceptance $acceptance = null): array
+    {
+        return $this->parseDocument($affiliate, $acceptance)['sections'];
+    }
+
+    private function stripMarkdownMarkers(string $text): string
+    {
+        $text = preg_replace('/\*\*(.+?)\*\*/u', '$1', $text) ?? $text;
+        $text = preg_replace('/__(.+?)__/u', '$1', $text) ?? $text;
+
+        return trim($text);
+    }
+
+    private function formatAgreementHtml(string $text): string
+    {
+        $parts = preg_split('/(\*\*.+?\*\*|__.+?__)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$text];
+        $html = '';
+        foreach ($parts as $part) {
+            if (preg_match('/^\*\*(.+)\*\*$/us', $part, $match) || preg_match('/^__(.+)__$/us', $part, $match)) {
+                $html .= '<strong>'.e($match[1]).'</strong>';
+            } else {
+                $html .= e($part);
+            }
+        }
+
+        return nl2br($html, false);
     }
 
     public function contractDurationLabel(int $months, ?string $locale = null): string
