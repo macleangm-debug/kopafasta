@@ -8,7 +8,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | --- | --- | --- |
 | **Accepted production baseline** | `0b292c681f5c110d33bcc8fe324c9c618ea5b0ac` | Release 2 production-closed and **FROZEN**. Do not mix Premium Affiliate work into this SHA. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
-| **Current staging / development baseline** | `f608ee30d6d64da8e8b8094ff4e9ac5dc9c13c86` | Premium Affiliate economical pass. One Settings Hub rate SoT; Premium-only negotiated override; 360 + contract snapshot. **Staging only. Do not promote until Owner UAT.** |
+| **Current staging / development baseline** | `ecb9c5b7909e3af4b96410b3b3785a9bd77eac85` | Owner UAT cleanup pass (Affiliate wizard/agreement/receipt + Borrower Loans). Staging only. Do not promote until Owner UAT. Prior Premium pass tip: `8412fadd…` / feature `f608ee30…`. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
