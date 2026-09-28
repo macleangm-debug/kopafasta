@@ -391,7 +391,13 @@ class LoanApplicationDraftService
                 'detail' => $feePending
                     ? __('borrower.applications_list.draft_fee_pending')
                     : __('borrower.applications_list.draft_in_progress'),
-                'url' => route('site.borrower.loan-profile.draft', $draft),
+                'url' => $feePending && $product
+                    ? (app(ApplicationFeePaymentService::class)->unpaidFeeActionUrl(
+                        $customer,
+                        $product,
+                        $draft->payload ?? [],
+                    ) ?: route('site.borrower.loan-profile.draft', $draft))
+                    : route('site.borrower.loan-profile.draft', $draft),
                 'saved_at' => optional($draft->saved_at)->diffForHumans(),
             ];
         }

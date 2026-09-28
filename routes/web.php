@@ -327,6 +327,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/borrower/apply/draft', [ApplyController::class, 'loadDraft'])->name('borrower.apply.draft');
             Route::put('/borrower/apply/draft', [ApplyController::class, 'saveDraft'])->name('borrower.apply.draft.save');
             Route::get('/borrower/apply/application-fee/quote', [ApplyController::class, 'applicationFeeQuote'])->name('borrower.apply.application-fee.quote');
+            Route::get('/borrower/apply/application-fee/resume', [ApplyController::class, 'resumeApplicationFee'])->name('borrower.apply.application-fee.resume');
             Route::get('/borrower/apply/valuation-fee/quote', [ApplyController::class, 'valuationFeeQuote'])->name('borrower.apply.valuation-fee.quote');
             Route::post('/borrower/apply/asset-document', [ApplyController::class, 'uploadAssetDocument'])->name('borrower.apply.asset-document');
             Route::post('/borrower/apply/education-document', [ApplyController::class, 'uploadEducationDocument'])->name('borrower.apply.education-document');

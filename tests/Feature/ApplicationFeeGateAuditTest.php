@@ -603,4 +603,139 @@ class ApplicationFeeGateAuditTest extends TestCase
         $this->assertSame(route('site.borrower.payments.show', $payment), $obligation['wait_url']);
         $this->assertFalse(app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $payload));
     }
+
+    public function test_continue_and_pay_resume_same_payment_show_obligation(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->product();
+        $payload = array_merge($this->quotePayload($product), [
+            'draft_reference' => 'APP-IL-RESUME',
+            'step_key' => 'quote',
+        ]);
+
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 10_000,
+            'currency' => 'TZS',
+            'status' => 'awaiting_payment',
+            'reference' => 'PAY-APP-FEE-RESUME',
+            'provider_meta' => [
+                'apply_context' => [
+                    'loan_product_id' => $product->id,
+                    'draft_reference' => 'APP-IL-RESUME',
+                ],
+            ],
+        ]);
+
+        $draft = LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 1,
+            'draft_reference' => 'APP-IL-RESUME',
+            'payload' => array_merge($payload, [
+                'application_fee' => [
+                    'status' => 'processing',
+                    'reference' => $payment->reference,
+                    'payment_id' => $payment->id,
+                    'amount' => 10_000,
+                ],
+            ]),
+            'saved_at' => now(),
+        ]);
+
+        $fees = app(ApplicationFeePaymentService::class);
+        $before = $fees->obligation($customer, $product, $draft->payload);
+        $this->assertSame('PAY-APP-FEE-RESUME', $before['payment']?->reference);
+        $showUrl = route('site.borrower.payments.show', $payment);
+
+        $continueUrl = $fees->unpaidFeeActionUrl($customer, $product, $draft->payload);
+        $this->assertSame($showUrl, $continueUrl);
+
+        $dashboard = app(\App\Services\BorrowerApplicationsDashboardService::class)->formatDraft($customer, $draft->fresh());
+        $this->assertSame($showUrl, $dashboard['action_url']);
+        $this->assertSame($showUrl, $dashboard['continue_url']);
+
+        $next = app(\App\Services\LoanApplicationNextActionService::class)->forDraft($customer, $draft->fresh(), $product);
+        $this->assertSame($showUrl, $next['url']);
+        $this->assertSame('pay_application_fee', $next['code']);
+        $this->assertSame(__('borrower.applications_list.continue'), $next['button_label']);
+
+        $this->actingAs($customer->user)
+            ->get(route('site.borrower.apply.application-fee.resume', [
+                'loan_product_id' => $product->id,
+            ]))
+            ->assertRedirect($showUrl);
+
+        $after = $fees->obligation($customer, $product, $draft->fresh()->payload);
+        $this->assertSame('PAY-APP-FEE-RESUME', $after['payment']?->reference);
+        $this->assertSame(1, CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'application_fee')
+            ->count());
+    }
+
+    public function test_due_fee_continue_opens_payment_show_without_duplicate(): void
+    {
+        $customer = $this->borrower();
+        $product = $this->product();
+        $payload = array_merge($this->quotePayload($product), [
+            'draft_reference' => 'APP-IL-DUE',
+            'step_key' => 'quote',
+        ]);
+
+        LoanApplicationDraft::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'phase' => 'application',
+            'step' => 1,
+            'draft_reference' => 'APP-IL-DUE',
+            'payload' => $payload,
+            'saved_at' => now(),
+        ]);
+
+        $fees = app(ApplicationFeePaymentService::class);
+        $this->assertSame('due', $fees->obligation($customer, $product, $payload)['status']);
+
+        $resumeUrl = $fees->unpaidFeeActionUrl($customer, $product, $payload);
+        $this->assertSame(
+            route('site.borrower.apply.application-fee.resume', ['loan_product_id' => $product->id]),
+            $resumeUrl,
+        );
+
+        $this->actingAs($customer->user)
+            ->get($resumeUrl)
+            ->assertRedirect();
+
+        $payment = CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'application_fee')
+            ->first();
+        $this->assertNotNull($payment);
+        $reference = $payment->reference;
+
+        // Second Continue must reuse the same obligation (not mint another).
+        $second = $this->actingAs($customer->user)
+            ->get($resumeUrl);
+        $obligation = app(ApplicationFeePaymentService::class)->obligation(
+            $customer,
+            $product,
+            array_merge($payload, ['draft_reference' => 'APP-IL-DUE']),
+        );
+        if ($obligation['status'] === 'paid') {
+            // Dummy / non-await gateway may settle on open — still one obligation, no duplicate.
+            $second->assertRedirect();
+        } else {
+            $second->assertRedirect(route('site.borrower.payments.show', $payment));
+        }
+
+        $this->assertSame(1, CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'application_fee')
+            ->count());
+        $this->assertSame($reference, CustomerPayment::query()->where('id', $payment->id)->value('reference'));
+    }
 }

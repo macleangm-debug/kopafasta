@@ -93,10 +93,14 @@ class BorrowerApplicationsDashboardService
         $profileProgress = $this->draftProgress($customer, $draft, $product);
         $applicationProgress = app(ApplicationProgressService::class)
             ->applicationDraftProgress($customer, $draft, $product);
+        $payload = is_array($draft->payload) ? $draft->payload : [];
+        if (filled($draft->draft_reference)) {
+            $payload['draft_reference'] = $draft->draft_reference;
+        }
         $feePending = $product && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor(
             $customer,
             $product,
-            $draft->payload ?? [],
+            $payload,
         );
 
         $resumeTarget = $this->drafts->resumeTarget($customer, $draft);
@@ -115,16 +119,16 @@ class BorrowerApplicationsDashboardService
             : __('borrower.applications_list.draft_in_progress');
         $actionUrl = $wizardUrl;
         $actionLabel = __('borrower.applications_list.continue');
-        if ($feePending && $product) {
-            $obligation = app(ApplicationFeePaymentService::class)->obligation(
+        if ($product) {
+            $feeActionUrl = app(ApplicationFeePaymentService::class)->unpaidFeeActionUrl(
                 $customer,
                 $product,
-                $draft->payload ?? [],
+                $payload,
             );
-            if (filled($obligation['wait_url'] ?? null)) {
-                $actionUrl = (string) $obligation['wait_url'];
+            if (filled($feeActionUrl)) {
+                $actionUrl = $feeActionUrl;
+                $actionLabel = __('borrower.applications_list.continue');
             }
-            $actionLabel = __('borrower.apply.application_fee.pay_cta');
         }
 
         return [

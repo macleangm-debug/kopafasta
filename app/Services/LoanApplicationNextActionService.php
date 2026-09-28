@@ -35,6 +35,22 @@ class LoanApplicationNextActionService
         $requirements = collect($this->progress->profileRequirements($customer, $product));
         $firstMissing = $requirements->first(fn (array $item) => ! ($item['complete'] ?? false) && filled($item['action_url'] ?? null));
 
+        // Unpaid application fee always resumes payment.show — ahead of profile gaps and quote.
+        if ($product && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $draft->payload ?? [])) {
+            $payUrl = app(ApplicationFeePaymentService::class)->unpaidFeeActionUrl(
+                $customer,
+                $product,
+                $draft->payload ?? [],
+            ) ?: $wizardUrl;
+
+            return $this->action(
+                'pay_application_fee',
+                __('borrower.loan_profile.next_actions.application_fee'),
+                __('borrower.applications_list.continue'),
+                $payUrl,
+            );
+        }
+
         if ($firstMissing) {
             // Always resume the wizard — profile gaps are surfaced inside the apply flow.
             return $this->action(
@@ -42,20 +58,6 @@ class LoanApplicationNextActionService
                 __('borrower.loan_profile.next_actions.continue_form'),
                 __('borrower.loan_profile.actions.continue_to_form'),
                 $wizardUrl,
-            );
-        }
-
-        if ($product && ! app(ApplicationFeePaymentService::class)->isSatisfiedFor($customer, $product, $draft->payload ?? [])) {
-            $obligation = app(ApplicationFeePaymentService::class)->obligation($customer, $product, $draft->payload ?? []);
-            $payUrl = filled($obligation['wait_url'] ?? null)
-                ? (string) $obligation['wait_url']
-                : $wizardUrl;
-
-            return $this->action(
-                'pay_application_fee',
-                __('borrower.loan_profile.next_actions.application_fee'),
-                __('borrower.apply.application_fee.pay_cta'),
-                $payUrl,
             );
         }
 

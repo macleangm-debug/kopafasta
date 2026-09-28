@@ -104,6 +104,76 @@ class ApplicationFeePaymentService
         return ['status' => 'due'] + $empty;
     }
 
+    /**
+     * Canonical Continue / Pay URL when the application fee is still unpaid.
+     * Prefer an existing payment.show obligation; otherwise a GET resume that opens one.
+     * Never returns the apply wizard/quote URL.
+     *
+     * @param  array<string, mixed>|null  $draftPayload
+     */
+    public function unpaidFeeActionUrl(
+        Customer $customer,
+        LoanProduct $product,
+        ?array $draftPayload = null,
+        ?LoanApplication $application = null,
+    ): ?string {
+        if ($this->isSatisfiedFor($customer, $product, $draftPayload, $application)) {
+            return null;
+        }
+
+        $obligation = $this->obligation($customer, $product, $draftPayload, $application);
+        if (filled($obligation['wait_url'] ?? null)) {
+            return (string) $obligation['wait_url'];
+        }
+
+        return route('site.borrower.apply.application-fee.resume', [
+            'loan_product_id' => $product->id,
+        ]);
+    }
+
+    /**
+     * Open or resume the shared payment.show gate for an unpaid application fee.
+     * Reuses an existing obligation when present — never mints a second verified fee.
+     *
+     * @param  array<string, mixed>|null  $draftPayload
+     * @return array{status: string, reference: string|null, channel: string, amount: int, paid_at: string|null, payment_id?: int, wait_url?: string|null}
+     */
+    public function resumeOrOpenPaymentShow(
+        Customer $customer,
+        LoanProduct $product,
+        ?array $draftPayload = null,
+    ): array {
+        $obligation = $this->obligation($customer, $product, $draftPayload);
+        if (in_array($obligation['status'], ['not_applicable', 'paid'], true)) {
+            return [
+                'status' => $obligation['status'],
+                'reference' => $obligation['payment']?->reference,
+                'channel' => 'waived',
+                'amount' => (int) ($obligation['amount'] ?? 0),
+                'paid_at' => optional($obligation['payment']?->paid_at)->toIso8601String(),
+                'payment_id' => $obligation['payment']?->id,
+                'wait_url' => null,
+            ];
+        }
+
+        if (filled($obligation['wait_url'] ?? null) && $obligation['payment']) {
+            return $this->feeStateFromPayment(
+                $obligation['payment'],
+                (int) ($obligation['amount'] ?? $obligation['payment']->amount),
+                $obligation['payment']->payment_method === 'bank_transfer' ? 'bank' : 'mobile_money',
+            );
+        }
+
+        $state = $this->openSharedGate(
+            $customer,
+            $product,
+            $this->generatePaymentReference(),
+        );
+        app(LoanApplicationDraftService::class)->saveApplicationFee($customer, $product->id, $state);
+
+        return $state;
+    }
+
     /** @param  array<string, mixed>|null  $draftPayload */
     public function requiredAmount(Customer $customer, LoanProduct $product, ?array $draftPayload = null): int
     {
@@ -834,7 +904,14 @@ class ApplicationFeePaymentService
             $draftPayload['draft_reference'] = $draft->draft_reference;
         }
         $payment = $this->obligation($customer, $product, $draftPayload)['payment'] ?? null;
-        if (! $payment || ! in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true)) {
+        if (! $payment || ! in_array($payment->status, [
+            'awaiting_payment',
+            'processing',
+            'pending_verification',
+            'failed',
+            'expired',
+            'cancelled',
+        ], true)) {
             return null;
         }
 

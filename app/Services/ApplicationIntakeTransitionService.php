@@ -385,6 +385,9 @@ class ApplicationIntakeTransitionService
         $isDraft = $toStatus === 'draft'
             || in_array($toStage, ['draft', ApplicationIntakeReadinessService::STATE_DRAFT], true);
 
+        $awaitingGuarantor = $toStatus === 'awaiting_guarantor'
+            || in_array($toStage, ['awaiting_guarantor', ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR], true);
+
         return [
             'to_status' => $toStatus,
             'to_stage' => $toStage,
@@ -394,7 +397,9 @@ class ApplicationIntakeTransitionService
             'withdrawal_history_id' => $withdrawalEvent?->id,
             'state_label' => $isDraft
                 ? __('admin.intake.restore_to_draft')
-                : __('admin.intake.restore_to_submitted'),
+                : ($awaitingGuarantor
+                    ? __('admin.intake.restore_to_awaiting_guarantor')
+                    : __('admin.intake.restore_to_submitted')),
         ];
     }
 

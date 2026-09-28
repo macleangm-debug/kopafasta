@@ -1320,6 +1320,55 @@ class ApplyController extends Controller
         return back()->with('status', $message);
     }
 
+    /**
+     * Continue / Pay when fee is unpaid: always land on the existing (or newly opened)
+     * payment.show obligation — never the quote/wizard card.
+     */
+    public function resumeApplicationFee(
+        Request $request,
+        LoanApplicationDraftService $drafts,
+        ApplicationFeePaymentService $fees,
+    ): RedirectResponse {
+        $customer = Auth::user()->customer ?? Customer::where('user_id', Auth::id())->first();
+        abort_unless($customer, 403);
+
+        $data = $request->validate([
+            'loan_product_id' => ['required', 'integer', 'exists:loan_products,id'],
+        ]);
+        $product = LoanProduct::where('id', $data['loan_product_id'])->where('is_active', true)->firstOrFail();
+        $draft = $drafts->find($customer, $product->id);
+        $payload = is_array($draft?->payload) ? $draft->payload : [];
+        if ($draft?->draft_reference) {
+            $payload['draft_reference'] = $draft->draft_reference;
+        }
+
+        if ($fees->isSatisfiedFor($customer, $product, $payload)) {
+            $next = $fees->nextStepAfterApplicationFee($customer, $product, $payload);
+
+            return redirect()->route('site.borrower.apply', [
+                'product' => $product->id,
+                'resume' => 1,
+                'step_key' => $next,
+                'fee_return' => 'paid',
+            ]);
+        }
+
+        $before = $fees->obligation($customer, $product, $payload);
+        $beforeRef = $before['payment']?->reference;
+        $feeState = $fees->resumeOrOpenPaymentShow($customer, $product, $payload);
+        $afterRef = $feeState['reference'] ?? null;
+
+        abort_unless(filled($feeState['wait_url'] ?? null), 404);
+
+        return redirect()->to((string) $feeState['wait_url'])
+            ->with('status', __('borrower.payment_waiting.ready'))
+            ->with('kf_fee_resume', [
+                'before_reference' => $beforeRef,
+                'after_reference' => $afterRef,
+                'same_obligation' => filled($beforeRef) && $beforeRef === $afterRef,
+            ]);
+    }
+
     public function payValuationFee(
         Request $request,
         LoanApplicationDraftService $drafts,
