@@ -15,9 +15,10 @@ class AffiliateTermsService
     /**
      * Approved placeholder catalogue. Terms templates may only use these keys.
      *
+     * @param  array<string, string>  $overrides
      * @return array<string, string>
      */
-    public function variables(?Vendor $affiliate = null, ?string $locale = null): array
+    public function variables(?Vendor $affiliate = null, ?string $locale = null, array $overrides = []): array
     {
         $locale = $locale ?: app()->getLocale();
         $membership = AffiliateMembershipService::config();
@@ -32,8 +33,26 @@ class AffiliateTermsService
         $contractMonths = app(AffiliateSettingsService::class)->premiumContractDurationMonths();
         $contractLabel = $this->contractDurationLabel($contractMonths, $locale);
         $commercial = app(AffiliateCommercialTermsService::class)->contractSnapshot($affiliate);
+        $minWithdrawal = (string) ($commercial['minimum_withdrawal_amount'] ?? format_money($settings->minimumPayoutAmount()));
+        $effectiveDate = now()->format('d M Y');
+        $ratesTable = $this->formatRatesTable($commercial, $settings, $affiliate, $locale);
+        $benefitsTable = $this->formatBenefitsTable($commercial, $settings, $affiliate, $locale);
+        $note = $affiliate ? app(AffiliateCommercialTermsService::class)->commercialNote($affiliate) : null;
+        $negotiated = filled($note) ? (string) $note : (string) __('affiliate_terms.negotiated_none', [], $locale);
+        $exclusivity = (string) __('affiliate_terms.exclusivity_none', [], $locale);
+        $agreementTerm = $premium
+            ? $contractLabel
+            : $this->standardContractTerm($affiliate);
+        $signatory = trim((string) Setting::get('company.authorized_signatory', ''));
+        $signatoryTitle = trim((string) Setting::get('company.authorized_signatory_title', ''));
+        if ($signatory === '') {
+            $signatory = brand_name();
+        }
+        if ($signatoryTitle === '') {
+            $signatoryTitle = 'Authorized signatory';
+        }
 
-        return [
+        $vars = [
             'membership_fee' => format_money($fee),
             'membership_fee_individual' => format_money((float) $membership['fee_amount_individual']),
             'membership_fee_company' => format_money((float) $membership['fee_amount_company']),
@@ -41,6 +60,16 @@ class AffiliateTermsService
             'membership_grace_hours' => (string) ($membership['grace_period_hours'] ?? 48),
             'premium_contract_months' => (string) $contractMonths,
             'premium_contract_label' => $contractLabel,
+            'affiliate_name' => $affiliate?->name ?: '—',
+            'affiliate_number' => (string) ($affiliate?->partner_number ?: ($affiliate ? '#'.$affiliate->id : '—')),
+            'effective_date' => $effectiveDate,
+            'accepted_at' => '—',
+            'executed_at' => '—',
+            'agreement_version' => (string) $this->agreementVersion(),
+            'authorized_signatory' => $signatory,
+            'authorized_signatory_title' => $signatoryTitle,
+            'company_signature' => 'Electronic acceptance',
+            'affiliate_signature_or_acceptance' => 'Electronic acceptance',
             'affiliate_type' => $premium
                 ? __('site.affiliate_portal.premium_partner')
                 : __('site.affiliate_portal.hero_type_affiliate'),
@@ -56,9 +85,22 @@ class AffiliateTermsService
                 ? $commercial['plus_discount_percent']
                 : __('admin.partners.commercial_not_applicable'),
             'commercial_effective_from' => $commercial['commercial_effective_from'],
+            'commercial_terms_effective_date' => $commercial['commercial_effective_from'],
+            'effective_rates_table' => $ratesTable,
+            'commission_table' => $ratesTable,
+            'customer_benefits_table' => $benefitsTable,
+            'benefits_table' => $benefitsTable,
+            'minimum_withdrawal_amount' => $minWithdrawal,
+            'withdrawal_terms' => (string) __('affiliate_terms.withdrawal_terms_text', [], $locale),
+            'agreement_term' => $agreementTerm,
+            'exclusivity_terms' => $exclusivity,
+            'negotiated_terms' => $negotiated,
+            'application_commission_description' => (string) __('affiliate_terms.application_commission_description', [], $locale),
+            'plus_commission_description' => (string) __('affiliate_terms.plus_commission_description', [], $locale),
+            'other_commission_description' => (string) __('affiliate_terms.other_commission_description', [], $locale),
             'membership_clause' => $this->membershipClause($affiliate, $locale),
             'territory' => $settings->assessmentCountry($affiliate),
-            'agreement_start' => $affiliate?->membership_started_at?->format('d M Y') ?? '—',
+            'agreement_start' => $affiliate?->membership_started_at?->format('d M Y') ?? $effectiveDate,
             'agreement_end' => $affiliate?->membership_expires_at?->format('d M Y') ?? '—',
             'assessment_period' => $premium ? __('admin.partners.commercial_not_applicable') : (string) $settings->evaluationPeriodDays(),
             'assessment_period_label' => $premium ? __('admin.partners.commercial_not_applicable') : $this->periodLabel($settings->evaluationPeriodDays(), $locale),
@@ -72,6 +114,12 @@ class AffiliateTermsService
             'policy_version' => (string) $settings->policyVersion(),
             'brand' => brand_name(),
         ];
+
+        foreach ($overrides as $key => $value) {
+            $vars[$key] = (string) $value;
+        }
+
+        return $vars;
     }
 
     /** @return list<string> */
@@ -87,7 +135,8 @@ class AffiliateTermsService
 
     public function agreementVersion(): int
     {
-        return max(1, (int) Setting::get('affiliates.terms.version', 1));
+        // Content revision 2: Owner EN/SW Affiliate + Premium partnership copy (no promo code).
+        return max(2, (int) Setting::get('affiliates.terms.version', 2));
     }
 
     public function template(?string $locale = null, ?Vendor $affiliate = null): string
@@ -109,13 +158,29 @@ class AffiliateTermsService
         return (string) (filled($fallback) ? $fallback : __('affiliate_terms.body', [], $locale));
     }
 
-    public function render(?Vendor $affiliate = null, ?string $locale = null): string
+    public function agreementTitle(?Vendor $affiliate = null, ?string $locale = null): string
+    {
+        $locale = $locale ?: app()->getLocale();
+        if ($affiliate?->isPremiumAffiliate()) {
+            return (string) __('affiliate_terms.premium_title', [], $locale);
+        }
+
+        return (string) __('affiliate_terms.title', [], $locale);
+    }
+
+    /**
+     * @param  array<string, string>  $overrides
+     */
+    public function render(?Vendor $affiliate = null, ?string $locale = null, array $overrides = []): string
     {
         $locale = $locale ?: app()->getLocale();
         $text = $this->template($locale, $affiliate);
-        foreach ($this->variables($affiliate, $locale) as $key => $value) {
+        foreach ($this->variables($affiliate, $locale, $overrides) as $key => $value) {
             $text = str_replace(['{{'.$key.'}}', '{'.$key.'}'], $value, $text);
         }
+
+        // Never leave unresolved placeholders in customer-facing output.
+        $text = preg_replace('/\{\{[a-z0-9_]+\}\}/i', '', $text) ?? $text;
 
         return $text;
     }
@@ -142,10 +207,26 @@ class AffiliateTermsService
     {
         $locale = $locale ?: app()->getLocale();
         $vendor = $affiliate instanceof Vendor ? $affiliate : Vendor::query()->find($affiliate->id);
-        $rendered = $this->render($vendor, $locale);
+        $acceptedAt = now();
+        $stamp = $acceptedAt->format('d M Y H:i');
+        $overrides = [
+            'accepted_at' => $stamp,
+            'executed_at' => $stamp,
+            'effective_date' => $acceptedAt->format('d M Y'),
+        ];
+        $rendered = $this->render($vendor, $locale, $overrides);
         $snapshot = array_merge(
-            $this->variables($vendor, $locale),
+            $this->variables($vendor, $locale, $overrides),
             $vendor ? app(AffiliateCommercialTermsService::class)->contractSnapshot($vendor) : [],
+            [
+                'contract_type' => $vendor?->isPremiumAffiliate()
+                    ? 'premium_affiliate_partnership'
+                    : 'affiliate_agreement',
+                'language' => $locale,
+                'classification' => $vendor?->isPremiumAffiliate() ? 'premium_affiliate' : 'affiliate',
+                'accepted_at' => $stamp,
+                'executed_at' => $stamp,
+            ],
         );
 
         $acceptance = PartnerAgreementAcceptance::query()->create([
@@ -160,7 +241,7 @@ class AffiliateTermsService
             'settings_snapshot' => $snapshot,
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 500),
-            'accepted_at' => now(),
+            'accepted_at' => $acceptedAt,
         ]);
 
         if ($affiliate->isPremiumAffiliate()) {
@@ -174,8 +255,10 @@ class AffiliateTermsService
     /** @return array<string, mixed> */
     public function documentHeader(Vendor $affiliate, array $commercial, ?PartnerAgreementAcceptance $acceptance = null): array
     {
+        $locale = $acceptance?->locale ?: app()->getLocale();
+
         return [
-            'title' => __('affiliate_terms.title'),
+            'title' => $this->agreementTitle($affiliate, $locale),
             'affiliate_name' => $affiliate->name,
             'affiliate_id' => $affiliate->partner_number ?: '#'.$affiliate->id,
             'affiliate_code' => $affiliate->affiliate_code,
@@ -186,11 +269,13 @@ class AffiliateTermsService
             'policy_version' => $acceptance?->policy_version ?? $this->policyVersion(),
             'effective_date' => $acceptance?->accepted_at?->format('d M Y') ?? now()->format('d M Y'),
             'contract_term' => $commercial['premium'] ?? false
-                ? $this->contractDurationLabel((int) ($commercial['duration_months'] ?? app(AffiliateSettingsService::class)->premiumContractDurationMonths()))
+                ? $this->contractDurationLabel((int) ($commercial['duration_months'] ?? app(AffiliateSettingsService::class)->premiumContractDurationMonths()), $locale)
                 : $this->standardContractTerm($affiliate),
             'start_date' => $commercial['started_at']?->format('d M Y'),
             'end_date' => $commercial['expires_at']?->format('d M Y'),
             'accepted_at' => $acceptance?->accepted_at?->format('d M Y'),
+            'minimum_withdrawal_amount' => data_get($acceptance?->settings_snapshot, 'minimum_withdrawal_amount')
+                ?? format_money(app(AffiliateSettingsService::class)->minimumPayoutAmount()),
         ];
     }
 
@@ -268,5 +353,62 @@ class AffiliateTermsService
         }
 
         return $days.' '.__('affiliate_terms.days', [], $locale);
+    }
+
+    /**
+     * @param  array<string, mixed>  $commercial
+     */
+    private function formatRatesTable(
+        array $commercial,
+        AffiliateSettingsService $settings,
+        ?Vendor $affiliate,
+        string $locale
+    ): string {
+        $country = $settings->assessmentCountry($affiliate);
+        $rows = [
+            __('affiliate_terms.rate_commission', [], $locale).': '.$commercial['commission_percent'],
+        ];
+        if ($settings->benefitAppliesInTerritory('registration_fee', $country)) {
+            $rows[] = __('affiliate_terms.rate_registration', [], $locale).': '.$commercial['registration_discount_percent'];
+        }
+        if ($settings->benefitAppliesInTerritory('application_fee', $country)) {
+            $rows[] = __('affiliate_terms.rate_application', [], $locale).': '.$commercial['application_discount_percent'];
+        }
+        if ($settings->benefitAppliesInTerritory('kopafasta_plus', $country)) {
+            $rows[] = __('affiliate_terms.rate_plus', [], $locale).': '.$commercial['plus_discount_percent'];
+        }
+
+        return implode("\n", $rows);
+    }
+
+    /**
+     * @param  array<string, mixed>  $commercial
+     */
+    private function formatBenefitsTable(
+        array $commercial,
+        AffiliateSettingsService $settings,
+        ?Vendor $affiliate,
+        string $locale
+    ): string {
+        $country = $settings->assessmentCountry($affiliate);
+        $rows = [];
+        if ($settings->benefitAppliesInTerritory('registration_fee', $country)
+            && (float) str_replace('%', '', (string) $commercial['registration_discount_percent']) > 0) {
+            $rows[] = __('affiliate_terms.rate_registration', [], $locale).': '.$commercial['registration_discount_percent'];
+        }
+        if ($settings->benefitAppliesInTerritory('application_fee', $country)
+            && (float) str_replace('%', '', (string) $commercial['application_discount_percent']) > 0) {
+            $rows[] = __('affiliate_terms.rate_application', [], $locale).': '.$commercial['application_discount_percent'];
+        }
+        if ($settings->benefitAppliesInTerritory('kopafasta_plus', $country)
+            && (float) str_replace('%', '', (string) $commercial['plus_discount_percent']) > 0) {
+            $rows[] = __('affiliate_terms.rate_plus', [], $locale).': '.$commercial['plus_discount_percent'];
+        }
+
+        if ($rows === []) {
+            return (string) __('affiliate_terms.benefit_none', [], $locale);
+        }
+
+        return implode("\n", $rows);
     }
 }

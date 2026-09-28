@@ -73,7 +73,7 @@ class PartnerGovernanceClosureFeatureTest extends TestCase
         $this->assertStringContainsString('5, 2', $recovery);
     }
 
-    public function test_affiliate_terms_consume_evaluation_settings(): void
+    public function test_affiliate_terms_expose_evaluation_settings_in_variable_catalogue(): void
     {
         Setting::set('affiliates.evaluation', array_merge(
             app(AffiliateSettingsService::class)->evaluationSettings(),
@@ -86,9 +86,15 @@ class PartnerGovernanceClosureFeatureTest extends TestCase
             ]
         ));
 
+        $vars = app(AffiliateTermsService::class)->variables();
+        $this->assertSame('45', $vars['assessment_period']);
+        $this->assertStringContainsString('45', $vars['assessment_period_label']);
+        $this->assertSame('12', $vars['minimum_qualified_referrals']);
+
+        // Owner legal copy no longer hard-embeds KPI counts; catalogue remains the SoT for Settings-backed placeholders.
         $html = app(AffiliateTermsService::class)->render();
-        $this->assertStringContainsString('45 days', $html);
-        $this->assertStringContainsString('12', $html);
+        $this->assertStringContainsString('performance measures', $html);
+        $this->assertStringNotContainsString('{{', $html);
     }
 
     public function test_material_terms_change_blocks_jobs_until_reacceptance(): void

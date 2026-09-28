@@ -148,6 +148,7 @@ class AffiliateCommercialTermsService
             'application_discount_percent' => $this->formatPercent($rates['application_discount_percent']),
             'commission_percent' => $this->formatPercent($rates['affiliate_commission_percent']),
             'plus_discount_percent' => $this->formatPercent($rates['plus_discount_percent']),
+            'minimum_withdrawal_amount' => format_money($this->settings->minimumPayoutAmount()),
             'commercial_effective_from' => $affiliate
                 ? ($this->effectiveFrom($affiliate)?->format('d M Y') ?? '—')
                 : '—',
