@@ -166,7 +166,8 @@ class StaffDeskConsoleFeatureTest extends TestCase
 
         $this->actingAs($user, 'admin')
             ->get(route('admin.partners.show', $pending->partner_id))
-            ->assertRedirect(route('admin.partner-applications.show', $pending));
+            ->assertOk()
+            ->assertSee('Neema Valuations', false);
 
         $this->actingAs($user, 'admin')
             ->get(route('admin.partner-applications.show', $pending))
