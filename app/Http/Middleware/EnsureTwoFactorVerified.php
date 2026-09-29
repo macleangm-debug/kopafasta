@@ -11,6 +11,12 @@ class EnsureTwoFactorVerified
 {
     public function handle(Request $request, Closure $next, string $context): Response
     {
+        if ($context === 'partner'
+            && app(\App\Services\AdminRoleViewService::class)->isActive()
+            && (app(\App\Services\AdminRoleViewService::class)->active()['subject_type'] ?? null) === 'partner') {
+            return $next($request);
+        }
+
         $twoFactor = app(WebTwoFactorAuthService::class);
 
         $user = $request->user('admin') ?? $request->user();

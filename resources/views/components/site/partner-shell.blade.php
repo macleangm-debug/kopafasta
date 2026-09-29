@@ -98,6 +98,7 @@
 </head>
 <body class="min-h-full bg-[#faf8f5] text-gray-900 antialiased" x-data="{open:false}">
 <x-site.environment-banner />
+@include('admin.partials._viewing-banner')
 <x-site.kopafasta-launcher />
 
 @if (session('status') || session('warning') || session('error'))

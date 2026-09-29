@@ -40,6 +40,11 @@ trait AuditsActions
 
     protected function auditUser()
     {
-        return Auth::user() ?? Auth::guard('admin')->user();
+        $views = app(\App\Services\AdminRoleViewService::class);
+        if ($views->isActive()) {
+            return $views->actorForAudit(Auth::guard('admin')->user());
+        }
+
+        return Auth::guard('admin')->user() ?? Auth::user();
     }
 }

@@ -98,7 +98,7 @@ class PartnerWorkspaceService
         return route($allowed['home_route']);
     }
 
-    private function workspaceKeyForRole(string $role): ?string
+    public function workspaceKeyForRole(string $role): ?string
     {
         return match ($role) {
             'affiliate' => 'affiliate',
@@ -110,7 +110,7 @@ class PartnerWorkspaceService
         };
     }
 
-    private function labelForRole(string $role): string
+    public function labelForRole(string $role): string
     {
         return match ($role) {
             'affiliate' => __('site.partner_workspace.affiliate'),

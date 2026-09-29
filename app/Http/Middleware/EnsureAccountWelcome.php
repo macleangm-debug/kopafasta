@@ -13,6 +13,10 @@ class EnsureAccountWelcome
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (app(\App\Services\AdminRoleViewService::class)->isActive()) {
+            return $next($request);
+        }
+
         $user = $request->user();
         if (! $user) {
             return $next($request);

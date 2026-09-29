@@ -11,6 +11,11 @@ class EnsurePartnerPin
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (app(\App\Services\AdminRoleViewService::class)->isActive()
+            && (app(\App\Services\AdminRoleViewService::class)->active()['subject_type'] ?? null) === 'partner') {
+            return $next($request);
+        }
+
         $user = $request->user();
 
         if (! $user || $user->role !== 'vendor') {

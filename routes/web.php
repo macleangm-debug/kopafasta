@@ -1014,6 +1014,15 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
         $registerResource('profile-sections', 'profile_section', ProfileSectionDefinitionController::class);
 
         Route::get('search', AdminSearchController::class)->name('search');
+
+        Route::get('role-view/search', [\App\Http\Controllers\Admin\AdminRoleViewController::class, 'search'])
+            ->name('role-view.search');
+        Route::post('role-view/profile', [\App\Http\Controllers\Admin\AdminRoleViewController::class, 'profile'])
+            ->name('role-view.profile');
+        Route::post('role-view/enter', [\App\Http\Controllers\Admin\AdminRoleViewController::class, 'enter'])
+            ->name('role-view.enter');
+        Route::post('role-view/exit', [\App\Http\Controllers\Admin\AdminRoleViewController::class, 'exit'])
+            ->name('role-view.exit');
         Route::get('nav/shortcuts', [AdminShortcutController::class, 'index'])->name('nav.shortcuts.index');
         Route::post('nav/shortcuts', [AdminShortcutController::class, 'store'])->name('nav.shortcuts.store');
         Route::delete('nav/shortcuts', [AdminShortcutController::class, 'destroy'])->name('nav.shortcuts.destroy');

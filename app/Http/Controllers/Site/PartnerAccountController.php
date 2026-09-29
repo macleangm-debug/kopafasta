@@ -12,6 +12,10 @@ class PartnerAccountController extends Controller
 {
     public function updatePin(Request $request, PinService $pins): RedirectResponse
     {
+        if (app(\App\Services\AdminRoleViewService::class)->blocksCredentialMutation()) {
+            abort(403, __('admin.role_view.credentials_blocked'));
+        }
+
         $user = $request->user();
         abort_unless($user && in_array($user->role, ['vendor', 'investor'], true), 403);
 

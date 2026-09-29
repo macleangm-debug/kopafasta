@@ -243,6 +243,25 @@ return [
         'language' => 'Language',
     ],
 
+    'role_view' => [
+        'title' => 'User / Role switcher',
+        'short' => 'User / Role',
+        'hint' => 'View a profile, or enter an assigned role workspace. You stay signed in as Admin.',
+        'search_placeholder' => 'Search partner, staff, or borrower…',
+        'searching' => 'Searching…',
+        'empty' => 'No matches.',
+        'type_more' => 'Type at least 2 characters.',
+        'view_profile' => 'View profile',
+        'enter_as' => 'Enter as :role',
+        'viewing' => 'Viewing',
+        'exit' => 'Exit',
+        'entered' => 'Now viewing the selected workspace. Exit returns to Admin.',
+        'exited' => 'Returned to Admin.',
+        'partner_no_login' => 'Portal login not activated yet — View profile only.',
+        'borrower_profile_only' => 'Borrowers: View profile only (no Partner merge).',
+        'credentials_blocked' => 'Cannot change PIN/password while Admin is viewing a workspace.',
+    ],
+
     'application_360' => [
         'notify_replace_title' => 'Notify borrower to replace guarantor',
         'notify_replace_confirm' => 'Send the existing replace-guarantor notice to this borrower?',

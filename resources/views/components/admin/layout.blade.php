@@ -63,6 +63,7 @@
 
     {{-- Top bar: brand + utilities --}}
     <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-brand/10 shadow-sm">
+        @include('admin.partials._viewing-banner')
         <div class="flex h-14 items-center justify-between gap-4 px-4 lg:px-6"
              x-data="adminGlobalSearch(@js(route('admin.search')))"
              @keydown.window.prevent.meta.k="openSearch()"
@@ -144,6 +145,7 @@
             </template>
 
             <div class="admin-menu flex items-center gap-2 sm:gap-3">
+            @include('admin.partials._role-switcher')
             <x-site.locale-switcher variant="compact" :show-country="false" scope="admin" />
             @if ($shortcutCandidate)
                 <form method="post" action="{{ $shortcutPinned ? route('admin.nav.shortcuts.destroy') : route('admin.nav.shortcuts.store') }}"
