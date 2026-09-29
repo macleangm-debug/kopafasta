@@ -23,6 +23,7 @@
         }
         if ($errors->hasAny([
             'acquisition_methods', 'channels', 'monthly_reach', 'first_10_customers', 'how_heard',
+            'how_heard_other', 'has_social_profile', 'social_platform', 'social_platform_other',
             'social_profile_url', 'registered_business', 'business_name', 'registration_number', 'tin',
             'doc_brela', 'doc_tin_certificate', 'doc_national_id_front', 'doc_national_id_back',
             'documents', 'nida_front_captured', 'nida_back_captured',
@@ -79,6 +80,10 @@
         if (! is_array($howHeardOptions)) {
             $howHeardOptions = [];
         }
+        $socialPlatformOptions = trans('site.affiliate_apply.social_platform_options');
+        if (! is_array($socialPlatformOptions)) {
+            $socialPlatformOptions = [];
+        }
         $conductItems = trans('site.affiliate_apply.conduct_items');
         if (! is_array($conductItems)) {
             $conductItems = array_values(array_filter([
@@ -108,6 +113,9 @@
             'monthly_reach' => __('site.affiliate_apply.missing_monthly_reach'),
             'how_heard' => __('site.affiliate_apply.missing_how_heard'),
             'how_heard_other' => __('site.affiliate_apply.missing_how_heard_other'),
+            'has_social_profile' => __('site.affiliate_apply.missing_has_social'),
+            'social_platform' => __('site.affiliate_apply.missing_social_platform'),
+            'social_platform_other' => __('site.affiliate_apply.missing_social_platform_other'),
             'social_profile_url' => __('site.affiliate_apply.missing_social_profile'),
             'first_10_customers' => __('site.affiliate_apply.missing_first_10'),
             'registered_business' => __('site.affiliate_apply.missing_registered_business'),
@@ -125,7 +133,8 @@
             'occupation' => 2, 'occupation_other' => 2, 'sales_experience' => 2, 'languages' => 2,
             'why_affiliate' => 2, 'previous_agent_details' => 2,
             'acquisition_methods' => 3, 'channels' => 3, 'monthly_reach' => 3, 'how_heard' => 3,
-            'how_heard_other' => 3, 'social_profile_url' => 3,
+            'how_heard_other' => 3, 'has_social_profile' => 3, 'social_platform' => 3,
+            'social_platform_other' => 3, 'social_profile_url' => 3,
             'first_10_customers' => 3, 'registered_business' => 3, 'registration_number' => 3, 'tin' => 3,
             'doc_brela' => 3, 'doc_tin_certificate' => 3, 'doc_national_id' => 3,
             'declaration_accepted' => 4, 'conduct_accepted' => 4,
@@ -138,6 +147,7 @@
             applicant: @js(old('applicant_category', 'individual')),
             registeredBusiness: @js(old('registered_business', 'no')),
             previousAgent: @js(old('previous_agent', 'no')),
+            hasSocialProfile: @js(old('has_social_profile', '')),
             feeRequired: @js((bool) $feeRequired),
             missingLabels: @js($missingLabels),
             missingSteps: @js($missingSteps),
@@ -384,15 +394,42 @@
                         @endforeach
                     </div>
                 </div>
-                <div x-show="needsSocialProfile()" x-cloak>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">
-                        {{ __('site.affiliate_apply.social_profile_url') }}
-                        <span class="text-red-500">*</span>
-                    </label>
-                    <input type="url" name="social_profile_url" value="{{ old('social_profile_url') }}" placeholder="https://"
-                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
-                           :required="needsSocialProfile()">
-                    <p class="mt-1 text-xs text-gray-500">{{ __('site.affiliate_apply.social_profile_hint') }}</p>
+                <div>
+                    <p class="text-xs font-semibold text-gray-600 mb-2">{{ __('site.affiliate_apply.has_social_profile') }} <span class="text-red-500">*</span></p>
+                    <div class="grid grid-cols-2 gap-2 max-w-xs">
+                        @foreach (['yes' => __('site.affiliate_apply.has_social_yes'), 'no' => __('site.affiliate_apply.has_social_no')] as $value => $label)
+                            <label class="cursor-pointer">
+                                <input type="radio" name="has_social_profile" value="{{ $value }}" class="peer sr-only"
+                                       x-model="hasSocialProfile"
+                                       @change="onHasSocialChange()"
+                                       @checked(old('has_social_profile') === $value) required>
+                                <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-2.5 text-center text-sm font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50">{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                <div x-show="hasSocialProfile === 'yes'" x-cloak class="space-y-4 rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 p-4">
+                    <x-site.sheet-select
+                        name="social_platform"
+                        :label="__('site.affiliate_apply.social_platform')"
+                        :options="$socialPlatformOptions"
+                        :value="old('social_platform')"
+                        :placeholder="__('site.affiliate_apply.select_social_platform')"
+                        :required="false"
+                        other-name="social_platform_other"
+                        :other-label="__('site.affiliate_apply.social_platform_other')"
+                    />
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">
+                            {{ __('site.affiliate_apply.social_profile_url') }}
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="url" name="social_profile_url" value="{{ old('social_profile_url') }}" placeholder="https://"
+                               class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                               :required="hasSocialProfile === 'yes'"
+                               :disabled="hasSocialProfile !== 'yes'">
+                        <p class="mt-1 text-xs text-gray-500">{{ __('site.affiliate_apply.social_profile_hint') }}</p>
+                    </div>
                 </div>
                 <div>
                     <x-site.sheet-select
@@ -551,6 +588,7 @@
                 applicant: config.applicant || 'individual',
                 registeredBusiness: config.registeredBusiness || 'no',
                 previousAgent: config.previousAgent || 'no',
+                hasSocialProfile: config.hasSocialProfile || '',
                 feeRequired: !!config.feeRequired,
                 missing: [],
                 missingLabels: config.missingLabels || {},
@@ -563,13 +601,21 @@
                 formValue(name) {
                     const form = this.$refs.affiliateForm;
                     if (!form) return '';
-                    const el = form.querySelector('[name="' + name + '"]');
-                    if (!el) return '';
-                    if (el.type === 'radio') {
+                    const els = form.querySelectorAll('[name="' + name + '"]');
+                    if (!els.length) return '';
+                    const first = els[0];
+                    if (first.type === 'radio') {
                         const checked = form.querySelector('[name="' + name + '"]:checked');
-                        return checked ? checked.value : '';
+                        return checked ? String(checked.value || '').trim() : '';
                     }
-                    return (el.value || '').trim();
+                    // Prefer enabled fields (disabled social fields must not block after Yes→No).
+                    for (const el of els) {
+                        if (el.disabled) continue;
+                        const value = String(el.value || '').trim();
+                        if (value !== '') return value;
+                    }
+                    if (first.disabled) return '';
+                    return String(first.value || '').trim();
                 },
                 hasChecked(name) {
                     const form = this.$refs.affiliateForm;
@@ -595,12 +641,20 @@
                     return (frontHidden && backHidden)
                         || (this.hasFile('doc_national_id_front') && this.hasFile('doc_national_id_back'));
                 },
-                needsSocialProfile() {
-                    const form = this.$refs.affiliateForm;
-                    if (!form) return false;
-                    return ['instagram', 'facebook', 'tiktok'].some((channel) => {
-                        return !!form.querySelector('[name="channels[]"][value="' + channel + '"]:checked');
-                    });
+                onHasSocialChange() {
+                    if (this.hasSocialProfile !== 'yes') {
+                        const form = this.$refs.affiliateForm;
+                        const url = form ? form.querySelector('[name="social_profile_url"]') : null;
+                        if (url) url.value = '';
+                        const platform = form ? form.querySelector('[name="social_platform"]') : null;
+                        if (platform) {
+                            platform.value = '';
+                            platform.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        const other = form ? form.querySelector('[name="social_platform_other"]') : null;
+                        if (other) other.value = '';
+                    }
+                    this.computeMissing();
                 },
                 computeMissing() {
                     const next = [];
@@ -635,7 +689,13 @@
                     const howHeard = this.formValue('how_heard');
                     if (!howHeard) push('how_heard');
                     if (howHeard === 'other' && !this.formValue('how_heard_other')) push('how_heard_other');
-                    if (this.needsSocialProfile() && !this.formValue('social_profile_url')) push('social_profile_url');
+                    if (!this.hasSocialProfile) push('has_social_profile');
+                    if (this.hasSocialProfile === 'yes') {
+                        const platform = this.formValue('social_platform');
+                        if (!platform) push('social_platform');
+                        if (platform === 'other' && !this.formValue('social_platform_other')) push('social_platform_other');
+                        if (!this.formValue('social_profile_url')) push('social_profile_url');
+                    }
                     if (!this.formValue('first_10_customers')) push('first_10_customers');
                     if (!this.registeredBusiness) push('registered_business');
                     if (this.registeredBusiness === 'yes' && this.applicant === 'individual') {
@@ -708,8 +768,10 @@
                     this.$watch('applicant', () => this.computeMissing());
                     this.$watch('registeredBusiness', () => this.computeMissing());
                     this.$watch('previousAgent', () => this.computeMissing());
+                    this.$watch('hasSocialProfile', () => this.computeMissing());
                     const recompute = () => this.$nextTick(() => this.computeMissing());
                     window.addEventListener('kf-document-file', recompute);
+                    window.addEventListener('kf-document-saved', recompute);
                     window.addEventListener('kf-document-pages-ready', recompute);
                     window.addEventListener('kf-date-changed', recompute);
                     this.$nextTick(() => this.computeMissing());

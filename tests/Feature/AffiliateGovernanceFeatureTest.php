@@ -326,6 +326,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'why_affiliate' => 'I already advise customers on mobile money.',
             'acquisition_methods' => ['existing_customers', 'community'],
             'channels' => ['whatsapp'],
+            'has_social_profile' => 'no',
             'monthly_reach' => '11-30',
             'how_heard' => 'friend',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
@@ -344,6 +345,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
         $this->assertSame('friend', $application->payload['acquisition_source']['key'] ?? null);
         $this->assertSame(__('site.affiliate_apply.how_heard_options.friend'), $application->payload['how_heard'] ?? null);
         $this->assertSame('Uhuru Street', $application->payload['identity']['street'] ?? null);
+        $this->assertSame('no', $application->payload['has_social_profile'] ?? null);
         $this->assertSame([], $application->coverage_regions ?? []);
         $this->assertSame(1, CustomerPayment::query()->where('payment_type', 'affiliate_application_fee')->count());
     }
@@ -370,6 +372,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
                 'why_affiliate' => 'I already advise followers about loans.',
                 'acquisition_methods' => ['social_media'],
                 'channels' => ['instagram'],
+                'has_social_profile' => 'no',
                 'social_profile_url' => 'https://instagram.com/example',
                 'monthly_reach' => '100+',
                 'how_heard' => 'instagram',
@@ -400,6 +403,8 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'why_affiliate' => 'I already advise followers about loans.',
             'acquisition_methods' => ['social_media'],
             'channels' => ['instagram'],
+            'has_social_profile' => 'yes',
+            'social_platform' => 'instagram',
             'social_profile_url' => 'https://instagram.com/example',
             'monthly_reach' => '100+',
             'how_heard' => 'instagram',

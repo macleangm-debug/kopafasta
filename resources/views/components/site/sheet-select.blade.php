@@ -51,18 +51,35 @@
         },
         syncNative() {
             const sel = this.$refs.native;
-            if (sel) sel.value = this.selected || '';
+            if (sel) {
+                sel.value = this.selected || '';
+                // Notify parent form completeness (@input/@change) — Alpine x-model alone does not bubble.
+                sel.dispatchEvent(new Event('input', { bubbles: true }));
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        },
+        notifyOther() {
+            const el = this.$refs.otherHidden;
+            if (! el) return;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
         },
         cancelOther() {
             this.selected = '';
             this.otherText = '';
-            this.$nextTick(() => this.syncNative());
+            this.$nextTick(() => {
+                this.syncNative();
+                this.notifyOther();
+            });
         },
         confirmOther() {
             if ((this.otherText || '').trim() === '') return;
             this.pickerOpen = false;
             this.desktopOpen = false;
-            this.$nextTick(() => this.syncNative());
+            this.$nextTick(() => {
+                this.syncNative();
+                this.notifyOther();
+            });
         },
         choose(val) {
             this.selected = val == null ? '' : String(val);
@@ -71,7 +88,10 @@
                 this.pickerOpen = false;
                 this.desktopOpen = false;
             }
-            this.$nextTick(() => this.syncNative());
+            this.$nextTick(() => {
+                this.syncNative();
+                this.notifyOther();
+            });
             @if ($setterExpr)
                 if (typeof {{ $setterExpr }} === 'function') { {{ $setterExpr }}(this.selected); }
             @elseif ($modelExpr)
@@ -84,6 +104,7 @@
      }"
      x-init="
         $nextTick(() => syncNative());
+        $watch('otherText', () => $nextTick(() => notifyOther()));
         @if ($modelExpr)
             $watch('selected', (val) => { try { {{ $modelExpr }} = val; } catch (e) {} });
         @endif
@@ -240,6 +261,6 @@
     </select>
 
     @if ($hasOther)
-        <input type="hidden" name="{{ $otherField }}" x-model="otherText" :disabled="selected !== otherValue">
+        <input type="hidden" x-ref="otherHidden" name="{{ $otherField }}" x-model="otherText" :disabled="selected !== otherValue">
     @endif
 </div>

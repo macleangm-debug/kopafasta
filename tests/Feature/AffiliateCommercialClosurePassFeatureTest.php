@@ -526,6 +526,7 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
             'street' => 'Uhuru Street',
             'previous_agent' => 'no',
             'channels' => ['whatsapp', 'physical'],
+            'has_social_profile' => 'no',
             'how_heard' => 'friend',
             'registered_business' => 'no',
             'conduct_accepted' => '1',

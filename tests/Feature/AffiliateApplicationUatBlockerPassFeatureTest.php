@@ -53,16 +53,24 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertStringContainsString('goNext()', $html);
         $this->assertStringContainsString('canLeaveStep', $html);
         $this->assertStringContainsString('missingOnStep', $html);
-        $this->assertStringContainsString('needsSocialProfile', $html);
+        $this->assertStringContainsString('hasSocialProfile', $html);
         $this->assertStringContainsString('function affiliateApplyForm', $html);
         $apply = file_get_contents(resource_path('views/site/affiliate/apply.blade.php'));
         $this->assertStringContainsString(':requireStreet="true"', $apply);
         $this->assertStringContainsString('how_heard_options', $apply);
         $this->assertStringContainsString('how_heard_other', $apply);
-        $this->assertStringContainsString('needsSocialProfile()', $apply);
+        $this->assertStringContainsString('has_social_profile', $apply);
+        $this->assertStringContainsString('onHasSocialChange', $apply);
+        $this->assertStringContainsString('social_platform', $apply);
+        $this->assertStringNotContainsString('needsSocialProfile', $apply);
         $nida = file_get_contents(resource_path('views/components/site/form-nida-capture.blade.php'));
         $this->assertStringContainsString('kf-document-saved', $nida);
         $this->assertStringContainsString('nida_camera_title_front', $nida);
+        $this->assertStringNotContainsString("x-text=\"frontName || '✓'\"", $nida);
+        $this->assertStringNotContainsString("x-text=\"backName || '✓'\"", $nida);
+        $sheet = file_get_contents(resource_path('views/components/site/sheet-select.blade.php'));
+        $this->assertStringContainsString("dispatchEvent(new Event('change'", $sheet);
+        $this->assertStringContainsString('notifyOther()', $sheet);
         $single = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));
         $this->assertStringContainsString('data-kf-form-nida-capture', $single);
         $this->assertStringContainsString('_commitLock', $single);
@@ -155,23 +163,48 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
 
         $this->post(route('site.affiliate.apply.post'), $this->completePayload([
             'channels' => ['physical', 'business'],
+            'has_social_profile' => 'no',
             'social_profile_url' => '',
         ]))->assertRedirect(route('site.partners.apply.tracking', ['phone' => '+255712345911']));
 
         $this->assertNotNull(PartnerApplication::query()->where('email', 'complete@example.com')->first());
     }
 
-    public function test_social_channel_requires_social_profile_url(): void
+    public function test_social_yes_requires_platform_and_profile_url(): void
     {
         Storage::fake('public');
 
         $this->from(route('site.affiliate.apply'))
             ->post(route('site.affiliate.apply.post'), $this->completePayload([
-                'channels' => ['instagram'],
+                'has_social_profile' => 'yes',
+                'social_platform' => '',
+                'social_profile_url' => '',
+            ]))
+            ->assertRedirect(route('site.affiliate.apply'))
+            ->assertSessionHasErrors('social_platform');
+
+        $this->from(route('site.affiliate.apply'))
+            ->post(route('site.affiliate.apply.post'), $this->completePayload([
+                'has_social_profile' => 'yes',
+                'social_platform' => 'instagram',
                 'social_profile_url' => '',
             ]))
             ->assertRedirect(route('site.affiliate.apply'))
             ->assertSessionHasErrors('social_profile_url');
+
+        $this->post(route('site.affiliate.apply.post'), $this->completePayload([
+            'email' => 'social-yes@example.com',
+            'phone' => '+255712345912',
+            'has_social_profile' => 'yes',
+            'social_platform' => 'instagram',
+            'social_profile_url' => 'https://instagram.com/example',
+        ]))->assertRedirect();
+
+        $application = PartnerApplication::query()->where('email', 'social-yes@example.com')->first();
+        $this->assertNotNull($application);
+        $this->assertSame('yes', $application->payload['has_social_profile'] ?? null);
+        $this->assertSame('instagram', $application->payload['social_platform'] ?? null);
+        $this->assertSame('https://instagram.com/example', $application->payload['social_profile_url'] ?? null);
     }
 
     public function test_contract_revision_four_publishes_conduct_without_overwriting_history(): void
@@ -231,6 +264,7 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
             'why_affiliate' => 'I already advise customers on mobile money.',
             'acquisition_methods' => ['existing_customers', 'community'],
             'channels' => ['whatsapp'],
+            'has_social_profile' => 'no',
             'monthly_reach' => '11-30',
             'how_heard' => 'friend',
             'first_10_customers' => 'I will start with my regular shop customers this month.',

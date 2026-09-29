@@ -60,6 +60,9 @@ class PartnerApplicationController extends Controller
             'acquisition_methods.*' => ['string', 'max:40'],
             'channels' => ['required', 'array', 'min:1'],
             'channels.*' => ['string', 'in:whatsapp,instagram,tiktok,facebook,physical,business,other'],
+            'has_social_profile' => ['required', 'in:yes,no'],
+            'social_platform' => ['nullable', 'string', 'max:40'],
+            'social_platform_other' => ['nullable', 'string', 'max:80'],
             'social_profile_url' => ['nullable', 'url', 'max:255'],
             'monthly_reach' => ['required', 'in:1-10,11-30,31-50,51-100,100+'],
             'how_heard' => ['required', Rule::in([
@@ -79,11 +82,29 @@ class PartnerApplicationController extends Controller
         ]);
 
         $channels = array_values($data['channels'] ?? []);
-        $needsSocialProfile = count(array_intersect($channels, ['instagram', 'facebook', 'tiktok'])) > 0;
-        if ($needsSocialProfile && blank($data['social_profile_url'] ?? null)) {
-            return back()->withErrors([
-                'social_profile_url' => __('site.affiliate_apply.missing_social_profile'),
-            ])->withInput();
+        $hasSocial = ($data['has_social_profile'] ?? '') === 'yes';
+        if ($hasSocial) {
+            $platform = (string) ($data['social_platform'] ?? '');
+            $allowedPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube', 'x', 'linkedin', 'other'];
+            if ($platform === '' || ! in_array($platform, $allowedPlatforms, true)) {
+                return back()->withErrors([
+                    'social_platform' => __('site.affiliate_apply.missing_social_platform'),
+                ])->withInput();
+            }
+            if ($platform === 'other' && blank($data['social_platform_other'] ?? null)) {
+                return back()->withErrors([
+                    'social_platform_other' => __('site.affiliate_apply.missing_social_platform_other'),
+                ])->withInput();
+            }
+            if (blank($data['social_profile_url'] ?? null)) {
+                return back()->withErrors([
+                    'social_profile_url' => __('site.affiliate_apply.missing_social_profile'),
+                ])->withInput();
+            }
+        } else {
+            $data['social_platform'] = null;
+            $data['social_platform_other'] = null;
+            $data['social_profile_url'] = null;
         }
 
         if ($isCompany && blank($data['business_name'] ?? null)) {
@@ -146,7 +167,15 @@ class PartnerApplicationController extends Controller
                     'why_affiliate' => $data['why_affiliate'],
                     'acquisition_methods' => array_values($data['acquisition_methods']),
                     'channels' => $channels,
-                    'social_profile_url' => $data['social_profile_url'] ?? null,
+                    'has_social_profile' => $data['has_social_profile'],
+                    'social_platform' => $hasSocial
+                        ? (
+                            (($data['social_platform'] ?? '') === 'other')
+                                ? (string) ($data['social_platform_other'] ?? '')
+                                : (string) ($data['social_platform'] ?? '')
+                        )
+                        : null,
+                    'social_profile_url' => $hasSocial ? ($data['social_profile_url'] ?? null) : null,
                     'reach' => $data['monthly_reach'],
                     'monthly_reach' => $data['monthly_reach'],
                     'how_heard' => $acquisitionSource,

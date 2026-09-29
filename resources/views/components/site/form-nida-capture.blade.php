@@ -97,10 +97,7 @@
                 <template x-if="frontPreview">
                     <img :src="frontPreview" alt="" class="h-16 w-28 object-cover rounded-lg ring-1 ring-gray-100 aspect-[1.586]">
                 </template>
-                <div class="min-w-0">
-                    <p class="text-sm font-semibold text-emerald-800 truncate" x-text="frontName || '✓'"></p>
-                    <button type="button" @click="retake('front')" class="mt-2 text-[11px] font-semibold text-brand">{{ __('borrower.profile.replace_document') }}</button>
-                </div>
+                <button type="button" @click="retake('front')" class="text-[11px] font-semibold text-brand">{{ __('borrower.profile.replace_document') }}</button>
             </div>
         </div>
         <div class="rounded-xl bg-white ring-1 ring-gray-200 px-3 py-3">
@@ -109,10 +106,7 @@
                 <template x-if="backPreview">
                     <img :src="backPreview" alt="" class="h-16 w-28 object-cover rounded-lg ring-1 ring-gray-100 aspect-[1.586]">
                 </template>
-                <div class="min-w-0">
-                    <p class="text-sm font-semibold text-emerald-800 truncate" x-text="backName || '✓'"></p>
-                    <button type="button" @click="retake('back')" class="mt-2 text-[11px] font-semibold text-brand">{{ __('borrower.profile.replace_document') }}</button>
-                </div>
+                <button type="button" @click="retake('back')" class="text-[11px] font-semibold text-brand">{{ __('borrower.profile.replace_document') }}</button>
             </div>
         </div>
     </div>

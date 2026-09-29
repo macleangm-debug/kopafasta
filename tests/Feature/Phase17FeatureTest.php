@@ -159,6 +159,7 @@ class Phase17FeatureTest extends TestCase
             'why_affiliate' => 'I already advise customers on mobile money.',
             'acquisition_methods' => ['existing_customers', 'community'],
             'channels' => ['whatsapp'],
+            'has_social_profile' => 'no',
             'monthly_reach' => '11-30',
             'how_heard' => 'friend',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
