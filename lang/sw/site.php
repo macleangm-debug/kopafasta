@@ -218,7 +218,7 @@ return [
         'gender' => 'Jinsia',
         'gender_male' => 'Mwanaume',
         'gender_female' => 'Mwanamke',
-        'gender_other' => 'Nyingine / sipendii kusema',
+        'select_gender' => 'Chagua jinsia',
         'email' => 'Barua pepe',
         'phone' => 'Simu',
         'phone_alt' => 'Simu mbadala (si lazima)',

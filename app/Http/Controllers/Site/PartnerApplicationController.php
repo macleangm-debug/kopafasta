@@ -33,7 +33,7 @@ class PartnerApplicationController extends Controller
             'applicant_category' => ['required', 'in:individual,company'],
             'full_name' => ['required', 'string', 'max:150'],
             'date_of_birth' => ['required', 'date', 'before:today'],
-            'gender' => ['required', 'in:male,female,other'],
+            'gender' => ['required', 'in:male,female'],
             'email' => ['required', 'email', 'max:150'],
             'phone' => ['required', 'string', 'max:30'],
             'phone_alt' => ['nullable', 'string', 'max:30'],

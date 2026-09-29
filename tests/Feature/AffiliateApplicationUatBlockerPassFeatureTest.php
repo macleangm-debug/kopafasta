@@ -30,6 +30,13 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertStringContainsString(':disabled="missing.length > 0"', $html);
         $this->assertStringContainsString(__('site.affiliate_apply.submit_payment'), $html);
         $this->assertStringContainsString(__('site.affiliate_apply.monthly_reach'), $html);
+        $this->assertStringContainsString('data-date-trigger', $html);
+        $this->assertStringContainsString(__('site.affiliate_apply.gender_male'), $html);
+        $this->assertStringContainsString(__('site.affiliate_apply.gender_female'), $html);
+        $this->assertStringNotContainsString('prefer not to say', strtolower($html));
+        $this->assertStringNotContainsString('sipendii kusema', strtolower($html));
+        $this->assertStringNotContainsString('name="date_of_birth" type="date"', $html);
+        $this->assertStringNotContainsString('type="date" name="date_of_birth"', $html);
         $this->assertStringContainsString('affiliateApplyForm({', $html);
         $this->assertStringContainsString('function affiliateApplyForm', $html);
         $this->assertStringNotContainsString('scrollStepIntoView()); }); this.$watch', $html);

@@ -218,7 +218,7 @@ return [
         'gender' => 'Gender',
         'gender_male' => 'Male',
         'gender_female' => 'Female',
-        'gender_other' => 'Other / prefer not to say',
+        'select_gender' => 'Select gender',
         'email' => 'Email',
         'phone' => 'Phone',
         'phone_alt' => 'Alternative phone (optional)',

@@ -90,7 +90,7 @@
      "
      {{ $attributes->only('class') }}>
     @if ($label)
-        <label class="block text-sm font-semibold text-gray-700 mb-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">
             {{ $label }}
             @if ($required)<span class="text-rose-500">*</span>@endif
         </label>

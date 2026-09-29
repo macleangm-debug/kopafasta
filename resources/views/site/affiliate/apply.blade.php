@@ -54,7 +54,6 @@
         $genderOptions = [
             'male' => __('site.affiliate_apply.gender_male'),
             'female' => __('site.affiliate_apply.gender_female'),
-            'other' => __('site.affiliate_apply.gender_other'),
         ];
         $languageOptions = ['sw' => __('site.affiliate_apply.lang_sw'), 'en' => __('site.affiliate_apply.lang_en'), 'other' => __('site.affiliate_apply.lang_other')];
         $acquisitionOptions = [
@@ -192,20 +191,29 @@
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.full_name') }}</label>
                     <input name="full_name" value="{{ old('full_name') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 </div>
-                <div class="grid sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.date_of_birth') }}</label>
-                        <input type="date" name="date_of_birth" value="{{ old('date_of_birth') }}" required max="{{ now()->subYears(18)->format('Y-m-d') }}"
-                               class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                <div class="grid sm:grid-cols-2 gap-4 items-end">
+                    <div class="min-w-0">
+                        <x-site.date-input
+                            name="date_of_birth"
+                            :label="__('site.affiliate_apply.date_of_birth')"
+                            :value="old('date_of_birth')"
+                            :required="true"
+                            :max="now()->subYears(18)->format('Y-m-d')"
+                            :min="'1940-01-01'"
+                            :default="now()->subYears(25)->format('Y-m-d')"
+                            :help="__('borrower.register.age_notice', ['age' => 18])"
+                            input-class="w-full px-4 py-3 rounded-xl bg-white border border-gray-300 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
+                        />
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <x-site.sheet-select
                             name="gender"
                             :label="__('site.affiliate_apply.gender')"
                             :options="$genderOptions"
                             :value="old('gender')"
-                            :placeholder="__('site.affiliate_apply.gender')"
+                            :placeholder="__('site.affiliate_apply.select_gender')"
                             :required="true"
+                            select-class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10"
                         />
                     </div>
                 </div>
@@ -601,6 +609,7 @@
                     const recompute = () => this.$nextTick(() => this.computeMissing());
                     window.addEventListener('kf-document-file', recompute);
                     window.addEventListener('kf-document-pages-ready', recompute);
+                    window.addEventListener('kf-date-changed', recompute);
                     this.$nextTick(() => this.computeMissing());
                 },
             };
