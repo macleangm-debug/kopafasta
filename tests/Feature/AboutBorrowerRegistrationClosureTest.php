@@ -221,8 +221,10 @@ class AboutBorrowerRegistrationClosureTest extends TestCase
         $this->assertStringNotContainsString('data-kf-autosave', $aboutChunk);
 
         $date = file_get_contents(resource_path('views/components/site/date-input.blade.php'));
-        $this->assertStringContainsString('kf-date-changed', $date);
-        $this->assertStringNotContainsString("\$dispatch('profile-select'", $date);
+        $dateState = file_get_contents(resource_path('js/date-input-state.js'));
+        $this->assertStringContainsString('kfDateInput(', $date);
+        $this->assertStringContainsString('kf-date-changed', $dateState);
+        $this->assertStringNotContainsString("\$dispatch('profile-select'", $date.$dateState);
         // Desktop calendar must use premium month/year panels — not native <select>.
         $this->assertStringNotContainsString('<select x-model.number="viewMonth"', $date);
         $this->assertStringNotContainsString('<select x-model.number="viewYear"', $date);
@@ -233,6 +235,7 @@ class AboutBorrowerRegistrationClosureTest extends TestCase
         $this->assertStringContainsString('date_of_birth', $js);
         $this->assertStringContainsString('kfShowInlineSaving', $js);
         $this->assertStringContainsString('profile-dob-persist', file_get_contents(resource_path('js/alpine-init.js')));
+        $this->assertStringContainsString('date-input-state', file_get_contents(resource_path('js/alpine-init.js')));
     }
 
     public function test_autosave_core_file_untouched_in_this_pass(): void

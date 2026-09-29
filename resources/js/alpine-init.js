@@ -13,6 +13,7 @@ import { registerKfAutosave } from './kf-autosave';
 import { registerProfileSignatureBinding } from './profile-signature';
 import { registerProfileAutosaveViewCollapse, refreshProfileCompletionUi } from './profile-autosave-view';
 import { registerProfileDobPersist } from './profile-dob-persist';
+import { registerDateInput } from './date-input-state';
 
 import { registerValuationCamera } from './valuation-camera';
 import { registerPspPaymentFlow } from './psp-payment-flow';
@@ -29,6 +30,7 @@ registerKfAutosave(Alpine);
 registerProfileSignatureBinding();
 registerProfileAutosaveViewCollapse();
 registerProfileDobPersist();
+registerDateInput(Alpine);
 window.kfRefreshProfileCompletion = refreshProfileCompletionUi;
 registerNidaDirectiveJourney(Alpine);
 registerPartnerCreateConfirm(Alpine);

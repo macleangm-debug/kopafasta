@@ -28,206 +28,17 @@
 @endphp
 
 <div
-    x-data="{
-        open: false,
-        desktopOpen: false,
-        desktopStyle: '',
-        pickerMode: 'calendar',
-        narrow: typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches,
-        fieldName: @js($name),
+    x-data="kfDateInput({
+        name: @js($name),
         triggerId: @js($id),
         value: @js($selected),
-        draft: @js($selected),
         fallback: @js($fallbackDate),
         min: @js($minDate),
         max: @js($maxDate),
         months: @js($monthNames),
-        viewYear: 0,
-        viewMonth: 0,
-        init() {
-            this.narrow = this.isNarrow();
-            const view = this.parse(this.value || this.openAnchor());
-            this.viewYear = view.getFullYear();
-            this.viewMonth = view.getMonth();
-            // Blank fields stay blank — draft is only for the open picker session.
-            if (! this.value) this.draft = '';
-        },
-        // Teleported Apply/Confirm binds Alpine $el/$dispatch to the button, not the
-        // date-input root — never resolve the hidden input or field name via $el.
-        resolveHidden() {
-            const btn = typeof document !== 'undefined' ? document.getElementById(this.triggerId) : null;
-            const root = btn?.closest('.relative') || btn?.parentElement;
-            const match = (node) => {
-                if (! node) return null;
-                for (const input of node.querySelectorAll('input[type=hidden]')) {
-                    if (input.name === this.fieldName) return input;
-                }
-                return null;
-            };
-            return match(root)
-                || (typeof document !== 'undefined' ? match(document) : null);
-        },
-        emitDateChanged(next) {
-            const name = this.fieldName || '';
-            const value = next == null ? '' : String(next);
-            const hidden = this.resolveHidden();
-            if (hidden) {
-                hidden.value = value;
-                hidden.setAttribute('value', value);
-                hidden.dispatchEvent(new Event('input', { bubbles: true }));
-                hidden.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-            const from = hidden || (typeof document !== 'undefined' ? document.getElementById(this.triggerId) : null) || document;
-            from.dispatchEvent(new CustomEvent('kf-date-changed', {
-                bubbles: true,
-                composed: true,
-                detail: { name, value },
-            }));
-        },
-        isNarrow() {
-            return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
-        },
-        openPicker() {
-            this.narrow = this.isNarrow();
-            if (this.narrow) {
-                this.openSheet();
-            } else {
-                this.openDesktop();
-                this.positionDesktop();
-            }
-        },
-        positionDesktop() {
-            this.$nextTick(() => {
-                const btn = this.$refs.triggerBtn || this.$el.querySelector('[data-date-trigger]');
-                if (! btn) return;
-                const r = btn.getBoundingClientRect();
-                const panelW = 352;
-                const panelH = 380;
-                const left = Math.max(12, Math.min(r.left, window.innerWidth - panelW - 12));
-                let top = r.bottom + 8;
-                if (top + panelH > window.innerHeight - 12) {
-                    top = Math.max(12, r.top - panelH - 8);
-                }
-                this.desktopStyle = `left:${left}px;top:${top}px;`;
-            });
-        },
-        parse(str) {
-            const [y, m, d] = String(str || '').split('-').map(Number);
-            if (! y || ! m || ! d) return new Date();
-            return new Date(y, m - 1, d);
-        },
-        format(date) {
-            const y = date.getFullYear();
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const d = String(date.getDate()).padStart(2, '0');
-            return y + '-' + m + '-' + d;
-        },
-        display(str) {
-            if (! str) return @js(__('borrower.register.dob_select'));
-            const date = this.parse(str);
-            return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-        },
-        clamp(str) {
-            if (! str) return str;
-            if (this.min && str < this.min) return this.min;
-            if (this.max && str > this.max) return this.max;
-            return str;
-        },
-        // Calendar open position when the field is blank: prefer caller default, else
-        // today clamped into [min,max]. Never jump to an arbitrary distant min year.
-        openAnchor() {
-            if (this.fallback) return this.clamp(this.fallback);
-            return this.clamp(this.format(new Date()));
-        },
-        prepareOpen() {
-            const anchor = this.value ? this.clamp(this.value) : this.openAnchor();
-            this.draft = this.value ? this.clamp(this.value) : anchor;
-            const view = this.parse(this.value || anchor);
-            this.viewYear = view.getFullYear();
-            this.viewMonth = view.getMonth();
-            this.pickerMode = 'calendar';
-        },
-        openSheet() {
-            this.prepareOpen();
-            this.open = true;
-        },
-        openDesktop() {
-            this.prepareOpen();
-            this.desktopOpen = true;
-        },
-        years() {
-            const maxY = this.max ? this.parse(this.max).getFullYear() : new Date().getFullYear();
-            // When no min is set, span ~120 years from the max — not a hard-coded 1940.
-            const minY = this.min ? this.parse(this.min).getFullYear() : (maxY - 120);
-            const list = [];
-            for (let y = maxY; y >= minY; y--) list.push(y);
-            return list;
-        },
-        daysInMonth(year, month) {
-            return new Date(year, month + 1, 0).getDate();
-        },
-        firstWeekday(year, month) {
-            return new Date(year, month, 1).getDay();
-        },
-        calendarDays() {
-            const days = [];
-            const blanks = this.firstWeekday(this.viewYear, this.viewMonth);
-            for (let i = 0; i < blanks; i++) days.push(null);
-            const total = this.daysInMonth(this.viewYear, this.viewMonth);
-            for (let d = 1; d <= total; d++) {
-                const str = this.format(new Date(this.viewYear, this.viewMonth, d));
-                days.push({
-                    day: d,
-                    value: str,
-                    disabled: (this.min && str < this.min) || (this.max && str > this.max),
-                    selected: str === this.draft,
-                    today: str === this.format(new Date()),
-                });
-            }
-            return days;
-        },
-        pickDay(day) {
-            if (! day || day.disabled) return;
-            this.draft = day.value;
-        },
-        pickMonth(idx) {
-            this.viewMonth = idx;
-            this.pickerMode = 'calendar';
-        },
-        pickYear(y) {
-            this.viewYear = y;
-            this.pickerMode = 'calendar';
-        },
-        confirm() {
-            this.value = this.clamp(this.draft);
-            this.open = false;
-            this.desktopOpen = false;
-            this.pickerMode = 'calendar';
-            this.$nextTick(() => {
-                // Neutral date signal only — DOB Profile adapter (or other field hooks) may listen.
-                // Does not invoke kfAutosave / profile-select.
-                this.emitDateChanged(this.value || '');
-            });
-        },
-        clear() {
-            this.value = '';
-            this.draft = '';
-            this.open = false;
-            this.desktopOpen = false;
-            this.pickerMode = 'calendar';
-            this.$nextTick(() => {
-                this.emitDateChanged('');
-            });
-        },
-        shiftMonth(delta) {
-            let m = this.viewMonth + delta;
-            let y = this.viewYear;
-            if (m < 0) { m = 11; y--; }
-            if (m > 11) { m = 0; y++; }
-            this.viewMonth = m;
-            this.viewYear = y;
-        },
-    }"
+        selectLabel: @js(__('borrower.register.dob_select')),
+        required: @js((bool) $required),
+    })"
     class="relative"
     @keydown.escape.window="open = false; desktopOpen = false; pickerMode = 'calendar'"
     @resize.window="narrow = isNarrow(); if (narrow) { desktopOpen = false } else { open = false }"
@@ -279,13 +90,17 @@
                         </template>
                     </div>
 
-                    <p class="text-sm text-gray-600 text-center">Selected: <span class="font-semibold text-gray-900" x-text="display(draft)"></span></p>
+                    <p class="text-sm text-gray-600 text-center">
+                        <span x-show="draft">Selected: <span class="font-semibold text-gray-900" x-text="display(draft)"></span></span>
+                        <span x-show="!draft" class="text-gray-500">Choose a year, month, and day</span>
+                    </p>
 
                     <div class="flex gap-2">
                         @unless ($required)
                             <button type="button" @click="clear()" class="flex-1 rounded-xl ring-1 ring-gray-200 py-3 text-sm font-semibold text-gray-600">Clear</button>
                         @endunless
-                        <button type="button" @click="confirm()" class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-3 text-sm font-semibold">Confirm</button>
+                        <button type="button" @click="confirm()" :disabled="!draft"
+                                class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-3 text-sm font-semibold disabled:opacity-40 disabled:pointer-events-none">Confirm</button>
                     </div>
                 </div>
             </template>
@@ -364,7 +179,8 @@
                         @unless ($required)
                             <button type="button" @click="clear()" class="flex-1 rounded-xl ring-1 ring-gray-200 py-2.5 text-sm font-semibold text-gray-600">Clear</button>
                         @endunless
-                        <button type="button" @click="confirm()" class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-2.5 text-sm font-semibold">Apply</button>
+                        <button type="button" @click="confirm()" :disabled="!draft"
+                                class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-2.5 text-sm font-semibold disabled:opacity-40 disabled:pointer-events-none">Apply</button>
                     </div>
                 </div>
             </template>
