@@ -51,6 +51,7 @@ export function tzAddress(locations, initialRegion, initialDistrict, labels) {
             this.district = '';
             this.savedDistrict = '';
             this.refreshDistricts();
+            this.syncDistrictHidden();
         },
         refreshDistricts(opts = {}) {
             const preserveSaved = !!opts.preserveSaved;
@@ -71,9 +72,22 @@ export function tzAddress(locations, initialRegion, initialDistrict, labels) {
 
                 this.districtOptions = districts;
                 this.districtStatus = districts.length ? 'ready' : 'empty';
+                this.syncDistrictHidden();
             } catch (e) {
                 this.districtOptions = [];
                 this.districtStatus = 'error';
+                this.syncDistrictHidden();
+            }
+        },
+        syncDistrictHidden() {
+            const el = this.$refs?.districtHidden;
+            if (! el) {
+                return;
+            }
+            const value = this.district || '';
+            if (el.value !== value) {
+                el.value = value;
+                el.setAttribute('value', value);
             }
         },
         retryDistricts() {
@@ -88,6 +102,7 @@ export function tzAddress(locations, initialRegion, initialDistrict, labels) {
                 if (this.savedDistrict && this.districtOptions.includes(this.savedDistrict)) {
                     this.district = this.savedDistrict;
                 }
+                this.syncDistrictHidden();
             });
         },
         districtPlaceholder() {

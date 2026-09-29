@@ -79,12 +79,19 @@
         });
     },
     pickDistrict(value) {
-        this.district = value;
+        this.district = value == null ? '' : String(value);
         this.districtPickerOpen = false;
+        // Sync the named hidden input immediately so parent completeness checks
+        // do not wait on Alpine's :value flush (which can leave Continue blocked).
+        const el = this.$refs.districtHidden;
+        if (el) {
+            el.value = this.district;
+            el.setAttribute('value', this.district);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         this.$nextTick(() => {
-            const el = this.$refs.districtHidden;
-            if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
-            this.$dispatch('profile-select', { name: (el && el.name) ? el.name : '', value: value });
+            this.$dispatch('profile-select', { name: (el && el.name) ? el.name : '', value: this.district });
         });
     },
 }">
@@ -155,10 +162,13 @@
                 class="{{ $selectClass }}"
                 @change="
                     district = $event.target.value;
-                    $nextTick(() => {
-                        const el = $refs.districtHidden;
-                        if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
-                    });
+                    const el = $refs.districtHidden;
+                    if (el) {
+                        el.value = district || '';
+                        el.setAttribute('value', district || '');
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                 ">
             <option value="" x-text="districtPlaceholder()"></option>
             <template x-for="d in districtOptions" :key="'opt-' + d">
