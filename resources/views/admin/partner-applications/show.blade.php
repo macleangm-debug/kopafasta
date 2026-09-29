@@ -15,6 +15,7 @@
         $commercial = $review['commercial'] ?? [];
         $activity = $review['activity'] ?? [];
         $anomalies = $anomalies ?? [];
+        $performance = $performance ?? null;
         $isAffiliate = ($applicant['category'] ?? '') === 'affiliate';
         $defaultTab = request('tab', 'overview');
         $tabs = [
@@ -24,6 +25,9 @@
             'commercial' => 'Commercial',
             'activity' => 'Activity',
         ];
+        if (! empty($performance) && $isAffiliate) {
+            $tabs['performance'] = 'Performance';
+        }
         $statusTone = match ($decision['status']) {
             'approved'   => 'bg-emerald-500/20 text-emerald-100 ring-emerald-300/40',
             'rejected'   => 'bg-red-500/20 text-red-100 ring-red-300/40',
@@ -97,9 +101,12 @@
                         {{ $review['satisfied_docs'] }}/{{ $review['required_docs'] }} docs · {{ $review['checklist_progress'] }}%
                     </span>
                     @if ($decision['partner_id'])
-                        <a href="{{ route('admin.partners.show', $decision['partner_id']) }}"
-                           class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand-gold hover:brightness-95 px-3 py-1.5 rounded-lg">
-                            Open Affiliate 360 {{ $decision['partner']?->vendor_number ?? '' }}
+                        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand-gold px-3 py-1.5 rounded-lg">
+                            {{ $decision['partner']?->vendor_number ?? $decision['partner']?->partner_number ?? 'Partner' }}
+                        </span>
+                        <a href="{{ route('admin.partners.show', ['vendor' => $decision['partner_id'], 'operational' => 1]) }}"
+                           class="inline-flex items-center gap-1.5 text-xs font-semibold text-white/90 ring-1 ring-white/30 hover:bg-white/10 px-3 py-1.5 rounded-lg">
+                            Operational tools
                         </a>
                     @endif
                 </div>
@@ -261,86 +268,79 @@
                     </section>
                 </div>
 
-                {{-- Identity & Documents --}}
+                {{-- Identity & Documents (Member 360 sizing: compact National ID Front|Back once) --}}
                 <div class="p-5 sm:p-6 space-y-5" x-show="tab === 'identity'" x-cloak>
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">National ID (NIDA)</p>
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        @foreach (['national_id_front' => 'NIDA Front', 'national_id_back' => 'NIDA Back'] as $key => $label)
-                            @php $doc = $identity[$key] ?? null; @endphp
-                            <div class="rounded-xl ring-1 ring-gray-200 p-4">
-                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">{{ $label }}</p>
-                                @if ($doc)
-                                    <button type="button"
-                                            onclick="window.kfOpenDocumentPreview(@js($doc['url']), @js($label), @js($doc['is_image'] ? 'image' : 'pdf'))"
-                                            class="block w-full text-left group mt-3">
-                                        @if ($doc['is_image'])
-                                            <img src="{{ $doc['url'] }}" alt="{{ $label }}"
-                                                 class="max-h-48 w-full rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-brand-gold transition cursor-zoom-in">
-                                        @else
-                                            <span class="inline-flex items-center gap-1 text-xs font-semibold rounded-lg bg-gray-100 px-3 py-2">{{ $doc['original_name'] ?: 'View document' }}</span>
-                                        @endif
-                                        <span class="text-xs font-semibold text-brand mt-2 inline-block">Preview</span>
-                                    </button>
-                                @else
-                                    <p class="text-sm text-gray-500 mt-3">Not uploaded.</p>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
+                    @php
+                        $infoRequests = $review['info_requests'] ?? [];
+                        $otherDocs = collect($review['documents'] ?? [])
+                            ->reject(fn ($doc) => in_array($doc['doc_type'] ?? '', ['national_id_front', 'national_id_back'], true))
+                            ->values();
+                    @endphp
 
-                    <div class="border-t border-gray-100 pt-5">
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-3">Document checklist</p>
-                        <div class="grid sm:grid-cols-2 gap-2 mb-5">
-                            @forelse ($checklist as $item)
-                                <div class="flex items-center justify-between gap-3 rounded-lg ring-1 px-3 py-2.5 text-sm {{ $item['present'] ? 'bg-emerald-50 ring-emerald-200 text-emerald-900' : 'bg-amber-50 ring-amber-200 text-amber-900' }}">
-                                    <span class="font-medium">{{ $item['label'] }}</span>
-                                    <span class="text-[10px] font-semibold rounded-full px-2 py-0.5 {{ $item['present'] ? 'bg-emerald-100' : 'bg-amber-100' }}">
-                                        {{ $item['present'] ? 'On file' : 'Missing' }}
-                                    </span>
-                                </div>
-                            @empty
-                                <p class="text-sm text-gray-500 sm:col-span-2">No specific documents are required for this category.</p>
-                            @endforelse
-                        </div>
-                        @if (! empty($review['documents']))
-                            <div class="grid sm:grid-cols-2 gap-4">
-                                @foreach ($review['documents'] as $doc)
-                                    <div class="rounded-xl ring-1 ring-gray-200 overflow-hidden">
-                                        <div class="px-3 py-2 border-b border-gray-100">
-                                            <p class="text-xs font-semibold text-gray-800 truncate">{{ $doc['label'] }}</p>
-                                            <p class="text-[11px] text-gray-500 truncate">{{ $doc['original_name'] }}</p>
-                                        </div>
-                                        <div class="p-3">
-                                            <button type="button"
-                                                    onclick="window.kfOpenDocumentPreview(@js($doc['url']), @js($doc['label']), @js($doc['is_image'] ? 'image' : 'pdf'))"
-                                                    class="block w-full text-left group">
-                                                @if ($doc['is_image'])
-                                                    <img src="{{ $doc['url'] }}" alt="{{ $doc['label'] }}"
-                                                         class="w-full h-28 rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-brand-gold transition cursor-zoom-in">
+                    <section>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand mb-3">National ID</p>
+                        <div class="grid grid-cols-2 gap-3 max-w-md">
+                            @foreach (['national_id_front' => 'Front', 'national_id_back' => 'Back'] as $key => $sideLabel)
+                                @php $doc = $identity[$key] ?? null; @endphp
+                                <div class="rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden">
+                                    <p class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100">{{ $sideLabel }}</p>
+                                    @if ($doc && ! empty($doc['url']))
+                                        <button type="button"
+                                                onclick="window.kfOpenDocumentPreview(@js($doc['url']), @js('National ID — '.$sideLabel), @js(($doc['is_image'] ?? false) ? 'image' : 'pdf'))"
+                                                class="block w-full text-left">
+                                            <div class="aspect-[3/2] bg-gray-50">
+                                                @if ($doc['is_image'] ?? false)
+                                                    <img src="{{ $doc['url'] }}" alt="National ID {{ $sideLabel }}" class="size-full object-cover">
                                                 @else
-                                                    <span class="flex h-28 items-center justify-center rounded-lg bg-gray-50 text-xs font-semibold text-gray-600 ring-1 ring-gray-200">PDF document</span>
+                                                    <div class="size-full grid place-items-center text-xs font-semibold text-gray-500">PDF</div>
                                                 @endif
-                                                <span class="text-xs font-semibold text-brand mt-2 inline-block">Preview</span>
-                                            </button>
+                                            </div>
+                                        </button>
+                                    @else
+                                        <div class="aspect-[3/2] grid place-items-center bg-gray-50">
+                                            <p class="text-xs text-gray-400">Missing</p>
                                         </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </section>
+
+                    @if ($otherDocs->isNotEmpty() || ! empty($infoRequests))
+                        <section class="border-t border-gray-100 pt-5">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand mb-3">Other documents</p>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-2xl">
+                                @foreach ($otherDocs as $doc)
+                                    <div class="rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden">
+                                        <p class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 truncate">{{ $doc['label'] }}</p>
+                                        <button type="button"
+                                                onclick="window.kfOpenDocumentPreview(@js($doc['url']), @js($doc['label']), @js(($doc['is_image'] ?? false) ? 'image' : 'pdf'))"
+                                                class="block w-full text-left">
+                                            <div class="aspect-[3/2] bg-gray-50">
+                                                @if ($doc['is_image'] ?? false)
+                                                    <img src="{{ $doc['url'] }}" alt="{{ $doc['label'] }}" class="size-full object-cover">
+                                                @else
+                                                    <div class="size-full grid place-items-center text-xs font-semibold text-gray-500">PDF</div>
+                                                @endif
+                                            </div>
+                                        </button>
                                     </div>
                                 @endforeach
                             </div>
-                        @endif
-                    </div>
-
-                    <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 text-sm">
-                        <p class="text-xs uppercase tracking-widest text-brand font-semibold">Declaration audit</p>
-                        <p class="mt-2 text-gray-800">
-                            {{ ($declaration['accepted'] ?? false) ? 'Accepted' : 'Not accepted' }}
-                            @if (! empty($declaration['version']))
-                                · <span class="font-mono text-xs">{{ $declaration['version'] }}</span>
+                            @if (! empty($infoRequests))
+                                <ul class="mt-4 space-y-2">
+                                    @foreach ($infoRequests as $req)
+                                        <li class="flex items-center justify-between gap-3 rounded-lg ring-1 ring-gray-200 px-3 py-2 text-sm">
+                                            <span class="font-medium text-gray-800">{{ $req['label'] ?? 'Request' }}</span>
+                                            <span class="text-[10px] font-semibold rounded-full px-2 py-0.5 {{ ($req['status'] ?? '') === 'submitted' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900' }}">
+                                                {{ ($req['status'] ?? '') === 'submitted' ? 'Submitted' : 'Requested' }}
+                                            </span>
+                                        </li>
+                                    @endforeach
+                                </ul>
                             @endif
-                            @if (! empty($declaration['accepted_at']))
-                                · {{ \Illuminate\Support\Carbon::parse($declaration['accepted_at'])->format('d M Y H:i') }}
-                            @endif
-                        </p>
-                    </div>
+                        </section>
+                    @endif
                 </div>
 
                 {{-- Commercial --}}
@@ -382,12 +382,37 @@
                         @endif
                     </dl>
                     @if ($decision['partner_id'])
-                        <a href="{{ route('admin.partners.show', ['partner' => $decision['partner_id'], 'tab' => 'commercial']) }}"
+                        <a href="{{ route('admin.partners.show', ['vendor' => $decision['partner_id'], 'tab' => 'commercial', 'operational' => 1]) }}"
                            class="inline-flex text-sm font-semibold text-brand hover:underline">
-                            Open operational commercial view →
+                            Open operational commercial tools →
                         </a>
                     @endif
                 </div>
+
+                {{-- Performance (existing Affiliate metrics only; no invented KPIs) --}}
+                @if (! empty($performance) && $isAffiliate)
+                    <div class="p-5 sm:p-6 space-y-4" x-show="tab === 'performance'" x-cloak>
+                        <p class="text-xs text-gray-500">Existing Affiliate activity — Standard KPI rules remain Settings-governed; Premium has no target enforcement here.</p>
+                        <dl class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="rounded-xl ring-1 ring-gray-200 px-4 py-3">
+                                <dt class="text-xs text-gray-500">Clicks</dt>
+                                <dd class="mt-1 text-xl font-bold text-brand">{{ number_format((int) ($performance['clicks'] ?? 0)) }}</dd>
+                            </div>
+                            <div class="rounded-xl ring-1 ring-gray-200 px-4 py-3">
+                                <dt class="text-xs text-gray-500">Registrations</dt>
+                                <dd class="mt-1 text-xl font-bold text-brand">{{ number_format((int) ($performance['registrations'] ?? 0)) }}</dd>
+                            </div>
+                            <div class="rounded-xl ring-1 ring-gray-200 px-4 py-3">
+                                <dt class="text-xs text-gray-500">Applications</dt>
+                                <dd class="mt-1 text-xl font-bold text-brand">{{ number_format((int) ($performance['applications'] ?? 0)) }}</dd>
+                            </div>
+                            <div class="rounded-xl ring-1 ring-gray-200 px-4 py-3">
+                                <dt class="text-xs text-gray-500">Commission earned</dt>
+                                <dd class="mt-1 text-xl font-bold text-brand">{{ format_money((float) ($performance['commissions'] ?? 0)) }}</dd>
+                            </div>
+                        </dl>
+                    </div>
+                @endif
 
                 {{-- Activity --}}
                 <div class="p-5 sm:p-6" x-show="tab === 'activity'" x-cloak>
@@ -419,82 +444,162 @@
             </div>
         </div>
 
-        {{-- Decision panel — Action → Review → Confirm → Execute --}}
+        {{-- Decision panel — Action → Review → Confirm → Execute (same surface) --}}
         <div class="lg:col-span-4 space-y-4">
-            <div class="rounded-2xl shadow-sm overflow-hidden ring-2 ring-brand/25 bg-gradient-to-b from-brand-muted/50 to-white lg:sticky lg:top-4">
+            @php
+                $requestCatalog = $requestCatalog ?? ['documents' => [], 'information' => []];
+                $existingPartnerMatch = collect($anomalies ?? [])->contains(fn ($a) => ($a['code'] ?? '') === 'existing_partner');
+            @endphp
+            <div class="rounded-2xl shadow-sm overflow-hidden ring-2 ring-brand/25 bg-gradient-to-b from-brand-muted/50 to-white lg:sticky lg:top-4"
+                 x-data="partnerApplicationDecision({
+                    initialStatus: @js($decision['status']),
+                    existingPartnerMatch: @js($existingPartnerMatch),
+                    documentOptions: @js($requestCatalog['documents'] ?? []),
+                    informationOptions: @js($requestCatalog['information'] ?? []),
+                 })">
                 <div class="bg-brand px-5 py-4 text-white">
                     <h2 class="text-[11px] font-bold uppercase tracking-widest text-brand-gold">Review decision</h2>
                     <p class="text-sm text-white/80 mt-1">Approve · Request information · Decline</p>
                 </div>
+
+                @if (session('status'))
+                    <div class="mx-5 mt-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-3 py-2 text-sm text-emerald-800">{{ session('status') }}</div>
+                @endif
+                @if ($errors->any())
+                    <div class="mx-5 mt-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-3 py-2 text-sm text-red-700">
+                        <ul class="list-disc ml-4">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+                    </div>
+                @endif
+
                 <form method="POST" action="{{ route('admin.partner-applications.update', $application) }}" class="p-5 space-y-4"
-                      x-data="{ status: @js($decision['status']) }"
-                      @submit.prevent="window.confirmForm($el, {
-                          title: status === 'approved'
-                              ? 'Approve this Affiliate application?'
-                              : (status === 'rejected'
-                                  ? 'Decline this application?'
-                                  : (status === 'needs_info'
-                                      ? 'Request more information?'
-                                      : 'Save decision?')),
-                          message: status === 'approved'
-                              ? 'This will create/activate their ordinary Affiliate account using existing enrollment infrastructure. Territory and default commercial Settings apply. They must still accept the Affiliate Agreement before Share & Earn. Paying the fee does not approve them — this decision does.'
-                              : (status === 'needs_info'
-                                  ? 'The applicant will see your notes on the tracking page and can update their application. They will be notified through existing Communications where available.'
-                                  : (status === 'rejected'
-                                      ? 'The applicant will see this decline on the tracking page. Include a controlled reason and description.'
-                                      : 'Confirm you want to save this decision.')),
-                          confirmLabel: status === 'approved' ? 'Approve Affiliate' : (status === 'rejected' ? 'Decline application' : (status === 'needs_info' ? 'Request information' : 'Yes, save')),
-                          confirmClass: 'bg-brand hover:bg-brand-light text-white',
-                          tone: 'confirm',
-                      })">
+                      x-ref="decisionForm"
+                      @submit.prevent="onSubmit($event)">
                     @csrf @method('PUT')
-                    <div>
-                        <label class="block text-xs font-semibold text-brand mb-1">Action</label>
-                        <select x-model="status" name="status" class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm focus:border-brand focus:ring-brand">
-                            <option value="pending" @selected($decision['status'] === 'pending')>Under review</option>
-                            <option value="needs_info" @selected($decision['status'] === 'needs_info')>Request information</option>
-                            <option value="approved" @selected($decision['status'] === 'approved')>Approve</option>
-                            <option value="rejected" @selected($decision['status'] === 'rejected')>Decline</option>
-                        </select>
-                    </div>
-                    <div x-show="status === 'rejected'" x-cloak>
-                        <label class="block text-xs font-semibold text-brand mb-1">Decline reason</label>
-                        <select name="rejection_reason" class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm focus:border-brand focus:ring-brand"
-                                :required="status === 'rejected'">
-                            <option value="">— Select reason —</option>
-                            @foreach ($review['rejection_reason_codes'] as $code => $label)
-                                <option value="{{ $code }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-brand mb-1">
-                            <span x-text="status === 'needs_info' ? 'What is required from the applicant?' : (status === 'rejected' ? 'Description' : 'Notes')"></span>
-                        </label>
-                        <textarea name="admin_notes" rows="4"
-                                  x-bind:required="status === 'needs_info' || status === 'rejected'"
-                                  x-bind:placeholder="status === 'needs_info' ? 'Specify exactly what documents or details are needed…' : (status === 'rejected' ? 'Describe the decline for the applicant…' : 'Optional internal notes…')"
-                                  class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm focus:border-brand focus:ring-brand">{{ old('admin_notes', $decision['admin_notes']) }}</textarea>
-                    </div>
-                    @if ($decision['partner_id'])
-                        <div class="rounded-xl bg-white ring-1 ring-brand/15 px-4 py-3 text-sm">
-                            <p class="text-xs uppercase tracking-widest text-brand font-semibold">Linked Affiliate</p>
-                            <a href="{{ route('admin.partners.show', $decision['partner_id']) }}" class="mt-1 inline-block font-bold text-brand hover:underline">
-                                {{ $decision['partner']?->vendor_number ?? '#'.$decision['partner_id'] }}
-                            </a>
-                            <p class="text-xs text-gray-500 mt-1 capitalize">Status: {{ $decision['partner']?->status ?? '—' }}
-                                @if ($decision['partner']?->activated_at)
-                                    · Activated
-                                @else
-                                    · Awaiting activation
-                                @endif
+                    <input type="hidden" name="status" :value="status">
+
+                    {{-- Compose --}}
+                    <div x-show="phase === 'compose'" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-brand mb-1">Action</label>
+                            <select x-model="status" class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm focus:border-brand focus:ring-brand">
+                                <option value="pending">Under review</option>
+                                <option value="needs_info">Request information</option>
+                                <option value="approved">Approve</option>
+                                <option value="rejected">Decline</option>
+                            </select>
+                        </div>
+
+                        <div x-show="status === 'needs_info'" x-cloak class="space-y-3 rounded-xl bg-white ring-1 ring-brand/15 p-3">
+                            <div>
+                                <p class="text-xs font-semibold text-brand mb-2">What do you need?</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="cursor-pointer">
+                                        <input type="radio" class="peer sr-only" value="document" x-model="requestKind" name="request_kind_ui">
+                                        <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-2 text-center text-xs font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50">Document</span>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" class="peer sr-only" value="information" x-model="requestKind" name="request_kind_ui">
+                                        <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-2 text-center text-xs font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50">Information</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div x-show="requestKind && !requestOtherMode" x-cloak>
+                                <label class="block text-xs font-semibold text-brand mb-1">Select</label>
+                                <div class="max-h-48 overflow-y-auto space-y-1 rounded-xl ring-1 ring-gray-200 p-1">
+                                    <template x-for="opt in currentOptions()" :key="opt.value">
+                                        <button type="button" @click="pickRequestType(opt.value)"
+                                                class="w-full text-left px-3 py-2 rounded-lg text-sm"
+                                                :class="requestType === opt.value ? 'bg-brand-muted text-brand font-semibold' : 'hover:bg-gray-50 text-gray-800'"
+                                                x-text="opt.label"></button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div x-show="requestOtherMode" x-cloak class="space-y-2">
+                                <label class="block text-xs font-semibold text-brand">Custom request <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="requestOtherLabel" maxlength="120"
+                                       class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm px-3 py-2.5"
+                                       placeholder="Describe what is required">
+                                <div class="flex justify-between gap-2">
+                                    <button type="button" @click="cancelOther()" class="text-sm font-semibold text-gray-600 px-2 py-2">Cancel</button>
+                                    <button type="button" @click="confirmOther()" class="rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2"
+                                            :disabled="!(requestOtherLabel || '').trim()"
+                                            :class="!(requestOtherLabel || '').trim() ? 'opacity-40 pointer-events-none' : ''">Continue</button>
+                                </div>
+                            </div>
+
+                            <div x-show="requestType && !requestOtherMode" x-cloak>
+                                <label class="block text-xs font-semibold text-brand mb-1">Short explanation (optional)</label>
+                                <textarea x-model="requestExplanation" rows="2"
+                                          class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm"
+                                          placeholder="Shown to the applicant with this request"></textarea>
+                            </div>
+                        </div>
+
+                        <div x-show="status === 'rejected'" x-cloak class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-brand mb-1">Decline reason <span class="text-red-500">*</span></label>
+                                <select name="rejection_reason" x-model="rejectionReason"
+                                        :disabled="status !== 'rejected'"
+                                        class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm">
+                                    <option value="">— Select reason —</option>
+                                    @foreach ($review['rejection_reason_codes'] as $code => $label)
+                                        <option value="{{ $code }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-brand mb-1">Description for applicant <span class="text-red-500">*</span></label>
+                                <textarea name="admin_notes" x-model="adminNotes" rows="3"
+                                          :disabled="status !== 'rejected'"
+                                          class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm"
+                                          placeholder="Clear reason the applicant will see on tracking"></textarea>
+                            </div>
+                        </div>
+
+                        <div x-show="status === 'approved' || status === 'pending'" x-cloak>
+                            <label class="block text-xs font-semibold text-brand mb-1">Internal notes (optional)</label>
+                            <textarea name="admin_notes" x-model="adminNotes" rows="2"
+                                      :disabled="status !== 'approved' && status !== 'pending'"
+                                      class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm"
+                                      placeholder="Optional internal notes"></textarea>
+                            <p x-show="status === 'approved' && existingPartnerMatch" x-cloak class="mt-2 text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
+                                Matching partner already exists — Approve will link this application to that partner instead of creating a duplicate.
                             </p>
                         </div>
-                    @endif
-                    <button class="w-full bg-brand hover:bg-brand-light text-white font-semibold rounded-xl px-4 py-3 text-sm shadow-sm"
-                            x-text="status === 'approved' ? 'Review & approve' : (status === 'rejected' ? 'Review & decline' : (status === 'needs_info' ? 'Review & request info' : 'Save'))">
-                        Save decision
-                    </button>
+
+                        <div x-show="status === 'needs_info'" x-cloak>
+                            <input type="hidden" name="request_kind" :value="requestKind" :disabled="status !== 'needs_info'">
+                            <input type="hidden" name="request_type" :value="requestType" :disabled="status !== 'needs_info'">
+                            <input type="hidden" name="request_other_label" :value="requestOtherLabel" :disabled="status !== 'needs_info'">
+                            <input type="hidden" name="request_explanation" :value="requestExplanation" :disabled="status !== 'needs_info'">
+                        </div>
+
+                        <button type="submit"
+                                class="w-full bg-brand hover:bg-brand-light text-white font-semibold rounded-xl px-4 py-3 text-sm shadow-sm disabled:opacity-50"
+                                :disabled="busy || !canReview()"
+                                x-text="busy ? 'Reviewing…' : primaryLabel()">
+                            Review
+                        </button>
+                    </div>
+
+                    {{-- Same-surface confirmation --}}
+                    <div x-show="phase === 'review'" x-cloak class="space-y-4">
+                        <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 p-4 text-sm text-brand space-y-2">
+                            <p class="font-bold" x-text="confirmTitle()"></p>
+                            <p class="text-brand/90 whitespace-pre-line" x-text="confirmMessage()"></p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" @click="phase = 'compose'; busy = false"
+                                    class="flex-1 rounded-xl ring-1 ring-gray-200 py-3 text-sm font-semibold text-gray-700"
+                                    :disabled="busy">Back</button>
+                            <button type="button" @click="execute()"
+                                    class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-3 text-sm font-semibold disabled:opacity-50"
+                                    :disabled="busy"
+                                    x-text="busy ? 'Saving…' : confirmLabel()">Confirm</button>
+                        </div>
+                    </div>
                 </form>
             </div>
 
@@ -511,4 +616,115 @@
             @endif
         </div>
     </div>
+
+    @once
+    @push('scripts')
+    <script>
+        function partnerApplicationDecision(config) {
+            return {
+                phase: 'compose',
+                busy: false,
+                status: config.initialStatus || 'pending',
+                existingPartnerMatch: !!config.existingPartnerMatch,
+                requestKind: 'document',
+                requestType: '',
+                requestOtherMode: false,
+                requestOtherLabel: '',
+                requestExplanation: '',
+                rejectionReason: '',
+                adminNotes: '',
+                documentOptions: Object.entries(config.documentOptions || {}).map(([value, label]) => ({ value, label })),
+                informationOptions: Object.entries(config.informationOptions || {}).map(([value, label]) => ({ value, label })),
+                currentOptions() {
+                    return this.requestKind === 'information' ? this.informationOptions : this.documentOptions;
+                },
+                pickRequestType(value) {
+                    this.requestType = value;
+                    if (value === 'other_document' || value === 'other_information') {
+                        this.requestOtherMode = true;
+                        this.requestOtherLabel = '';
+                    } else {
+                        this.requestOtherMode = false;
+                        this.requestOtherLabel = '';
+                    }
+                },
+                cancelOther() {
+                    this.requestOtherMode = false;
+                    this.requestType = '';
+                    this.requestOtherLabel = '';
+                },
+                confirmOther() {
+                    if (!(this.requestOtherLabel || '').trim()) return;
+                    this.requestOtherMode = false;
+                },
+                canReview() {
+                    if (this.status === 'needs_info') {
+                        if (!this.requestKind || !this.requestType) return false;
+                        if ((this.requestType === 'other_document' || this.requestType === 'other_information')
+                            && !(this.requestOtherLabel || '').trim()) return false;
+                        if (this.requestOtherMode) return false;
+                        return true;
+                    }
+                    if (this.status === 'rejected') {
+                        return !!this.rejectionReason && !!(this.adminNotes || '').trim();
+                    }
+                    return true;
+                },
+                primaryLabel() {
+                    return this.status === 'approved' ? 'Review & approve'
+                        : (this.status === 'rejected' ? 'Review & decline'
+                            : (this.status === 'needs_info' ? 'Review & request info' : 'Review & save'));
+                },
+                confirmTitle() {
+                    return this.status === 'approved' ? 'Approve this application?'
+                        : (this.status === 'rejected' ? 'Decline this application?'
+                            : (this.status === 'needs_info' ? 'Request this information?' : 'Save decision?'));
+                },
+                confirmMessage() {
+                    if (this.status === 'approved') {
+                        return this.existingPartnerMatch
+                            ? 'This will approve the application and link it to the existing matching partner (no duplicate account). They must still accept the Affiliate Agreement before Share & Earn.'
+                            : 'This will create their ordinary Affiliate account using existing enrollment infrastructure. Territory and default commercial Settings apply. They must still accept the Affiliate Agreement before Share & Earn. Paying the fee does not approve them — this decision does.';
+                    }
+                    if (this.status === 'needs_info') {
+                        const label = this.requestOtherLabel || (this.currentOptions().find(o => o.value === this.requestType)?.label || this.requestType);
+                        return 'Applicant will see “‘ + label + '” on their tracking card with a + / Fill action.\n' + (this.requestExplanation || '');
+                    }
+                    if (this.status === 'rejected') {
+                        return 'The applicant will see your description on tracking. No partner account will be created.';
+                    }
+                    return 'Keep this application under review.';
+                },
+                confirmLabel() {
+                    return this.status === 'approved' ? 'Approve'
+                        : (this.status === 'rejected' ? 'Decline'
+                            : (this.status === 'needs_info' ? 'Request information' : 'Save'));
+                },
+                onSubmit(event) {
+                    if (this.busy) {
+                        event.preventDefault();
+                        return;
+                    }
+                    if (this.phase === 'compose') {
+                        event.preventDefault();
+                        if (!this.canReview()) return;
+                        this.busy = true;
+                        // Brief loader on CTA then same-surface confirmation.
+                        setTimeout(() => {
+                            this.busy = false;
+                            this.phase = 'review';
+                        }, 180);
+                        return;
+                    }
+                },
+                execute() {
+                    if (this.busy) return;
+                    this.busy = true;
+                    this.$refs.decisionForm.submit();
+                },
+            };
+        }
+    </script>
+    @endpush
+    @endonce
 </x-admin.layout>

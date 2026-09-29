@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PartnerApplication;
+use App\Services\PartnerApplicationDecisionService;
 use App\Services\PartnerApplicationReviewService;
-use App\Services\PartnerEnrollmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class PartnerApplicationController extends Controller
@@ -52,11 +51,19 @@ class PartnerApplicationController extends Controller
         $partnerApplication->load(['documents', 'partner', 'reviewer']);
         $review = $reviewService->dossier($partnerApplication);
 
+        $performance = null;
+        $partner = $partnerApplication->partner;
+        if ($partner && $partner->category === 'affiliate') {
+            $performance = app(\App\Services\AffiliateService::class)->stats($partner);
+        }
+
         return view('admin.partner-applications.show', [
             'application' => $partnerApplication,
-            'review'      => $review,
-            'anomalies'   => app(\App\Services\PartnerEnrollmentAnomalyService::class)
+            'review' => $review,
+            'requestCatalog' => app(PartnerApplicationDecisionService::class)->requestCatalog(),
+            'anomalies' => app(\App\Services\PartnerEnrollmentAnomalyService::class)
                 ->forApplication($partnerApplication, $review),
+            'performance' => $performance,
         ]);
     }
 
@@ -66,53 +73,30 @@ class PartnerApplicationController extends Controller
             'status' => ['required', 'in:pending,approved,rejected,needs_info'],
             'admin_notes' => ['nullable', 'string', 'max:2000'],
             'rejection_reason' => ['nullable', 'string', 'max:60'],
+            'request_kind' => ['nullable', 'in:document,information'],
+            'request_type' => ['nullable', 'string', 'max:60'],
+            'request_other_label' => ['nullable', 'string', 'max:120'],
+            'request_explanation' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $notes = $data['admin_notes'] ?? $partnerApplication->admin_notes;
-        if ($data['status'] === 'rejected' && filled($data['rejection_reason'] ?? null)) {
-            $reasonLabel = PartnerApplicationReviewService::REJECTION_REASON_CODES[$data['rejection_reason']] ?? $data['rejection_reason'];
-            $notes = trim('['.$reasonLabel.'] '.($notes ?? ''));
+        try {
+            $result = app(PartnerApplicationDecisionService::class)->execute($partnerApplication, $data);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
         }
 
-        $partnerApplication->fill([
-            'status' => $data['status'],
-            'admin_notes' => $notes,
-        ]);
+        $application = $result['application'];
+        $partner = $result['partner'];
 
-        if ($partnerApplication->isDirty('status')) {
-            $partnerApplication->reviewed_by = Auth::id();
-            $partnerApplication->reviewed_at = now();
-        }
-
-        $partnerApplication->save();
-
-        $converted = null;
-        if ($partnerApplication->status === 'approved' && ! $partnerApplication->partner_id) {
-            $converted = app(PartnerEnrollmentService::class)->convertToPartner(
-                $partnerApplication->fresh('documents'),
-                Auth::user(),
-            );
-        }
-
-        $message = $converted
-            ? 'Partner approved. Partner code '.$converted->vendor_number.' is ready — they can activate via Track status / Activate account (no SMS).'
-            : match ($partnerApplication->status) {
-                'approved'    => 'Partner application approved.',
-                'rejected'    => 'Partner application rejected.',
-                'needs_info'  => 'Applicant will see your notes on the tracking page and can resubmit.',
-                default       => 'Partner application updated.',
-            };
-
-        $partnerApplication = $partnerApplication->fresh('partner');
-
-        if ($partnerApplication->status === 'approved' && $partnerApplication->partner_id) {
+        // Stay on canonical Partner/Application 360 — do not bounce to the old partner detail.
+        if ($application->status === 'approved' && $partner) {
             return redirect()
-                ->route('admin.partners.show', $partnerApplication->partner_id)
-                ->with('status', $message);
+                ->route('admin.partner-applications.show', $application)
+                ->with('status', $result['message']);
         }
 
         return redirect()
-            ->route('admin.partner-applications.show', $partnerApplication)
-            ->with('status', $message);
+            ->route('admin.partner-applications.show', $application)
+            ->with('status', $result['message']);
     }
 }

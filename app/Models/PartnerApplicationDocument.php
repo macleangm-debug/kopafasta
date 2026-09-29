@@ -23,6 +23,9 @@ class PartnerApplicationDocument extends Model
         'business_licence' => 'Business licence',
         'national_id_front' => 'National ID (front)',
         'national_id_back' => 'National ID (back)',
+        'proof_of_address' => 'Proof of address',
+        'bank_account_evidence' => 'Bank / payment-account evidence',
+        'social_profile_evidence' => 'Social / profile evidence',
         'other' => 'Other supporting document',
     ];
 

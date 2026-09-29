@@ -243,6 +243,61 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
+    public function fulfillRequest(Request $request, \App\Models\PartnerApplication $partnerApplication): RedirectResponse
+    {
+        $phone = PhoneNumber::fromRequest($request, 'phone')
+            ?? trim((string) $request->input('phone', ''));
+
+        if ($phone === '') {
+            return redirect()
+                ->route('site.partners.apply.tracking')
+                ->withErrors(['phone' => __('site.partner_apply.track_phone_label')]);
+        }
+
+        $matches = \App\Models\PartnerApplication::query()
+            ->whereKey($partnerApplication->id)
+            ->where(function ($q) use ($phone) {
+                PhoneNumber::constrain($q, 'phone', $phone);
+            })
+            ->exists();
+
+        if (! $matches) {
+            return redirect()
+                ->route('site.partners.apply.tracking', ['phone' => $phone])
+                ->withErrors(['phone' => __('site.partner_apply.track_empty')]);
+        }
+
+        $data = $request->validate([
+            'request_id' => ['required', 'string', 'max:64'],
+            'response_text' => ['nullable', 'string', 'max:4000'],
+            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'doc_national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ]);
+
+        try {
+            app(\App\Services\PartnerApplicationDecisionService::class)->fulfillRequest(
+                $partnerApplication,
+                (string) $data['request_id'],
+                [
+                    'response_text' => $data['response_text'] ?? null,
+                    'document' => $request->file('document'),
+                    'doc_national_id_front' => $request->file('doc_national_id_front'),
+                    'doc_national_id_back' => $request->file('doc_national_id_back'),
+                ]
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()
+                ->route('site.partners.apply.tracking', ['phone' => $phone])
+                ->withErrors($e->errors())
+                ->withInput();
+        }
+
+        return redirect()
+            ->route('site.partners.apply.tracking', ['phone' => $phone])
+            ->with('status', __('site.partner_apply.track_request_saved'));
+    }
+
     public function createService(?string $category = null): View
     {
         $enrollment = app(PartnerEnrollmentService::class);

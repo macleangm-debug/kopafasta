@@ -158,7 +158,7 @@ class StaffDeskConsoleFeatureTest extends TestCase
         $pending->refresh();
         $this->assertSame('approved', $pending->status);
         $this->assertNotNull($pending->partner_id);
-        $response->assertRedirect(route('admin.partners.show', $pending->partner_id));
+        $response->assertRedirect(route('admin.partner-applications.show', $pending));
 
         $this->actingAs($user, 'admin')
             ->get(route('admin.partner-applications.index'))
@@ -166,10 +166,13 @@ class StaffDeskConsoleFeatureTest extends TestCase
 
         $this->actingAs($user, 'admin')
             ->get(route('admin.partners.show', $pending->partner_id))
+            ->assertRedirect(route('admin.partner-applications.show', $pending));
+
+        $this->actingAs($user, 'admin')
+            ->get(route('admin.partner-applications.show', $pending))
             ->assertOk()
             ->assertSee('Neema Valuations', false)
-            ->assertSee('Open dossier', false)
-            ->assertDontSee('Open screening', false);
+            ->assertSee('Partner 360', false);
 
         $this->actingAs($user, 'admin')
             ->get(route('admin.dashboard'))

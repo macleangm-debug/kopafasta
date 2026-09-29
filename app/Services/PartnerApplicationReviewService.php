@@ -125,6 +125,7 @@ class PartnerApplicationReviewService
                 ),
             ],
             'activity' => $activity,
+            'info_requests' => app(PartnerApplicationDecisionService::class)->allRequests($application),
             'business' => [
                 'trading_name'        => $application->business_name,
                 'legal_name'          => $application->legal_name,
@@ -190,6 +191,31 @@ class PartnerApplicationReviewService
                     : null,
             ];
         }
+
+        $payload = is_array($application->payload) ? $application->payload : [];
+        foreach (is_array($payload['review_activity'] ?? null) ? $payload['review_activity'] : [] as $row) {
+            if (! is_array($row) || blank($row['label'] ?? null)) {
+                continue;
+            }
+            $events[] = [
+                'at' => $row['at'] ?? null,
+                'label' => (string) $row['label'],
+                'detail' => $row['detail'] ?? null,
+            ];
+        }
+        foreach (is_array($payload['info_requests'] ?? null) ? $payload['info_requests'] : [] as $req) {
+            if (! is_array($req)) {
+                continue;
+            }
+            if (($req['status'] ?? '') === 'submitted' && ! empty($req['submitted_at'])) {
+                $events[] = [
+                    'at' => $req['submitted_at'],
+                    'label' => 'Information supplied',
+                    'detail' => $req['label'] ?? null,
+                ];
+            }
+        }
+
         if ($application->partner_id && $application->partner) {
             $events[] = [
                 'at' => $application->partner->created_at ?? $application->reviewed_at,
@@ -205,6 +231,19 @@ class PartnerApplicationReviewService
                 ];
             }
         }
+
+        // De-dupe by label+at and sort chronologically.
+        $events = collect($events)
+            ->unique(fn ($e) => ($e['label'] ?? '').'|'.(string) ($e['at'] ?? ''))
+            ->sortBy(function ($e) {
+                try {
+                    return \Illuminate\Support\Carbon::parse($e['at'] ?? now())->timestamp;
+                } catch (\Throwable) {
+                    return 0;
+                }
+            })
+            ->values()
+            ->all();
 
         return $events;
     }

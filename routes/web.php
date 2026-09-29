@@ -205,6 +205,8 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::post('/partners/apply', [PartnerApplicationController::class, 'storeService'])->name('partners.apply.post');
     Route::get('/partners/track', [PartnerApplicationController::class, 'tracking'])->name('partners.apply.tracking');
     Route::post('/partners/track', [PartnerApplicationController::class, 'tracking'])->name('partners.apply.tracking.post');
+    Route::post('/partners/track/{partnerApplication}/fulfill', [PartnerApplicationController::class, 'fulfillRequest'])
+        ->name('partners.apply.fulfill');
 
     Route::get('/marketplace', [AssetMarketplaceController::class, 'publicIndex'])->name('marketplace');
     Route::post('/marketplace/request', [AssetMarketplaceController::class, 'storePublicRequest'])->name('marketplace.request');

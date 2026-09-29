@@ -597,6 +597,19 @@ class VendorController extends ResourceController
         }
 
         $record = $this->resolvePartner($id);
+
+        // Canonical Partner 360: enrollment application surface when one is linked.
+        // ?operational=1 keeps the legacy operational profile for deep links.
+        if (! request()->boolean('operational')) {
+            $enrollmentApplication = \App\Models\PartnerApplication::query()
+                ->where('partner_id', $record->id)
+                ->latest()
+                ->first();
+            if ($enrollmentApplication) {
+                return redirect()->route('admin.partner-applications.show', $enrollmentApplication);
+            }
+        }
+
         $tabs = app(PartnerProfileTabs::class);
         $canSeePayouts = (bool) auth()->user()?->hasPermission('finance.operations');
         $profileTabs = $tabs->tabs($record, $canSeePayouts);
