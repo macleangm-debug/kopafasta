@@ -148,7 +148,7 @@ class PartnerApplicationController extends Controller
         ]);
 
         try {
-            app(PartnerMatchResolutionService::class)
+            $application = app(PartnerMatchResolutionService::class)
                 ->changeApplicantEmail($partnerApplication, (string) $data['email']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()
@@ -157,8 +157,17 @@ class PartnerApplicationController extends Controller
                 ->withErrors($e->validator ?? $e->errors());
         }
 
+        $remaining = count(app(PartnerMatchResolutionService::class)->unresolvedMatches($application));
+        if ($remaining === 0) {
+            $status = 'Email updated. No possible Partner matches remain.';
+        } elseif ($remaining === 1) {
+            $status = 'Email updated. 1 possible Partner match still needs review.';
+        } else {
+            $status = 'Email updated. '.$remaining.' possible Partner matches still need review.';
+        }
+
         return redirect()
-            ->route('admin.partner-applications.show', $partnerApplication)
-            ->with('status', 'Applicant email updated. Duplicate detection has been re-evaluated.');
+            ->route('admin.partner-applications.show', $application)
+            ->with('status', $status);
     }
 }

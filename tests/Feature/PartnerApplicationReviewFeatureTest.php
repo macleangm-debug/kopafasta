@@ -357,7 +357,8 @@ class PartnerApplicationReviewFeatureTest extends TestCase
             ->post(route('admin.partner-applications.change-applicant-email', $application), [
                 'email' => 'maclean.unique@example.com',
             ])
-            ->assertRedirect(route('admin.partner-applications.show', $application));
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHas('status', 'Email updated. No possible Partner matches remain.');
 
         $application->refresh();
         $this->assertSame('maclean.unique@example.com', $application->email);
@@ -406,6 +407,57 @@ class PartnerApplicationReviewFeatureTest extends TestCase
             ->assertSessionHasErrors('email');
 
         $this->assertSame('original@example.com', $application->fresh()->email);
+    }
+
+    public function test_email_change_success_message_reports_remaining_phone_match(): void
+    {
+        Partner::create([
+            'vendor_number' => 'PT-AF-TZ-DIMM',
+            'name' => 'Said Mbelemba',
+            'phone' => '255255255',
+            'email' => 'shared@example.com',
+            'category' => 'affiliate',
+            'status' => 'active',
+        ]);
+        Partner::create([
+            'vendor_number' => 'PT-IN-TZ-C9VE',
+            'name' => 'Aventris Insurance',
+            'phone' => '255715222132',
+            'email' => 'info@aventris.co.tz',
+            'category' => 'insurance',
+            'status' => 'active',
+        ]);
+
+        $application = $this->makeApplication([
+            'full_name' => 'Maclean Mwaijonga',
+            'phone' => '255715222132',
+            'email' => 'shared@example.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partner-applications.change-applicant-email', $application), [
+                'email' => 'geofrey.maclean@gmail.com',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHas('status', 'Email updated. 1 possible Partner match still needs review.');
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.partner-applications.show', $application))
+            ->assertOk()
+            ->assertSee('Possible existing Partner found', false)
+            ->assertSee('Phone matched', false)
+            ->assertSee('Aventris Insurance', false)
+            ->assertDontSee('Said Mbelemba', false)
+            ->getContent();
+
+        $this->assertSame(1, substr_count($html, 'Possible existing Partner found'));
+        $matches = app(\App\Services\PartnerMatchResolutionService::class)->matchesFor($application->fresh());
+        $this->assertCount(1, $matches);
+        $this->assertSame(['phone'], $matches[0]['matched_fields']);
+        $this->assertFalse($matches[0]['resolved']);
     }
 
     public function test_review_match_panel_shows_applicant_vs_existing_comparison(): void
