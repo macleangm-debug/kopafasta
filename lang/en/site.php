@@ -333,6 +333,7 @@ return [
         ],
         'conduct_agree' => 'I, :name, have read, understood and agree to these Affiliate conduct requirements.',
         'incomplete_title' => 'Some required information is still missing',
+        'step_incomplete' => 'Complete these required fields before continuing',
         'missing_full_name' => 'Full legal name',
         'missing_date_of_birth' => 'Date of birth',
         'missing_gender' => 'Gender',

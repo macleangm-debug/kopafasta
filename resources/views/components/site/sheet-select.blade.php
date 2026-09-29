@@ -99,7 +99,7 @@
     <div class="lg:hidden">
         @if ($inline)
             <button type="button" @click="pickerOpen = !pickerOpen"
-                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                    class="w-full h-12 inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
                 <span class="flex-1 text-left truncate" x-text="labelFor(currentValue())"></span>
                 <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="pickerOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
@@ -132,7 +132,7 @@
             @endif
         @else
             <button type="button" @click="pickerOpen = true"
-                    class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                    class="w-full h-12 inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
                 <span class="flex-1 text-left truncate" x-text="labelFor(currentValue())"></span>
                 <svg class="w-4 h-4 text-gray-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
             </button>
@@ -188,7 +188,7 @@
 
     <div class="hidden lg:block relative" @keydown.escape.window="desktopOpen = false">
         <button type="button" @click.stop="desktopOpen = !desktopOpen"
-                class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
+                class="w-full h-12 inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
             <span class="flex-1 text-left truncate" x-text="labelFor(currentValue())"></span>
             <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="desktopOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
         </button>

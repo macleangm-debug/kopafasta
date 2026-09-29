@@ -333,6 +333,7 @@ return [
         ],
         'conduct_agree' => 'Mimi, :name, nimesoma, nimeelewa na ninakubali mahitaji haya ya mwenendo wa Msambazaji.',
         'incomplete_title' => 'Bado kuna taarifa zinazohitajika',
+        'step_incomplete' => 'Kamilisha taarifa hizi zinazohitajika kabla ya kuendelea',
         'missing_full_name' => 'Jina kamili la kisheria',
         'missing_date_of_birth' => 'Tarehe ya kuzaliwa',
         'missing_gender' => 'Jinsia',

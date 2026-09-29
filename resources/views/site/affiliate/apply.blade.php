@@ -24,16 +24,17 @@
         if ($errors->hasAny([
             'acquisition_methods', 'channels', 'monthly_reach', 'first_10_customers', 'how_heard',
             'social_profile_url', 'registered_business', 'business_name', 'registration_number', 'tin',
+            'doc_brela', 'doc_tin_certificate', 'doc_national_id_front', 'doc_national_id_back',
+            'documents', 'nida_front_captured', 'nida_back_captured',
         ])) {
             $errorStep = 3;
         }
         if ($errors->hasAny([
-            'declaration_accepted', 'conduct_accepted', 'doc_brela', 'doc_tin_certificate',
-            'doc_national_id_front', 'doc_national_id_back', 'documents', 'nida_front_captured', 'nida_back_captured',
+            'declaration_accepted', 'conduct_accepted',
         ])) {
             $errorStep = 4;
         }
-        if ($errors->hasAny(['date_of_birth', 'gender', 'full_name', 'email', 'phone', 'phone_alt', 'region', 'district', 'ward'])) {
+        if ($errors->hasAny(['date_of_birth', 'gender', 'full_name', 'email', 'phone', 'phone_alt', 'region', 'district'])) {
             $errorStep = 1;
         }
 
@@ -90,7 +91,6 @@
             'phone' => __('site.affiliate_apply.missing_phone'),
             'region' => __('site.affiliate_apply.missing_region'),
             'district' => __('site.affiliate_apply.missing_district'),
-            'ward' => __('site.affiliate_apply.missing_ward'),
             'business_name' => __('site.affiliate_apply.missing_business_name'),
             'occupation' => __('site.affiliate_apply.missing_occupation'),
             'occupation_other' => __('site.affiliate_apply.missing_occupation_other'),
@@ -114,12 +114,12 @@
         ];
         $missingSteps = [
             'full_name' => 1, 'date_of_birth' => 1, 'gender' => 1, 'email' => 1, 'phone' => 1,
-            'region' => 1, 'district' => 1, 'ward' => 1, 'business_name' => 1,
+            'region' => 1, 'district' => 1, 'business_name' => 1,
             'occupation' => 2, 'occupation_other' => 2, 'sales_experience' => 2, 'languages' => 2,
             'why_affiliate' => 2, 'previous_agent_details' => 2,
             'acquisition_methods' => 3, 'channels' => 3, 'monthly_reach' => 3, 'how_heard' => 3,
             'first_10_customers' => 3, 'registered_business' => 3, 'registration_number' => 3, 'tin' => 3,
-            'doc_brela' => 4, 'doc_tin_certificate' => 4, 'doc_national_id' => 4,
+            'doc_brela' => 3, 'doc_tin_certificate' => 3, 'doc_national_id' => 3,
             'declaration_accepted' => 4, 'conduct_accepted' => 4,
         ];
     @endphp
@@ -166,7 +166,7 @@
             <div x-ref="stepRail"
                  class="flex flex-nowrap sm:grid sm:grid-cols-4 gap-1 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-1 text-xs sm:text-sm overflow-x-auto snap-x snap-mandatory scrollbar-thin">
                 @foreach ([1 => __('site.affiliate_apply.section_you'), 2 => __('site.affiliate_apply.section_experience'), 3 => __('site.affiliate_apply.section_market'), 4 => __('site.affiliate_apply.section_declaration')] as $n => $label)
-                    <button type="button" data-step="{{ $n }}" @click="step = {{ $n }}"
+                    <button type="button" data-step="{{ $n }}" @click="goTo({{ $n }})"
                             class="shrink-0 snap-center sm:shrink rounded-lg py-2.5 px-3 sm:px-1 font-semibold transition whitespace-nowrap min-w-[8.5rem] sm:min-w-0"
                             :class="step === {{ $n }} ? 'bg-brand text-white shadow-sm' : 'text-gray-600 hover:bg-white'">
                         {{ $n }}. {{ $label }}
@@ -191,8 +191,8 @@
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.full_name') }}</label>
                     <input name="full_name" value="{{ old('full_name') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 </div>
-                <div class="grid sm:grid-cols-2 gap-4 items-end">
-                    <div class="min-w-0">
+                <div class="grid sm:grid-cols-2 gap-4 items-start">
+                    <div class="min-w-0 space-y-1.5">
                         <x-site.date-input
                             name="date_of_birth"
                             :label="__('site.affiliate_apply.date_of_birth')"
@@ -201,11 +201,10 @@
                             :max="now()->subYears(18)->format('Y-m-d')"
                             :min="'1940-01-01'"
                             :default="now()->subYears(25)->format('Y-m-d')"
-                            :help="__('borrower.register.age_notice', ['age' => 18])"
-                            input-class="w-full px-4 py-3 rounded-xl bg-white border border-gray-300 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
+                            input-class="w-full h-12 px-4 rounded-xl bg-white border border-gray-300 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
                         />
                     </div>
-                    <div class="min-w-0">
+                    <div class="min-w-0 space-y-1.5">
                         <x-site.sheet-select
                             name="gender"
                             :label="__('site.affiliate_apply.gender')"
@@ -213,10 +212,11 @@
                             :value="old('gender')"
                             :placeholder="__('site.affiliate_apply.select_gender')"
                             :required="true"
-                            select-class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10"
+                            class="kf-affiliate-gender"
                         />
                     </div>
                 </div>
+                <p class="text-xs text-gray-500 -mt-2">{{ __('borrower.register.age_notice', ['age' => 18]) }}</p>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.email') }}</label>
                     <input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
@@ -259,8 +259,18 @@
                         <input name="tin" value="{{ old('tin') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                     </div>
                 </div>
+                <div x-show="missingOnStep(1).length" x-cloak class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                    <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_apply.step_incomplete') }}</p>
+                    <ul class="mt-1 space-y-0.5">
+                        <template x-for="item in missingOnStep(1)" :key="'s1-'+item.key">
+                            <li class="text-sm text-amber-900" x-text="'• ' + item.label"></li>
+                        </template>
+                    </ul>
+                </div>
                 <div class="flex justify-end">
-                    <button type="button" @click="step = 2" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
+                    <button type="button" @click="goNext()"
+                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            :disabled="!canLeaveStep(1)">
                         {{ __('site.partner_apply.next') }} →
                     </button>
                 </div>
@@ -322,9 +332,21 @@
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.why') }}</label>
                     <textarea name="why_affiliate" rows="4" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('why_affiliate') }}</textarea>
                 </div>
+                <div x-show="missingOnStep(2).length" x-cloak class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                    <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_apply.step_incomplete') }}</p>
+                    <ul class="mt-1 space-y-0.5">
+                        <template x-for="item in missingOnStep(2)" :key="'s2-'+item.key">
+                            <li class="text-sm text-amber-900" x-text="'• ' + item.label"></li>
+                        </template>
+                    </ul>
+                </div>
                 <div class="flex justify-between">
-                    <button type="button" @click="step = 1" class="text-sm font-semibold text-gray-600">← {{ __('site.partner_apply.back') }}</button>
-                    <button type="button" @click="step = 3" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('site.partner_apply.next') }} →</button>
+                    <button type="button" @click="goTo(1)" class="text-sm font-semibold text-gray-600">← {{ __('site.partner_apply.back') }}</button>
+                    <button type="button" @click="goNext()"
+                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            :disabled="!canLeaveStep(2)">
+                        {{ __('site.partner_apply.next') }} →
+                    </button>
                 </div>
             </div>
 
@@ -403,14 +425,7 @@
                         <input name="tin" value="{{ old('tin') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm" :required="registeredBusiness === 'yes' && applicant === 'individual'">
                     </div>
                 </div>
-                <div class="flex justify-between">
-                    <button type="button" @click="step = 2" class="text-sm font-semibold text-gray-600">← {{ __('site.partner_apply.back') }}</button>
-                    <button type="button" @click="step = 4" class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">{{ __('site.partner_apply.next') }} →</button>
-                </div>
-            </div>
 
-            {{-- Step 4: Documents & declarations --}}
-            <div x-show="step === 4" x-cloak class="space-y-5">
                 <div class="space-y-3 rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4" x-show="applicant === 'company'" x-cloak>
                     <p class="text-xs font-semibold uppercase tracking-wide text-brand">{{ __('site.partner_apply.business_section') }}</p>
                     @foreach ([
@@ -423,12 +438,41 @@
 
                 <x-site.form-nida-capture />
 
+                <div x-show="missingOnStep(3).length" x-cloak class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                    <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_apply.step_incomplete') }}</p>
+                    <ul class="mt-1 space-y-0.5">
+                        <template x-for="item in missingOnStep(3)" :key="'s3-'+item.key">
+                            <li class="text-sm text-amber-900" x-text="'• ' + item.label"></li>
+                        </template>
+                    </ul>
+                </div>
+                <div class="flex justify-between">
+                    <button type="button" @click="goTo(2)" class="text-sm font-semibold text-gray-600">← {{ __('site.partner_apply.back') }}</button>
+                    <button type="button" @click="goNext()"
+                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            :disabled="!canLeaveStep(3)">
+                        {{ __('site.partner_apply.next') }} →
+                    </button>
+                </div>
+            </div>
+
+            {{-- Step 4: Declaration only --}}
+            <div x-show="step === 4" x-cloak class="space-y-5">
                 <div class="rounded-xl ring-1 ring-gray-200 p-4 space-y-3 text-sm">
                     <p class="text-sm font-semibold text-gray-900">{{ __('site.affiliate_apply.decl_title') }}</p>
-                    <dl class="grid sm:grid-cols-3 gap-2 text-xs">
-                        <div><dt class="text-gray-500">{{ __('site.affiliate_apply.full_name') }}</dt><dd class="font-semibold text-gray-900" x-text="formValue('full_name') || '—'"></dd></div>
-                        <div><dt class="text-gray-500">{{ __('site.affiliate_apply.date_of_birth') }}</dt><dd class="font-semibold text-gray-900" x-text="formValue('date_of_birth') || '—'"></dd></div>
-                        <div><dt class="text-gray-500">{{ __('site.affiliate_apply.gender') }}</dt><dd class="font-semibold text-gray-900" x-text="displayGender()"></dd></div>
+                    <dl class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div class="min-w-0">
+                            <dt class="text-gray-500">{{ __('site.affiliate_apply.full_name') }}</dt>
+                            <dd class="font-semibold text-gray-900 mt-0.5 break-words" x-text="formValue('full_name') || '—'"></dd>
+                        </div>
+                        <div class="min-w-0">
+                            <dt class="text-gray-500">{{ __('site.affiliate_apply.date_of_birth') }}</dt>
+                            <dd class="font-semibold text-gray-900 mt-0.5" x-text="formValue('date_of_birth') || '—'"></dd>
+                        </div>
+                        <div class="min-w-0">
+                            <dt class="text-gray-500">{{ __('site.affiliate_apply.gender') }}</dt>
+                            <dd class="font-semibold text-gray-900 mt-0.5" x-text="displayGender()"></dd>
+                        </div>
                     </dl>
                     <p class="text-sm text-gray-700 leading-relaxed"
                        x-text="personalizedDeclBody()"></p>
@@ -454,19 +498,17 @@
                     </label>
                 </div>
 
-                <div x-show="missing.length" x-cloak class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
-                    <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_apply.incomplete_title') }}</p>
+                <div x-show="missingOnStep(4).length" x-cloak class="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-4">
+                    <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_apply.step_incomplete') }}</p>
                     <ul class="mt-2 space-y-1">
-                        <template x-for="item in missing" :key="item.key">
-                            <li>
-                                <button type="button" @click="jumpTo(item)" class="text-sm font-semibold text-brand hover:underline text-left" x-text="item.label"></button>
-                            </li>
+                        <template x-for="item in missingOnStep(4)" :key="'s4-'+item.key">
+                            <li class="text-sm text-amber-900" x-text="'• ' + item.label"></li>
                         </template>
                     </ul>
                 </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <button type="button" @click="step = 3" class="text-sm font-semibold text-gray-600 hover:text-brand">← {{ __('site.partner_apply.back') }}</button>
+                    <button type="button" @click="goTo(3)" class="text-sm font-semibold text-gray-600 hover:text-brand">← {{ __('site.partner_apply.back') }}</button>
                     <button type="submit"
                             class="bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             :disabled="missing.length > 0">
@@ -548,7 +590,6 @@
                     if (!this.formValue('phone')) push('phone');
                     if (!this.formValue('region')) push('region');
                     if (!this.formValue('district')) push('district');
-                    if (!this.formValue('ward')) push('ward');
                     if (this.applicant === 'company' && !this.formValue('business_name')) push('business_name');
                     const occ = this.formValue('occupation');
                     if (!occ) push('occupation');
@@ -578,8 +619,35 @@
                     this.missing = next;
                 },
                 jumpTo(item) {
-                    this.step = item.step;
+                    this.goTo(item.step);
+                },
+                missingOnStep(stepNo) {
+                    return this.missing.filter((item) => Number(item.step) === Number(stepNo));
+                },
+                canLeaveStep(stepNo) {
+                    return this.missingOnStep(stepNo).length === 0;
+                },
+                goTo(target) {
+                    const next = Number(target);
+                    if (!next || next === this.step) return;
+                    if (next < this.step) {
+                        this.step = next;
+                        this.$nextTick(() => this.scrollStepIntoView());
+                        return;
+                    }
+                    this.computeMissing();
+                    for (let s = 1; s < next; s++) {
+                        if (!this.canLeaveStep(s)) {
+                            this.step = s;
+                            this.$nextTick(() => this.scrollStepIntoView());
+                            return;
+                        }
+                    }
+                    this.step = next;
                     this.$nextTick(() => this.scrollStepIntoView());
+                },
+                goNext() {
+                    this.goTo(this.step + 1);
                 },
                 scrollStepIntoView() {
                     const rail = this.$refs.stepRail;

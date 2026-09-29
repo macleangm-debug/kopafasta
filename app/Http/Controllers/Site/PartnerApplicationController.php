@@ -43,7 +43,7 @@ class PartnerApplicationController extends Controller
             'tin' => ['nullable', 'string', 'max:40'],
             'region' => ['required', 'string', 'max:100'],
             'district' => ['required', 'string', 'max:100'],
-            'ward' => ['required', 'string', 'max:100'],
+            'ward' => ['nullable', 'string', 'max:100'],
             'coverage_regions' => ['nullable', 'array'],
             'coverage_regions.*' => ['string', 'max:100'],
             'occupation' => ['required', 'string', 'max:150'],

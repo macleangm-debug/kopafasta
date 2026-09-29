@@ -21,12 +21,12 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertStringContainsString('x-ref="stepRail"', $html);
         $this->assertStringContainsString('flex-nowrap', $html);
         $this->assertStringContainsString('scrollIntoView', $html);
-        $this->assertStringContainsString('form-nida-capture', $html);
+        $this->assertStringContainsString('data-kf-form-nida-capture', $html);
         $this->assertStringContainsString(__('site.affiliate_apply.nida_capture_cta'), $html);
         $this->assertStringContainsString(__('site.affiliate_apply.date_of_birth'), $html);
         $this->assertStringContainsString(__('site.affiliate_apply.gender'), $html);
         $this->assertStringContainsString(__('site.affiliate_apply.conduct_title'), $html);
-        $this->assertStringContainsString(__('site.affiliate_apply.incomplete_title'), $html);
+        $this->assertStringContainsString(__('site.affiliate_apply.step_incomplete'), $html);
         $this->assertStringContainsString(':disabled="missing.length > 0"', $html);
         $this->assertStringContainsString(__('site.affiliate_apply.submit_payment'), $html);
         $this->assertStringContainsString(__('site.affiliate_apply.monthly_reach'), $html);
@@ -37,7 +37,9 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertStringNotContainsString('sipendii kusema', strtolower($html));
         $this->assertStringNotContainsString('name="date_of_birth" type="date"', $html);
         $this->assertStringNotContainsString('type="date" name="date_of_birth"', $html);
-        $this->assertStringContainsString('affiliateApplyForm({', $html);
+        $this->assertStringContainsString('goNext()', $html);
+        $this->assertStringContainsString('canLeaveStep', $html);
+        $this->assertStringContainsString('missingOnStep', $html);
         $this->assertStringContainsString('function affiliateApplyForm', $html);
         $this->assertStringNotContainsString('scrollStepIntoView()); }); this.$watch', $html);
         $this->assertStringNotContainsString('data-step=\"', $html);
@@ -63,7 +65,6 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
                 'date_of_birth',
                 'gender',
                 'district',
-                'ward',
                 'occupation',
                 'conduct_accepted',
                 'doc_national_id_front',
