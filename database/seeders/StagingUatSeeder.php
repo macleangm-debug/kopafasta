@@ -143,15 +143,16 @@ class StagingUatSeeder extends Seeder
 
         $kitonga = Vendor::query()->where('affiliate_code', 'KITONGA')->first();
         if ($kitonga && ! app(\App\Services\AffiliateTermsService::class)->hasAccepted($kitonga)) {
+            $terms = app(\App\Services\AffiliateTermsService::class);
             \App\Models\PartnerAgreementAcceptance::query()->create([
                 'partner_id' => $kitonga->id,
                 'partner_type' => 'affiliate',
                 'agreement_key' => \App\Services\AffiliateTermsService::AGREEMENT_KEY,
-                'agreement_version' => 'staging-uat',
-                'policy_version' => 'staging-uat',
+                'agreement_version' => $terms->agreementVersion(),
+                'policy_version' => $terms->policyVersion(),
                 'locale' => 'en',
                 'rendered_text' => 'Staging UAT terms acceptance for KITONGA.',
-                'content_hash' => hash('sha256', 'staging-uat-kitonga'),
+                'content_hash' => hash('sha256', 'staging-uat-kitonga-v'.$terms->agreementVersion()),
                 'settings_snapshot' => ['seeded' => true],
                 'ip_address' => '127.0.0.1',
                 'user_agent' => 'StagingUatSeeder',
