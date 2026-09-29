@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\Partner;
 use App\Models\PartnerApplication;
 use App\Models\User;
@@ -97,6 +98,70 @@ class PartnerMatchResolutionService
     }
 
     /**
+     * Partner login must never share a User with a Borrower/Member Customer.
+     * Returns a staff-facing blocker message, or null when the Partner is Partner-only.
+     */
+    public function borrowerIdentityOnPartner(Partner $partner): ?string
+    {
+        if (! $partner->user_id) {
+            return null;
+        }
+
+        $user = User::query()->find($partner->user_id);
+        if (! $user) {
+            return null;
+        }
+
+        if ($user->role === 'borrower' || Customer::query()->where('user_id', $user->id)->exists()) {
+            return 'This Partner login is tied to a Borrower/Member identity. Borrower and Partner must stay separate — do not Link identity. Correct the phone/email, or investigate.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Phone/email already used by a Borrower/Member (not a Partner match target).
+     * Link identity cannot absorb Borrower into Partner — staff must correct contact details.
+     */
+    public function borrowerContactBlocker(PartnerApplication $application): ?string
+    {
+        $borrowerUser = null;
+        if (filled($application->phone)) {
+            $borrowerUser = User::query()
+                ->where('role', 'borrower')
+                ->where('phone', $application->phone)
+                ->first();
+        }
+        if (! $borrowerUser && filled($application->email)) {
+            $borrowerUser = User::query()
+                ->where('role', 'borrower')
+                ->whereRaw('LOWER(email) = ?', [strtolower((string) $application->email)])
+                ->first();
+        }
+
+        $customer = null;
+        if (filled($application->phone)) {
+            $customer = Customer::query()->where('phone', $application->phone)->first();
+        }
+        if (! $customer && filled($application->email)) {
+            $customer = Customer::query()
+                ->whereRaw('LOWER(email) = ?', [strtolower((string) $application->email)])
+                ->first();
+        }
+
+        if (! $borrowerUser && ! $customer) {
+            return null;
+        }
+
+        // Linked Partner roles on a Partner-only login are fine; block only Borrower ownership of the contact.
+        $label = $borrowerUser?->name
+            ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''))
+            ?: 'Borrower';
+
+        return 'Phone/email belongs to Borrower/Member '.$label.'. Borrower and Partner identities must stay separate — correct the duplicated contact details before Approve. Link identity cannot merge them.';
+    }
+
+    /**
      * @param  array{decision: string, partner_id: int}  $data
      */
     public function resolve(PartnerApplication $application, array $data): PartnerApplication
@@ -119,6 +184,16 @@ class PartnerMatchResolutionService
             if (! ($data['confirm_despite_conflicts'] ?? false)) {
                 throw ValidationException::withMessages([
                     'decision' => 'Identity fields conflict. Confirm you still want to link, or choose Keep separate.',
+                ]);
+            }
+        }
+
+        // Link identity consolidates Partner roles only — never Borrower/Member.
+        if ($decision === 'link') {
+            $target = Partner::query()->find($partnerId);
+            if ($target && ($blocker = $this->borrowerIdentityOnPartner($target))) {
+                throw ValidationException::withMessages([
+                    'decision' => $blocker,
                 ]);
             }
         }

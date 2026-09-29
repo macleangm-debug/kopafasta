@@ -371,6 +371,131 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         app(\App\Services\PartnerEnrollmentService::class)->convertToPartner($application);
     }
 
+    public function test_link_identity_refuses_partner_login_that_is_also_borrower(): void
+    {
+        $borrowerUser = User::factory()->create([
+            'name' => 'Borrower Maclean',
+            'phone' => '255715222200',
+            'email' => 'borrower.link@example.com',
+            'role' => 'borrower',
+        ]);
+        \App\Models\Customer::create([
+            'user_id' => $borrowerUser->id,
+            'customer_number' => 'C-LINK-001',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Borrower',
+            'last_name' => 'Maclean',
+            'phone' => '255715222200',
+            'country_code' => 'TZ',
+        ]);
+        // Corrupted dual identity: Partner row points at Borrower User — must never Link.
+        $partner = Partner::create([
+            'vendor_number' => 'PT-BAD-BORROWER',
+            'name' => 'Bad Dual Partner',
+            'phone' => '255715222200',
+            'email' => 'bad.dual@example.com',
+            'category' => 'insurance',
+            'roles' => ['insurance'],
+            'user_id' => $borrowerUser->id,
+            'status' => 'active',
+            'activated_at' => now(),
+        ]);
+
+        $application = $this->makeApplication([
+            'full_name' => 'Affiliate Applicant',
+            'phone' => '255715222200',
+            'email' => 'affiliate.applicant@example.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->post(route('admin.partner-applications.match-resolution', $application), [
+                'decision' => 'link',
+                'partner_id' => $partner->id,
+                'confirm_despite_conflicts' => true,
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasErrors('decision');
+
+        $this->assertNull($application->fresh()->payload['match_resolutions'][(string) $partner->id]['decision'] ?? null);
+        $this->assertFalse($partner->fresh()->hasPartnerRole('affiliate'));
+    }
+
+    public function test_approve_blocked_when_phone_belongs_to_borrower_not_partner(): void
+    {
+        $borrowerUser = User::factory()->create([
+            'name' => 'Solo Borrower',
+            'phone' => '255715333444',
+            'email' => 'solo.borrower@example.com',
+            'role' => 'borrower',
+        ]);
+        \App\Models\Customer::create([
+            'user_id' => $borrowerUser->id,
+            'customer_number' => 'C-SOLO-001',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Solo',
+            'last_name' => 'Borrower',
+            'phone' => '255715333444',
+            'country_code' => 'TZ',
+        ]);
+
+        $application = $this->makeApplication([
+            'phone' => '255715333444',
+            'email' => 'new.partner.app@example.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->put(route('admin.partner-applications.update', $application), [
+                'status' => 'approved',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame('pending', $application->fresh()->status);
+        $this->assertSame(0, Partner::query()->where('phone', '255715333444')->count());
+        $this->assertSame('borrower', $borrowerUser->fresh()->role);
+        $this->assertNull($borrowerUser->fresh()->partner);
+    }
+
+    public function test_convert_to_partner_refuses_borrower_phone(): void
+    {
+        $borrowerUser = User::factory()->create([
+            'phone' => '255715555666',
+            'email' => 'borrower.phone@example.com',
+            'role' => 'borrower',
+        ]);
+        \App\Models\Customer::create([
+            'user_id' => $borrowerUser->id,
+            'customer_number' => 'C-PH-001',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Phone',
+            'last_name' => 'Borrower',
+            'phone' => '255715555666',
+            'country_code' => 'TZ',
+        ]);
+
+        $application = $this->makeApplication([
+            'phone' => '255715555666',
+            'email' => 'partner.from.borrower.phone@example.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
+            'status' => 'approved',
+        ]);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(\App\Services\PartnerEnrollmentService::class)->convertToPartner($application);
+    }
+
     public function test_keep_separate_records_resolution_and_blocks_shared_email_approve(): void
     {
         $existing = Partner::create([

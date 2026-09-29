@@ -278,6 +278,23 @@ class PartnerApplicationDecisionService
             }
         }
 
+        $linkedId = $this->matchResolution->linkedPartnerId($application);
+        $existingForLink = $linkedId
+            ? Partner::query()->find($linkedId)
+            : $this->findMatchingPartner($application);
+
+        // New Partner identity must not absorb a Borrower/Member login.
+        if (! $application->partner_id && ! $existingForLink) {
+            if ($borrowerBlock = $this->matchResolution->borrowerContactBlocker($application)) {
+                throw ValidationException::withMessages(['status' => $borrowerBlock]);
+            }
+        }
+
+        // Existing Partner link target must be Partner-only (never a Borrower User).
+        if ($existingForLink && ($borrowerOnPartner = $this->matchResolution->borrowerIdentityOnPartner($existingForLink))) {
+            throw ValidationException::withMessages(['status' => $borrowerOnPartner]);
+        }
+
         $payload = is_array($application->payload) ? $application->payload : [];
         $activity = is_array($payload['review_activity'] ?? null) ? $payload['review_activity'] : [];
         $activity[] = [
@@ -298,10 +315,7 @@ class PartnerApplicationDecisionService
 
         $partner = null;
         if (! $application->partner_id) {
-            $linkedId = $this->matchResolution->linkedPartnerId($application);
-            $existing = $linkedId
-                ? Partner::query()->find($linkedId)
-                : $this->findMatchingPartner($application);
+            $existing = $existingForLink;
 
             if ($existing) {
                 $partner = $this->linkExistingPartner($application->fresh('documents'), $existing);
@@ -420,6 +434,10 @@ class PartnerApplicationDecisionService
 
     public function linkExistingPartner(PartnerApplication $application, Partner $partner): Partner
     {
+        if ($borrowerOnPartner = $this->matchResolution->borrowerIdentityOnPartner($partner)) {
+            throw ValidationException::withMessages(['status' => $borrowerOnPartner]);
+        }
+
         foreach ($application->documents as $doc) {
             $dest = 'partners/'.$partner->id.'/compliance/'.basename((string) $doc->file_path);
             if ($doc->file_path && Storage::disk('public')->exists($doc->file_path)

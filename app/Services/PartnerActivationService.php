@@ -240,6 +240,12 @@ class PartnerActivationService
         if ($vendor->user_id) {
             $linked = User::query()->find($vendor->user_id);
             if ($linked) {
+                if ($linked->role === 'borrower' || $linked->customer()->exists()) {
+                    throw ValidationException::withMessages([
+                        'phone' => __('site.auth.partner_identity_conflict'),
+                    ]);
+                }
+
                 return $linked;
             }
         }
@@ -247,6 +253,12 @@ class PartnerActivationService
         $reusable = $this->reusablePortalUser($vendor);
         if ($reusable) {
             return $reusable;
+        }
+
+        if ($this->borrowerOwnsPartnerContact($vendor)) {
+            throw ValidationException::withMessages([
+                'phone' => __('site.auth.partner_identity_conflict'),
+            ]);
         }
 
         $conflict = $this->foreignIdentityUsingPartnerEmail($vendor);
@@ -264,6 +276,37 @@ class PartnerActivationService
             'role' => 'vendor',
             'is_active' => true,
         ]);
+    }
+
+    /** Borrower/Member already owns this phone or email — Partner must get its own login. */
+    private function borrowerOwnsPartnerContact(Vendor $vendor): bool
+    {
+        if (filled($vendor->phone)) {
+            $borrowerPhone = User::query()
+                ->where('role', 'borrower')
+                ->where(function ($q) use ($vendor) {
+                    PhoneNumber::constrain($q, 'phone', (string) $vendor->phone);
+                })
+                ->exists();
+            if ($borrowerPhone) {
+                return true;
+            }
+            if (\App\Models\Customer::query()->where('phone', $vendor->phone)->exists()) {
+                return true;
+            }
+        }
+
+        if (filled($vendor->email)) {
+            $borrowerEmail = User::query()
+                ->where('role', 'borrower')
+                ->whereRaw('LOWER(email) = ?', [strtolower((string) $vendor->email)])
+                ->exists();
+            if ($borrowerEmail) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function reusablePortalUser(Vendor $vendor): ?User
@@ -301,6 +344,11 @@ class PartnerActivationService
     {
         if ((int) $vendor->user_id === (int) $user->id) {
             return true;
+        }
+
+        // Never reuse a Borrower/Member login for Partner activation.
+        if ($user->role === 'borrower' || $user->customer()->exists()) {
+            return false;
         }
 
         $claimedByOther = Vendor::query()

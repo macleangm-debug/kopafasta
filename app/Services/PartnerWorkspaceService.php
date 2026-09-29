@@ -27,14 +27,19 @@ class PartnerWorkspaceService
         $seen = [];
 
         foreach ($roles as $role) {
-            $key = $this->workspaceKeyForRole((string) $role);
+            $role = (string) $role;
+            // Partner workspaces only — never Borrower/Member.
+            if (in_array($role, ['borrower', 'member', 'customer'], true)) {
+                continue;
+            }
+            $key = $this->workspaceKeyForRole($role);
             if ($key === null || isset($seen[$key])) {
                 continue;
             }
             $seen[$key] = true;
             $out[] = [
                 'key' => $key,
-                'label' => $this->labelForRole((string) $role),
+                'label' => $this->labelForRole($role),
                 'home_route' => $this->homeRouteForWorkspace($key),
             ];
         }

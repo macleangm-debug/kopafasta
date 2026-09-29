@@ -184,6 +184,10 @@ class PartnerEnrollmentService
             ]);
         }
 
+        if ($borrowerBlock = app(PartnerMatchResolutionService::class)->borrowerContactBlocker($application)) {
+            throw ValidationException::withMessages(['status' => $borrowerBlock]);
+        }
+
         return DB::transaction(function () use ($application, $category, $actor) {
             $roles = $this->normalizeRequestedRoles(
                 $category,

@@ -93,4 +93,32 @@ class PartnerWorkspaceSwitcherFeatureTest extends TestCase
         $this->assertSame(1, Partner::query()->where('user_id', $user->id)->count());
         $this->assertSame(1, User::query()->where('phone', '255715222132')->count());
     }
+
+    public function test_partner_workspace_switcher_never_includes_borrower(): void
+    {
+        $partner = Partner::create([
+            'vendor_number' => 'PT-NO-BORROWER',
+            'name' => 'Roles Only Partner',
+            'phone' => '255700000099',
+            'email' => 'roles.only@example.com',
+            'category' => 'insurance',
+            // Corrupt roles array must not surface Borrower in the Partner switcher.
+            'roles' => ['insurance', 'affiliate', 'borrower', 'member', 'customer'],
+            'status' => 'active',
+        ]);
+
+        $workspaces = app(PartnerWorkspaceService::class)->workspaces($partner);
+        $keys = collect($workspaces)->pluck('key')->all();
+        $labels = collect($workspaces)->pluck('label')->all();
+
+        $this->assertContains('affiliate', $keys);
+        $this->assertContains('service', $keys);
+        $this->assertNotContains('borrower', $keys);
+        $this->assertNotContains('member', $keys);
+        $this->assertNotContains('customer', $keys);
+        foreach ($labels as $label) {
+            $this->assertStringNotContainsStringIgnoringCase('borrower', (string) $label);
+            $this->assertStringNotContainsStringIgnoringCase('member', (string) $label);
+        }
+    }
 }
