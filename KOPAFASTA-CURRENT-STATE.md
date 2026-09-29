@@ -24,6 +24,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Owner UAT hotfix Affiliate+guarantor+signatures (staging tip)** | `ea51e69c2dc640a53827cd84575a423c1828c0cf` | Redirect loop, decision read-only, track, Affiliate 360 link tooling, guarantor View, group signature cards. Staging only. |
 | **Owner UAT correction Partner roles+Affiliate 360+guarantor (staging tip)** | `3344e1a92b673fc31605e789cb319180fa9ebccc` | Workspace switcher visible; Affiliate 360 not application; false Asset supplier strip; track Vendor typing; profile signature reuse; guarantor View hero. Staging only. |
 | **Affiliate RC workspace+activation+360 roles (staging tip)** | `578ecac34ea1592e0ca2d87fe5909eebbc72745d` | Compact header workspace switcher; Activate vs Login track CTA; Fuatilia secondary button; Partner 360 multi-role chips. Staging only. Do not promote yet. |
+| **Affiliate release landing CTA (staging tip)** | `7421ba332dff2f5f1ff8abfd95081c4f1ae47bdc` | Anza Sasa + Ingia side-by-side on landing hero. Ready for production promote of Affiliate scope. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
