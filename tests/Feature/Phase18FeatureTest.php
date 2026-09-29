@@ -51,9 +51,10 @@ class Phase18FeatureTest extends TestCase
             ->assertSee(route('site.login.partner', [], false), false)
             ->getContent();
 
-        // Hero CTAs: Apply only — no competing How it works / portal secondary button.
-        $this->assertStringContainsString('href="'.route('site.affiliate.apply', [], false).'"', $sw);
-        $this->assertStringNotContainsString('href="'.route('site.how-it-works', [], false).'" class="inline-flex items-center gap-2 bg-white/10', $sw);
+        // Hero CTAs: Apply only — no competing How it works secondary button in the hero.
+        $this->assertStringContainsString('/become-affiliate', $sw);
+        $this->assertStringContainsString('/login/partner', $sw);
+        $this->assertStringNotContainsString('href="'.url('/how-it-works').'" class="inline-flex items-center gap-2 bg-white/10', $sw);
 
         $this->withSession(['locale' => 'en'])
             ->get(route('site.affiliate'))
