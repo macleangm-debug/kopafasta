@@ -253,6 +253,8 @@
                 fromCamera: false,
                 awaitingReview: false,
                 saveState: '', // '' | saving | saved | error
+                _cameraStarting: false,
+                _cameraToken: 0,
                 requestCamera() {
                     if (this.hasGuide) {
                         this.guideOpen = true;
@@ -324,28 +326,73 @@
                     window.removeEventListener('kf-document-saved', this._onDocsSaved);
                     window.removeEventListener('kf-document-save-failed', this._onDocsFailed);
                 },
+                async playVideo(video) {
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('webkit-playsinline', '');
+                    if (video.readyState < 1) {
+                        await Promise.race([
+                            new Promise((resolve) => video.addEventListener('loadedmetadata', resolve, { once: true })),
+                            new Promise((resolve) => setTimeout(resolve, 1500)),
+                        ]);
+                    }
+                    for (let attempt = 0; attempt < 4; attempt++) {
+                        try {
+                            await video.play();
+                            return;
+                        } catch (playErr) {
+                            const interrupted = playErr?.name === 'AbortError'
+                                || /play\(\).*interrupted|interrupted by a new load/i.test(String(playErr?.message || ''));
+                            if (! interrupted || attempt === 3) throw playErr;
+                            await new Promise((resolve) => setTimeout(resolve, 60 * (attempt + 1)));
+                            if (video.paused && video.srcObject) continue;
+                            if (! video.paused) return;
+                        }
+                    }
+                },
                 async openCamera() {
+                    if (this._cameraStarting) return;
+                    this._cameraStarting = true;
+                    const token = ++this._cameraToken;
                     this.cameraNotice = null;
                     if (!window.isSecureContext) {
                         this.cameraNotice = this.labels.cameraInsecure;
+                        this._cameraStarting = false;
                         return;
                     }
                     if (!navigator.mediaDevices?.getUserMedia) {
                         this.cameraNotice = this.labels.cameraUnsupported;
+                        this._cameraStarting = false;
                         return;
                     }
                     try {
                         this.cameraOpen = true;
+                        document.body.classList.add('kf-camera-open');
                         await this.$nextTick();
+                        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                         await this.$nextTick();
-                        this.stream = await this.requestCameraStream(this.facingMode);
-                        const video = this.$refs.camVideo;
+                        if (token !== this._cameraToken) return;
+
+                        let video = this.$refs.camVideo;
+                        if (!video) {
+                            await this.$nextTick();
+                            video = this.$refs.camVideo;
+                        }
                         if (!video) throw new Error(this.labels.cameraUnsupported);
+
+                        this.stopStream();
+                        this.stream = await this.requestCameraStream(this.facingMode);
+                        if (token !== this._cameraToken) {
+                            this.stopStream();
+                            return;
+                        }
                         video.srcObject = this.stream;
-                        video.muted = true;
-                        await video.play();
+                        await this.playVideo(video);
                     } catch (e) {
+                        if (token !== this._cameraToken) return;
                         this.cameraOpen = false;
+                        document.body.classList.remove('kf-camera-open');
                         this.stopStream();
                         const raw = String(e?.message || '');
                         const interrupted = e?.name === 'AbortError'
@@ -354,7 +401,9 @@
                             ? this.labels.cameraDenied
                             : (interrupted
                                 ? (this.labels.cameraInterrupted || this.labels.cameraDenied)
-                                : (this.labels.cameraDenied));
+                                : (raw || this.labels.cameraDenied));
+                    } finally {
+                        if (token === this._cameraToken) this._cameraStarting = false;
                     }
                 },
                 async toggleFacing() {
@@ -366,8 +415,7 @@
                         const video = this.$refs.camVideo;
                         if (!video) throw new Error(this.labels.cameraUnsupported);
                         video.srcObject = this.stream;
-                        video.muted = true;
-                        await video.play();
+                        await this.playVideo(video);
                     } catch (e) {
                         const raw = String(e?.message || '');
                         const interrupted = e?.name === 'AbortError'
@@ -376,7 +424,7 @@
                             ? this.labels.cameraDenied
                             : (interrupted
                                 ? (this.labels.cameraInterrupted || this.labels.cameraDenied)
-                                : (this.labels.cameraDenied));
+                                : (raw || this.labels.cameraDenied));
                     }
                 },
                 async requestCameraStream(facing) {
@@ -399,8 +447,11 @@
                     throw lastError;
                 },
                 closeCamera() {
+                    this._cameraToken++;
+                    this._cameraStarting = false;
                     this.stopStream();
                     this.cameraOpen = false;
+                    document.body.classList.remove('kf-camera-open');
                 },
                 stopStream() {
                     if (this.stream) {

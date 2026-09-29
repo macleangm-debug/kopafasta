@@ -16,8 +16,13 @@
      x-data="{
         captureOpen: false,
         fileName: '',
+        isIdentity: @js($isIdentity),
         openCapture(source) {
             this.captureOpen = true;
+            // Multi-page only listens for document-open-*. Identity/single-image already
+            // handles document-source — re-dispatching would call openCamera twice and
+            // AbortError the first play().
+            if (this.isIdentity) return;
             this.$nextTick(() => {
                 this.$dispatch(source === 'camera' ? 'document-open-camera' : 'document-open-upload', {
                     hostId: @js($hostId),
@@ -57,8 +62,9 @@
         <x-site.document-source-picker :host-id="$hostId" />
     </div>
 
-    <div class="mt-3" x-show="captureOpen || fileName" x-cloak>
-        @if ($isIdentity)
+    {{-- Keep identity capture mounted (x-show only) so getUserMedia/play is not raced by remount. --}}
+    @if ($isIdentity)
+        <div class="mt-3" x-show="captureOpen || fileName" x-cloak>
             <x-site.single-image-document-upload
                 :name="$name"
                 :input-host-id="$hostId"
@@ -67,7 +73,9 @@
                 source-driven="true"
                 guide-frame="id-card"
             />
-        @else
+        </div>
+    @else
+        <div class="mt-3" x-show="captureOpen || fileName" x-cloak>
             <x-site.multi-page-document-upload
                 :name="$name"
                 :input-host-id="$hostId"
@@ -76,6 +84,6 @@
                 :auto-finish-upload="true"
                 output-mode="pdf"
             />
-        @endif
-    </div>
+        </div>
+    @endif
 </div>
