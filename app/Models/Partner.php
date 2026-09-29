@@ -82,12 +82,12 @@ class Partner extends Model
 
     public function isSupplier(): bool
     {
-        return $this->category === 'supplier';
+        return $this->category === 'supplier' || $this->hasPartnerRole('supplier');
     }
 
     public function isAffiliate(): bool
     {
-        return $this->category === 'affiliate';
+        return $this->category === 'affiliate' || $this->hasPartnerRole('affiliate');
     }
 
     public function isPremiumAffiliate(): bool
@@ -161,25 +161,14 @@ class Partner extends Model
     }
 
     /**
-     * Primary portal shell for this partner (category wins over extra roles).
+     * Operational portal shell. Multi-role Partners may switch workspace via session;
+     * identity stays the same Partner.
      *
      * @return 'affiliate'|'supplier'|'capital'|'service'
      */
     public function portalShell(): string
     {
-        if ($this->isAffiliate()) {
-            return 'affiliate';
-        }
-
-        if ($this->isSupplier()) {
-            return 'supplier';
-        }
-
-        if ($this->category === 'capital') {
-            return 'capital';
-        }
-
-        return 'service';
+        return app(\App\Services\PartnerWorkspaceService::class)->currentKey($this);
     }
 
     public function isRecoveryPartner(): bool

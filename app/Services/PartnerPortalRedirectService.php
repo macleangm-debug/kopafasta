@@ -14,20 +14,11 @@ class PartnerPortalRedirectService
         }
 
         $vendor = Vendor::query()->where('user_id', $user->id)->first();
-
-        if ($vendor?->isAffiliate()) {
-            return route('site.affiliate.dashboard');
+        if (! $vendor) {
+            return route('site.partner.dashboard');
         }
 
-        if ($vendor?->portalShell() === 'supplier') {
-            return route('site.supplier.dashboard');
-        }
-
-        if ($vendor?->portalShell() === 'capital') {
-            return route('site.investor.dashboard');
-        }
-
-        return route('site.partner.dashboard');
+        return app(PartnerWorkspaceService::class)->homeUrl($vendor);
     }
 
     public function isAffiliateUser(User $user): bool

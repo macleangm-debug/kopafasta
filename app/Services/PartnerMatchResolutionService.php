@@ -321,7 +321,7 @@ class PartnerMatchResolutionService
             'uniqueness' => [
                 'email_shared_with_existing_login' => $emailUniqueBlock,
                 'message' => $emailUniqueBlock
-                    ? 'Email is already used on the existing Partner login. Keep separate requires a unique email before this applicant can activate.'
+                    ? 'Email is already used on the existing Partner login. Keep separate does not bypass uniqueness — correct the duplicated email before this applicant can activate.'
                     : null,
             ],
         ];

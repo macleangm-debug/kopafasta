@@ -57,31 +57,37 @@
 
                 <div class="space-y-2 pt-1">
                     <p class="text-[10px] uppercase tracking-wider font-bold text-gray-500">Resolution</p>
+                    <p class="text-xs text-gray-500">The system identifies the collision. You decide the relationship between the identities.</p>
 
                     <button type="button" @click="startAction('link')"
                             class="w-full text-left rounded-xl ring-1 ring-brand/20 bg-white hover:bg-brand-muted/40 px-4 py-3">
-                        <p class="text-sm font-bold text-brand">They are the same person → Link existing Partner</p>
+                        <p class="text-sm font-bold text-brand">Same person → Link to this Partner</p>
                         <p class="text-xs text-gray-600 mt-0.5" x-text="currentMatch().link_preview"></p>
                     </button>
 
                     <button type="button" @click="startAction('keep_separate')"
                             class="w-full text-left rounded-xl ring-1 ring-gray-200 bg-white hover:bg-gray-50 px-4 py-3">
-                        <p class="text-sm font-bold text-gray-900">They are different people → Keep separate</p>
-                        <p class="text-xs text-gray-600 mt-0.5">Record that this collision is not the same identity for this application.</p>
+                        <p class="text-sm font-bold text-gray-900">Different people → Keep separate</p>
+                        <p class="text-xs text-gray-600 mt-0.5">
+                            Marks this collision as different identities for this application.
+                            Does not bypass a genuine unique-field conflict (for example a shared login email).
+                        </p>
                     </button>
 
                     <a :href="currentMatch().partner_url" target="_blank" rel="noopener"
                        class="block w-full text-left rounded-xl ring-1 ring-gray-200 bg-white hover:bg-gray-50 px-4 py-3">
-                        <p class="text-sm font-bold text-gray-900">Incorrect existing information → Open existing Partner →</p>
+                        <p class="text-sm font-bold text-gray-900">
+                            Open <span x-text="currentMatch().existing?.name || 'Partner'"></span> →
+                        </p>
                         <p class="text-xs text-gray-600 mt-0.5">
-                            Open <span x-text="currentMatch().existing?.name"></span> on Partner 360 to investigate or correct contact details.
+                            Investigate this specific Partner 360 record. Do not assume it is wrong — correct it there only if investigation shows its data is incorrect.
                         </p>
                     </a>
 
                     <button type="button" @click="pickRequestInfo()"
                             class="w-full text-left rounded-xl ring-1 ring-sky-200 bg-sky-50/60 hover:bg-sky-50 px-4 py-3">
-                        <p class="text-sm font-bold text-sky-950">Need more evidence → Request information</p>
-                        <p class="text-xs text-sky-900/80 mt-0.5">Reuse Request information for clearer NIDA / TIN / identity evidence.</p>
+                        <p class="text-sm font-bold text-sky-950">Request information →</p>
+                        <p class="text-xs text-sky-900/80 mt-0.5">When the applicant’s identity or contact details need clarification — reopen Request information on this application.</p>
                     </button>
                 </div>
             </div>

@@ -306,6 +306,9 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
         Route::get('/partner/setup-recovery', [PartnerPortalController::class, 'showSetupRecovery'])->name('partner.setup-recovery');
         Route::post('/partner/setup-recovery', [PartnerPortalController::class, 'storeSetupRecovery'])->name('partner.setup-recovery.post');
         Route::post('/partner/account/recovery', [PartnerAccountController::class, 'storeRecovery'])->name('partner.account.recovery');
+        Route::post('/partner/workspace', [PartnerAccountController::class, 'switchWorkspace'])
+            ->middleware(['partner.pin'])
+            ->name('partner.workspace.switch');
 
         Route::middleware('borrower.pin')->group(function () {
             // Browse products without membership; pay / renew when starting apply.

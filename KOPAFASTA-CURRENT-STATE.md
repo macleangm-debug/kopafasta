@@ -14,7 +14,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Affiliate commercial closure (staging tip)** | `6ddc3077` | Commission remaining-amount basis + Accounting earn/payout + public apply fee ON/OFF via payment.show body. Agreement content_revision 3. Staging only. |
 | **Partner 360 Review Decision blank P0 (staging tip)** | `ae4747bbb9a458b5dd4809e44b470984ad968c75` | Blank Review Decision body fixed (Alpine @js attribute). Document update/replace on same request path. Staging only. |
 | **Affiliate requested-document tracking UX (staging tip)** | `22d60dc0d89b0590f174306f16448c7df22cf13e` | Single Document Holder fulfill surface + tracking result mode. Staging only. |
-| **Partner match resolution (staging tip)** | `1531c305673f8107a20018fdf191ae0937eefa1b` | Review match Applicant↔Existing Partner; Link / Keep separate / Open / Request info. No Merge. Staging only. |
+| **Partner match resolution UX cleanup (staging tip)** | _(pending deploy)_ | Dedupe Needs Attention; Open {Name}; workspace switcher for 2+ roles. Staging only. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 

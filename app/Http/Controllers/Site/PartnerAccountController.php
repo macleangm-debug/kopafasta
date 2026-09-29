@@ -70,4 +70,21 @@ class PartnerAccountController extends Controller
 
         return back()->with('status', __('site.auth.partner_recovery_saved'));
     }
+
+    public function switchWorkspace(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $user->role === 'vendor', 403);
+
+        $data = $request->validate([
+            'workspace' => ['required', 'string', 'in:affiliate,supplier,capital,service'],
+        ]);
+
+        $partner = \App\Models\Vendor::query()->where('user_id', $user->id)->firstOrFail();
+        $url = app(\App\Services\PartnerWorkspaceService::class)->switchTo($partner, $data['workspace']);
+
+        return redirect()
+            ->to($url)
+            ->with('status', __('site.partner_workspace.switched'));
+    }
 }

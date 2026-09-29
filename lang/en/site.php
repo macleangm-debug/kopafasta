@@ -2012,6 +2012,18 @@ return [
         'tab_card' => 'My card',
     ],
 
+    'partner_workspace' => [
+        'title' => 'Workspaces',
+        'hint' => 'Switch the operational area for this Partner account. Your identity and login stay the same.',
+        'switch' => 'Switch workspace',
+        'same_identity' => 'Same Partner identity. Only navigation and role tools change.',
+        'switched' => 'Workspace updated.',
+        'affiliate' => 'Affiliate',
+        'supplier' => 'Supplier',
+        'capital' => 'Capital Partner',
+        'service' => 'Service Partner',
+    ],
+
     'partner_account' => [
         'tab_profile' => 'Profile',
         'tab_documents' => 'Documents',

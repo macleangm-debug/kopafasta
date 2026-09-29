@@ -338,13 +338,18 @@ class PartnerApplicationReviewFeatureTest extends TestCase
             ->assertSee('Maclean Mwaijonga', false)
             ->assertSee('Said Mbelemba', false)
             ->assertSee('Email matched', false)
-            ->assertSee('They are the same person', false)
-            ->assertSee('They are different people', false)
-            ->assertSee('Open existing Partner', false)
-            ->assertSee('Need more evidence', false)
+            ->assertSee('Same person → Link to this Partner', false)
+            ->assertSee('Different people → Keep separate', false)
+            ->assertSee('Open ', false)
+            ->assertSee('Request information →', false)
             ->assertSee('partnerApplicationDecision(JSON.parse(', false)
             ->assertDontSee('Merge Partner', false)
+            ->assertDontSee('Open existing Partner', false)
             ->getContent();
+
+        // Needs Attention must not duplicate the Review Decision match warning.
+        $this->assertSame(1, substr_count($html, 'Possible existing Partner found'));
+        $this->assertStringContainsString('currentMatch().existing?.name', $html);
 
         $this->assertStringContainsString('Phone', $html);
         $this->assertStringContainsString('255715222132', $html);

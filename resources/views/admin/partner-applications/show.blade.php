@@ -126,33 +126,35 @@
     @endphp
 
     @if (! empty($anomalies))
+        @php
+            // Match collisions live only in Review Decision → Review match (no header duplicate).
+            $attentionAnomalies = collect($anomalies)
+                ->reject(fn ($a) => in_array(($a['code'] ?? ''), ['existing_partner', 'existing_partner_resolved'], true))
+                ->values()
+                ->all();
+        @endphp
+        @if ($attentionAnomalies !== [])
         <div class="mb-5 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
             <div class="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Needs attention</p>
-                    <h3 class="text-sm font-bold text-gray-900 mt-0.5">{{ count($anomalies) }} flag{{ count($anomalies) === 1 ? '' : 's' }} to review first</h3>
+                    <h3 class="text-sm font-bold text-gray-900 mt-0.5">{{ count($attentionAnomalies) }} flag{{ count($attentionAnomalies) === 1 ? '' : 's' }} to review first</h3>
                 </div>
             </div>
             <ul class="divide-y divide-gray-100">
-                @foreach ($anomalies as $anomaly)
+                @foreach ($attentionAnomalies as $anomaly)
                     <li class="px-5 py-3 flex gap-3 {{ $anomalyTone[$anomaly['severity']] ?? 'bg-gray-50' }}">
                         <span class="mt-1.5 size-2 rounded-full shrink-0 {{ $anomalyDot[$anomaly['severity']] ?? 'bg-gray-400' }}"></span>
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold">{{ $anomaly['title'] }}</p>
                             <p class="text-xs mt-0.5 opacity-80">{{ $anomaly['detail'] }}</p>
-                            @if (($anomaly['code'] ?? '') === 'existing_partner' && $hasUnresolvedPartnerMatch)
-                                <button type="button"
-                                        @click="$dispatch('open-partner-match')"
-                                        class="mt-2 inline-flex items-center text-xs font-bold text-brand hover:underline">
-                                    Review match →
-                                </button>
-                            @endif
                         </div>
                         <span class="ml-auto shrink-0 text-[10px] uppercase tracking-wider font-semibold opacity-70">{{ $anomaly['severity'] }}</span>
                     </li>
                 @endforeach
             </ul>
         </div>
+        @endif
     @endif
 
     <div class="grid lg:grid-cols-12 gap-6" x-data="{ tab: @js($defaultTab) }">
@@ -509,7 +511,7 @@
                             this.matchBusy = false;
                         },
                         reviewTitle() {
-                            if (this.matchAction === 'link') return 'Link to existing Partner?';
+                            if (this.matchAction === 'link') return 'Link to this Partner?';
                             if (this.matchAction === 'keep_separate') return 'Keep these records separate?';
                             return 'Confirm';
                         },
@@ -517,7 +519,7 @@
                             const m = this.currentMatch();
                             if (!m) return '';
                             if (this.matchAction === 'link') {
-                                let msg = m.link_preview || 'This application will join the existing Partner on Approve. No new Partner identity will be created.';
+                                let msg = m.link_preview || 'This application will attach to that Partner identity on Approve. The requested role can be added without creating another Partner.';
                                 if ((m.conflict_fields || []).length) {
                                     msg += '\n\nConflicting fields: ' + (m.conflict_fields || []).join(', ') + '. Confirm only if investigation shows they are the same person.';
                                 }
@@ -526,7 +528,7 @@
                             if (this.matchAction === 'keep_separate') {
                                 let msg = 'These records belong to different people.\n\nThis collision will be marked reviewed for this application. Approve will not link to ' + (m.existing?.name || 'that Partner') + '.';
                                 if (m.uniqueness?.email_shared_with_existing_login) {
-                                    msg += '\n\n' + (m.uniqueness.message || 'The shared email must still be corrected before activation — login email must stay unique.');
+                                    msg += '\n\n' + (m.uniqueness.message || 'A shared unique field (email) still blocks activation until it is legitimately corrected — Keep separate does not bypass uniqueness.');
                                 }
                                 return msg;
                             }

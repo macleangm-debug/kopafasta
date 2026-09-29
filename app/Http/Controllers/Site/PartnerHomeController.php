@@ -30,15 +30,11 @@ class PartnerHomeController extends Controller
         }
 
         $vendor = Vendor::where('user_id', $user->id)->first();
-        if ($vendor?->isAffiliate()) {
-            return redirect()->route('site.affiliate.dashboard');
+        if ($vendor) {
+            return redirect()->to(app(\App\Services\PartnerWorkspaceService::class)->homeUrl($vendor));
         }
 
-        if ($vendor?->portalShell() === 'supplier') {
-            return redirect()->route('site.supplier.dashboard');
-        }
-
-        if ($vendor?->portalShell() === 'capital' || \App\Models\Lender::query()->where('user_id', $user->id)->exists()) {
+        if (\App\Models\Lender::query()->where('user_id', $user->id)->exists()) {
             return redirect()->route('site.investor.dashboard');
         }
 

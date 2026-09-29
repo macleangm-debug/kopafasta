@@ -1994,6 +1994,18 @@ return [
         'tab_card' => 'Kadi yangu',
     ],
 
+    'partner_workspace' => [
+        'title' => 'Maeneo ya kazi',
+        'hint' => 'Badilisha eneo la uendeshaji kwa akaunti hii ya Partner. Utambulisho na kuingia vinabaki vile vile.',
+        'switch' => 'Badilisha eneo',
+        'same_identity' => 'Utambulisho wa Partner ni mmoja. Ni urambazaji na zana za jukumu zinazobadilika.',
+        'switched' => 'Eneo limesasishwa.',
+        'affiliate' => 'Affiliate',
+        'supplier' => 'Supplier',
+        'capital' => 'Capital Partner',
+        'service' => 'Service Partner',
+    ],
+
     'partner_account' => [
         'tab_profile' => 'Wasifu',
         'tab_documents' => 'Hati',
