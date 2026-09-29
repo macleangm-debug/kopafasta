@@ -42,21 +42,25 @@ class Phase18FeatureTest extends TestCase
 
     public function test_affiliate_application_page_supports_swahili_locale(): void
     {
-        $this->withSession(['locale' => 'sw'])
+        $sw = $this->withSession(['locale' => 'sw'])
             ->get(route('site.affiliate'))
             ->assertOk()
             ->assertSee(__('site.affiliate.cta_apply', [], 'sw'), false)
             ->assertSee(__('site.affiliate.already_joined_prefix', [], 'sw'), false)
             ->assertSee(__('site.affiliate.sign_in', [], 'sw'), false)
             ->assertSee(route('site.login.partner', [], false), false)
-            ->assertDontSee(__('site.hero.learn_more', [], 'sw'), false);
+            ->getContent();
+
+        // Hero CTAs: Apply only — no competing How it works / portal secondary button.
+        $this->assertStringContainsString('href="'.route('site.affiliate.apply', [], false).'"', $sw);
+        $this->assertStringNotContainsString('href="'.route('site.how-it-works', [], false).'" class="inline-flex items-center gap-2 bg-white/10', $sw);
 
         $this->withSession(['locale' => 'en'])
             ->get(route('site.affiliate'))
             ->assertOk()
             ->assertSee(__('site.affiliate.already_joined_prefix', [], 'en'), false)
             ->assertSee(__('site.affiliate.sign_in', [], 'en'), false)
-            ->assertDontSee(__('site.hero.learn_more', [], 'en'), false);
+            ->assertSee(__('site.affiliate.cta_apply', [], 'en'), false);
 
         $this->withSession(['locale' => 'sw'])
             ->get(route('site.affiliate.apply'))
