@@ -32,7 +32,7 @@ class PartnerApplicationController extends Controller
         $data = $request->validate([
             'applicant_category' => ['required', 'in:individual,company'],
             'full_name' => ['required', 'string', 'max:150'],
-            'date_of_birth' => ['required', 'date', 'before:today'],
+            'date_of_birth' => ['required', 'date', 'before_or_equal:'.now()->subYears(18)->format('Y-m-d')],
             'gender' => ['required', 'in:male,female'],
             'email' => ['required', 'email', 'max:150'],
             'phone' => ['required', 'string', 'max:30'],
@@ -73,7 +73,6 @@ class PartnerApplicationController extends Controller
             'first_10_customers' => ['required', 'string', 'max:2000'],
             'registered_business' => ['required', 'in:yes,no'],
             'declaration_accepted' => ['accepted'],
-            'conduct_accepted' => ['accepted'],
             'doc_brela' => [$isCompany ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_tin_certificate' => [$isCompany ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_business_licence' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
@@ -187,16 +186,12 @@ class PartnerApplicationController extends Controller
                     'registered_business' => $data['registered_business'],
                     'declarations' => [
                         'applicant' => [
+                            'version' => 'affiliate_applicant_declaration_v2',
                             'accepted' => true,
                             'accepted_at' => $acceptedAt,
                             'full_name' => $data['full_name'],
                             'date_of_birth' => $data['date_of_birth'],
                             'gender' => $data['gender'],
-                        ],
-                        'conduct' => [
-                            'version' => 'application_conduct_v1',
-                            'accepted' => true,
-                            'accepted_at' => $acceptedAt,
                         ],
                     ],
                 ],

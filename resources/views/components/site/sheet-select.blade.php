@@ -207,38 +207,56 @@
         @endif
     </div>
 
-    <div class="hidden lg:block relative" @keydown.escape.window="desktopOpen = false">
+    <div class="hidden lg:block relative" @keydown.escape.window="if (selected !== otherValue) desktopOpen = false">
         <button type="button" @click.stop="desktopOpen = !desktopOpen"
                 class="w-full h-12 inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
             <span class="flex-1 text-left truncate" x-text="labelFor(currentValue())"></span>
             <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="desktopOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
         </button>
-        <div x-cloak x-show="desktopOpen" @click.outside="desktopOpen = false"
-             class="absolute z-30 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-64 overflow-y-auto">
-            @if (! $required)
-                <button type="button" @click="choose('')"
-                        class="w-full text-left px-4 py-2.5 text-sm text-gray-500 hover:bg-brand-muted"
-                        :class="!currentValue() ? 'bg-brand-muted text-brand font-semibold' : ''">{{ $placeholder }}</button>
-            @endif
-            <template x-for="opt in optionEntries" :key="'d-'+opt.value">
-                <button type="button" @click="choose(opt.value)"
-                        class="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-brand-muted"
-                        :class="currentValue() === opt.value ? 'bg-brand-muted text-brand font-semibold' : ''"
-                        x-text="opt.label"></button>
-            </template>
-        </div>
-        @if ($hasOther)
-            <div class="mt-3" x-show="selected === otherValue" x-cloak>
-                <label class="block text-xs font-medium text-gray-600 mb-1">
-                    {{ $otherFieldLabel }} <span class="text-red-500">*</span>
-                </label>
-                <input type="text"
-                       x-model="otherText"
-                       maxlength="80"
-                       class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand"
-                       :required="selected === otherValue">
+        <div x-cloak x-show="desktopOpen"
+             @click.outside="if (selected !== otherValue) desktopOpen = false"
+             class="absolute z-30 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl py-1 max-h-72 overflow-y-auto">
+            {{-- Same-surface Other: hide option list once Other is chosen. --}}
+            <div x-show="selected !== otherValue" x-cloak>
+                @if (! $required)
+                    <button type="button" @click="choose('')"
+                            class="w-full text-left px-4 py-2.5 text-sm text-gray-500 hover:bg-brand-muted"
+                            :class="!currentValue() ? 'bg-brand-muted text-brand font-semibold' : ''">{{ $placeholder }}</button>
+                @endif
+                <template x-for="opt in optionEntries" :key="'d-'+opt.value">
+                    <button type="button" @click="choose(opt.value)"
+                            class="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-brand-muted"
+                            :class="currentValue() === opt.value ? 'bg-brand-muted text-brand font-semibold' : ''"
+                            x-text="opt.label"></button>
+                </template>
             </div>
-        @endif
+            @if ($hasOther)
+                <div class="space-y-3 p-3" x-show="selected === otherValue" x-cloak>
+                    <label class="block text-sm font-semibold text-gray-800">
+                        {{ $otherFieldLabel }} <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           x-model="otherText"
+                           maxlength="80"
+                           x-ref="otherInputDesktop"
+                           x-init="$watch('selected', (v) => { if (v === otherValue && desktopOpen) $nextTick(() => $refs.otherInputDesktop?.focus()); })"
+                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand"
+                           placeholder="{{ $otherFieldLabel }}">
+                    <div class="flex items-center justify-between gap-3 pt-1">
+                        <button type="button" @click="cancelOther()"
+                                class="text-sm font-semibold text-gray-600 px-3 py-2.5">
+                            {{ __('borrower.apply.cancel') }}
+                        </button>
+                        <button type="button" @click="confirmOther()"
+                                class="rounded-xl bg-brand text-white text-sm font-semibold px-5 py-2.5"
+                                :disabled="!(otherText || '').trim()"
+                                :class="!(otherText || '').trim() ? 'opacity-40 pointer-events-none' : ''">
+                            {{ __('borrower.apply.continue') }}
+                        </button>
+                    </div>
+                </div>
+            @endif
+        </div>
     </div>
 
     <select

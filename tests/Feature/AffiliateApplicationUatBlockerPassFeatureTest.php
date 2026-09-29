@@ -38,9 +38,17 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertStringContainsString('async playVideo(video)', $single);
         $this->assertStringContainsString(__('site.affiliate_apply.date_of_birth'), $html);
         $this->assertStringContainsString(__('site.affiliate_apply.gender'), $html);
-        $this->assertStringContainsString(__('site.affiliate_apply.conduct_title'), $html);
+        $this->assertStringContainsString(__('site.affiliate_apply.decl_title'), $html);
+        $this->assertStringContainsString(__('site.affiliate_apply.decl_agree'), $html);
+        $this->assertStringNotContainsString('name="conduct_accepted"', $html);
+        $this->assertStringContainsString('unemployed', $html);
+        $this->assertStringContainsString(__('site.affiliate_apply.occupations.unemployed'), $html);
+        $this->assertStringNotContainsString('age_notice', $html);
+        $this->assertStringContainsString('data-no-saving', $html);
+        $this->assertStringContainsString('identity.full_name', $html);
+        $this->assertStringContainsString('refreshIdentity', $html);
         $this->assertStringContainsString(__('site.affiliate_apply.step_incomplete'), $html);
-        $this->assertStringContainsString(':disabled="missing.length > 0"', $html);
+        $this->assertStringContainsString(':disabled="missing.length > 0 || submitting"', $html);
         $this->assertStringContainsString(__('site.affiliate_apply.submit_payment'), $html);
         $this->assertStringContainsString(__('site.affiliate_apply.monthly_reach'), $html);
         $this->assertStringContainsString('data-date-trigger', $html);
@@ -71,6 +79,9 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $sheet = file_get_contents(resource_path('views/components/site/sheet-select.blade.php'));
         $this->assertStringContainsString("dispatchEvent(new Event('change'", $sheet);
         $this->assertStringContainsString('notifyOther()', $sheet);
+        $this->assertStringContainsString('confirmOther()', $sheet);
+        $this->assertStringContainsString('selected !== otherValue', $sheet);
+        $this->assertStringContainsString('otherInputDesktop', $sheet);
         $single = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));
         $this->assertStringContainsString('data-kf-form-nida-capture', $single);
         $this->assertStringContainsString('_commitLock', $single);
@@ -101,7 +112,6 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
                 'district',
                 'street',
                 'occupation',
-                'conduct_accepted',
                 'doc_national_id_front',
                 'doc_national_id_back',
             ]);
@@ -152,8 +162,9 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertSame('11-30', $application->payload['monthly_reach'] ?? null);
         $this->assertSame('friend', $application->payload['acquisition_source']['key'] ?? null);
         $this->assertTrue((bool) ($application->payload['declarations']['applicant']['accepted'] ?? false));
-        $this->assertSame('application_conduct_v1', $application->payload['declarations']['conduct']['version'] ?? null);
-        $this->assertNotEmpty($application->payload['declarations']['conduct']['accepted_at'] ?? null);
+        $this->assertSame('affiliate_applicant_declaration_v2', $application->payload['declarations']['applicant']['version'] ?? null);
+        $this->assertNotEmpty($application->payload['declarations']['applicant']['accepted_at'] ?? null);
+        $this->assertArrayNotHasKey('conduct', $application->payload['declarations'] ?? []);
     }
 
     public function test_offline_affiliate_can_submit_without_social_profile(): void
@@ -270,7 +281,6 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
             'first_10_customers' => 'I will start with my regular shop customers this month.',
             'registered_business' => 'no',
             'declaration_accepted' => '1',
-            'conduct_accepted' => '1',
             'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ], $overrides);

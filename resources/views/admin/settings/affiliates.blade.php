@@ -244,6 +244,22 @@
                     <x-admin.input name="application_fee_amount" label="Application fee amount (TZS)" type="number" step="1000" min="0"
                                    :value="$values['application_fee_amount'] ?? 10000" money />
                 </div>
+                <div class="pt-2 border-t border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-900">Public review expectation</h3>
+                    <p class="text-xs text-gray-500 mt-1">Customer-facing messaging only (e.g. “within 3–5 business days”). Not an automatic approval timer.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <x-admin.input name="review_time_min" label="Review time minimum" type="number" step="1" min="1"
+                                   :value="$values['review_time_min'] ?? 3" />
+                    <x-admin.input name="review_time_max" label="Review time maximum" type="number" step="1" min="1"
+                                   :value="$values['review_time_max'] ?? 5" />
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Unit</label>
+                        <select name="review_time_unit" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                            <option value="business_days" @selected(($values['review_time_unit'] ?? 'business_days') === 'business_days')>Business days</option>
+                        </select>
+                    </div>
+                </div>
                 <div>
                     <h3 class="text-sm font-semibold text-gray-900">Affiliate membership</h3>
                     <p class="text-xs text-gray-500 mt-1">Annual fee paid through the standard payment gate before affiliates can share. Individuals pay {{ format_money(25000) }}; companies pay {{ format_money(50000) }} (defaults). Tick the checkbox to require the fee.</p>

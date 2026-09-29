@@ -96,9 +96,10 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partner-applications.show', $application))
             ->assertOk()
-            ->assertSee('Documents & checklist', false)
+            ->assertSee('Document checklist', false)
             ->assertSee('Amina Collector', false)
-            ->assertSee('Missing', false);
+            ->assertSee('Missing', false)
+            ->assertSee('Partner 360', false);
     }
 
     public function test_admin_can_set_needs_info_status_with_notes(): void

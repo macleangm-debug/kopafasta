@@ -529,7 +529,6 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
             'has_social_profile' => 'no',
             'how_heard' => 'friend',
             'registered_business' => 'no',
-            'conduct_accepted' => '1',
         ];
     }
 

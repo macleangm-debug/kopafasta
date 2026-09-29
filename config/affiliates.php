@@ -16,6 +16,14 @@ return [
     'application_fee_amount' => (float) env('AFFILIATE_APPLICATION_FEE', 10000),
 
     /**
+     * Public customer-expectation messaging for Affiliate application review.
+     * Not an automatic approval timer.
+     */
+    'review_time_min' => (int) env('AFFILIATE_REVIEW_TIME_MIN', 3),
+    'review_time_max' => (int) env('AFFILIATE_REVIEW_TIME_MAX', 5),
+    'review_time_unit' => env('AFFILIATE_REVIEW_TIME_UNIT', 'business_days'),
+
+    /**
      * Countries where Affiliate-facing funnels hide the Registered stage.
      * Underlying registration events stay stored for other countries / analytics.
      */

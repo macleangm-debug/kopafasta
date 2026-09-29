@@ -74,9 +74,11 @@ class AffiliateGovernanceFeatureTest extends TestCase
             ->assertDontSee('application/review fee', false)
             ->assertDontSee('Application fee', false)
             ->assertSee('kf-premium-panel', false)
-            ->assertSee(__('site.affiliate_apply.decl_body', ['name' => '__NAME__']), false)
+            ->assertSee('declBodyTemplate', false)
+            ->assertSee('__NAME__', false)
             ->assertSee(__('site.affiliate_apply.decl_agree'), false)
-            ->assertSee(__('site.affiliate_apply.conduct_title'), false)
+            ->assertSee(__('site.affiliate_apply.decl_title'), false)
+            ->assertDontSee('name="conduct_accepted"', false)
             ->assertDontSee('name="declaration_accurate"', false)
             ->assertDontSee('window.confirmForm($el', false)
             ->assertDontSee('Prefer not to say', false)
@@ -332,7 +334,6 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'first_10_customers' => 'I will start with my regular shop customers this month.',
             'registered_business' => 'no',
             'declaration_accepted' => '1',
-            'conduct_accepted' => '1',
             'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();
@@ -379,7 +380,6 @@ class AffiliateGovernanceFeatureTest extends TestCase
                 'first_10_customers' => 'I will share from my existing online audience.',
                 'registered_business' => 'no',
                 'declaration_accepted' => '1',
-                'conduct_accepted' => '1',
                 'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
                 'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
             ])->assertRedirect(route('site.affiliate.apply'))
@@ -411,7 +411,6 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'first_10_customers' => 'I will share from my existing online audience.',
             'registered_business' => 'no',
             'declaration_accepted' => '1',
-            'conduct_accepted' => '1',
             'doc_national_id_front' => UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => UploadedFile::fake()->image('id-back.jpg'),
         ])->assertRedirect();

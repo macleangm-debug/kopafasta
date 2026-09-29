@@ -165,7 +165,6 @@ class Phase17FeatureTest extends TestCase
             'first_10_customers' => 'I will start with my regular shop customers this month.',
             'registered_business' => 'no',
             'declaration_accepted' => '1',
-            'conduct_accepted' => '1',
             'doc_national_id_front' => \Illuminate\Http\UploadedFile::fake()->image('id-front.jpg'),
             'doc_national_id_back' => \Illuminate\Http\UploadedFile::fake()->image('id-back.jpg'),
         ]);

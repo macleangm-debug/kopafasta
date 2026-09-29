@@ -101,6 +101,37 @@ class AffiliateSettingsService
         );
     }
 
+    /** @return array{min:int,max:int,unit:string} */
+    public function publicReviewPeriod(): array
+    {
+        $min = (int) Setting::get('affiliates.review_time_min', config('affiliates.review_time_min', 3));
+        $max = (int) Setting::get('affiliates.review_time_max', config('affiliates.review_time_max', 5));
+        $unit = (string) Setting::get('affiliates.review_time_unit', config('affiliates.review_time_unit', 'business_days'));
+
+        if ($min < 1) {
+            $min = 1;
+        }
+        if ($max < $min) {
+            $max = $min;
+        }
+
+        return [
+            'min' => $min,
+            'max' => $max,
+            'unit' => $unit === 'business_days' ? 'business_days' : 'business_days',
+        ];
+    }
+
+    public function publicReviewPeriodLabel(?string $locale = null): string
+    {
+        $period = $this->publicReviewPeriod();
+
+        return (string) __('site.partner_apply.track_review_period_value', [
+            'min' => $period['min'],
+            'max' => $period['max'],
+        ], $locale ?: app()->getLocale());
+    }
+
     public function commissionMode(): string
     {
         $mode = (string) Setting::get('affiliates.commission_mode', config('affiliates.commission_mode', 'percentage'));
@@ -172,6 +203,9 @@ class AffiliateSettingsService
             'minimum_payout_amount' => Setting::get('affiliates.minimum_payout_amount', config('affiliates.minimum_payout_amount', 50000)),
             'application_fee_required' => $this->applicationFeeRequired(),
             'application_fee_amount' => $this->applicationFeeAmount(),
+            'review_time_min' => $this->publicReviewPeriod()['min'],
+            'review_time_max' => $this->publicReviewPeriod()['max'],
+            'review_time_unit' => $this->publicReviewPeriod()['unit'],
             'membership' => AffiliateMembershipService::config(),
             'premium' => $this->premiumSettings(),
             'attribution' => $this->attributionSettings(),

@@ -31,7 +31,7 @@
             $errorStep = 3;
         }
         if ($errors->hasAny([
-            'declaration_accepted', 'conduct_accepted',
+            'declaration_accepted',
         ])) {
             $errorStep = 4;
         }
@@ -51,6 +51,7 @@
             'agent' => __('site.affiliate_apply.occupations.agent'),
             'content_creator' => __('site.affiliate_apply.occupations.content_creator'),
             'professional' => __('site.affiliate_apply.occupations.professional'),
+            'unemployed' => __('site.affiliate_apply.occupations.unemployed'),
             'other' => __('site.affiliate_apply.occupations.other'),
         ];
         $genderOptions = [
@@ -125,7 +126,6 @@
             'doc_tin_certificate' => __('site.affiliate_apply.missing_doc_tin'),
             'doc_national_id' => __('site.affiliate_apply.missing_nida'),
             'declaration_accepted' => __('site.affiliate_apply.missing_declaration'),
-            'conduct_accepted' => __('site.affiliate_apply.missing_conduct'),
         ];
         $missingSteps = [
             'full_name' => 1, 'date_of_birth' => 1, 'gender' => 1, 'email' => 1, 'phone' => 1,
@@ -137,8 +137,12 @@
             'social_platform_other' => 3, 'social_profile_url' => 3,
             'first_10_customers' => 3, 'registered_business' => 3, 'registration_number' => 3, 'tin' => 3,
             'doc_brela' => 3, 'doc_tin_certificate' => 3, 'doc_national_id' => 3,
-            'declaration_accepted' => 4, 'conduct_accepted' => 4,
+            'declaration_accepted' => 4,
         ];
+        $declarationItems = trans('site.affiliate_apply.declaration_items');
+        if (! is_array($declarationItems)) {
+            $declarationItems = is_array($conductItems) ? $conductItems : [];
+        }
     @endphp
 
     <div class="max-w-2xl mx-auto pb-10 px-4"
@@ -153,9 +157,9 @@
             missingSteps: @js($missingSteps),
             genderLabels: @js($genderOptions),
             declBodyTemplate: @js(__('site.affiliate_apply.decl_body', ['name' => '__NAME__'])),
-            conductAgreeTemplate: @js(__('site.affiliate_apply.conduct_agree', ['name' => '__NAME__'])),
             submitPaymentLabel: @js(__('site.affiliate_apply.submit_payment')),
             submitApplicationLabel: @js(__('site.affiliate_apply.submit_application')),
+            submittingLabel: @js(__('site.affiliate_apply.submitting')),
          })">
         @if (session('status'))
             <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
@@ -174,8 +178,10 @@
 
         <form method="POST" action="{{ route('site.affiliate.apply.post') }}" enctype="multipart/form-data"
               x-ref="affiliateForm"
+              data-no-saving
               @input="computeMissing()"
               @change="computeMissing()"
+              @submit="if (submitting || missing.length > 0) { $event.preventDefault(); return; } submitting = true"
               class="glass-card p-6 sm:p-8 space-y-5">
             @csrf
 
@@ -232,7 +238,6 @@
                         />
                     </div>
                 </div>
-                <p class="text-xs text-gray-500 -mt-2">{{ __('borrower.register.age_notice', ['age' => 18]) }}</p>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.email') }} <span class="text-red-500">*</span></label>
                     <input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
@@ -516,18 +521,18 @@
                 </div>
             </div>
 
-            {{-- Step 4: Declaration only --}}
+            {{-- Step 4: One declaration, one acceptance --}}
             <div x-show="step === 4" x-cloak class="space-y-5">
                 <div class="rounded-xl ring-1 ring-gray-200 p-4 space-y-3 text-sm">
                     <p class="text-sm font-semibold text-gray-900">{{ __('site.affiliate_apply.decl_title') }}</p>
                     <dl class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                         <div class="min-w-0">
                             <dt class="text-gray-500">{{ __('site.affiliate_apply.full_name') }}</dt>
-                            <dd class="font-semibold text-gray-900 mt-0.5 break-words" x-text="formValue('full_name') || '—'"></dd>
+                            <dd class="font-semibold text-gray-900 mt-0.5 break-words" x-text="identity.full_name || '—'"></dd>
                         </div>
                         <div class="min-w-0">
                             <dt class="text-gray-500">{{ __('site.affiliate_apply.date_of_birth') }}</dt>
-                            <dd class="font-semibold text-gray-900 mt-0.5" x-text="formValue('date_of_birth') || '—'"></dd>
+                            <dd class="font-semibold text-gray-900 mt-0.5" x-text="displayDob() || '—'"></dd>
                         </div>
                         <div class="min-w-0">
                             <dt class="text-gray-500">{{ __('site.affiliate_apply.gender') }}</dt>
@@ -536,25 +541,14 @@
                     </dl>
                     <p class="text-sm text-gray-700 leading-relaxed"
                        x-text="personalizedDeclBody()"></p>
+                    <ul class="list-disc ml-5 space-y-1 text-gray-700">
+                        @foreach ($declarationItems as $item)
+                            <li>{{ $item }}</li>
+                        @endforeach
+                    </ul>
                     <label class="flex items-start gap-2">
                         <input type="checkbox" name="declaration_accepted" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('declaration_accepted'))>
                         <span>{{ __('site.affiliate_apply.decl_agree') }}</span>
-                    </label>
-                </div>
-
-                <div class="rounded-xl ring-1 ring-gray-200 p-4 space-y-3 text-sm">
-                    <p class="text-sm font-semibold text-gray-900">{{ __('site.affiliate_apply.conduct_title') }}</p>
-                    <ul class="list-disc ml-5 space-y-1 text-gray-700">
-                        @forelse ($conductItems as $item)
-                            <li>{{ $item }}</li>
-                        @empty
-                            <li>{{ __('site.affiliate_apply.decl_standards') }}</li>
-                            <li>{{ __('site.affiliate_apply.decl_no_fees') }}</li>
-                        @endforelse
-                    </ul>
-                    <label class="flex items-start gap-2">
-                        <input type="checkbox" name="conduct_accepted" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('conduct_accepted'))>
-                        <span x-text="personalizedConductAgree()"></span>
                     </label>
                 </div>
 
@@ -570,9 +564,10 @@
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <button type="button" @click="goTo(3)" class="text-sm font-semibold text-gray-600 hover:text-brand">← {{ __('site.partner_apply.back') }}</button>
                     <button type="submit"
-                            class="bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            :disabled="missing.length > 0">
-                        <span x-text="submitLabel()"></span>
+                            class="bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                            :disabled="missing.length > 0 || submitting">
+                        <span x-show="submitting" x-cloak class="inline-block size-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true"></span>
+                        <span x-text="submitting ? submittingLabel : submitLabel()"></span>
                     </button>
                 </div>
             </div>
@@ -590,14 +585,16 @@
                 previousAgent: config.previousAgent || 'no',
                 hasSocialProfile: config.hasSocialProfile || '',
                 feeRequired: !!config.feeRequired,
+                submitting: false,
                 missing: [],
                 missingLabels: config.missingLabels || {},
                 missingSteps: config.missingSteps || {},
                 genderLabels: config.genderLabels || {},
                 declBodyTemplate: config.declBodyTemplate || '',
-                conductAgreeTemplate: config.conductAgreeTemplate || '',
                 submitPaymentLabel: config.submitPaymentLabel || '',
                 submitApplicationLabel: config.submitApplicationLabel || '',
+                submittingLabel: config.submittingLabel || '',
+                identity: { full_name: '', date_of_birth: '', gender: '' },
                 formValue(name) {
                     const form = this.$refs.affiliateForm;
                     if (!form) return '';
@@ -616,6 +613,13 @@
                     }
                     if (first.disabled) return '';
                     return String(first.value || '').trim();
+                },
+                refreshIdentity() {
+                    this.identity = {
+                        full_name: this.formValue('full_name'),
+                        date_of_birth: this.formValue('date_of_birth'),
+                        gender: this.formValue('gender'),
+                    };
                 },
                 hasChecked(name) {
                     const form = this.$refs.affiliateForm;
@@ -657,6 +661,7 @@
                     this.computeMissing();
                 },
                 computeMissing() {
+                    this.refreshIdentity();
                     const next = [];
                     const push = (key) => {
                         if (!next.find((item) => item.key === key)) {
@@ -709,7 +714,6 @@
                     }
                     if (!this.nidaReady()) push('doc_national_id');
                     if (!this.hasChecked('declaration_accepted')) push('declaration_accepted');
-                    if (!this.hasChecked('conduct_accepted')) push('conduct_accepted');
                     this.missing = next;
                 },
                 jumpTo(item) {
@@ -737,6 +741,7 @@
                             return;
                         }
                     }
+                    this.refreshIdentity();
                     this.step = next;
                     this.$nextTick(() => this.scrollStepIntoView());
                 },
@@ -751,14 +756,20 @@
                     }
                 },
                 displayGender() {
-                    const value = this.formValue('gender');
+                    const value = this.identity.gender || this.formValue('gender');
                     return this.genderLabels[value] || value || '—';
                 },
-                personalizedDeclBody() {
-                    return String(this.declBodyTemplate || '').replaceAll('__NAME__', this.formValue('full_name') || '—');
+                displayDob() {
+                    const raw = this.identity.date_of_birth || this.formValue('date_of_birth');
+                    if (!raw) return '';
+                    const parts = String(raw).split('-').map(Number);
+                    if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return raw;
+                    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
                 },
-                personalizedConductAgree() {
-                    return String(this.conductAgreeTemplate || '').replaceAll('__NAME__', this.formValue('full_name') || '—');
+                personalizedDeclBody() {
+                    const name = this.identity.full_name || this.formValue('full_name') || '—';
+                    return String(this.declBodyTemplate || '').replaceAll('__NAME__', name);
                 },
                 submitLabel() {
                     return this.feeRequired ? this.submitPaymentLabel : this.submitApplicationLabel;
