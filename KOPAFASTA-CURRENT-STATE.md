@@ -20,6 +20,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Match re-eval flash (staging tip)** | `c2eae91b84fbe1b62a63746e89aa6921cf1a57d5` | Email-change status reflects remaining unresolved matches. Staging only. |
 | **Same-person phone identity link (staging tip)** | `9e358a30e2fec8d925f8b771726732aa354670e1` | Owner Link identity → one login, multi-role Partner workspaces. PA-3 not approved. Staging only. |
 | **Partner-only identity link guard (staging tip)** | `015644b47013a21b4214e1d048edc18d2e09a949` | Borrower/Member never merges with Partner. PA-3 still pending. Staging only. |
+| **Approve decision validation fix (staging tip)** | `44132b1dcc83bd03e3c8f04871b61ff3bd9e1b18` | Document/Information required only for Request information. PA-3 Link preserved, not approved by deploy. Staging only. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
