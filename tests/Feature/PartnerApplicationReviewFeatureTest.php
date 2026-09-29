@@ -129,6 +129,80 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->assertNull($application->partner_id);
     }
 
+    public function test_approve_does_not_require_document_or_information_selection(): void
+    {
+        $application = $this->makeApplication([
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
+            'phone' => '255700111222',
+            'email' => 'approve.no.doc@example.com',
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        // Stray request fields must not divert Approve into Request information validation.
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->put(route('admin.partner-applications.update', $application), [
+                'status' => 'approved',
+                'request_kind' => '',
+                'request_type' => '',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasNoErrors();
+
+        $application->refresh();
+        $this->assertSame('approved', $application->status);
+        $this->assertNotNull($application->partner_id);
+    }
+
+    public function test_request_information_still_requires_document_or_information_selection(): void
+    {
+        $application = $this->makeApplication();
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->put(route('admin.partner-applications.update', $application), [
+                'status' => 'needs_info',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasErrors('request_kind');
+
+        $this->assertSame('pending', $application->fresh()->status);
+    }
+
+    public function test_decline_uses_decline_validation_not_request_info(): void
+    {
+        $application = $this->makeApplication();
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->put(route('admin.partner-applications.update', $application), [
+                'status' => 'rejected',
+                'request_kind' => '',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasErrors('rejection_reason')
+            ->assertSessionDoesntHaveErrors('request_kind');
+
+        $this->assertSame('pending', $application->fresh()->status);
+    }
+
+    public function test_decision_form_posts_status_from_action_select(): void
+    {
+        $application = $this->makeApplication();
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.partner-applications.show', $application))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/<select[^>]*name="status"[^>]*>/', $html);
+        $this->assertStringNotContainsString('<input type="hidden" name="status"', $html);
+    }
+
     public function test_applicant_can_fulfill_document_request_on_tracking_card(): void
     {
         Storage::fake('public');

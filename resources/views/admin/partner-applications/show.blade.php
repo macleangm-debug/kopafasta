@@ -750,6 +750,9 @@
                         execute() {
                             if (this.busy) return;
                             this.busy = true;
+                            // Native submit bypasses Alpine @submit — ensure Action select matches Alpine state.
+                            const statusField = this.$refs.decisionForm.querySelector('[name="status"]');
+                            if (statusField) statusField.value = this.status;
                             this.$refs.decisionForm.submit();
                         },
                     };
@@ -786,7 +789,6 @@
                       x-ref="decisionForm"
                       @submit.prevent="onSubmit($event)">
                     @csrf @method('PUT')
-                    <input type="hidden" name="status" :value="status">
 
                     <div x-show="phase === 'compose'" class="space-y-4">
                         @if ($hasUnresolvedPartnerMatch)
@@ -876,7 +878,8 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-brand mb-1">Action</label>
-                            <select x-model="status" class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm focus:border-brand focus:ring-brand">
+                            {{-- name=status on the visible control so Approve/Decline/Request submit exactly what the Owner selected --}}
+                            <select name="status" x-model="status" class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm focus:border-brand focus:ring-brand">
                                 <option value="approved">Approve</option>
                                 <option value="needs_info">Request information</option>
                                 <option value="rejected">Decline</option>
@@ -1017,13 +1020,18 @@
                         </div>
 
                         <div x-show="status === 'needs_info'" x-cloak>
-                            <input type="hidden" name="request_kind" :value="requestKind" :disabled="status !== 'needs_info'">
-                            <input type="hidden" name="request_type" :value="requestType" :disabled="status !== 'needs_info'">
-                            <input type="hidden" name="request_mode" :value="requestMode" :disabled="status !== 'needs_info'">
-                            <input type="hidden" name="request_other_label" :value="requestOtherLabel" :disabled="status !== 'needs_info'">
-                            <input type="hidden" name="request_explanation" :value="requestExplanation" :disabled="status !== 'needs_info'">
-                            <input type="hidden" name="replace_reason" :value="replaceReason" :disabled="status !== 'needs_info'">
-                            <input type="hidden" name="replace_reason_other" :value="replaceReasonOther" :disabled="status !== 'needs_info'">
+                            {{-- Only include request fields when Action is Request information; never on Approve/Decline. --}}
+                            <template x-if="status === 'needs_info'">
+                                <div>
+                                    <input type="hidden" name="request_kind" :value="requestKind">
+                                    <input type="hidden" name="request_type" :value="requestType">
+                                    <input type="hidden" name="request_mode" :value="requestMode">
+                                    <input type="hidden" name="request_other_label" :value="requestOtherLabel">
+                                    <input type="hidden" name="request_explanation" :value="requestExplanation">
+                                    <input type="hidden" name="replace_reason" :value="replaceReason">
+                                    <input type="hidden" name="replace_reason_other" :value="replaceReasonOther">
+                                </div>
+                            </template>
                         </div>
 
                         <button type="submit"

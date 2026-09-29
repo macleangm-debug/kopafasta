@@ -142,6 +142,19 @@ class PartnerApplicationDecisionService
             throw ValidationException::withMessages(['status' => 'Invalid decision status.']);
         }
 
+        // Document/Information fields apply only to Request information — never Approve/Decline.
+        if ($status !== 'needs_info') {
+            unset(
+                $data['request_kind'],
+                $data['request_type'],
+                $data['request_mode'],
+                $data['request_other_label'],
+                $data['request_explanation'],
+                $data['replace_reason'],
+                $data['replace_reason_other'],
+            );
+        }
+
         return match ($status) {
             'needs_info' => $this->requestInformation($application, $data),
             'approved' => $this->approve($application, $data),
