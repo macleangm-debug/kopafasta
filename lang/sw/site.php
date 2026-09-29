@@ -36,7 +36,7 @@ return [
         'title' => 'Mtaji unaotembea kwa kasi yako.',
         'subtitle' => 'Mikopo ya simu kwa biashara, mali, na mahitaji ya kila siku — viwango wazi, omba kwa dakika.',
         'welcome_back' => 'Karibu tena',
-        'get_started' => 'Anza sasa',
+        'get_started' => 'Anza Sasa',
         'learn_more' => 'Jinsi inavyofanya kazi',
         'trust_badge' => 'Imesajiliwa na wazi',
         'trust_sub' => 'Viwango na ada zinaonyeshwa kabla ya kusaini',

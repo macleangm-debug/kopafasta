@@ -13,20 +13,16 @@
             {{ __('site.hero.variant_b_subtitle') }}
         </p>
 
-        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="{{ route('site.products') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 ring-1 ring-white/25 text-white font-semibold px-8 py-4 rounded-xl transition">
-                {{ __('site.hero.variant_b_cta_products') }}
-            </a>
-            <a href="{{ route('site.register.borrower') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-extrabold px-8 py-4 rounded-xl transition">
+        <div class="mt-8 flex flex-row flex-wrap items-center justify-center gap-3">
+            <a href="{{ route('site.register.borrower') }}"
+               class="inline-flex flex-1 sm:flex-none items-center justify-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-extrabold px-8 py-4 rounded-xl transition min-w-[9.5rem]">
                 {{ __('site.hero.get_started') }}
             </a>
+            <a href="{{ route('site.login') }}"
+               class="inline-flex flex-1 sm:flex-none items-center justify-center gap-2 bg-white/10 hover:bg-white/15 ring-1 ring-white/25 text-white font-semibold px-8 py-4 rounded-xl transition min-w-[9.5rem]">
+                {{ __('site.nav.log_in') }}
+            </a>
         </div>
-
-        @guest
-            <p class="mt-4 text-sm text-white/65">
-                <a href="{{ route('site.login') }}" class="text-brand-gold font-semibold hover:underline">{{ __('site.nav.log_in') }}</a>
-            </p>
-        @endguest
 
         <ul class="mt-10 grid sm:grid-cols-2 gap-3 text-left max-w-xl mx-auto">
             @foreach (__('site.hero.variant_b_pills') as $pill)

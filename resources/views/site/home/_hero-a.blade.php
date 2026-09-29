@@ -16,21 +16,17 @@
             <p class="mt-4 text-base sm:text-lg text-white/80 max-w-lg leading-relaxed">
                 {{ __('site.hero.subtitle') }}
             </p>
-            <div class="mt-7 flex flex-wrap gap-3">
-                <a href="{{ route('site.register.borrower') }}" class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-extrabold px-6 py-3.5 rounded-xl shadow-md transition">
+            <div class="mt-7 flex flex-row flex-wrap items-center gap-3">
+                <a href="{{ route('site.register.borrower') }}"
+                   class="inline-flex flex-1 sm:flex-none items-center justify-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-extrabold px-6 py-3.5 rounded-xl shadow-md transition min-w-[9.5rem]">
                     {{ __('site.hero.get_started') }}
                     <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                 </a>
-                <a href="{{ route('site.how-it-works') }}" class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 ring-1 ring-white/25 text-white font-semibold px-6 py-3.5 rounded-xl transition">
-                    {{ __('site.hero.learn_more') }}
+                <a href="{{ route('site.login') }}"
+                   class="inline-flex flex-1 sm:flex-none items-center justify-center gap-2 bg-white/10 hover:bg-white/15 ring-1 ring-white/25 text-white font-semibold px-6 py-3.5 rounded-xl transition min-w-[9.5rem]">
+                    {{ __('site.nav.log_in') }}
                 </a>
             </div>
-            @guest
-                <p class="mt-5 text-sm text-white/65">
-                    {{ __('site.hero.login_cta') }}
-                    <a href="{{ route('site.login') }}" class="text-brand-gold font-semibold hover:underline">{{ __('site.nav.log_in') }}</a>
-                </p>
-            @endguest
         </div>
 
         <div class="hidden lg:block animate-fade-up">

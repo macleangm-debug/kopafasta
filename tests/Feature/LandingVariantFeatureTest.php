@@ -25,6 +25,11 @@ class LandingVariantFeatureTest extends TestCase
         $this->assertStringNotContainsString('w-[min(100%,20rem)]', $html);
         $this->assertStringContainsString('hidden lg:block', $html);
         $this->assertStringContainsString(__('site.hero.get_started'), $html);
+        $this->assertStringContainsString(__('site.nav.log_in'), $html);
+        $this->assertStringContainsString(route('site.register.borrower', absolute: false), $html);
+        $this->assertStringContainsString(route('site.login', absolute: false), $html);
+        $this->assertStringNotContainsString(__('site.hero.learn_more'), $html);
+        $this->assertStringNotContainsString(__('site.hero.login_cta'), $html);
     }
 
     public function test_homepage_products_use_a_carousel_on_mobile_and_desktop(): void
