@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PartnerApplication;
 use App\Services\PartnerApplicationDecisionService;
 use App\Services\PartnerApplicationReviewService;
+use App\Services\PartnerMatchResolutionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -50,6 +51,7 @@ class PartnerApplicationController extends Controller
     {
         $partnerApplication->load(['documents', 'partner', 'reviewer']);
         $review = $reviewService->dossier($partnerApplication);
+        $partnerMatches = app(PartnerMatchResolutionService::class)->matchesFor($partnerApplication);
 
         $performance = null;
         $partner = $partnerApplication->partner;
@@ -65,6 +67,7 @@ class PartnerApplicationController extends Controller
                 ->existingDocumentOptions($partnerApplication),
             'anomalies' => app(\App\Services\PartnerEnrollmentAnomalyService::class)
                 ->forApplication($partnerApplication, $review),
+            'partnerMatches' => $partnerMatches,
             'performance' => $performance,
         ]);
     }
@@ -87,7 +90,10 @@ class PartnerApplicationController extends Controller
         try {
             $result = app(PartnerApplicationDecisionService::class)->execute($partnerApplication, $data);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
+            return redirect()
+                ->route('admin.partner-applications.show', $partnerApplication)
+                ->withInput()
+                ->withErrors($e->validator ?? $e->errors());
         }
 
         $application = $result['application'];
@@ -103,5 +109,35 @@ class PartnerApplicationController extends Controller
         return redirect()
             ->route('admin.partner-applications.show', $application)
             ->with('status', $result['message']);
+    }
+
+    public function resolveMatch(Request $request, PartnerApplication $partnerApplication): RedirectResponse
+    {
+        $data = $request->validate([
+            'decision' => ['required', 'in:link,keep_separate'],
+            'partner_id' => ['required', 'integer'],
+            'confirm_despite_conflicts' => ['nullable', 'boolean'],
+        ]);
+
+        try {
+            app(PartnerMatchResolutionService::class)->resolve($partnerApplication, [
+                'decision' => $data['decision'],
+                'partner_id' => (int) $data['partner_id'],
+                'confirm_despite_conflicts' => (bool) ($data['confirm_despite_conflicts'] ?? false),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()
+                ->route('admin.partner-applications.show', $partnerApplication)
+                ->withInput()
+                ->withErrors($e->validator ?? $e->errors());
+        }
+
+        $label = $data['decision'] === 'link'
+            ? 'Match recorded: link to existing Partner on Approve.'
+            : 'Match recorded: different people. Approval will not link to that Partner.';
+
+        return redirect()
+            ->route('admin.partner-applications.show', $partnerApplication)
+            ->with('status', $label);
     }
 }

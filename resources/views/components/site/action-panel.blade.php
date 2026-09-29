@@ -8,8 +8,16 @@
     $closeExpr = str_contains((string) $open, '===')
         ? trim(explode('===', (string) $open, 2)[0]).' = null'
         : $open.' = false';
-    $panelWidth = $size === 'lg' ? 'lg:max-w-xl' : 'lg:max-w-md';
-    $panelMaxH = $size === 'lg' ? 'max-h-[min(92dvh,760px)]' : 'max-h-[min(90dvh,640px)]';
+    $panelWidth = match ($size) {
+        'xl' => 'lg:max-w-3xl',
+        'lg' => 'lg:max-w-xl',
+        default => 'lg:max-w-md',
+    };
+    $panelMaxH = match ($size) {
+        'xl' => 'max-h-[min(94dvh,860px)]',
+        'lg' => 'max-h-[min(92dvh,760px)]',
+        default => 'max-h-[min(90dvh,640px)]',
+    };
 @endphp
 
 <template x-teleport="body">

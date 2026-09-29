@@ -119,6 +119,12 @@
         </div>
     </div>
 
+    @php
+        $partnerMatches = $partnerMatches ?? [];
+        $unresolvedPartnerMatches = collect($partnerMatches)->filter(fn ($m) => ! ($m['resolved'] ?? false))->values()->all();
+        $hasUnresolvedPartnerMatch = $unresolvedPartnerMatches !== [];
+    @endphp
+
     @if (! empty($anomalies))
         <div class="mb-5 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
             <div class="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
@@ -131,9 +137,16 @@
                 @foreach ($anomalies as $anomaly)
                     <li class="px-5 py-3 flex gap-3 {{ $anomalyTone[$anomaly['severity']] ?? 'bg-gray-50' }}">
                         <span class="mt-1.5 size-2 rounded-full shrink-0 {{ $anomalyDot[$anomaly['severity']] ?? 'bg-gray-400' }}"></span>
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold">{{ $anomaly['title'] }}</p>
                             <p class="text-xs mt-0.5 opacity-80">{{ $anomaly['detail'] }}</p>
+                            @if (($anomaly['code'] ?? '') === 'existing_partner' && $hasUnresolvedPartnerMatch)
+                                <button type="button"
+                                        @click="$dispatch('open-partner-match')"
+                                        class="mt-2 inline-flex items-center text-xs font-bold text-brand hover:underline">
+                                    Review match →
+                                </button>
+                            @endif
                         </div>
                         <span class="ml-auto shrink-0 text-[10px] uppercase tracking-wider font-semibold opacity-70">{{ $anomaly['severity'] }}</span>
                     </li>
@@ -445,11 +458,17 @@
         </div>
 
         {{-- Decision panel — Action → Review → Confirm → Execute (same surface) --}}
-        <div class="lg:col-span-4 space-y-4">
+        <div class="lg:col-span-4 space-y-4"
+             x-data="partnerMatchResolution(@js([
+                'matches' => $partnerMatches,
+                'resolveUrl' => route('admin.partner-applications.match-resolution', $application),
+             ]))"
+             @open-partner-match.window="openMatch(0)">
             @php
                 $requestCatalog = $requestCatalog ?? ['documents' => [], 'information' => [], 'replace_reasons' => []];
                 $existingDocumentOptions = $existingDocumentOptions ?? [];
-                $existingPartnerMatch = collect($anomalies ?? [])->contains(fn ($a) => ($a['code'] ?? '') === 'existing_partner');
+                $existingPartnerMatch = $hasUnresolvedPartnerMatch
+                    || collect($anomalies ?? [])->contains(fn ($a) => ($a['code'] ?? '') === 'existing_partner');
                 $decisionInitialStatus = in_array(($decision['status'] ?? ''), ['approved', 'rejected', 'needs_info'], true)
                     ? $decision['status']
                     : 'approved';
@@ -457,6 +476,93 @@
 
             {{-- Define before Alpine evaluates nested x-data (must not break on parent tab scope). --}}
             <script>
+                window.partnerMatchResolution = function partnerMatchResolution(config) {
+                    config = config || {};
+                    return {
+                        matchOpen: false,
+                        matchPhase: 'compare',
+                        matchBusy: false,
+                        matchIndex: 0,
+                        matchAction: null,
+                        confirmDespiteConflicts: false,
+                        matches: Array.isArray(config.matches) ? config.matches : [],
+                        resolveUrl: config.resolveUrl || '',
+                        currentMatch() {
+                            return this.matches[this.matchIndex] || null;
+                        },
+                        openMatch(index) {
+                            this.matchIndex = typeof index === 'number' ? index : 0;
+                            this.matchPhase = 'compare';
+                            this.matchAction = null;
+                            this.confirmDespiteConflicts = false;
+                            this.matchBusy = false;
+                            this.matchOpen = true;
+                        },
+                        startAction(action) {
+                            this.matchAction = action;
+                            this.matchPhase = 'review';
+                            this.confirmDespiteConflicts = false;
+                        },
+                        backToCompare() {
+                            this.matchPhase = 'compare';
+                            this.matchAction = null;
+                            this.matchBusy = false;
+                        },
+                        reviewTitle() {
+                            if (this.matchAction === 'link') return 'Link to existing Partner?';
+                            if (this.matchAction === 'keep_separate') return 'Keep these records separate?';
+                            return 'Confirm';
+                        },
+                        reviewMessage() {
+                            const m = this.currentMatch();
+                            if (!m) return '';
+                            if (this.matchAction === 'link') {
+                                let msg = m.link_preview || 'This application will join the existing Partner on Approve. No new Partner identity will be created.';
+                                if ((m.conflict_fields || []).length) {
+                                    msg += '\n\nConflicting fields: ' + (m.conflict_fields || []).join(', ') + '. Confirm only if investigation shows they are the same person.';
+                                }
+                                return msg;
+                            }
+                            if (this.matchAction === 'keep_separate') {
+                                let msg = 'These records belong to different people.\n\nThis collision will be marked reviewed for this application. Approve will not link to ' + (m.existing?.name || 'that Partner') + '.';
+                                if (m.uniqueness?.email_shared_with_existing_login) {
+                                    msg += '\n\n' + (m.uniqueness.message || 'The shared email must still be corrected before activation — login email must stay unique.');
+                                }
+                                return msg;
+                            }
+                            return '';
+                        },
+                        confirmMatch() {
+                            if (this.matchBusy || !this.matchAction) return;
+                            const m = this.currentMatch();
+                            if (!m) return;
+                            if (this.matchAction === 'link' && (m.conflict_fields || []).length && !this.confirmDespiteConflicts) {
+                                return;
+                            }
+                            this.matchBusy = true;
+                            const form = this.$refs.matchResolveForm;
+                            form.decision.value = this.matchAction;
+                            form.partner_id.value = m.partner_id;
+                            form.confirm_despite_conflicts.value = this.confirmDespiteConflicts ? '1' : '0';
+                            form.submit();
+                        },
+                        pickRequestInfo() {
+                            this.matchOpen = false;
+                            this.$nextTick(() => {
+                                const root = document.querySelector('[data-partner-decision-root]');
+                                if (!root || !root._x_dataStack) return;
+                                const d = root._x_dataStack[0];
+                                if (!d) return;
+                                d.status = 'needs_info';
+                                d.phase = 'compose';
+                                d.requestKind = 'information';
+                                d.requestType = 'personal_information';
+                                d.requestExplanation = 'Please provide clearer NIDA / TIN / supporting identity information so we can confirm whether this is a new Partner or an existing account.';
+                            });
+                        },
+                    };
+                };
+
                 window.partnerApplicationDecision = function partnerApplicationDecision(config) {
                     config = config || {};
                     return {
@@ -464,6 +570,7 @@
                         busy: false,
                         status: config.initialStatus || 'approved',
                         existingPartnerMatch: !!config.existingPartnerMatch,
+                        unresolvedMatch: !!config.unresolvedMatch,
                         requestKind: 'document',
                         requestMode: 'new',
                         requestType: '',
@@ -482,7 +589,6 @@
                         currentOptions() {
                             if (this.requestKind === 'information') return this.informationOptions;
                             if (this.requestMode === 'replace') return this.existingDocuments;
-                            // New requests: exclude types already present (those use Request update).
                             const present = new Set(this.existingDocuments.map(d => d.value));
                             return this.documentOptions.filter(o => !present.has(o.value) || o.value === 'other_document');
                         },
@@ -524,6 +630,7 @@
                             this.replaceReasonOtherMode = false;
                         },
                         canReview() {
+                            if (this.status === 'approved' && this.unresolvedMatch) return false;
                             if (this.status === 'needs_info') {
                                 if (!this.requestKind || !this.requestType) return false;
                                 if ((this.requestType === 'other_document' || this.requestType === 'other_information')
@@ -554,7 +661,7 @@
                         confirmMessage() {
                             if (this.status === 'approved') {
                                 return this.existingPartnerMatch
-                                    ? 'Matching partner already exists. Approve will link this application to that partner (no duplicate account). They must still accept the Affiliate Agreement before Share & Earn.'
+                                    ? 'A possible existing Partner was reviewed. Approve follows that resolution — link only if staff chose Link; otherwise a new Partner identity is created when Keep separate and uniqueness allow it.'
                                     : 'This will create their ordinary Affiliate account using existing enrollment infrastructure. They must still accept the Affiliate Agreement before Share & Earn.';
                             }
                             if (this.status === 'needs_info') {
@@ -600,9 +707,11 @@
             </script>
 
             <div class="rounded-2xl shadow-sm overflow-hidden ring-2 ring-brand/25 bg-gradient-to-b from-brand-muted/50 to-white lg:sticky lg:top-4"
+                 data-partner-decision-root
                  x-data="partnerApplicationDecision(@js([
                     'initialStatus' => $decisionInitialStatus,
-                    'existingPartnerMatch' => $existingPartnerMatch,
+                    'existingPartnerMatch' => $existingPartnerMatch || count($partnerMatches) > 0,
+                    'unresolvedMatch' => $hasUnresolvedPartnerMatch,
                     'documentOptions' => $requestCatalog['documents'] ?? [],
                     'informationOptions' => $requestCatalog['information'] ?? [],
                     'replaceReasons' => $requestCatalog['replace_reasons'] ?? [],
@@ -629,10 +738,28 @@
                     <input type="hidden" name="status" :value="status">
 
                     <div x-show="phase === 'compose'" class="space-y-4">
-                        @if ($existingPartnerMatch)
-                            <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2 text-xs text-amber-950">
-                                <p class="font-semibold">Matching partner already exists</p>
-                                <p class="mt-0.5 opacity-90">Phone, email or TIN matches an existing partner record. Approve will link to that partner (no duplicate). Request information and Decline remain available.</p>
+                        @if ($hasUnresolvedPartnerMatch)
+                            <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 text-xs text-amber-950">
+                                <p class="font-semibold text-sm">Possible existing Partner found</p>
+                                <p class="mt-0.5 opacity-90">
+                                    {{ count($unresolvedPartnerMatches) }} possible match{{ count($unresolvedPartnerMatches) === 1 ? '' : 'es' }}
+                                    · {{ $unresolvedPartnerMatches[0]['match_summary'] ?? 'Review required' }}
+                                </p>
+                                <button type="button" @click="openMatch(0)"
+                                        class="mt-2 inline-flex items-center font-bold text-brand hover:underline">
+                                    Review match →
+                                </button>
+                            </div>
+                        @elseif (count($partnerMatches) > 0)
+                            <div class="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-3 py-2 text-xs text-sky-950">
+                                <p class="font-semibold">Match reviewed</p>
+                                <p class="mt-0.5 opacity-90">
+                                    @php $rm = $partnerMatches[0]; @endphp
+                                    {{ ($rm['resolution'] ?? '') === 'link' ? 'Link on Approve' : 'Keep separate' }}
+                                    · {{ $rm['existing']['name'] ?? 'Partner' }}
+                                    · {{ $rm['match_summary'] ?? '' }}
+                                </p>
+                                <button type="button" @click="openMatch(0)" class="mt-1.5 font-bold text-brand hover:underline">View comparison →</button>
                             </div>
                         @endif
 
@@ -767,8 +894,11 @@
                                       :disabled="status !== 'approved'"
                                       class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm"
                                       placeholder="Optional internal notes"></textarea>
-                            <p x-show="existingPartnerMatch" x-cloak class="mt-2 text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
-                                Approve will link this application to the existing matching partner instead of creating a duplicate.
+                            <p x-show="unresolvedMatch" x-cloak class="mt-2 text-xs text-amber-900 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
+                                Resolve the possible Partner match before Approve.
+                            </p>
+                            <p x-show="!unresolvedMatch && existingPartnerMatch" x-cloak class="mt-2 text-xs text-sky-900 bg-sky-50 ring-1 ring-sky-200 rounded-lg px-3 py-2">
+                                Approve will follow the match resolution recorded above.
                             </p>
                         </div>
 
@@ -807,6 +937,8 @@
                     </div>
                 </form>
             </div>
+
+            @include('admin.partner-applications._match-resolution')
 
             @if ($decision['reviewer'] || $decision['reviewed_at'])
                 <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 text-sm">

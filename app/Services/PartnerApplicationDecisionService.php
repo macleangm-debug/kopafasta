@@ -65,6 +65,7 @@ class PartnerApplicationDecisionService
 
     public function __construct(
         private readonly PartnerEnrollmentService $enrollment,
+        private readonly PartnerMatchResolutionService $matchResolution,
     ) {}
 
     /** @return array{documents: array<string,string>, information: array<string,string>, replace_reasons: array<string,string>} */
@@ -254,6 +255,27 @@ class PartnerApplicationDecisionService
      */
     private function approve(PartnerApplication $application, array $data): array
     {
+        $unresolved = $this->matchResolution->unresolvedMatches($application);
+        if ($unresolved !== []) {
+            $names = collect($unresolved)->map(fn ($m) => $m['existing']['name'] ?? 'Partner')->implode(', ');
+            throw ValidationException::withMessages([
+                'status' => 'Resolve possible Partner matches before Approve (Review match → '.$names.').',
+            ]);
+        }
+
+        // Keep-separate with shared login email cannot activate a second identity.
+        foreach ($this->matchResolution->matchesFor($application) as $match) {
+            if (($match['resolution'] ?? null) !== 'keep_separate') {
+                continue;
+            }
+            if (! empty($match['uniqueness']['email_shared_with_existing_login'])) {
+                throw ValidationException::withMessages([
+                    'status' => $match['uniqueness']['message']
+                        ?? 'Correct the duplicated email before Approve — Keep separate was recorded, but email must stay unique for login.',
+                ]);
+            }
+        }
+
         $payload = is_array($application->payload) ? $application->payload : [];
         $activity = is_array($payload['review_activity'] ?? null) ? $payload['review_activity'] : [];
         $activity[] = [
@@ -274,7 +296,11 @@ class PartnerApplicationDecisionService
 
         $partner = null;
         if (! $application->partner_id) {
-            $existing = $this->findMatchingPartner($application);
+            $linkedId = $this->matchResolution->linkedPartnerId($application);
+            $existing = $linkedId
+                ? Partner::query()->find($linkedId)
+                : $this->findMatchingPartner($application);
+
             if ($existing) {
                 $partner = $this->linkExistingPartner($application->fresh('documents'), $existing);
                 $message = 'Application approved and linked to existing partner '.$partner->vendor_number.'.';
@@ -371,6 +397,8 @@ class PartnerApplicationDecisionService
             return null;
         }
 
+        $dismissed = $this->matchResolution->keepSeparatePartnerIds($application);
+
         return Partner::query()
             ->where(function ($q) use ($application) {
                 if (filled($application->phone)) {
@@ -383,6 +411,7 @@ class PartnerApplicationDecisionService
                     $q->orWhere('tin', $application->tin);
                 }
             })
+            ->when($dismissed !== [], fn ($q) => $q->whereNotIn('id', $dismissed))
             ->orderByDesc('id')
             ->first();
     }
@@ -409,6 +438,16 @@ class PartnerApplicationDecisionService
                     'size_bytes' => $doc->size_bytes,
                 ]);
             }
+        }
+
+        // One Partner identity may hold multiple roles — add the application category if missing.
+        $category = $this->enrollment->normalizeCategory(
+            (string) ($application->partner_category ?: ($application->type === 'affiliate' ? 'affiliate' : 'debt_collector'))
+        );
+        $roles = $partner->partnerRoles();
+        if (! in_array($category, $roles, true)) {
+            $roles[] = $category;
+            $partner->update(['roles' => array_values($roles)]);
         }
 
         $application->update([

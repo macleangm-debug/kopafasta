@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Partner;
 use App\Models\PartnerApplication;
 
 /**
@@ -10,8 +9,12 @@ use App\Models\PartnerApplication;
  */
 class PartnerEnrollmentAnomalyService
 {
+    public function __construct(
+        private readonly PartnerMatchResolutionService $matchResolution,
+    ) {}
+
     /**
-     * @return list<array{code: string, severity: string, title: string, detail: string}>
+     * @return list<array{code: string, severity: string, title: string, detail: string, meta?: array<string, mixed>}>
      */
     public function forApplication(PartnerApplication $application, array $review = []): array
     {
@@ -71,28 +74,33 @@ class PartnerEnrollmentAnomalyService
             );
         }
 
-        if (filled($application->phone) || filled($application->email) || filled($application->tin)) {
-            $existingPartner = Partner::query()
-                ->where(function ($q) use ($application) {
-                    if (filled($application->phone)) {
-                        $q->orWhere('phone', $application->phone);
-                    }
-                    if (filled($application->email)) {
-                        $q->orWhere('email', $application->email);
-                    }
-                    if (filled($application->tin)) {
-                        $q->orWhere('tin', $application->tin);
-                    }
-                })
-                ->exists();
-            if ($existingPartner && ! $application->partner_id) {
-                $anomalies[] = $this->item(
-                    'existing_partner',
-                    'warning',
-                    'Matching partner already exists',
-                    'Phone, email, or TIN matches an existing partner record.',
-                );
-            }
+        $matches = $this->matchResolution->matchesFor($application);
+        $unresolved = array_values(array_filter($matches, fn ($m) => ! ($m['resolved'] ?? false)));
+        if ($unresolved !== [] && ! $application->partner_id) {
+            $first = $unresolved[0];
+            $count = count($unresolved);
+            $anomalies[] = $this->item(
+                'existing_partner',
+                'warning',
+                'Possible existing Partner found',
+                $count.' possible match'.($count === 1 ? '' : 'es').' · '.($first['match_summary'] ?? 'Review required'),
+                [
+                    'match_count' => $count,
+                    'matches' => $unresolved,
+                ],
+            );
+        } elseif ($matches !== [] && ! $application->partner_id) {
+            $resolved = $matches[0];
+            $label = ($resolved['resolution'] ?? '') === 'link'
+                ? 'Staff chose Link existing Partner'
+                : 'Staff confirmed different people';
+            $anomalies[] = $this->item(
+                'existing_partner_resolved',
+                'info',
+                'Match reviewed',
+                $label.' · '.($resolved['existing']['name'] ?? 'Partner').' ('.($resolved['match_summary'] ?? '').')',
+                ['matches' => $matches],
+            );
         }
 
         if (($application->type !== 'affiliate' && $application->partner_category !== 'affiliate')
@@ -107,9 +115,17 @@ class PartnerEnrollmentAnomalyService
         return $anomalies;
     }
 
-    /** @return array{code: string, severity: string, title: string, detail: string} */
-    private function item(string $code, string $severity, string $title, string $detail): array
+    /**
+     * @param  array<string, mixed>  $meta
+     * @return array{code: string, severity: string, title: string, detail: string, meta?: array<string, mixed>}
+     */
+    private function item(string $code, string $severity, string $title, string $detail, array $meta = []): array
     {
-        return compact('code', 'severity', 'title', 'detail');
+        $row = compact('code', 'severity', 'title', 'detail');
+        if ($meta !== []) {
+            $row['meta'] = $meta;
+        }
+
+        return $row;
     }
 }

@@ -219,7 +219,7 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->assertNull($application->partner_id);
     }
 
-    public function test_approve_stays_on_partner_360_and_links_existing_partner(): void
+    public function test_approve_blocked_until_match_resolved_then_links_existing_partner(): void
     {
         $existing = Partner::create([
             'vendor_number' => 'PT-EXIST-001',
@@ -227,16 +227,37 @@ class PartnerApplicationReviewFeatureTest extends TestCase
             'phone' => '255712000111',
             'email' => 'existing@example.com',
             'category' => 'debt_collector',
+            'roles' => ['debt_collector'],
             'status' => 'active',
         ]);
 
         $application = $this->makeApplication([
             'phone' => '255712000111',
             'email' => 'amina@example.com',
+            'full_name' => 'Existing Recovery',
+            'partner_category' => 'affiliate',
+            'type' => 'affiliate',
         ]);
         $admin = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->put(route('admin.partner-applications.update', $application), [
+                'status' => 'approved',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasErrors('status');
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->post(route('admin.partner-applications.match-resolution', $application), [
+                'decision' => 'link',
+                'partner_id' => $existing->id,
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application));
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
             ->put(route('admin.partner-applications.update', $application), [
                 'status' => 'approved',
             ])
@@ -246,38 +267,88 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->assertSame('approved', $application->status);
         $this->assertSame($existing->id, $application->partner_id);
         $this->assertSame(1, Partner::query()->where('phone', '255712000111')->count());
+        $this->assertTrue($existing->fresh()->hasPartnerRole('affiliate'));
     }
 
-    public function test_review_decision_panel_renders_actions_when_matching_partner_exists(): void
+    public function test_keep_separate_records_resolution_and_blocks_shared_email_approve(): void
     {
-        Partner::create([
-            'vendor_number' => 'PT-MATCH-001',
-            'name' => 'Existing Match',
-            'phone' => '255712000111',
-            'email' => 'amina@example.com',
-            'category' => 'debt_collector',
+        $existing = Partner::create([
+            'vendor_number' => 'PT-AF-TZ-DIMM',
+            'name' => 'Said Mbelemba',
+            'phone' => '255255255',
+            'email' => 'shared@example.com',
+            'category' => 'affiliate',
             'status' => 'active',
         ]);
 
-        $application = $this->makeApplication();
+        $application = $this->makeApplication([
+            'full_name' => 'Maclean Mwaijonga',
+            'phone' => '255715222132',
+            'email' => 'shared@example.com',
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->post(route('admin.partner-applications.match-resolution', $application), [
+                'decision' => 'keep_separate',
+                'partner_id' => $existing->id,
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application));
+
+        $application->refresh();
+        $this->assertSame('keep_separate', $application->payload['match_resolutions'][(string) $existing->id]['decision'] ?? null);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->put(route('admin.partner-applications.update', $application), [
+                'status' => 'approved',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame('pending', $application->fresh()->status);
+        $this->assertNull($application->fresh()->partner_id);
+    }
+
+    public function test_review_match_panel_shows_applicant_vs_existing_comparison(): void
+    {
+        Partner::create([
+            'vendor_number' => 'PT-AF-TZ-DIMM',
+            'name' => 'Said Mbelemba',
+            'phone' => '255255255',
+            'email' => 'shared@example.com',
+            'category' => 'affiliate',
+            'status' => 'active',
+            'activated_at' => now(),
+        ]);
+
+        $application = $this->makeApplication([
+            'full_name' => 'Maclean Mwaijonga',
+            'phone' => '255715222132',
+            'email' => 'shared@example.com',
+        ]);
         $admin = User::factory()->create(['role' => 'admin']);
 
         $html = $this->actingAs($admin, 'admin')
             ->get(route('admin.partner-applications.show', $application))
             ->assertOk()
-            ->assertSee('Review decision', false)
-            ->assertSee('Action', false)
-            ->assertSee('>Approve<', false)
-            ->assertSee('Request information', false)
-            ->assertSee('>Decline<', false)
-            ->assertSee('Matching partner already exists', false)
+            ->assertSee('Possible existing Partner found', false)
+            ->assertSee('Review match', false)
+            ->assertSee('Maclean Mwaijonga', false)
+            ->assertSee('Said Mbelemba', false)
+            ->assertSee('Email matched', false)
+            ->assertSee('They are the same person', false)
+            ->assertSee('They are different people', false)
+            ->assertSee('Open existing Partner', false)
+            ->assertSee('Need more evidence', false)
             ->assertSee('partnerApplicationDecision(JSON.parse(', false)
+            ->assertDontSee('Merge Partner', false)
             ->getContent();
 
-        $this->assertStringNotContainsString(
-            'partnerApplicationDecision({\n                    initialStatus: "',
-            $html
-        );
+        $this->assertStringContainsString('Phone', $html);
+        $this->assertStringContainsString('255715222132', $html);
+        $this->assertStringContainsString('255255255', $html);
     }
 
     public function test_admin_can_request_document_replacement_without_declining(): void
