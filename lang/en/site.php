@@ -1375,6 +1375,8 @@ return [
         'after_approval' => 'Once approved, we email you an activation link to set your password and access the affiliate portal.',
         'cta_apply' => 'Become an Affiliate',
         'cta_heading' => 'Ready to become an Affiliate?',
+        'already_joined_prefix' => 'Already joined?',
+        'sign_in' => 'Sign in',
         'step_label' => 'Step :num',
         'how_it_works' => 'How the programme works',
         'step_1' => 'Apply & get approved',

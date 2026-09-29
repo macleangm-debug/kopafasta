@@ -45,7 +45,18 @@ class Phase18FeatureTest extends TestCase
         $this->withSession(['locale' => 'sw'])
             ->get(route('site.affiliate'))
             ->assertOk()
-            ->assertSee(__('site.affiliate.cta_apply', [], 'sw'), false);
+            ->assertSee(__('site.affiliate.cta_apply', [], 'sw'), false)
+            ->assertSee(__('site.affiliate.already_joined_prefix', [], 'sw'), false)
+            ->assertSee(__('site.affiliate.sign_in', [], 'sw'), false)
+            ->assertSee(route('site.login.partner', [], false), false)
+            ->assertDontSee(__('site.hero.learn_more', [], 'sw'), false);
+
+        $this->withSession(['locale' => 'en'])
+            ->get(route('site.affiliate'))
+            ->assertOk()
+            ->assertSee(__('site.affiliate.already_joined_prefix', [], 'en'), false)
+            ->assertSee(__('site.affiliate.sign_in', [], 'en'), false)
+            ->assertDontSee(__('site.hero.learn_more', [], 'en'), false);
 
         $this->withSession(['locale' => 'sw'])
             ->get(route('site.affiliate.apply'))

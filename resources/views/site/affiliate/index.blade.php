@@ -6,9 +6,17 @@
         :body="__('site.affiliate.hero_body')"
         :primary-href="route('site.affiliate.apply')"
         :primary-label="__('site.affiliate.cta_apply')"
-        :secondary-href="route('site.login.partner')"
-        :secondary-label="__('site.affiliate.portal_title')"
     >
+        <x-slot:below>
+            <p class="mt-5 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm sm:text-base text-white/75">
+                <span>{{ __('site.affiliate.already_joined_prefix') }}</span>
+                <a href="{{ route('site.login.partner') }}"
+                   class="inline-flex items-center min-h-11 px-1 font-extrabold text-brand-gold underline underline-offset-4 decoration-brand-gold/70 hover:decoration-brand-gold hover:brightness-110">
+                    {{ __('site.affiliate.sign_in') }}
+                </a>
+            </p>
+        </x-slot:below>
+
         <ul class="space-y-3">
             @foreach ([
                 __('site.affiliate.benefit_1'),

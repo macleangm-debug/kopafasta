@@ -1357,6 +1357,8 @@ return [
         'after_approval' => 'Ukishaidhinishwa, tutakutumia barua pepe na kiungo cha kuweka nenosiri na kufungua portal ya msambazaji.',
         'cta_apply' => 'Kuwa Msambazaji',
         'cta_heading' => 'Uko tayari kuwa Msambazaji?',
+        'already_joined_prefix' => 'Tayari umejiunga?',
+        'sign_in' => 'Ingia',
         'step_label' => 'Hatua :num',
         'how_it_works' => 'Jinsi programu inavyofanya kazi',
         'step_1' => 'Omba na upate idhini',
