@@ -281,7 +281,9 @@
                         <input name="tin" value="{{ old('tin') }}" class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                     </div>
                 </div>
-                <div x-show="missingOnStep(1).length" x-cloak class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                <div x-ref="missingStep1" data-step-missing="1" x-show="missingOnStep(1).length" x-cloak
+                     class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3"
+                     :class="advanceBlocked && step === 1 ? 'ring-2 ring-amber-400' : ''">
                     <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_apply.step_incomplete') }}</p>
                     <ul class="mt-1 space-y-0.5">
                         <template x-for="item in missingOnStep(1)" :key="'s1-'+item.key">
@@ -291,8 +293,7 @@
                 </div>
                 <div class="flex justify-end">
                     <button type="button" @click="goNext()"
-                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            :disabled="!canLeaveStep(1)">
+                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
                         {{ __('site.partner_apply.next') }} →
                     </button>
                 </div>
@@ -354,7 +355,9 @@
                     <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.why') }}</label>
                     <textarea name="why_affiliate" rows="4" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('why_affiliate') }}</textarea>
                 </div>
-                <div x-show="missingOnStep(2).length" x-cloak class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                <div x-ref="missingStep2" data-step-missing="2" x-show="missingOnStep(2).length" x-cloak
+                     class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3"
+                     :class="advanceBlocked && step === 2 ? 'ring-2 ring-amber-400' : ''">
                     <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_apply.step_incomplete') }}</p>
                     <ul class="mt-1 space-y-0.5">
                         <template x-for="item in missingOnStep(2)" :key="'s2-'+item.key">
@@ -365,8 +368,7 @@
                 <div class="flex justify-between">
                     <button type="button" @click="goTo(1)" class="text-sm font-semibold text-gray-600">← {{ __('site.partner_apply.back') }}</button>
                     <button type="button" @click="goNext()"
-                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            :disabled="!canLeaveStep(2)">
+                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
                         {{ __('site.partner_apply.next') }} →
                     </button>
                 </div>
@@ -502,7 +504,9 @@
 
                 <x-site.form-nida-capture />
 
-                <div x-show="missingOnStep(3).length" x-cloak class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3">
+                <div x-ref="missingStep3" data-step-missing="3" x-show="missingOnStep(3).length" x-cloak
+                     class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3"
+                     :class="advanceBlocked && step === 3 ? 'ring-2 ring-amber-400' : ''">
                     <p class="text-sm font-semibold text-amber-900">{{ __('site.affiliate_apply.step_incomplete') }}</p>
                     <ul class="mt-1 space-y-0.5">
                         <template x-for="item in missingOnStep(3)" :key="'s3-'+item.key">
@@ -513,8 +517,7 @@
                 <div class="flex justify-between">
                     <button type="button" @click="goTo(2)" class="text-sm font-semibold text-gray-600">← {{ __('site.partner_apply.back') }}</button>
                     <button type="button" @click="goNext()"
-                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            :disabled="!canLeaveStep(3)">
+                            class="bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
                         {{ __('site.partner_apply.next') }} →
                     </button>
                 </div>
@@ -585,6 +588,7 @@
                 hasSocialProfile: config.hasSocialProfile || '',
                 feeRequired: !!config.feeRequired,
                 submitting: false,
+                advanceBlocked: false,
                 missing: [],
                 missingLabels: config.missingLabels || {},
                 missingSteps: config.missingSteps || {},
@@ -607,11 +611,12 @@
                     // Prefer enabled fields (disabled social fields must not block after Yes→No).
                     for (const el of els) {
                         if (el.disabled) continue;
-                        const value = String(el.value || '').trim();
+                        // Alpine :value may set the attribute before the IDL property — read both.
+                        const value = String(el.value || el.getAttribute('value') || '').trim();
                         if (value !== '') return value;
                     }
                     if (first.disabled) return '';
-                    return String(first.value || '').trim();
+                    return String(first.value || first.getAttribute('value') || '').trim();
                 },
                 refreshIdentity() {
                     this.identity = {
@@ -714,6 +719,9 @@
                     if (!this.nidaReady()) push('doc_national_id');
                     if (!this.hasChecked('declaration_accepted')) push('declaration_accepted');
                     this.missing = next;
+                    if (this.advanceBlocked && this.canLeaveStep(this.step)) {
+                        this.advanceBlocked = false;
+                    }
                 },
                 jumpTo(item) {
                     this.goTo(item.step);
@@ -728,6 +736,7 @@
                     const next = Number(target);
                     if (!next || next === this.step) return;
                     if (next < this.step) {
+                        this.advanceBlocked = false;
                         this.step = next;
                         this.$nextTick(() => this.scrollStepIntoView());
                         return;
@@ -736,15 +745,26 @@
                     for (let s = 1; s < next; s++) {
                         if (!this.canLeaveStep(s)) {
                             this.step = s;
-                            this.$nextTick(() => this.scrollStepIntoView());
+                            this.advanceBlocked = true;
+                            this.$nextTick(() => {
+                                this.scrollStepIntoView();
+                                this.scrollMissingIntoView(s);
+                            });
                             return;
                         }
                     }
+                    this.advanceBlocked = false;
                     this.refreshIdentity();
                     this.step = next;
                     this.$nextTick(() => this.scrollStepIntoView());
                 },
                 goNext() {
+                    this.computeMissing();
+                    if (!this.canLeaveStep(this.step)) {
+                        this.advanceBlocked = true;
+                        this.$nextTick(() => this.scrollMissingIntoView(this.step));
+                        return;
+                    }
                     this.goTo(this.step + 1);
                 },
                 scrollStepIntoView() {
@@ -752,6 +772,13 @@
                     const active = rail ? rail.querySelector('[data-step="' + this.step + '"]') : null;
                     if (active) {
                         active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }
+                },
+                scrollMissingIntoView(stepNo) {
+                    const form = this.$refs.affiliateForm;
+                    const panel = form ? form.querySelector('[data-step-missing="' + stepNo + '"]') : null;
+                    if (panel) {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }
                 },
                 displayGender() {

@@ -296,9 +296,7 @@
                         }
                         if (typeof field.checkValidity === 'function' && ! field.checkValidity()) {
                             field.reportValidity();
-                            if (typeof field.checkVisibility === 'function' && ! field.checkVisibility()) {
-                                setError(field.validationMessage || 'Please complete the required fields in this section.');
-                            }
+                            setError(field.validationMessage || 'Please complete the required fields in this section.');
                             return false;
                         }
                     }

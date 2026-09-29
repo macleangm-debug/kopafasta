@@ -61,6 +61,10 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertStringContainsString('goNext()', $html);
         $this->assertStringContainsString('canLeaveStep', $html);
         $this->assertStringContainsString('missingOnStep', $html);
+        $this->assertStringContainsString('advanceBlocked', $html);
+        $this->assertStringContainsString('scrollMissingIntoView', $html);
+        $this->assertStringContainsString('data-step-missing', $html);
+        $this->assertStringNotContainsString(':disabled="!canLeaveStep', $html);
         $this->assertStringContainsString('hasSocialProfile', $html);
         $this->assertStringContainsString('function affiliateApplyForm', $html);
         $apply = file_get_contents(resource_path('views/site/affiliate/apply.blade.php'));
