@@ -152,7 +152,9 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->get(route('site.partners.apply.tracking', ['phone' => $application->phone]))
             ->assertOk()
             ->assertSee('Proof of address', false)
-            ->assertSee(__('site.partner_apply.track_needs_info_title'), false);
+            ->assertSee(__('site.partner_apply.track_needs_info_title'), false)
+            ->assertSee(__('site.partner_apply.track_check_another'), false)
+            ->assertDontSee(__('site.partner_apply.track_submit'), false);
 
         $this->post(route('site.partners.apply.fulfill', $application), [
             'phone' => $application->phone,
@@ -162,6 +164,36 @@ class PartnerApplicationReviewFeatureTest extends TestCase
 
         $application->refresh();
         $this->assertSame('pending', $application->status);
+        $this->assertSame('submitted', $application->payload['info_requests'][0]['status']);
+        $this->assertTrue($application->documents()->where('doc_type', 'proof_of_address')->exists());
+    }
+
+    public function test_fulfill_accepts_document_holder_page_array_payload(): void
+    {
+        Storage::fake('public');
+
+        $application = $this->makeApplication([
+            'status' => 'needs_info',
+            'payload' => [
+                'info_requests' => [[
+                    'id' => 'req-address-2',
+                    'kind' => 'document',
+                    'type' => 'proof_of_address',
+                    'label' => 'Proof of address',
+                    'status' => 'requested',
+                    'requested_at' => now()->toIso8601String(),
+                    'document_ids' => [],
+                ]],
+            ],
+        ]);
+
+        $this->post(route('site.partners.apply.fulfill', $application), [
+            'phone' => $application->phone,
+            'request_id' => 'req-address-2',
+            'document' => [UploadedFile::fake()->image('address-page.jpg')],
+        ])->assertRedirect(route('site.partners.apply.tracking', ['phone' => $application->phone]));
+
+        $application->refresh();
         $this->assertSame('submitted', $application->payload['info_requests'][0]['status']);
         $this->assertTrue($application->documents()->where('doc_type', 'proof_of_address')->exists());
     }

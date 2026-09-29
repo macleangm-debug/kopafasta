@@ -44,10 +44,13 @@
             $resultPayload = ['empty' => true];
         }
 
+        $hasResult = $resultPayload && empty($resultPayload['empty']);
+        $showLookup = ! $hasResult;
         $allSupplied = $application
             && $application->status === 'pending'
             && collect($infoRequests)->isNotEmpty()
             && collect($infoRequests)->every(fn ($r) => ($r['status'] ?? '') === 'submitted');
+        $docGuide = __('borrower.document_upload.guide_document_compact');
     @endphp
 
     <div class="max-w-2xl mx-auto px-4 pt-8">
@@ -65,21 +68,23 @@
     </div>
 
     <div class="max-w-2xl mx-auto pb-10 px-4 space-y-5">
-        <form method="GET" action="{{ route('site.partners.apply.tracking') }}" class="glass-card p-6 space-y-4" data-no-draft>
-            <x-site.phone-input
-                name="phone"
-                :label="__('site.partner_apply.track_phone_label')"
-                :value="$phone"
-                variant="rounded"
-                :required="true"
-                :help="__('site.partner_apply.track_phone_help')"
-            />
-            <button type="submit" class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
-                {{ __('site.partner_apply.track_submit') }}
-            </button>
-        </form>
+        @if ($showLookup)
+            <form method="GET" action="{{ route('site.partners.apply.tracking') }}" class="glass-card p-6 space-y-4" data-no-draft>
+                <x-site.phone-input
+                    name="phone"
+                    :label="__('site.partner_apply.track_phone_label')"
+                    :value="$phone"
+                    variant="rounded"
+                    :required="true"
+                    :help="__('site.partner_apply.track_phone_help')"
+                />
+                <button type="submit" class="w-full sm:w-auto bg-brand hover:bg-brand-light text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
+                    {{ __('site.partner_apply.track_submit') }}
+                </button>
+            </form>
+        @endif
 
-        @if ($showSubmittedNotice && $resultPayload && empty($resultPayload['empty']))
+        @if ($showSubmittedNotice && $hasResult)
             <div class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
                 <p class="font-semibold">{{ __('site.partner_apply.success_modal_title') }}</p>
                 <p class="mt-1">{{ __('site.partner_apply.success_modal_body') }}</p>
@@ -95,10 +100,8 @@
             </div>
         @endif
 
-        {{-- Application status card — working surface (no progress modal) --}}
         @if ($resultPayload)
-            <div class="rounded-2xl bg-white shadow-sm ring-1 ring-brand/15 overflow-hidden"
-                 x-data="{ openRequest: @js(old('request_id', '')) }">
+            <div class="rounded-2xl bg-white shadow-sm ring-1 ring-brand/15 overflow-hidden">
                 @if (! empty($resultPayload['empty']))
                     <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 py-4 text-white">
                         <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('site.partner_apply.track_application') }}</p>
@@ -127,13 +130,12 @@
                             @endif
                         </h2>
                         <p class="text-sm text-white/80 mt-1">{{ $resultPayload['category'] ?? '' }}</p>
+                        @if (! empty($resultPayload['submitted']))
+                            <p class="text-xs text-white/70 mt-2">{{ __('site.partner_apply.track_submitted', ['date' => $resultPayload['submitted']]) }}</p>
+                        @endif
                     </div>
 
                     <div class="px-5 py-5 space-y-4 text-sm text-gray-700">
-                        @if (! empty($resultPayload['submitted']))
-                            <p class="text-xs text-gray-500">{{ __('site.partner_apply.track_submitted', ['date' => $resultPayload['submitted']]) }}</p>
-                        @endif
-
                         @if ($status === 'approved')
                             <div class="rounded-2xl bg-brand-muted/50 ring-1 ring-brand/15 p-4 space-y-3">
                                 <p class="font-semibold text-brand">{{ __('site.partner_apply.track_approved_title') }}</p>
@@ -169,99 +171,162 @@
                             @endif
 
                             @if (! empty($infoRequests) && $application)
-                                <ul class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-200 overflow-hidden">
+                                <ul class="space-y-4">
                                     @foreach ($infoRequests as $req)
                                         @php
                                             $reqId = (string) ($req['id'] ?? '');
                                             $reqStatus = (string) ($req['status'] ?? 'requested');
                                             $isDoc = ($req['kind'] ?? '') === 'document';
                                             $isOpen = $reqStatus === 'requested';
+                                            $isReplace = ($req['mode'] ?? '') === 'replace';
+                                            $reqType = (string) ($req['type'] ?? '');
+                                            $hostId = 'track-req-'.md5($reqId);
+                                            $statusBadge = $isOpen
+                                                ? ($isReplace
+                                                    ? __('site.partner_apply.track_request_update_required')
+                                                    : __('site.partner_apply.track_request_required'))
+                                                : null;
                                         @endphp
-                                        <li class="bg-white">
-                                            <div class="flex items-center justify-between gap-3 px-4 py-3">
-                                                <div class="min-w-0">
+                                        <li class="rounded-xl ring-1 ring-gray-200 bg-white overflow-hidden">
+                                            @if (! $isOpen)
+                                                <div class="flex items-center justify-between gap-3 px-4 py-3">
                                                     <p class="text-sm font-semibold text-gray-900 truncate">{{ $req['label'] ?? __('site.partner_apply.track_request_item') }}</p>
-                                                    @if (! empty($req['explanation']) && $isOpen)
-                                                        <p class="text-xs text-gray-500 mt-0.5">{{ $req['explanation'] }}</p>
-                                                    @endif
-                                                </div>
-                                                @if ($reqStatus === 'submitted')
                                                     <span class="shrink-0 text-xs font-semibold text-emerald-700">✓ {{ __('site.partner_apply.track_request_submitted') }}</span>
-                                                @else
-                                                    @php
-                                                        $isReplace = ($req['mode'] ?? '') === 'replace';
-                                                        $ctaLabel = $isReplace
-                                                            ? __('site.partner_apply.track_request_replace')
-                                                            : ($isDoc ? '+' : __('site.partner_apply.track_request_fill'));
-                                                    @endphp
-                                                    <button type="button"
-                                                            @click="openRequest = openRequest === @js($reqId) ? '' : @js($reqId)"
-                                                            class="shrink-0 inline-flex items-center justify-center min-w-9 h-9 px-2 rounded-lg bg-brand text-white text-sm font-bold leading-none"
-                                                            :aria-expanded="openRequest === @js($reqId)">
-                                                        <span x-show="openRequest !== @js($reqId)" x-text="@js($ctaLabel)"></span>
-                                                        <span x-show="openRequest === @js($reqId)" x-cloak>×</span>
-                                                    </button>
-                                                @endif
-                                            </div>
-
-                                            @if ($isOpen)
-                                                <div x-show="openRequest === @js($reqId)" x-cloak class="px-4 pb-4 border-t border-gray-50">
-                                                    <form method="POST"
-                                                          action="{{ route('site.partners.apply.fulfill', $application) }}"
-                                                          enctype="multipart/form-data"
-                                                          class="pt-3 space-y-3"
-                                                          data-no-draft
-                                                          data-no-saving>
-                                                        @csrf
-                                                        <input type="hidden" name="phone" value="{{ $phone }}">
-                                                        <input type="hidden" name="request_id" value="{{ $reqId }}">
-
-                                                        @if ($isDoc && ($req['type'] ?? '') === 'national_id')
-                                                            <x-site.form-document-field
-                                                                name="doc_national_id_front"
-                                                                :label="__('site.partner_apply.nida_front')"
-                                                                :required="true"
-                                                                capture="nida"
-                                                            />
-                                                            <x-site.form-document-field
-                                                                name="doc_national_id_back"
-                                                                :label="__('site.partner_apply.nida_back')"
-                                                                :required="true"
-                                                                capture="nida"
-                                                            />
-                                                        @elseif ($isDoc && ($req['type'] ?? '') === 'national_id_front')
-                                                            <x-site.form-document-field
-                                                                name="doc_national_id_front"
-                                                                :label="__('site.partner_apply.nida_front')"
-                                                                :required="true"
-                                                                capture="nida"
-                                                            />
-                                                        @elseif ($isDoc && ($req['type'] ?? '') === 'national_id_back')
-                                                            <x-site.form-document-field
-                                                                name="doc_national_id_back"
-                                                                :label="__('site.partner_apply.nida_back')"
-                                                                :required="true"
-                                                                capture="nida"
-                                                            />
-                                                        @elseif ($isDoc)
-                                                            <x-site.form-document-field
-                                                                name="document"
-                                                                :label="$req['label'] ?? __('site.partner_apply.track_request_item')"
-                                                                :required="true"
-                                                            />
-                                                        @else
-                                                            <label class="block text-xs font-semibold text-brand">{{ __('site.partner_apply.track_request_fill') }}</label>
-                                                            <textarea name="response_text" rows="3" required
-                                                                      class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm"
-                                                                      placeholder="{{ __('site.partner_apply.track_request_text_placeholder') }}">{{ old('response_text') }}</textarea>
-                                                        @endif
-
-                                                        <button type="submit"
-                                                                class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                                                            {{ __('site.partner_apply.track_request_submit') }}
-                                                        </button>
-                                                    </form>
                                                 </div>
+                                            @elseif (! $isDoc)
+                                                <form method="POST"
+                                                      action="{{ route('site.partners.apply.fulfill', $application) }}"
+                                                      class="p-4 space-y-3"
+                                                      data-no-draft
+                                                      data-no-saving>
+                                                    @csrf
+                                                    <input type="hidden" name="phone" value="{{ $phone }}">
+                                                    <input type="hidden" name="request_id" value="{{ $reqId }}">
+                                                    <div class="flex items-start justify-between gap-3">
+                                                        <div class="min-w-0">
+                                                            <p class="text-sm font-semibold text-gray-900">{{ $req['label'] ?? __('site.partner_apply.track_request_item') }}</p>
+                                                            @if (! empty($req['explanation']))
+                                                                <p class="text-xs text-gray-500 mt-0.5">{{ $req['explanation'] }}</p>
+                                                            @endif
+                                                        </div>
+                                                        <span class="shrink-0 text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2 py-0.5">{{ $statusBadge }}</span>
+                                                    </div>
+                                                    <textarea name="response_text" rows="3" required
+                                                              class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm"
+                                                              placeholder="{{ __('site.partner_apply.track_request_text_placeholder') }}">{{ old('response_text') }}</textarea>
+                                                    <button type="submit"
+                                                            class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                                        {{ __('site.partner_apply.track_request_submit') }}
+                                                    </button>
+                                                </form>
+                                            @else
+                                                {{-- One Document Holder surface: label + guide + single yellow + → preview → Submit --}}
+                                                <form method="POST"
+                                                      action="{{ route('site.partners.apply.fulfill', $application) }}"
+                                                      enctype="multipart/form-data"
+                                                      class="p-4 space-y-3"
+                                                      data-no-draft
+                                                      data-no-saving
+                                                      x-data="{
+                                                          hostId: @js($hostId),
+                                                          hasFile: false,
+                                                          markReady(detail) {
+                                                              if (detail?.hostId && detail.hostId !== this.hostId) return;
+                                                              this.hasFile = true;
+                                                          },
+                                                          openFromPicker(detail) {
+                                                              if (detail?.hostId && detail.hostId !== this.hostId) return;
+                                                              const source = detail?.source === 'camera' ? 'document-open-camera' : 'document-open-upload';
+                                                              this.$dispatch(source, { hostId: this.hostId, fresh: true });
+                                                          },
+                                                      }"
+                                                      @document-source.window="openFromPicker($event.detail)"
+                                                      @kf-document-pages-ready.window="markReady($event.detail)"
+                                                      @kf-document-file.window="markReady($event.detail)"
+                                                      @document-pages-changed.window="
+                                                          if ($event.detail?.name === 'document' || $event.detail?.name === 'doc_national_id_front' || $event.detail?.name === 'doc_national_id_back') {
+                                                              hasFile = ($event.detail.count || 0) > 0;
+                                                          }
+                                                      ">
+                                                    @csrf
+                                                    <input type="hidden" name="phone" value="{{ $phone }}">
+                                                    <input type="hidden" name="request_id" value="{{ $reqId }}">
+
+                                                    <div class="flex items-start justify-between gap-3">
+                                                        <div class="min-w-0">
+                                                            <p class="text-sm font-semibold text-gray-900">
+                                                                <span x-text="hasFile ? @js(($req['label'] ?? __('site.partner_apply.track_request_item')).' ✓') : @js($req['label'] ?? __('site.partner_apply.track_request_item'))"></span>
+                                                            </p>
+                                                            @if (! empty($req['explanation']))
+                                                                <p class="text-xs text-gray-600 mt-0.5">{{ $req['explanation'] }}</p>
+                                                            @endif
+                                                            <p class="text-xs text-gray-500 mt-1" x-show="!hasFile">{{ $docGuide }}</p>
+                                                        </div>
+                                                        <div class="flex items-center gap-2 shrink-0">
+                                                            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2 py-0.5">{{ $statusBadge }}</span>
+                                                            @if ($reqType !== 'national_id')
+                                                                <div x-show="!hasFile">
+                                                                    <x-site.document-source-picker :host-id="$hostId" />
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+
+                                                    @if ($reqType === 'national_id')
+                                                        <div class="space-y-4">
+                                                            <div class="flex items-center justify-between gap-2">
+                                                                <p class="text-xs font-semibold text-brand">{{ __('site.partner_apply.nida_front') }}</p>
+                                                                <x-site.document-source-picker :host-id="$hostId.'-front'" />
+                                                            </div>
+                                                            <x-site.single-image-document-upload
+                                                                name="doc_national_id_front"
+                                                                :input-host-id="$hostId.'-front'"
+                                                                facing="environment"
+                                                                :required="true"
+                                                                source-driven="true"
+                                                                guide-frame="id-card"
+                                                            />
+                                                            <div class="flex items-center justify-between gap-2">
+                                                                <p class="text-xs font-semibold text-brand">{{ __('site.partner_apply.nida_back') }}</p>
+                                                                <x-site.document-source-picker :host-id="$hostId.'-back'" />
+                                                            </div>
+                                                            <x-site.single-image-document-upload
+                                                                name="doc_national_id_back"
+                                                                :input-host-id="$hostId.'-back'"
+                                                                facing="environment"
+                                                                :required="true"
+                                                                source-driven="true"
+                                                                guide-frame="id-card"
+                                                            />
+                                                        </div>
+                                                    @elseif (in_array($reqType, ['national_id_front', 'national_id_back'], true))
+                                                        <x-site.single-image-document-upload
+                                                            :name="$reqType === 'national_id_front' ? 'doc_national_id_front' : 'doc_national_id_back'"
+                                                            :input-host-id="$hostId"
+                                                            facing="environment"
+                                                            :required="true"
+                                                            source-driven="true"
+                                                            guide-frame="id-card"
+                                                        />
+                                                    @else
+                                                        <x-site.multi-page-document-upload
+                                                            name="document"
+                                                            :input-host-id="$hostId"
+                                                            :max-pages="1"
+                                                            :required="true"
+                                                            :source-driven="true"
+                                                            :auto-finish-upload="true"
+                                                            output-mode="images"
+                                                        />
+                                                    @endif
+
+                                                    <button type="submit"
+                                                            class="w-full bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-40"
+                                                            :disabled="!hasFile"
+                                                            :class="!hasFile ? 'pointer-events-none' : ''">
+                                                        {{ __('site.partner_apply.track_request_submit') }}
+                                                    </button>
+                                                </form>
                                             @endif
                                         </li>
                                     @endforeach
@@ -275,6 +340,13 @@
                                 <p>{{ __('site.partner_apply.track_pending_body') }}</p>
                             </div>
                         @endif
+
+                        <div class="pt-2 border-t border-gray-100">
+                            <a href="{{ route('site.partners.apply.tracking') }}"
+                               class="inline-flex text-sm font-semibold text-gray-500 hover:text-brand">
+                                {{ __('site.partner_apply.track_check_another') }}
+                            </a>
+                        </div>
                     </div>
                 @endif
             </div>

@@ -184,9 +184,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/>
                     </svg>
                 </button>
-                <button type="button" x-show="autoFinishUpload && !cameraOpen" x-cloak @click="finishUpload()"
-                        class="inline-flex items-center justify-center rounded-full bg-brand-gold hover:bg-yellow-400 text-brand px-3 py-1.5 text-xs font-bold shadow-sm"
-                        :title="labels.finish" :aria-label="labels.finish" x-text="labels.finish"></button>
+                {{-- autoFinishUpload already syncs inputs on add — do not show a redundant Finish CTA --}}
             </div>
         </div>
         <ul class="flex flex-wrap gap-2">

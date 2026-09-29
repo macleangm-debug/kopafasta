@@ -189,9 +189,12 @@ return [
         'track_request_fill' => 'Fill',
         'track_request_replace' => 'Replace +',
         'track_request_submitted' => 'Submitted',
+        'track_request_required' => 'Required',
+        'track_request_update_required' => 'Update required',
         'track_request_submit' => 'Submit',
         'track_request_saved' => 'Thank you — your response was sent.',
         'track_request_text_placeholder' => 'Enter the requested information',
+        'track_check_another' => 'Check another application',
         'nida_front' => 'National ID (front)',
         'nida_back' => 'National ID (back)',
         'track_statuses' => [

@@ -189,9 +189,12 @@ return [
         'track_request_fill' => 'Jaza',
         'track_request_replace' => 'Badilisha +',
         'track_request_submitted' => 'Imetumwa',
+        'track_request_required' => 'Inahitajika',
+        'track_request_update_required' => 'Badilisha inahitajika',
         'track_request_submit' => 'Tuma',
         'track_request_saved' => 'Asante — majibu yako yametumwa.',
         'track_request_text_placeholder' => 'Weka taarifa zilizoombwa',
+        'track_check_another' => 'Fuatilia ombi lingine',
         'nida_front' => 'Kitambulisho cha taifa (mbele)',
         'nida_back' => 'Kitambulisho cha taifa (nyuma)',
         'track_statuses' => [

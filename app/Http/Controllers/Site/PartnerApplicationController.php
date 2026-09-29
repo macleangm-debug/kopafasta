@@ -270,10 +270,38 @@ class PartnerApplicationController extends Controller
         $data = $request->validate([
             'request_id' => ['required', 'string', 'max:64'],
             'response_text' => ['nullable', 'string', 'max:4000'],
-            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            // Shared Document Holder may stage a single file (`document`) or pages (`document[]`).
+            'document' => ['nullable'],
+            'document.*' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_national_id_front' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_national_id_back' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
+
+        $document = $request->file('document');
+        if ($document instanceof \Illuminate\Http\UploadedFile) {
+            // ok — single file from maxPages=1 holder
+        } elseif (is_array($document)) {
+            foreach ($document as $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile && ! $file->isValid()) {
+                    return redirect()
+                        ->route('site.partners.apply.tracking', ['phone' => $phone])
+                        ->withErrors(['document' => __('validation.uploaded', ['attribute' => 'document'])])
+                        ->withInput();
+                }
+            }
+        } elseif ($document !== null) {
+            return redirect()
+                ->route('site.partners.apply.tracking', ['phone' => $phone])
+                ->withErrors(['document' => __('validation.file', ['attribute' => 'document'])])
+                ->withInput();
+        }
+
+        // When a single UploadedFile is sent, still enforce MIME/size (array case covered by document.*).
+        if ($document instanceof \Illuminate\Http\UploadedFile) {
+            $request->validate([
+                'document' => ['file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            ]);
+        }
 
         try {
             app(\App\Services\PartnerApplicationDecisionService::class)->fulfillRequest(
@@ -281,7 +309,7 @@ class PartnerApplicationController extends Controller
                 (string) $data['request_id'],
                 [
                     'response_text' => $data['response_text'] ?? null,
-                    'document' => $request->file('document'),
+                    'document' => $document,
                     'doc_national_id_front' => $request->file('doc_national_id_front'),
                     'doc_national_id_back' => $request->file('doc_national_id_back'),
                 ]

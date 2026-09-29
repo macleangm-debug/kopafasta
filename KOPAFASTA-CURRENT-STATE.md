@@ -12,7 +12,8 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Affiliate staging baseline (Owner UAT)** | `ee5148c5ecd34c4ec12c6b44dcc68f240776982b` | Prior Performance freeze tip. **Superseded for contracts re-acceptance — see tip below.** |
 | **Affiliate staging tip (contracts re-accept)** | `50665e33a2351c272976f8132dd13a9a02cf9c67` | Owner EN/SW pack v2; existing Affiliates on older acceptance must re-accept. Historical signed v1 retained. |
 | **Affiliate commercial closure (staging tip)** | `6ddc3077` | Commission remaining-amount basis + Accounting earn/payout + public apply fee ON/OFF via payment.show body. Agreement content_revision 3. Staging only. |
-| **Partner 360 Review Decision blank P0 (staging tip)** | `fd3509545d90430b0d3b4119afd3a20ea6b6ba41` | Blank Review Decision body fixed (Alpine @js attribute). Document update/replace on same request path. Staging only. |
+| **Partner 360 Review Decision blank P0 (staging tip)** | `ae4747bbb9a458b5dd4809e44b470984ad968c75` | Blank Review Decision body fixed (Alpine @js attribute). Document update/replace on same request path. Staging only. |
+| **Affiliate requested-document tracking UX (staging tip)** | *(pending)* | Single Document Holder fulfill surface + tracking result mode. Staging only. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
