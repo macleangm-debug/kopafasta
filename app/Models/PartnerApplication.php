@@ -48,7 +48,8 @@ class PartnerApplication extends Model
 
     public function partner(): BelongsTo
     {
-        return $this->belongsTo(Partner::class, 'partner_id');
+        // Vendor extends Partner; activation / Affiliate helpers type-hint Vendor.
+        return $this->belongsTo(Vendor::class, 'partner_id');
     }
 
     public function documents(): HasMany

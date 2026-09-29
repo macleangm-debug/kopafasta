@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\ApplicationSignature;
+use App\Models\Customer;
 use App\Models\CustomerGuarantor;
 use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
+use Illuminate\Validation\ValidationException;
 
 class GuarantorSignatureService
 {
@@ -54,6 +56,38 @@ class GuarantorSignatureService
         ]);
 
         return $invitation->fresh();
+    }
+
+    /**
+     * Reuse the guarantor's verified Profile signature — no pad / gallery step.
+     */
+    public function confirmFromProfile(
+        GuarantorInvitation $invitation,
+        Customer $customer,
+    ): GuarantorInvitation {
+        $profile = app(BorrowerSignatureService::class)->profileSignature($customer);
+        if (! $profile) {
+            throw ValidationException::withMessages([
+                'signature_data' => __('borrower.apply.group.profile_signature_required'),
+            ]);
+        }
+
+        $application = $invitation->application ?? $invitation->customerGuarantor?->application;
+        if ($application) {
+            $this->record(
+                $application,
+                $profile['signer_name'],
+                $profile['signature_data'],
+                $invitation->customerGuarantor,
+                $invitation,
+            );
+        }
+
+        return $this->recordForInvitation(
+            $invitation,
+            $profile['signer_name'],
+            $profile['signature_data'],
+        );
     }
 
     public function attachToApplication(

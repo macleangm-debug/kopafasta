@@ -500,6 +500,21 @@ class VendorController extends ResourceController
             } else {
                 $roles = array_values(array_unique(array_merge([$category], $roles)));
             }
+
+            // Affiliate-primary records must not pick up a false Asset supplier role.
+            // Keep supplier only when this Partner truly has supplier inventory.
+            if ($category === 'affiliate') {
+                $keepSupplier = $existing instanceof Vendor
+                    && $existing->marketplaceAssets()->exists();
+                if (! $keepSupplier) {
+                    $roles = array_values(array_filter($roles, fn ($role) => $role !== 'supplier'));
+                }
+                if (! in_array('affiliate', $roles, true)) {
+                    $roles[] = 'affiliate';
+                }
+                $roles = array_values(array_unique($roles));
+            }
+
             $data['category'] = $category;
             $data['roles'] = $roles;
         } elseif ($roles !== []) {
@@ -598,17 +613,8 @@ class VendorController extends ResourceController
 
         $record = $this->resolvePartner($id);
 
-        // Canonical Partner 360: enrollment application surface when one is linked.
-        // ?operational=1 keeps the legacy operational profile for deep links.
-        if (! request()->boolean('operational')) {
-            $enrollmentApplication = \App\Models\PartnerApplication::query()
-                ->where('partner_id', $record->id)
-                ->latest()
-                ->first();
-            if ($enrollmentApplication) {
-                return redirect()->route('admin.partner-applications.show', $enrollmentApplication);
-            }
-        }
+        // Operational Partner / Affiliate 360 is canonical after approval.
+        // Enrollment applications remain historical and link from this profile.
 
         $tabs = app(PartnerProfileTabs::class);
         $canSeePayouts = (bool) auth()->user()?->hasPermission('finance.operations');

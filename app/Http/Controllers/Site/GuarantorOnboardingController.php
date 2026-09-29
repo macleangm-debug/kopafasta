@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Concerns\AuditsActions;
 use App\Http\Controllers\Controller;
+use App\Services\BorrowerSignatureService;
 use App\Services\GuarantorOnboardingService;
 use App\Services\GuarantorSignatureService;
 use Illuminate\Http\RedirectResponse;
@@ -14,8 +15,12 @@ class GuarantorOnboardingController extends Controller
 {
     use AuditsActions;
 
-    public function show(Request $request, GuarantorOnboardingService $onboarding): View|RedirectResponse
-    {
+    public function show(
+        Request $request,
+        GuarantorOnboardingService $onboarding,
+        GuarantorSignatureService $signatures,
+        BorrowerSignatureService $borrowerSignatures,
+    ): View|RedirectResponse {
         $customer = $request->user()?->customer;
         if (! $customer) {
             return redirect()->route('site.borrower.dashboard');
@@ -28,52 +33,66 @@ class GuarantorOnboardingController extends Controller
         }
 
         if (! $onboarding->canFinalize($customer, $invitation)) {
-            return redirect()->route('site.borrower.dashboard')
-                ->with('warning', 'Complete your profile before finalizing your guarantor role.');
+            return redirect()->route('site.borrower.profile')
+                ->with('warning', __('borrower.guarantor.complete_profile'));
         }
 
-        return view('site.guarantor.onboarding', compact('invitation', 'customer'));
-    }
+        if (! $borrowerSignatures->profileSignature($customer)) {
+            return redirect()->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
+                ->with('warning', __('borrower.apply.group.profile_signature_required'));
+        }
 
-    public function complete(Request $request, GuarantorOnboardingService $onboarding, GuarantorSignatureService $signatures): RedirectResponse
-    {
-        $customer = $request->user()?->customer;
-        abort_unless($customer, 403);
-
-        $invitation = $onboarding->resolveInvitation($request, $customer);
-        abort_unless($invitation, 404);
-
-        $data = $request->validate([
-            'signer_name'    => ['required', 'string', 'max:120'],
-            'signature_data' => ['required', 'string', 'starts_with:data:image/png;base64,'],
-            'consent'        => ['accepted'],
-        ]);
-
-        $application = $invitation->application ?? $invitation->customerGuarantor?->application;
-
+        // Accept + verified Profile signature = consent. Skip pad / gallery.
         try {
-            if ($application) {
-                $signatures->record(
-                    $application,
-                    $data['signer_name'],
-                    $data['signature_data'],
-                    $invitation->customerGuarantor,
-                    $invitation,
-                );
-            } else {
-                $signatures->recordForInvitation(
-                    $invitation,
-                    $data['signer_name'],
-                    $data['signature_data'],
-                );
-            }
+            $signatures->confirmFromProfile($invitation, $customer);
             $onboarding->finalize($invitation, $customer, $request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
+                ->with('warning', $e->errors()['signature_data'][0] ?? __('borrower.apply.group.profile_signature_required'));
         } catch (\InvalidArgumentException $e) {
             return redirect()->route('site.borrower.dashboard')->with('error', $e->getMessage());
         }
 
         $this->auditBorrower('guarantor_onboarding.completed', $invitation, [
             'application_id' => $invitation->loan_application_id,
+            'signature_source' => 'profile',
+            'auto' => true,
+        ]);
+
+        return redirect()->route('site.borrower.loans', ['tab' => 'guarantor'])
+            ->with('status', 'You are now an approved guarantor for this loan application.');
+    }
+
+    public function complete(
+        Request $request,
+        GuarantorOnboardingService $onboarding,
+        GuarantorSignatureService $signatures,
+        BorrowerSignatureService $borrowerSignatures,
+    ): RedirectResponse {
+        $customer = $request->user()?->customer;
+        abort_unless($customer, 403);
+
+        $invitation = $onboarding->resolveInvitation($request, $customer);
+        abort_unless($invitation, 404);
+
+        if (! $borrowerSignatures->profileSignature($customer)) {
+            return redirect()->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
+                ->with('warning', __('borrower.apply.group.profile_signature_required'));
+        }
+
+        try {
+            $signatures->confirmFromProfile($invitation, $customer);
+            $onboarding->finalize($invitation, $customer, $request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
+                ->with('warning', $e->errors()['signature_data'][0] ?? __('borrower.apply.group.profile_signature_required'));
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('site.borrower.dashboard')->with('error', $e->getMessage());
+        }
+
+        $this->auditBorrower('guarantor_onboarding.completed', $invitation, [
+            'application_id' => $invitation->loan_application_id,
+            'signature_source' => 'profile',
         ]);
 
         return redirect()->route('site.borrower.loans', ['tab' => 'guarantor'])

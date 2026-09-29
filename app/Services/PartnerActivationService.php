@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Partner;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Support\PhoneNumber;
@@ -169,7 +170,7 @@ class PartnerActivationService
         return $this->activate($vendor->fresh(), $token, filled($pin) ? ['pin' => $pin] : []);
     }
 
-    public function publicActivateUrl(Vendor $vendor): string
+    public function publicActivateUrl(Partner $vendor): string
     {
         $query = array_filter([
             'partner_code' => $vendor->vendor_number ?: $vendor->partner_number,

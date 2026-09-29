@@ -844,7 +844,7 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->assertStringContainsString('not clear', strtolower((string) $req['explanation']));
     }
 
-    public function test_partners_list_view_redirects_to_canonical_partner_360_when_application_linked(): void
+    public function test_partners_list_view_opens_operational_affiliate_360_not_application(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $partner = Partner::create([
@@ -852,9 +852,10 @@ class PartnerApplicationReviewFeatureTest extends TestCase
             'name' => 'Canonical Affiliate',
             'phone' => '255712000999',
             'category' => 'affiliate',
+            'roles' => ['affiliate'],
             'status' => 'active',
         ]);
-        $application = $this->makeApplication([
+        $this->makeApplication([
             'type' => 'affiliate',
             'partner_category' => 'affiliate',
             'status' => 'approved',
@@ -864,6 +865,7 @@ class PartnerApplicationReviewFeatureTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.partners.show', $partner))
-            ->assertRedirect(route('admin.partner-applications.show', $application));
+            ->assertOk()
+            ->assertSee('Canonical Affiliate', false);
     }
 }

@@ -18,8 +18,6 @@
 @endif
 
 <div class="max-w-2xl space-y-6">
-    @include('site.partner-account._workspace-switcher', ['partner' => $partner])
-
     @if ($user && in_array($user->role, ['vendor', 'investor'], true))
         <div class="rounded-2xl bg-white ring-1 {{ $hasRecovery ? 'ring-gray-200' : 'ring-amber-200' }} p-5 sm:p-6 space-y-4">
             <div>

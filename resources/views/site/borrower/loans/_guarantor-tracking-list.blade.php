@@ -37,7 +37,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <a href="{{ $detailUrl }}" data-kf-share="kf-gtd-{{ $row->link->id }}" class="text-brand font-semibold hover:underline">{{ __('borrower.guaranteed.view_details') }}</a>
+                            <a href="{{ $detailUrl }}" data-kf-share="kf-gtd-{{ $row->link->id }}" class="text-brand font-semibold hover:underline">{{ __('borrower.applications_list.view') }}</a>
                         </td>
                     </tr>
                 @endforeach
@@ -95,7 +95,7 @@
 
                 <a href="{{ $detailUrl }}"
                    class="inline-flex items-center justify-center w-full sm:w-auto font-bold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                    {{ __('borrower.guaranteed.view_details') }}
+                    {{ __('borrower.applications_list.view') }}
                 </a>
             </div>
         @endforeach

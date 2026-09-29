@@ -3446,13 +3446,20 @@ class BorrowerController extends Controller
             $guarantors->approve($customerGuarantor);
             $profileStatus = $guarantorOnboarding->guarantorProfileStatus($customer);
 
+            try {
+                app(\App\Services\GuarantorSignatureService::class)
+                    ->confirmFromProfile($invitation->fresh(), $customer);
+            } catch (\Illuminate\Validation\ValidationException) {
+                // Profile signature missing — send them to Complete Profile below.
+            }
+
             $this->auditBorrower('guarantor_request.approve', $customerGuarantor, [
                 'invitation_id' => $invitation?->id,
             ]);
 
-            if (! ($profileStatus['met'] ?? false)) {
+            if (! ($profileStatus['met'] ?? false) || ! app(\App\Services\BorrowerSignatureService::class)->profileSignature($customer)) {
                 return redirect()
-                    ->route('site.borrower.profile')
+                    ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
                     ->with('status', __('borrower.guarantor.accepted_finish_profile', [
                         'percent' => $profileStatus['percent'] ?? 0,
                     ]));

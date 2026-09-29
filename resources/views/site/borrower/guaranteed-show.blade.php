@@ -35,18 +35,63 @@
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
     @endif
 
-    <x-site.borrower-page-header
-        :eyebrow="__('borrower.loans_page.guarantor_badge')"
-        :title="$productName"
-        :subtitle="$borrowerName.' · '.$row->reference"
-        :share="($row->link->id ?? $row->id) ? 'kf-gtd-'.($row->link->id ?? $row->id) : null"
-    >
-        <x-slot:actions>
-            <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $needsProfile ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800' }}">
-                {{ $statusLine }}
-            </span>
-        </x-slot:actions>
-    </x-site.borrower-page-header>
+    <section class="relative overflow-hidden rounded-2xl kf-premium-panel mb-6">
+        <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+        <div class="relative px-5 sm:px-6 py-5 sm:py-6 text-white">
+            <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.loans_page.guarantor_badge') }}</p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $productName }}</h1>
+            <p class="mt-2 text-sm text-white/85">{{ $borrowerName }} · {{ $row->reference }}</p>
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+                <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 bg-white/15 ring-1 ring-white/25">
+                    {{ __('borrower.loans_page.guarantor_badge') }}
+                </span>
+                <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $needsProfile ? 'bg-amber-400/25 ring-1 ring-amber-200/40 text-amber-50' : 'bg-white/15 ring-1 ring-white/25' }}">
+                    {{ $statusLine }}
+                </span>
+            </div>
+        </div>
+    </section>
+
+    @php
+        $nextActionLabel = null;
+        $nextActionUrl = null;
+        $nextActionBody = null;
+        if ($needsProfile) {
+            $nextActionLabel = __('borrower.guarantor.complete_profile');
+            $nextActionUrl = $row->profile_url ?? route('site.borrower.profile');
+            $nextActionBody = __('borrower.guaranteed.profile_block_body', ['percent' => $profilePercent]);
+        } elseif (! empty($row->pending_hint) && ! ($row->is_disbursed ?? false)) {
+            $nextActionBody = $row->pending_hint;
+        }
+    @endphp
+
+    @if ($nextActionLabel || $nextActionBody)
+        <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
+            <div class="px-5 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.guaranteed.current_step') }}</p>
+                    <p class="text-sm font-semibold text-gray-900 mt-1">{{ $nextActionLabel ?: __('borrower.guaranteed.whats_pending_title') }}</p>
+                    @if ($nextActionBody)
+                        <p class="text-sm text-gray-600 mt-1">{{ $nextActionBody }}</p>
+                    @endif
+                    @if ($needsProfile)
+                        <div class="flex items-center gap-3 mt-3 max-w-md">
+                            <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div class="h-full rounded-full bg-brand" style="width: {{ $profilePercent }}%"></div>
+                            </div>
+                            <span class="text-sm font-bold tabular-nums text-gray-900">{{ $profilePercent }}%</span>
+                        </div>
+                    @endif
+                </div>
+                @if ($nextActionLabel && $nextActionUrl)
+                    <a href="{{ $nextActionUrl }}"
+                       class="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
+                        {{ $nextActionLabel }}
+                    </a>
+                @endif
+            </div>
+        </div>
+    @endif
 
     {{-- Summary first --}}
     <div class="glass-card p-5 mb-6 ring-1 ring-brand/15">
@@ -259,44 +304,6 @@
                 onConfirm: () => {}
             }))
         "></div>
-    @endif
-
-    @if ($needsProfile)
-        <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
-            <div class="px-5 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div class="min-w-0 flex-1">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_profile.profile_completion') }}</p>
-                    <div class="flex items-center gap-3 mt-3 max-w-md">
-                        <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
-                            <div class="h-full rounded-full bg-brand" style="width: {{ $profilePercent }}%"></div>
-                        </div>
-                        <span class="text-sm font-bold tabular-nums text-gray-900">{{ $profilePercent }}%</span>
-                    </div>
-                    <p class="text-sm font-semibold text-gray-900 mt-2">{{ __('borrower.guaranteed.profile_block_title') }}</p>
-                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.guaranteed.profile_block_body', ['percent' => $profilePercent]) }}</p>
-                    @if (! empty($row->deadline_label) || isset($row->deadline_days_left))
-                        <x-site.deadline-badge
-                            :label="$row->deadline_label"
-                            :days-left="$row->deadline_days_left ?? null"
-                            :date="$row->deadline_date ?? null"
-                            :purpose="__('borrower.loan_profile.deadline_purpose_your_profile')"
-                            :urgent="(bool) ($row->deadline_urgent ?? false)"
-                            :expired="(bool) ($row->deadline_expired ?? false)"
-                        />
-                    @endif
-                </div>
-                <a href="{{ $row->profile_url }}"
-                   class="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                    {{ __('borrower.guarantor.complete_profile') }}
-                </a>
-            </div>
-        </div>
-    @elseif ($row->pending_hint && ! ($row->is_disbursed ?? false))
-        <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
-            <div class="px-5 sm:px-6 py-4">
-                <p class="text-sm text-gray-700">{{ $row->pending_hint }}</p>
-            </div>
-        </div>
     @endif
 
     @if ($row->in_arrears)

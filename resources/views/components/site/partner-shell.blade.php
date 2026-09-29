@@ -260,7 +260,10 @@
         @endif
 
         <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-28 lg:pb-8 overflow-x-clip" data-kf-busy-scope>
-            <div class="{{ $contentMax }} w-full mx-auto min-w-0">
+            <div class="{{ $contentMax }} w-full mx-auto min-w-0 space-y-6">
+                @if ($shellVendor)
+                    @include('site.partner-account._workspace-switcher', ['partner' => $shellVendor])
+                @endif
                 @if (is_array($hero) && filled($hero['title'] ?? null))
                     <x-site.account-shell-hero
                         mode="contextual"

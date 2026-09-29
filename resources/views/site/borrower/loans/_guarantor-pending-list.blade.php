@@ -39,7 +39,7 @@
                         <td class="px-4 py-3 font-mono text-xs">{{ $reference }}</td>
                         <td class="px-4 py-3 text-right">
                             <a href="{{ route('site.borrower.guarantor-requests.show', $link) }}" data-kf-share="kf-gtr-{{ $link->id }}" class="text-brand font-semibold hover:underline">
-                                {{ __('borrower.guaranteed.view_request') }}
+                                {{ __('borrower.applications_list.view') }}
                             </a>
                         </td>
                     </tr>
@@ -90,7 +90,7 @@
                 </div>
                 <a href="{{ $detailUrl }}"
                    class="inline-flex items-center justify-center w-full sm:w-auto font-bold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                    {{ __('borrower.guaranteed.view_request') }}
+                    {{ __('borrower.applications_list.view') }}
                 </a>
             </div>
         @endforeach

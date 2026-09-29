@@ -39,22 +39,31 @@ class GroupMemberOnboardingController extends Controller
                 ->with('warning', __('borrower.apply.group.complete_profile_first'));
         }
 
-        $view = $applications->buildViewModel($invitation, $customer);
         $profileSignature = $borrowerSignatures->profileSignature($customer);
         if (! $profileSignature) {
             return redirect()->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
                 ->with('warning', __('borrower.apply.group.profile_signature_required'));
         }
 
-        $carousel = $signatures->carouselForDraftMembers($view['members'] ?? [], $customer);
+        // Accept + verified Profile signature = consent. Do not show a signature gallery.
+        try {
+            $signatures->confirmFromProfile($invitation, $customer);
+            $onboarding->finalize($invitation->fresh(), $customer, $request);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
+                ->with('warning', $e->errors()['signature_data'][0] ?? __('borrower.apply.group.profile_signature_required'));
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('site.borrower.dashboard')->with('error', $e->getMessage());
+        }
 
-        return view('site.group-member.onboarding', [
-            'invitation' => $invitation,
-            'customer' => $customer,
-            'profileSignature' => $profileSignature,
-            'signatureCarousel' => $carousel,
-            'group_name' => $view['group_name'] ?? $invitation->group_name,
+        $this->auditBorrower('group_member_onboarding.completed', $invitation, [
+            'leader_customer_id' => $invitation->leader_customer_id,
+            'signature_source' => 'profile',
+            'auto' => true,
         ]);
+
+        return redirect()->route('site.borrower.dashboard')
+            ->with('status', __('borrower.apply.group.onboarding_complete'));
     }
 
     public function complete(

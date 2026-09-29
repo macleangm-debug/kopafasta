@@ -181,7 +181,7 @@ class AffiliateService
         return null;
     }
 
-    public function ensureCode(Vendor $affiliate): string
+    public function ensureCode(Partner $affiliate): string
     {
         if (filled($affiliate->affiliate_code)) {
             $this->ensureReferralToken($affiliate);
@@ -463,7 +463,7 @@ class AffiliateService
             ->effectiveRates($affiliate)['plus_discount_percent'];
     }
 
-    public function stats(Vendor $affiliate): array
+    public function stats(Partner $affiliate): array
     {
         $events = AffiliateEvent::query()->where('partner_id', $affiliate->id);
 
@@ -583,7 +583,7 @@ class AffiliateService
         ];
     }
 
-    public function recentEvents(Vendor $affiliate, int $limit = 20): Collection
+    public function recentEvents(Partner $affiliate, int $limit = 20): Collection
     {
         return AffiliateEvent::query()
             ->where('partner_id', $affiliate->id)
