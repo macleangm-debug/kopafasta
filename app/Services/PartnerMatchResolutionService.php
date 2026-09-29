@@ -50,6 +50,13 @@ class PartnerMatchResolutionService
                 'existing' => $comparison['existing'],
                 'rows' => $comparison['rows'],
                 'link_preview' => $this->linkPreview($application, $partner),
+                'is_affiliate_collision' => $comparison['is_affiliate_collision'],
+                'same_person_label' => $comparison['is_affiliate_collision']
+                    ? 'Same person → Use existing Affiliate'
+                    : 'Same person → Link to this Partner',
+                'same_person_helper' => $comparison['is_affiliate_collision']
+                    ? 'This application belongs to this existing Affiliate. No new Affiliate account will be created and existing profile information will not be automatically overwritten.'
+                    : $this->linkPreview($application, $partner),
             ];
         }
 
@@ -129,9 +136,12 @@ class PartnerMatchResolutionService
         $payload['match_resolutions'] = $resolutions;
 
         $activity = is_array($payload['review_activity'] ?? null) ? $payload['review_activity'] : [];
+        $isAffiliateCollision = (bool) ($match['is_affiliate_collision'] ?? false);
         $activity[] = [
             'at' => now()->toIso8601String(),
-            'label' => $decision === 'link' ? 'Match resolved: link existing Partner' : 'Match resolved: different people',
+            'label' => $decision === 'link'
+                ? ($isAffiliateCollision ? 'Match resolved: use existing Affiliate' : 'Match resolved: link existing Partner')
+                : 'Match resolved: different people',
             'detail' => ($match['existing']['name'] ?? 'Partner').' · '.($match['match_summary'] ?? ''),
             'actor_id' => Auth::id(),
         ];
@@ -140,6 +150,99 @@ class PartnerMatchResolutionService
         $application->fill(['payload' => $payload])->save();
 
         return $application->fresh(['documents', 'partner', 'reviewer']);
+    }
+
+    /**
+     * Correct applicant email during duplicate resolution. Preserves the originally
+     * submitted address in payload history — does not rewrite historical snapshots.
+     */
+    public function changeApplicantEmail(PartnerApplication $application, string $email): PartnerApplication
+    {
+        $normalized = strtolower(trim($email));
+        if ($normalized === '' || ! filter_var($normalized, FILTER_VALIDATE_EMAIL)) {
+            throw ValidationException::withMessages(['email' => 'Enter a valid email address.']);
+        }
+
+        $current = strtolower(trim((string) $application->email));
+        if ($normalized === $current) {
+            throw ValidationException::withMessages(['email' => 'Enter a different email than the one already on this application.']);
+        }
+
+        $partnerHit = Partner::query()->whereRaw('LOWER(email) = ?', [$normalized])->first();
+        if ($partnerHit) {
+            throw ValidationException::withMessages([
+                'email' => 'This email is already used by Partner '.($partnerHit->name ?: ('#'.$partnerHit->id)).'. Choose another address.',
+            ]);
+        }
+
+        $userHit = User::query()->whereRaw('LOWER(email) = ?', [$normalized])->exists();
+        if ($userHit) {
+            throw ValidationException::withMessages([
+                'email' => 'This email is already used by an existing login. Choose another address.',
+            ]);
+        }
+
+        $otherApp = PartnerApplication::query()
+            ->where('id', '!=', $application->id)
+            ->whereRaw('LOWER(email) = ?', [$normalized])
+            ->whereIn('status', ['pending', 'needs_info'])
+            ->first();
+        if ($otherApp) {
+            throw ValidationException::withMessages([
+                'email' => 'This email is already used on application PA-'.$otherApp->id.'. Choose another address.',
+            ]);
+        }
+
+        $payload = is_array($application->payload) ? $application->payload : [];
+        $originalSubmitted = (string) ($payload['submitted_email'] ?? $application->email);
+        if (! filled($payload['submitted_email'] ?? null) && filled($application->email)) {
+            $payload['submitted_email'] = (string) $application->email;
+            $originalSubmitted = (string) $application->email;
+        }
+
+        $history = is_array($payload['email_history'] ?? null) ? $payload['email_history'] : [];
+        $history[] = [
+            'from' => (string) $application->email,
+            'to' => $normalized,
+            'at' => now()->toIso8601String(),
+            'actor_id' => Auth::id(),
+            'context' => 'duplicate_resolution',
+        ];
+        $payload['email_history'] = $history;
+
+        if (is_array($payload['identity'] ?? null) && array_key_exists('email', $payload['identity'])) {
+            $payload['identity']['email'] = $normalized;
+        }
+
+        $activity = is_array($payload['review_activity'] ?? null) ? $payload['review_activity'] : [];
+        $activity[] = [
+            'at' => now()->toIso8601String(),
+            'label' => 'Applicant email corrected during duplicate resolution',
+            'detail' => 'From '.$application->email.' → '.$normalized.' (original submitted: '.$originalSubmitted.')',
+            'actor_id' => Auth::id(),
+        ];
+        $payload['review_activity'] = $activity;
+
+        $application->fill([
+            'email' => $normalized,
+            'payload' => $payload,
+        ])->save();
+
+        return $application->fresh(['documents', 'partner', 'reviewer']);
+    }
+
+    /**
+     * Keep-separate collisions that still share a unique login email.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function emailUniquenessBlockers(PartnerApplication $application): array
+    {
+        return array_values(array_filter(
+            $this->matchesFor($application),
+            fn (array $m) => ($m['resolution'] ?? null) === 'keep_separate'
+                && ! empty($m['uniqueness']['email_shared_with_existing_login'])
+        ));
     }
 
     /**
@@ -209,6 +312,8 @@ class PartnerMatchResolutionService
         $existingRoles = collect($partner->partnerRoles())
             ->map(fn ($r) => $this->enrollment->categoryLabel((string) $r))
             ->implode(', ');
+        $isAffiliateCollision = $category === 'affiliate'
+            && ($partner->isAffiliate() || $partner->hasPartnerRole('affiliate') || $partner->category === 'affiliate');
 
         $matched = [];
         $conflicts = [];
@@ -315,11 +420,13 @@ class PartnerMatchResolutionService
             'matched_fields' => $matched,
             'conflict_fields' => $conflicts,
             'likely_same_person' => $likelySame,
+            'is_affiliate_collision' => $isAffiliateCollision,
             'applicant' => $applicant,
             'existing' => $existing,
             'rows' => $rows,
             'uniqueness' => [
                 'email_shared_with_existing_login' => $emailUniqueBlock,
+                'email' => $emailUniqueBlock ? (string) $application->email : null,
                 'message' => $emailUniqueBlock
                     ? 'Email is already used on the existing Partner login. Keep separate does not bypass uniqueness — correct the duplicated email before this applicant can activate.'
                     : null,
@@ -356,6 +463,13 @@ class PartnerMatchResolutionService
         $category = $this->enrollment->normalizeCategory(
             (string) ($application->partner_category ?: ($application->type === 'affiliate' ? 'affiliate' : 'debt_collector'))
         );
+        $isAffiliateCollision = $category === 'affiliate'
+            && ($partner->isAffiliate() || $partner->hasPartnerRole('affiliate') || $partner->category === 'affiliate');
+
+        if ($isAffiliateCollision) {
+            return 'This application belongs to this existing Affiliate. No new Affiliate account will be created and existing profile information will not be automatically overwritten.';
+        }
+
         $label = $this->enrollment->categoryLabel($category);
         $hasRole = $partner->hasPartnerRole($category) || $partner->category === $category;
 

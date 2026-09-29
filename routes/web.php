@@ -980,6 +980,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
         Route::put('partner-applications/{partnerApplication}', [App\Http\Controllers\Admin\PartnerApplicationController::class, 'update'])->name('partner-applications.update');
         Route::post('partner-applications/{partnerApplication}/match-resolution', [App\Http\Controllers\Admin\PartnerApplicationController::class, 'resolveMatch'])
             ->name('partner-applications.match-resolution');
+        Route::post('partner-applications/{partnerApplication}/change-applicant-email', [App\Http\Controllers\Admin\PartnerApplicationController::class, 'changeApplicantEmail'])
+            ->name('partner-applications.change-applicant-email');
         Route::middleware('permission:marketplace.view,marketplace.manage')->group(function (): void {
             Route::get('marketplace-assets', [MarketplaceAssetController::class, 'index'])->name('marketplace-assets.index');
         });

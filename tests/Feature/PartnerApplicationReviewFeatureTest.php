@@ -285,6 +285,8 @@ class PartnerApplicationReviewFeatureTest extends TestCase
             'full_name' => 'Maclean Mwaijonga',
             'phone' => '255715222132',
             'email' => 'shared@example.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
         ]);
         $admin = User::factory()->create(['role' => 'admin']);
 
@@ -311,6 +313,101 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->assertNull($application->fresh()->partner_id);
     }
 
+    public function test_keep_separate_then_change_applicant_email_clears_uniqueness_blocker(): void
+    {
+        $existing = Partner::create([
+            'vendor_number' => 'PT-AF-TZ-DIMM',
+            'name' => 'Said Mbelemba',
+            'phone' => '255255255',
+            'email' => 'shared@example.com',
+            'category' => 'affiliate',
+            'status' => 'active',
+        ]);
+
+        $application = $this->makeApplication([
+            'full_name' => 'Maclean Mwaijonga',
+            'phone' => '255715222132',
+            'email' => 'shared@example.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partner-applications.match-resolution', $application), [
+                'decision' => 'keep_separate',
+                'partner_id' => $existing->id,
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application));
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.partner-applications.show', $application))
+            ->assertOk()
+            ->assertSee('Email needs attention', false)
+            ->assertSee('Change applicant email', false)
+            ->assertSee('Open Said Mbelemba', false)
+            ->assertSee('shared@example.com', false)
+            ->getContent();
+
+        $this->assertStringContainsString('A unique email is required', $html);
+        $this->assertStringContainsString('emailBlocked\u0022:true', $html);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->post(route('admin.partner-applications.change-applicant-email', $application), [
+                'email' => 'maclean.unique@example.com',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application));
+
+        $application->refresh();
+        $this->assertSame('maclean.unique@example.com', $application->email);
+        $this->assertSame('shared@example.com', $application->payload['submitted_email'] ?? null);
+        $this->assertSame('shared@example.com', $application->payload['email_history'][0]['from'] ?? null);
+        $this->assertSame('duplicate_resolution', $application->payload['email_history'][0]['context'] ?? null);
+
+        $matches = app(\App\Services\PartnerMatchResolutionService::class)->matchesFor($application);
+        $this->assertSame([], $matches);
+        $blockers = app(\App\Services\PartnerMatchResolutionService::class)->emailUniquenessBlockers($application);
+        $this->assertSame([], $blockers);
+
+        // Collision cleared — Approve is no longer uniqueness-blocked. Do not Approve here.
+        $show = $this->actingAs($admin, 'admin')
+            ->get(route('admin.partner-applications.show', $application))
+            ->assertOk()
+            ->assertDontSee('Email needs attention', false)
+            ->getContent();
+        $this->assertStringContainsString('emailBlocked\u0022:false', $show);
+        $this->assertSame('pending', $application->fresh()->status);
+        $this->assertNull($application->fresh()->partner_id);
+    }
+
+    public function test_change_applicant_email_rejects_existing_partner_email(): void
+    {
+        Partner::create([
+            'vendor_number' => 'PT-AF-TZ-OTHER',
+            'name' => 'Other Affiliate',
+            'phone' => '255700000001',
+            'email' => 'taken@example.com',
+            'category' => 'affiliate',
+            'status' => 'active',
+        ]);
+
+        $application = $this->makeApplication([
+            'email' => 'original@example.com',
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.partner-applications.show', $application))
+            ->post(route('admin.partner-applications.change-applicant-email', $application), [
+                'email' => 'taken@example.com',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasErrors('email');
+
+        $this->assertSame('original@example.com', $application->fresh()->email);
+    }
+
     public function test_review_match_panel_shows_applicant_vs_existing_comparison(): void
     {
         Partner::create([
@@ -327,6 +424,8 @@ class PartnerApplicationReviewFeatureTest extends TestCase
             'full_name' => 'Maclean Mwaijonga',
             'phone' => '255715222132',
             'email' => 'shared@example.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
         ]);
         $admin = User::factory()->create(['role' => 'admin']);
 
@@ -338,13 +437,15 @@ class PartnerApplicationReviewFeatureTest extends TestCase
             ->assertSee('Maclean Mwaijonga', false)
             ->assertSee('Said Mbelemba', false)
             ->assertSee('Email matched', false)
-            ->assertSee('Same person → Link to this Partner', false)
+            ->assertSee('Use existing Affiliate', false)
             ->assertSee('Different people → Keep separate', false)
+            ->assertSee('No new Affiliate account will be created', false)
             ->assertSee('Open ', false)
             ->assertSee('Request information →', false)
             ->assertSee('partnerApplicationDecision(JSON.parse(', false)
             ->assertDontSee('Merge Partner', false)
             ->assertDontSee('Open existing Partner', false)
+            ->assertDontSee('Switch workspace', false)
             ->getContent();
 
         // Needs Attention must not duplicate the Review Decision match warning.

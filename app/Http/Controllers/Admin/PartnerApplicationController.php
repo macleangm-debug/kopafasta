@@ -133,11 +133,32 @@ class PartnerApplicationController extends Controller
         }
 
         $label = $data['decision'] === 'link'
-            ? 'Match recorded: link to existing Partner on Approve.'
+            ? 'Match recorded: use existing Partner on Approve.'
             : 'Match recorded: different people. Approval will not link to that Partner.';
 
         return redirect()
             ->route('admin.partner-applications.show', $partnerApplication)
             ->with('status', $label);
+    }
+
+    public function changeApplicantEmail(Request $request, PartnerApplication $partnerApplication): RedirectResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'string', 'max:255'],
+        ]);
+
+        try {
+            app(PartnerMatchResolutionService::class)
+                ->changeApplicantEmail($partnerApplication, (string) $data['email']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()
+                ->route('admin.partner-applications.show', $partnerApplication)
+                ->withInput()
+                ->withErrors($e->validator ?? $e->errors());
+        }
+
+        return redirect()
+            ->route('admin.partner-applications.show', $partnerApplication)
+            ->with('status', 'Applicant email updated. Duplicate detection has been re-evaluated.');
     }
 }

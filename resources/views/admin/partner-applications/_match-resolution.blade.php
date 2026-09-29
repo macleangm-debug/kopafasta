@@ -6,6 +6,11 @@
     <input type="hidden" name="confirm_despite_conflicts" value="0">
 </form>
 
+<form method="POST" action="{{ route('admin.partner-applications.change-applicant-email', $application) }}" x-ref="changeEmailForm" class="hidden">
+    @csrf
+    <input type="hidden" name="email" value="">
+</form>
+
 <x-site.action-panel title="Review match" open="matchOpen" size="xl">
     <div x-show="matchPhase === 'compare'" class="space-y-4">
         <template x-if="currentMatch()">
@@ -52,7 +57,7 @@
                 </div>
 
                 <p class="text-xs text-amber-900 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2"
-                   x-show="currentMatch().uniqueness?.email_shared_with_existing_login"
+                   x-show="currentMatch().uniqueness?.email_shared_with_existing_login && !currentMatch().resolved"
                    x-text="currentMatch().uniqueness?.message"></p>
 
                 <div class="space-y-2 pt-1">
@@ -61,16 +66,15 @@
 
                     <button type="button" @click="startAction('link')"
                             class="w-full text-left rounded-xl ring-1 ring-brand/20 bg-white hover:bg-brand-muted/40 px-4 py-3">
-                        <p class="text-sm font-bold text-brand">Same person → Link to this Partner</p>
-                        <p class="text-xs text-gray-600 mt-0.5" x-text="currentMatch().link_preview"></p>
+                        <p class="text-sm font-bold text-brand" x-text="currentMatch().same_person_label || 'Same person → Link to this Partner'"></p>
+                        <p class="text-xs text-gray-600 mt-0.5" x-text="currentMatch().same_person_helper || currentMatch().link_preview"></p>
                     </button>
 
                     <button type="button" @click="startAction('keep_separate')"
                             class="w-full text-left rounded-xl ring-1 ring-gray-200 bg-white hover:bg-gray-50 px-4 py-3">
                         <p class="text-sm font-bold text-gray-900">Different people → Keep separate</p>
                         <p class="text-xs text-gray-600 mt-0.5">
-                            Marks this collision as different identities for this application.
-                            Does not bypass a genuine unique-field conflict (for example a shared login email).
+                            These records belong to different people. They will remain separate. Any shared unique contact or identity information must be resolved before approval.
                         </p>
                     </button>
 
@@ -111,7 +115,7 @@
             <button type="button" @click="confirmMatch()"
                     class="flex-1 rounded-xl bg-brand hover:bg-brand-light text-white py-3 text-sm font-semibold disabled:opacity-50"
                     :disabled="matchBusy || (matchAction === 'link' && (currentMatch()?.conflict_fields || []).length && !confirmDespiteConflicts)"
-                    x-text="matchBusy ? 'Saving…' : (matchAction === 'link' ? 'Confirm link' : 'Confirm keep separate')">
+                    x-text="matchBusy ? 'Saving…' : (matchAction === 'link' ? (currentMatch()?.is_affiliate_collision ? 'Confirm use existing Affiliate' : 'Confirm link') : 'Confirm keep separate')">
                 Confirm
             </button>
         </div>

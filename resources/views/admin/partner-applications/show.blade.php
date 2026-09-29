@@ -474,6 +474,12 @@
                 $decisionInitialStatus = in_array(($decision['status'] ?? ''), ['approved', 'rejected', 'needs_info'], true)
                     ? $decision['status']
                     : 'approved';
+                $emailUniquenessBlockers = collect($partnerMatches)
+                    ->filter(fn ($m) => ($m['resolution'] ?? null) === 'keep_separate'
+                        && ! empty($m['uniqueness']['email_shared_with_existing_login']))
+                    ->values()
+                    ->all();
+                $hasEmailUniquenessBlocker = $emailUniquenessBlockers !== [];
             @endphp
 
             {{-- Define before Alpine evaluates nested x-data (must not break on parent tab scope). --}}
@@ -511,7 +517,11 @@
                             this.matchBusy = false;
                         },
                         reviewTitle() {
-                            if (this.matchAction === 'link') return 'Link to this Partner?';
+                            if (this.matchAction === 'link') {
+                                return this.currentMatch()?.is_affiliate_collision
+                                    ? 'Use existing Affiliate?'
+                                    : 'Link to this Partner?';
+                            }
                             if (this.matchAction === 'keep_separate') return 'Keep these records separate?';
                             return 'Confirm';
                         },
@@ -519,16 +529,17 @@
                             const m = this.currentMatch();
                             if (!m) return '';
                             if (this.matchAction === 'link') {
-                                let msg = m.link_preview || 'This application will attach to that Partner identity on Approve. The requested role can be added without creating another Partner.';
+                                let msg = m.same_person_helper || m.link_preview
+                                    || 'This application will attach to that Partner identity on Approve.';
                                 if ((m.conflict_fields || []).length) {
                                     msg += '\n\nConflicting fields: ' + (m.conflict_fields || []).join(', ') + '. Confirm only if investigation shows they are the same person.';
                                 }
                                 return msg;
                             }
                             if (this.matchAction === 'keep_separate') {
-                                let msg = 'These records belong to different people.\n\nThis collision will be marked reviewed for this application. Approve will not link to ' + (m.existing?.name || 'that Partner') + '.';
+                                let msg = 'These records belong to different people. They will remain separate.\n\nThis collision will be marked reviewed for this application. Approve will not link to ' + (m.existing?.name || 'that Partner') + '.';
                                 if (m.uniqueness?.email_shared_with_existing_login) {
-                                    msg += '\n\n' + (m.uniqueness.message || 'A shared unique field (email) still blocks activation until it is legitimately corrected — Keep separate does not bypass uniqueness.');
+                                    msg += '\n\nAny shared unique contact or identity information must still be resolved before approval.';
                                 }
                                 return msg;
                             }
@@ -573,6 +584,10 @@
                         status: config.initialStatus || 'approved',
                         existingPartnerMatch: !!config.existingPartnerMatch,
                         unresolvedMatch: !!config.unresolvedMatch,
+                        emailBlocked: !!config.emailBlocked,
+                        emailPhase: 'idle',
+                        emailDraft: '',
+                        emailBusy: false,
                         requestKind: 'document',
                         requestMode: 'new',
                         requestType: '',
@@ -588,6 +603,38 @@
                         informationOptions: Object.entries(config.informationOptions || {}).map(([value, label]) => ({ value, label })),
                         existingDocuments: Array.isArray(config.existingDocuments) ? config.existingDocuments : [],
                         replaceReasons: Object.entries(config.replaceReasons || {}).map(([value, label]) => ({ value, label })),
+                        startChangeEmail() {
+                            this.emailPhase = 'compose';
+                            this.emailDraft = '';
+                            this.emailBusy = false;
+                        },
+                        reviewChangeEmail() {
+                            if (!(this.emailDraft || '').trim()) return;
+                            this.emailPhase = 'review';
+                        },
+                        backToEmailCompose() {
+                            this.emailPhase = 'compose';
+                            this.emailBusy = false;
+                        },
+                        cancelChangeEmail() {
+                            this.emailPhase = 'idle';
+                            this.emailDraft = '';
+                            this.emailBusy = false;
+                        },
+                        confirmChangeEmail() {
+                            if (this.emailBusy) return;
+                            const next = (this.emailDraft || '').trim();
+                            if (! next) return;
+                            this.emailBusy = true;
+                            const form = document.querySelector('form[action*="change-applicant-email"]');
+                            if (! form) {
+                                this.emailBusy = false;
+                                return;
+                            }
+                            const input = form.querySelector('input[name="email"]');
+                            if (input) input.value = next;
+                            form.submit();
+                        },
                         currentOptions() {
                             if (this.requestKind === 'information') return this.informationOptions;
                             if (this.requestMode === 'replace') return this.existingDocuments;
@@ -633,6 +680,7 @@
                         },
                         canReview() {
                             if (this.status === 'approved' && this.unresolvedMatch) return false;
+                            if (this.status === 'approved' && this.emailBlocked) return false;
                             if (this.status === 'needs_info') {
                                 if (!this.requestKind || !this.requestType) return false;
                                 if ((this.requestType === 'other_document' || this.requestType === 'other_information')
@@ -714,6 +762,7 @@
                     'initialStatus' => $decisionInitialStatus,
                     'existingPartnerMatch' => $existingPartnerMatch || count($partnerMatches) > 0,
                     'unresolvedMatch' => $hasUnresolvedPartnerMatch,
+                    'emailBlocked' => $hasEmailUniquenessBlocker,
                     'documentOptions' => $requestCatalog['documents'] ?? [],
                     'informationOptions' => $requestCatalog['information'] ?? [],
                     'replaceReasons' => $requestCatalog['replace_reasons'] ?? [],
@@ -757,11 +806,71 @@
                                 <p class="font-semibold">Match reviewed</p>
                                 <p class="mt-0.5 opacity-90">
                                     @php $rm = $partnerMatches[0]; @endphp
-                                    {{ ($rm['resolution'] ?? '') === 'link' ? 'Link on Approve' : 'Keep separate' }}
+                                    {{ ($rm['resolution'] ?? '') === 'link'
+                                        ? (($rm['is_affiliate_collision'] ?? false) ? 'Use existing Affiliate on Approve' : 'Link on Approve')
+                                        : 'Keep separate' }}
                                     · {{ $rm['existing']['name'] ?? 'Partner' }}
                                     · {{ $rm['match_summary'] ?? '' }}
                                 </p>
                                 <button type="button" @click="openMatch(0)" class="mt-1.5 font-bold text-brand hover:underline">View comparison →</button>
+                            </div>
+                        @endif
+
+                        @if ($hasEmailUniquenessBlocker)
+                            @php $eb = $emailUniquenessBlockers[0]; @endphp
+                            <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-3 py-3 text-xs text-rose-950 space-y-2"
+                                 x-show="emailPhase === 'idle'" x-cloak>
+                                <p class="font-semibold text-sm text-rose-950">Email needs attention</p>
+                                <p class="opacity-90">
+                                    These are separate people, but this email is already being used by another Partner:
+                                </p>
+                                <p class="font-mono text-sm font-semibold break-all">{{ $eb['uniqueness']['email'] ?? $application->email }}</p>
+                                <p class="opacity-90">A unique email is required before this application can be approved.</p>
+                                <div class="flex flex-col gap-2 pt-1">
+                                    <button type="button" @click="startChangeEmail()"
+                                            class="w-full text-left rounded-xl bg-white ring-1 ring-rose-200 hover:bg-rose-50/80 px-3 py-2.5">
+                                        <span class="text-sm font-bold text-brand">Change applicant email</span>
+                                    </button>
+                                    <a href="{{ $eb['partner_url'] }}" target="_blank" rel="noopener"
+                                       class="w-full text-left rounded-xl bg-white ring-1 ring-rose-200 hover:bg-rose-50/80 px-3 py-2.5">
+                                        <span class="text-sm font-bold text-gray-900">Open {{ $eb['existing']['name'] ?? 'Partner' }} →</span>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="rounded-xl bg-white ring-1 ring-brand/20 p-3 space-y-3" x-show="emailPhase === 'compose'" x-cloak>
+                                <p class="text-sm font-bold text-gray-900">Change applicant email</p>
+                                <p class="text-xs text-gray-600">Current: <span class="font-mono">{{ $application->email }}</span></p>
+                                <div>
+                                    <label class="block text-xs font-semibold text-brand mb-1">New email <span class="text-red-500">*</span></label>
+                                    <input type="email" x-model="emailDraft" autocomplete="off"
+                                           class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm px-3 py-2.5"
+                                           placeholder="unique@example.com">
+                                </div>
+                                <div class="flex gap-2">
+                                    <button type="button" @click="cancelChangeEmail()" class="flex-1 rounded-xl ring-1 ring-gray-200 py-2.5 text-sm font-semibold text-gray-700">Cancel</button>
+                                    <button type="button" @click="reviewChangeEmail()"
+                                            class="flex-1 rounded-xl bg-brand text-white py-2.5 text-sm font-semibold disabled:opacity-40"
+                                            :disabled="!(emailDraft || '').trim()">Review</button>
+                                </div>
+                            </div>
+
+                            <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 p-3 space-y-3" x-show="emailPhase === 'review'" x-cloak>
+                                <p class="text-sm font-bold text-brand">Confirm email change?</p>
+                                <p class="text-xs text-brand/90">
+                                    Applicant email will change from
+                                    <span class="font-mono">{{ $application->email }}</span>
+                                    to
+                                    <span class="font-mono" x-text="emailDraft"></span>.
+                                    The originally submitted email stays in application history. Duplicate detection will re-run.
+                                </p>
+                                <div class="flex gap-2">
+                                    <button type="button" @click="backToEmailCompose()" class="flex-1 rounded-xl ring-1 ring-gray-200 py-2.5 text-sm font-semibold text-gray-700" :disabled="emailBusy">Back</button>
+                                    <button type="button" @click="confirmChangeEmail()"
+                                            class="flex-1 rounded-xl bg-brand text-white py-2.5 text-sm font-semibold disabled:opacity-50"
+                                            :disabled="emailBusy"
+                                            x-text="emailBusy ? 'Saving…' : 'Confirm'"></button>
+                                </div>
                             </div>
                         @endif
 
@@ -899,7 +1008,10 @@
                             <p x-show="unresolvedMatch" x-cloak class="mt-2 text-xs text-amber-900 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
                                 Resolve the possible Partner match before Approve.
                             </p>
-                            <p x-show="!unresolvedMatch && existingPartnerMatch" x-cloak class="mt-2 text-xs text-sky-900 bg-sky-50 ring-1 ring-sky-200 rounded-lg px-3 py-2">
+                            <p x-show="!unresolvedMatch && emailBlocked" x-cloak class="mt-2 text-xs text-rose-900 bg-rose-50 ring-1 ring-rose-200 rounded-lg px-3 py-2">
+                                Correct the shared email before Approve — Keep separate does not bypass uniqueness.
+                            </p>
+                            <p x-show="!unresolvedMatch && !emailBlocked && existingPartnerMatch" x-cloak class="mt-2 text-xs text-sky-900 bg-sky-50 ring-1 ring-sky-200 rounded-lg px-3 py-2">
                                 Approve will follow the match resolution recorded above.
                             </p>
                         </div>
