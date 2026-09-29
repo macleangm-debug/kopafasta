@@ -126,116 +126,20 @@
     @endphp
 
     <div class="max-w-2xl mx-auto pb-10 px-4"
-         x-data="{
-            step: {{ $errorStep }},
+         x-data="affiliateApplyForm({
+            step: {{ (int) $errorStep }},
             applicant: @js(old('applicant_category', 'individual')),
             registeredBusiness: @js(old('registered_business', 'no')),
             previousAgent: @js(old('previous_agent', 'no')),
-            feeRequired: @js($feeRequired),
-            missing: [],
+            feeRequired: @js((bool) $feeRequired),
             missingLabels: @js($missingLabels),
             missingSteps: @js($missingSteps),
             genderLabels: @js($genderOptions),
-            formValue(name) {
-                const form = this.$refs.affiliateForm;
-                if (!form) return '';
-                const el = form.querySelector(`[name='${name}']`);
-                if (!el) return '';
-                if (el.type === 'radio') {
-                    const checked = form.querySelector(`[name='${name}']:checked`);
-                    return checked ? checked.value : '';
-                }
-                return (el.value || '').trim();
-            },
-            hasChecked(name) {
-                const form = this.$refs.affiliateForm;
-                return !!form?.querySelector(`[name='${name}']:checked`) || !!form?.querySelector(`[name='${name}[]']:checked`);
-            },
-            checkedCount(name) {
-                const form = this.$refs.affiliateForm;
-                return form ? form.querySelectorAll(`[name='${name}[]']:checked`).length : 0;
-            },
-            hasFile(name) {
-                const form = this.$refs.affiliateForm;
-                const input = form?.querySelector(`[name='${name}']`);
-                return !!(input && input.files && input.files.length > 0);
-            },
-            nidaReady() {
-                const form = this.$refs.affiliateForm;
-                if (!form) return false;
-                const frontHidden = form.querySelector('[name=nida_front_captured]')?.value === '1';
-                const backHidden = form.querySelector('[name=nida_back_captured]')?.value === '1';
-                return (frontHidden && backHidden) || (this.hasFile('doc_national_id_front') && this.hasFile('doc_national_id_back'));
-            },
-            computeMissing() {
-                const next = [];
-                const push = (key) => {
-                    if (!next.find(item => item.key === key)) {
-                        next.push({ key, label: this.missingLabels[key] || key, step: this.missingSteps[key] || 1 });
-                    }
-                };
-                if (!this.formValue('full_name')) push('full_name');
-                if (!this.formValue('date_of_birth')) push('date_of_birth');
-                if (!this.formValue('gender')) push('gender');
-                if (!this.formValue('email')) push('email');
-                if (!this.formValue('phone')) push('phone');
-                if (!this.formValue('region')) push('region');
-                if (!this.formValue('district')) push('district');
-                if (!this.formValue('ward')) push('ward');
-                if (this.applicant === 'company' && !this.formValue('business_name')) push('business_name');
-                const occ = this.formValue('occupation');
-                if (!occ) push('occupation');
-                if (occ === 'other' && !this.formValue('occupation_other')) push('occupation_other');
-                if (!this.formValue('sales_experience')) push('sales_experience');
-                if (this.checkedCount('languages') < 1) push('languages');
-                if (!this.formValue('why_affiliate')) push('why_affiliate');
-                if (this.previousAgent === 'yes' && !this.formValue('previous_agent_details')) push('previous_agent_details');
-                if (this.checkedCount('acquisition_methods') < 1) push('acquisition_methods');
-                if (this.checkedCount('channels') < 1) push('channels');
-                if (!this.formValue('monthly_reach')) push('monthly_reach');
-                if (!this.formValue('how_heard')) push('how_heard');
-                if (!this.formValue('first_10_customers')) push('first_10_customers');
-                if (!this.registeredBusiness) push('registered_business');
-                if (this.registeredBusiness === 'yes' && this.applicant === 'individual') {
-                    if (!this.formValue('business_name')) push('business_name');
-                    if (!this.formValue('registration_number')) push('registration_number');
-                    if (!this.formValue('tin')) push('tin');
-                }
-                if (this.applicant === 'company') {
-                    if (!this.hasFile('doc_brela')) push('doc_brela');
-                    if (!this.hasFile('doc_tin_certificate')) push('doc_tin_certificate');
-                }
-                if (!this.nidaReady()) push('doc_national_id');
-                if (!this.hasChecked('declaration_accepted')) push('declaration_accepted');
-                if (!this.hasChecked('conduct_accepted')) push('conduct_accepted');
-                this.missing = next;
-            },
-            jumpTo(item) {
-                this.step = item.step;
-                this.$nextTick(() => this.scrollStepIntoView());
-            },
-            scrollStepIntoView() {
-                const rail = this.$refs.stepRail;
-                const active = rail?.querySelector('[data-step=\"' + this.step + '\"]');
-                active?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            },
-            displayGender() {
-                const value = this.formValue('gender');
-                return this.genderLabels[value] || value || '—';
-            },
-            init() {
-                this.$watch('step', () => {
-                    this.$nextTick(() => this.scrollStepIntoView());
-                });
-                this.$watch('applicant', () => this.computeMissing());
-                this.$watch('registeredBusiness', () => this.computeMissing());
-                this.$watch('previousAgent', () => this.computeMissing());
-                const recompute = () => this.$nextTick(() => this.computeMissing());
-                window.addEventListener('kf-document-file', recompute);
-                window.addEventListener('kf-document-pages-ready', recompute);
-                this.$nextTick(() => this.computeMissing());
-            },
-         }">
+            declBodyTemplate: @js(__('site.affiliate_apply.decl_body', ['name' => '__NAME__'])),
+            conductAgreeTemplate: @js(__('site.affiliate_apply.conduct_agree', ['name' => '__NAME__'])),
+            submitPaymentLabel: @js(__('site.affiliate_apply.submit_payment')),
+            submitApplicationLabel: @js(__('site.affiliate_apply.submit_application')),
+         })">
         @if (session('status'))
             <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
         @endif
@@ -519,7 +423,7 @@
                         <div><dt class="text-gray-500">{{ __('site.affiliate_apply.gender') }}</dt><dd class="font-semibold text-gray-900" x-text="displayGender()"></dd></div>
                     </dl>
                     <p class="text-sm text-gray-700 leading-relaxed"
-                       x-text="@js(__('site.affiliate_apply.decl_body', ['name' => '__NAME__'])).replace('__NAME__', formValue('full_name') || '—')"></p>
+                       x-text="personalizedDeclBody()"></p>
                     <label class="flex items-start gap-2">
                         <input type="checkbox" name="declaration_accepted" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('declaration_accepted'))>
                         <span>{{ __('site.affiliate_apply.decl_agree') }}</span>
@@ -538,7 +442,7 @@
                     </ul>
                     <label class="flex items-start gap-2">
                         <input type="checkbox" name="conduct_accepted" value="1" required class="mt-1 rounded border-gray-300 text-brand" @checked(old('conduct_accepted'))>
-                        <span x-text="@js(__('site.affiliate_apply.conduct_agree', ['name' => '__NAME__'])).replace('__NAME__', formValue('full_name') || '—')"></span>
+                        <span x-text="personalizedConductAgree()"></span>
                     </label>
                 </div>
 
@@ -558,10 +462,150 @@
                     <button type="submit"
                             class="bg-brand hover:bg-brand-light text-white font-semibold px-8 py-3 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             :disabled="missing.length > 0">
-                        <span x-text="feeRequired ? @js(__('site.affiliate_apply.submit_payment')) : @js(__('site.affiliate_apply.submit_application'))"></span>
+                        <span x-text="submitLabel()"></span>
                     </button>
                 </div>
             </div>
         </form>
     </div>
+
+    @once
+    @push('scripts')
+    <script>
+        function affiliateApplyForm(config) {
+            return {
+                step: Number(config.step || 1),
+                applicant: config.applicant || 'individual',
+                registeredBusiness: config.registeredBusiness || 'no',
+                previousAgent: config.previousAgent || 'no',
+                feeRequired: !!config.feeRequired,
+                missing: [],
+                missingLabels: config.missingLabels || {},
+                missingSteps: config.missingSteps || {},
+                genderLabels: config.genderLabels || {},
+                declBodyTemplate: config.declBodyTemplate || '',
+                conductAgreeTemplate: config.conductAgreeTemplate || '',
+                submitPaymentLabel: config.submitPaymentLabel || '',
+                submitApplicationLabel: config.submitApplicationLabel || '',
+                formValue(name) {
+                    const form = this.$refs.affiliateForm;
+                    if (!form) return '';
+                    const el = form.querySelector('[name="' + name + '"]');
+                    if (!el) return '';
+                    if (el.type === 'radio') {
+                        const checked = form.querySelector('[name="' + name + '"]:checked');
+                        return checked ? checked.value : '';
+                    }
+                    return (el.value || '').trim();
+                },
+                hasChecked(name) {
+                    const form = this.$refs.affiliateForm;
+                    return !!(form && (
+                        form.querySelector('[name="' + name + '"]:checked')
+                        || form.querySelector('[name="' + name + '[]"]:checked')
+                    ));
+                },
+                checkedCount(name) {
+                    const form = this.$refs.affiliateForm;
+                    return form ? form.querySelectorAll('[name="' + name + '[]"]:checked').length : 0;
+                },
+                hasFile(name) {
+                    const form = this.$refs.affiliateForm;
+                    const input = form ? form.querySelector('[name="' + name + '"]') : null;
+                    return !!(input && input.files && input.files.length > 0);
+                },
+                nidaReady() {
+                    const form = this.$refs.affiliateForm;
+                    if (!form) return false;
+                    const frontHidden = form.querySelector('[name=nida_front_captured]')?.value === '1';
+                    const backHidden = form.querySelector('[name=nida_back_captured]')?.value === '1';
+                    return (frontHidden && backHidden)
+                        || (this.hasFile('doc_national_id_front') && this.hasFile('doc_national_id_back'));
+                },
+                computeMissing() {
+                    const next = [];
+                    const push = (key) => {
+                        if (!next.find((item) => item.key === key)) {
+                            next.push({
+                                key,
+                                label: this.missingLabels[key] || key,
+                                step: this.missingSteps[key] || 1,
+                            });
+                        }
+                    };
+                    if (!this.formValue('full_name')) push('full_name');
+                    if (!this.formValue('date_of_birth')) push('date_of_birth');
+                    if (!this.formValue('gender')) push('gender');
+                    if (!this.formValue('email')) push('email');
+                    if (!this.formValue('phone')) push('phone');
+                    if (!this.formValue('region')) push('region');
+                    if (!this.formValue('district')) push('district');
+                    if (!this.formValue('ward')) push('ward');
+                    if (this.applicant === 'company' && !this.formValue('business_name')) push('business_name');
+                    const occ = this.formValue('occupation');
+                    if (!occ) push('occupation');
+                    if (occ === 'other' && !this.formValue('occupation_other')) push('occupation_other');
+                    if (!this.formValue('sales_experience')) push('sales_experience');
+                    if (this.checkedCount('languages') < 1) push('languages');
+                    if (!this.formValue('why_affiliate')) push('why_affiliate');
+                    if (this.previousAgent === 'yes' && !this.formValue('previous_agent_details')) push('previous_agent_details');
+                    if (this.checkedCount('acquisition_methods') < 1) push('acquisition_methods');
+                    if (this.checkedCount('channels') < 1) push('channels');
+                    if (!this.formValue('monthly_reach')) push('monthly_reach');
+                    if (!this.formValue('how_heard')) push('how_heard');
+                    if (!this.formValue('first_10_customers')) push('first_10_customers');
+                    if (!this.registeredBusiness) push('registered_business');
+                    if (this.registeredBusiness === 'yes' && this.applicant === 'individual') {
+                        if (!this.formValue('business_name')) push('business_name');
+                        if (!this.formValue('registration_number')) push('registration_number');
+                        if (!this.formValue('tin')) push('tin');
+                    }
+                    if (this.applicant === 'company') {
+                        if (!this.hasFile('doc_brela')) push('doc_brela');
+                        if (!this.hasFile('doc_tin_certificate')) push('doc_tin_certificate');
+                    }
+                    if (!this.nidaReady()) push('doc_national_id');
+                    if (!this.hasChecked('declaration_accepted')) push('declaration_accepted');
+                    if (!this.hasChecked('conduct_accepted')) push('conduct_accepted');
+                    this.missing = next;
+                },
+                jumpTo(item) {
+                    this.step = item.step;
+                    this.$nextTick(() => this.scrollStepIntoView());
+                },
+                scrollStepIntoView() {
+                    const rail = this.$refs.stepRail;
+                    const active = rail ? rail.querySelector('[data-step="' + this.step + '"]') : null;
+                    if (active) {
+                        active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }
+                },
+                displayGender() {
+                    const value = this.formValue('gender');
+                    return this.genderLabels[value] || value || '—';
+                },
+                personalizedDeclBody() {
+                    return String(this.declBodyTemplate || '').replaceAll('__NAME__', this.formValue('full_name') || '—');
+                },
+                personalizedConductAgree() {
+                    return String(this.conductAgreeTemplate || '').replaceAll('__NAME__', this.formValue('full_name') || '—');
+                },
+                submitLabel() {
+                    return this.feeRequired ? this.submitPaymentLabel : this.submitApplicationLabel;
+                },
+                init() {
+                    this.$watch('step', () => this.$nextTick(() => this.scrollStepIntoView()));
+                    this.$watch('applicant', () => this.computeMissing());
+                    this.$watch('registeredBusiness', () => this.computeMissing());
+                    this.$watch('previousAgent', () => this.computeMissing());
+                    const recompute = () => this.$nextTick(() => this.computeMissing());
+                    window.addEventListener('kf-document-file', recompute);
+                    window.addEventListener('kf-document-pages-ready', recompute);
+                    this.$nextTick(() => this.computeMissing());
+                },
+            };
+        }
+    </script>
+    @endpush
+    @endonce
 </x-site.layout>

@@ -30,6 +30,10 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertStringContainsString(':disabled="missing.length > 0"', $html);
         $this->assertStringContainsString(__('site.affiliate_apply.submit_payment'), $html);
         $this->assertStringContainsString(__('site.affiliate_apply.monthly_reach'), $html);
+        $this->assertStringContainsString('affiliateApplyForm({', $html);
+        $this->assertStringContainsString('function affiliateApplyForm', $html);
+        $this->assertStringNotContainsString('scrollStepIntoView()); }); this.$watch', $html);
+        $this->assertStringNotContainsString('data-step=\"', $html);
     }
 
     public function test_incomplete_application_cannot_reach_payment_server_side(): void
