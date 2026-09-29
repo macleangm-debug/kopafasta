@@ -171,7 +171,6 @@
                                         :value="old('date_of_birth', optional($customer->date_of_birth)->format('Y-m-d'))"
                                         :required="true"
                                         :max="now()->subYears(18)->format('Y-m-d')"
-                                        :min="'1940-01-01'"
                                         :default="now()->subYears(25)->format('Y-m-d')"
                                         :help="__('borrower.register.age_notice', ['age' => 18])"
                                         :input-class="$editable"

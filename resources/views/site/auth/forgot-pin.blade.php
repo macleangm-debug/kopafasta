@@ -79,8 +79,8 @@
                             :label="($index + 1).'. '.$question['prompt']"
                             :value="old($field)"
                             :required="true"
-                            min="1940-01-01"
                             :max="now()->subYears(18)->format('Y-m-d')"
+                            :default="now()->subYears(25)->format('Y-m-d')"
                         />
                     @else
                         <label class="kf-auth-label">

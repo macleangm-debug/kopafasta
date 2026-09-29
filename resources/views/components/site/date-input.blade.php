@@ -13,13 +13,14 @@
 @php
     $selected = old($name, $value);
     $selected = filled($selected) ? \Illuminate\Support\Str::of((string) $selected)->substr(0, 10)->toString() : '';
-    $minDate = $min ?: '1940-01-01';
-    $maxDate = $max ?: now()->format('Y-m-d');
-    $fallbackDate = $default ?: now()->format('Y-m-d');
-    if ($fallbackDate < $minDate) {
+    // Only apply min/max when callers pass them — never invent a global 1940 floor.
+    $minDate = filled($min) ? (string) $min : '';
+    $maxDate = filled($max) ? (string) $max : now()->format('Y-m-d');
+    $fallbackDate = filled($default) ? (string) $default : now()->format('Y-m-d');
+    if ($minDate !== '' && $fallbackDate < $minDate) {
         $fallbackDate = $minDate;
     }
-    if ($fallbackDate > $maxDate) {
+    if ($maxDate !== '' && $fallbackDate > $maxDate) {
         $fallbackDate = $maxDate;
     }
     $id = 'date-'.str_replace(['[', ']'], ['-', ''], $name).'-'.substr(md5($name.$selected), 0, 6);
@@ -36,7 +37,7 @@
         fieldName: @js($name),
         triggerId: @js($id),
         value: @js($selected),
-        draft: @js($selected ?: $fallbackDate),
+        draft: @js($selected),
         fallback: @js($fallbackDate),
         min: @js($minDate),
         max: @js($maxDate),
@@ -45,10 +46,11 @@
         viewMonth: 0,
         init() {
             this.narrow = this.isNarrow();
-            const view = this.parse(this.value || this.format(new Date()));
+            const view = this.parse(this.value || this.openAnchor());
             this.viewYear = view.getFullYear();
             this.viewMonth = view.getMonth();
-            if (! this.value) this.draft = this.clamp(this.min || this.fallback);
+            // Blank fields stay blank — draft is only for the open picker session.
+            if (! this.value) this.draft = '';
         },
         // Teleported Apply/Confirm binds Alpine $el/$dispatch to the button, not the
         // date-input root — never resolve the hidden input or field name via $el.
@@ -126,29 +128,37 @@
             return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
         },
         clamp(str) {
-            if (str < this.min) return this.min;
-            if (str > this.max) return this.max;
+            if (! str) return str;
+            if (this.min && str < this.min) return this.min;
+            if (this.max && str > this.max) return this.max;
             return str;
         },
-        openSheet() {
-            this.draft = this.clamp(this.value || this.min || this.fallback);
-            const view = this.parse(this.value || this.format(new Date()));
+        // Calendar open position when the field is blank: prefer caller default, else
+        // today clamped into [min,max]. Never jump to an arbitrary distant min year.
+        openAnchor() {
+            if (this.fallback) return this.clamp(this.fallback);
+            return this.clamp(this.format(new Date()));
+        },
+        prepareOpen() {
+            const anchor = this.value ? this.clamp(this.value) : this.openAnchor();
+            this.draft = this.value ? this.clamp(this.value) : anchor;
+            const view = this.parse(this.value || anchor);
             this.viewYear = view.getFullYear();
             this.viewMonth = view.getMonth();
             this.pickerMode = 'calendar';
+        },
+        openSheet() {
+            this.prepareOpen();
             this.open = true;
         },
         openDesktop() {
-            this.draft = this.clamp(this.value || this.min || this.fallback);
-            const view = this.parse(this.value || this.format(new Date()));
-            this.viewYear = view.getFullYear();
-            this.viewMonth = view.getMonth();
-            this.pickerMode = 'calendar';
+            this.prepareOpen();
             this.desktopOpen = true;
         },
         years() {
-            const minY = this.parse(this.min).getFullYear();
-            const maxY = this.parse(this.max).getFullYear();
+            const maxY = this.max ? this.parse(this.max).getFullYear() : new Date().getFullYear();
+            // When no min is set, span ~120 years from the max — not a hard-coded 1940.
+            const minY = this.min ? this.parse(this.min).getFullYear() : (maxY - 120);
             const list = [];
             for (let y = maxY; y >= minY; y--) list.push(y);
             return list;
@@ -169,7 +179,7 @@
                 days.push({
                     day: d,
                     value: str,
-                    disabled: str < this.min || str > this.max,
+                    disabled: (this.min && str < this.min) || (this.max && str > this.max),
                     selected: str === this.draft,
                     today: str === this.format(new Date()),
                 });
@@ -201,6 +211,7 @@
         },
         clear() {
             this.value = '';
+            this.draft = '';
             this.open = false;
             this.desktopOpen = false;
             this.pickerMode = 'calendar';

@@ -221,7 +221,6 @@
                             :value="old('date_of_birth')"
                             :required="true"
                             :max="now()->subYears(18)->format('Y-m-d')"
-                            :min="'1940-01-01'"
                             :default="now()->subYears(25)->format('Y-m-d')"
                             input-class="w-full h-12 px-4 rounded-xl bg-white border border-gray-300 focus:border-brand focus:ring-2 focus:ring-brand/10 text-sm outline-none transition"
                         />
