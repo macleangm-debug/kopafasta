@@ -484,6 +484,15 @@ class PartnerApplicationDecisionService
             $partner->update(['roles' => array_values($roles)]);
         }
 
+        // Affiliate role on an existing Partner must get Affiliate tooling (code/lifecycle) — no new Partner.
+        if ($category === 'affiliate' || $partner->fresh()->isAffiliate()) {
+            $vendor = \App\Models\Vendor::query()->find($partner->id) ?? $partner;
+            app(\App\Services\AffiliateService::class)->ensureCode($vendor);
+            if ($addedRole && $category === 'affiliate') {
+                app(\App\Services\AffiliateLifecycleService::class)->initializeNewAffiliate($vendor->fresh());
+            }
+        }
+
         $payload = is_array($application->payload) ? $application->payload : [];
         $activity = is_array($payload['review_activity'] ?? null) ? $payload['review_activity'] : [];
         $activity[] = [

@@ -29,18 +29,22 @@
         <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
     @endif
 
-    <x-site.borrower-page-header
-        :eyebrow="__('borrower.loans_page.guarantor_badge')"
-        :title="$productName"
-        :subtitle="$borrowerName.' · '.$reference"
-        :share="$invitation->id ? 'kf-gtr-'.$invitation->id : null"
-    >
-        <x-slot:actions>
-            <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 bg-amber-100 text-amber-900">
+    <section class="relative overflow-hidden rounded-2xl kf-premium-panel mb-6">
+        <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+        <div class="relative px-5 sm:px-6 py-5 sm:py-6 text-white">
+            <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.loans_page.guarantor_badge') }}</p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $productName }}</h1>
+            <p class="mt-2 text-sm text-white/85">{{ $borrowerName }} · {{ $reference }}</p>
+            <p class="mt-4 inline-flex text-xs font-semibold rounded-full px-3 py-1.5 bg-white/15 ring-1 ring-white/25">
                 {{ __('borrower.guarantor.action_required') }}
-            </span>
-        </x-slot:actions>
-    </x-site.borrower-page-header>
+            </p>
+        </div>
+    </section>
+
+    <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+        <p class="font-semibold">{{ __('borrower.guarantor.your_decision') }}</p>
+        <p class="mt-1 opacity-90">{{ __('borrower.guarantor.awaiting_your_decision') }}</p>
+    </div>
 
     {{-- At a glance --}}
     <div class="mb-6 glass-card overflow-hidden">
@@ -51,17 +55,6 @@
                     <h2 class="text-lg sm:text-xl font-bold text-gray-900 mt-1">{{ __('borrower.guaranteed.detail_glance_title') }}</h2>
                     <p class="text-sm text-gray-600 mt-1">{{ __('borrower.guarantor.awaiting_your_decision') }}</p>
                 </div>
-            </div>
-
-            <div class="mt-5 rounded-xl bg-white ring-1 ring-gray-200/80 px-4 py-3">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.application_progress') }}</p>
-                <div class="flex items-center gap-3 mt-2">
-                    <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
-                        <div class="h-full rounded-full bg-brand" style="width: 10%"></div>
-                    </div>
-                    <span class="text-sm font-bold tabular-nums text-gray-900">10%</span>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">{{ __('borrower.guarantor.action_required') }}</p>
             </div>
 
             <div class="mt-4 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white px-4 py-3">

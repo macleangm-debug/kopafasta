@@ -773,7 +773,13 @@
                  ]))">
                 <div class="bg-brand px-5 py-4 text-white">
                     <h2 class="text-[11px] font-bold uppercase tracking-widest text-brand-gold">Review decision</h2>
-                    <p class="text-sm text-white/80 mt-1">Approve · Request information · Decline</p>
+                    <p class="text-sm text-white/80 mt-1">
+                        @if (in_array($application->status, ['approved', 'rejected'], true))
+                            Final decision
+                        @else
+                            Approve · Request information · Decline
+                        @endif
+                    </p>
                 </div>
 
                 @if (session('status'))
@@ -785,6 +791,71 @@
                     </div>
                 @endif
 
+                @if (in_array($application->status, ['approved', 'rejected'], true))
+                    @php
+                        $decisionPartner = $application->partner;
+                        $identityLink = is_array($application->payload['identity_link'] ?? null)
+                            ? $application->payload['identity_link']
+                            : null;
+                        $linkedIds = collect($application->payload['match_resolutions'] ?? [])
+                            ->filter(fn ($row) => ($row['decision'] ?? '') === 'link')
+                            ->keys();
+                    @endphp
+                    <div class="p-5 space-y-4">
+                        <div class="rounded-xl bg-white ring-1 ring-brand/15 p-4 space-y-3 text-sm">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Decision</p>
+                                <p class="mt-1 text-lg font-bold text-gray-900">
+                                    {{ $application->status === 'approved' ? 'Approved' : 'Declined' }}
+                                </p>
+                            </div>
+                            <div class="grid grid-cols-1 gap-3">
+                                <div>
+                                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+                                        {{ $application->status === 'approved' ? 'Approved by' : 'Declined by' }}
+                                    </p>
+                                    <p class="mt-0.5 font-semibold text-gray-900">{{ $decision['reviewer']?->name ?? '—' }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+                                        {{ $application->status === 'approved' ? 'Approved on' : 'Declined on' }}
+                                    </p>
+                                    <p class="mt-0.5 font-semibold text-gray-900">
+                                        {{ $decision['reviewed_at']?->format('d M Y H:i') ?? '—' }}
+                                    </p>
+                                </div>
+                                @if ($application->status === 'approved' && $decisionPartner)
+                                    <div>
+                                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Partner</p>
+                                        <p class="mt-0.5 font-semibold text-gray-900">
+                                            <a href="{{ route('admin.partners.show', ['vendor' => $decisionPartner->id, 'operational' => 1]) }}"
+                                               class="text-brand hover:underline">
+                                                {{ $decisionPartner->vendor_number ?: $decisionPartner->partner_number ?: 'P-'.$decisionPartner->id }}
+                                            </a>
+                                            <span class="text-gray-500 font-normal"> · {{ $decisionPartner->name }}</span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Identity</p>
+                                        <p class="mt-0.5 text-gray-800">
+                                            @if ($identityLink || $linkedIds->isNotEmpty())
+                                                Linked to existing Partner
+                                            @else
+                                                New Partner identity created
+                                            @endif
+                                        </p>
+                                    </div>
+                                @endif
+                                @if ($application->status === 'rejected' && filled($application->admin_notes))
+                                    <div>
+                                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Reason shown to applicant</p>
+                                        <p class="mt-0.5 text-gray-800 whitespace-pre-line">{{ $application->admin_notes }}</p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @else
                 <form method="POST" action="{{ route('admin.partner-applications.update', $application) }}" class="p-5 space-y-4"
                       x-ref="decisionForm"
                       @submit.prevent="onSubmit($event)">
@@ -1058,11 +1129,12 @@
                         </div>
                     </div>
                 </form>
+                @endif
             </div>
 
             @include('admin.partner-applications._match-resolution')
 
-            @if ($decision['reviewer'] || $decision['reviewed_at'])
+            @if (! in_array($application->status, ['approved', 'rejected'], true) && ($decision['reviewer'] || $decision['reviewed_at']))
                 <div class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-5 text-sm">
                     <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-2">Last review</p>
                     <p class="text-gray-700">

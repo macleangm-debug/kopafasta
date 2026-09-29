@@ -13,8 +13,8 @@
             $resultPayload = [
                 'status' => (string) $application->status,
                 'name' => $application->business_name ?: $application->full_name,
-                'category' => \App\Services\PartnerEnrollmentService::ENROLLABLE_CATEGORIES[$application->partner_category]
-                    ?? ucfirst(str_replace('_', ' ', (string) $application->partner_category)),
+                'category' => app(\App\Services\PartnerEnrollmentService::class)
+                    ->categoryLabel((string) ($application->partner_category ?: $application->type)),
                 'phone' => $application->phone,
                 'submitted' => optional($application->created_at)->format('d M Y'),
                 'notes' => $application->admin_notes,

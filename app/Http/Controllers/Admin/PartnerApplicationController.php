@@ -55,7 +55,7 @@ class PartnerApplicationController extends Controller
 
         $performance = null;
         $partner = $partnerApplication->partner;
-        if ($partner && $partner->category === 'affiliate') {
+        if ($partner && $partner->isAffiliate()) {
             $performance = app(\App\Services\AffiliateService::class)->stats($partner);
         }
 

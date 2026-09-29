@@ -172,8 +172,8 @@
         </div>
 
         <div class="relative mx-4 sm:mx-6 mb-5 -mt-1 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-            {{-- Leader / individual: consent + own signature --}}
-            <div x-show="! isGroupProduct(current) || groupSigIsLeaderSlide()" x-cloak>
+            {{-- Leader / individual: consent + own signature (exclusive from member slides) --}}
+            <div x-show="! isGroupProduct(current) || groupSigIsLeaderSlide()" x-cloak class="isolate">
                 <div class="px-4 sm:px-5 pt-4 pb-3 border-b border-gray-100">
                     <label class="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
                         <input type="checkbox"
@@ -210,8 +210,8 @@
                 </div>
             </div>
 
-            {{-- Other group members: read-only signed / waiting --}}
-            <div x-show="isGroupProduct(current) && ! groupSigIsLeaderSlide()" x-cloak class="p-4 sm:p-5">
+            {{-- Other group members: read-only signed / waiting — separate slot, never layered on leader pad --}}
+            <div x-show="isGroupProduct(current) && ! groupSigIsLeaderSlide()" x-cloak class="isolate p-4 sm:p-5">
                 <div class="rounded-2xl bg-[linear-gradient(180deg,#f8faf9_0%,#ffffff_55%)] ring-1 ring-brand/10 px-3 py-5 min-h-[9rem] grid place-items-center">
                     <template x-if="groupSigCurrentMember()?.signature_data">
                         <img :src="groupSigCurrentMember().signature_data" alt="" class="max-h-28 w-auto max-w-full object-contain">

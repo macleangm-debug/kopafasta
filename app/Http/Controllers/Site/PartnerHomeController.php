@@ -31,7 +31,13 @@ class PartnerHomeController extends Controller
 
         $vendor = Vendor::where('user_id', $user->id)->first();
         if ($vendor) {
-            return redirect()->to(app(\App\Services\PartnerWorkspaceService::class)->homeUrl($vendor));
+            $home = app(\App\Services\PartnerWorkspaceService::class)->homeUrl($vendor);
+            // Service-role home is site.partner.dashboard — render it; do not redirect to self.
+            if ($home === route('site.partner.dashboard')) {
+                return app(VendorController::class)->dashboard();
+            }
+
+            return redirect()->to($home);
         }
 
         if (\App\Models\Lender::query()->where('user_id', $user->id)->exists()) {

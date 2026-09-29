@@ -121,4 +121,33 @@ class PartnerWorkspaceSwitcherFeatureTest extends TestCase
             $this->assertStringNotContainsStringIgnoringCase('member', (string) $label);
         }
     }
+
+    public function test_service_workspace_home_does_not_redirect_loop_on_partner_dashboard(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'vendor',
+            'phone' => '255715222199',
+            'pin_hash' => bcrypt('1234'),
+            'pin_set_at' => now(),
+        ]);
+        $partner = Partner::create([
+            'user_id' => $user->id,
+            'vendor_number' => 'PT-IN-LOOP',
+            'name' => 'Loop Insurance',
+            'phone' => '255715222199',
+            'email' => 'loop@example.com',
+            'category' => 'insurance',
+            'roles' => ['insurance', 'affiliate'],
+            'status' => 'active',
+            'activated_at' => now(),
+        ]);
+
+        $ws = app(PartnerWorkspaceService::class);
+        $this->assertSame(route('site.partner.dashboard'), $ws->homeUrl($partner));
+        $this->assertTrue($ws->canSwitch($partner));
+
+        $this->actingAs($user)
+            ->get(route('site.partner.dashboard'))
+            ->assertOk();
+    }
 }

@@ -59,47 +59,22 @@
                     @endif
                 </dl>
                 <p class="text-xs text-gray-500">{{ __('borrower.guarantor_notifications.popup_hint') }}</p>
-                <div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}"
-                          @submit.prevent="window.confirmForm($el, {
-                              title: @js(__('borrower.guarantor.decline_title')),
-                              message: @js(__('borrower.guarantor.decline_message')),
-                              confirmLabel: @js(__('borrower.guarantor_notifications.decline_cta')),
-                              confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
-                              tone: 'warning'
-                          })">
-                        @csrf
-                        <input type="hidden" name="action" value="reject">
-                        <button type="submit"
-                                class="w-full sm:w-auto inline-flex justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-red-700 bg-white ring-1 ring-red-200 hover:bg-red-50">
-                            {{ __('borrower.guarantor_notifications.decline_cta') }}
-                        </button>
-                    </form>
-                    <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $link) }}"
-                          @submit.prevent="window.confirmForm($el, {
-                              title: @js(__('borrower.guarantor.approve_title')),
-                              message: @js(__('borrower.guarantor.approve_message')),
-                              confirmLabel: @js(__('borrower.guarantor_notifications.accept_cta')),
-                              confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand font-bold',
-                              tone: 'confirm'
-                          })">
-                        @csrf
-                        <input type="hidden" name="action" value="approve">
-                        <button type="submit"
-                                class="w-full sm:w-auto inline-flex justify-center px-5 py-2.5 rounded-xl text-sm font-bold bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                            {{ __('borrower.guarantor_notifications.accept_cta') }}
-                        </button>
-                    </form>
-                </div>
-                @if ($rows->count() > 1)
-                    <a href="{{ route('site.borrower.loans', ['tab' => 'guarantor']) }}"
-                       class="block text-center text-xs font-semibold text-brand hover:underline">
-                        {{ __('borrower.guarantor_notifications.view_all_requests', ['count' => $rows->count()]) }}
+                <div class="flex flex-col gap-2">
+                    {{-- One acceptance only — on the request detail page. Popup is notice + View. --}}
+                    <a href="{{ route('site.borrower.guarantor-requests.show', $link) }}"
+                       class="w-full inline-flex justify-center px-5 py-2.5 rounded-xl text-sm font-bold bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
+                        {{ __('borrower.guaranteed.view_request') }}
                     </a>
-                @endif
-                <button type="button" @click="open = false" class="w-full text-sm text-gray-500 hover:text-gray-700 py-1">
-                    {{ __('borrower.guarantor_notifications.dismiss_popup') }}
-                </button>
+                    @if ($rows->count() > 1)
+                        <a href="{{ route('site.borrower.loans', ['tab' => 'guarantor']) }}"
+                           class="block text-center text-xs font-semibold text-brand hover:underline">
+                            {{ __('borrower.guarantor_notifications.view_all_requests', ['count' => $rows->count()]) }}
+                        </a>
+                    @endif
+                    <button type="button" @click="open = false" class="w-full text-sm text-gray-500 hover:text-gray-700 py-1">
+                        {{ __('borrower.guarantor_notifications.dismiss_popup') }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
