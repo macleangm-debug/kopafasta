@@ -15,7 +15,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Partner 360 Review Decision blank P0 (staging tip)** | `ae4747bbb9a458b5dd4809e44b470984ad968c75` | Blank Review Decision body fixed (Alpine @js attribute). Document update/replace on same request path. Staging only. |
 | **Affiliate requested-document tracking UX (staging tip)** | `22d60dc0d89b0590f174306f16448c7df22cf13e` | Single Document Holder fulfill surface + tracking result mode. Staging only. |
 | **Partner match resolution UX cleanup (staging tip)** | `6b8c73faa5e6b88595c7969f759b2a3439f9cb03` | Dedupe Needs Attention; Open {Name}; workspace switcher; Affiliate landing Sign in CTA. Staging only. |
-| **Shared date-input P0 (staging tip)** | `3f9c306f82714bb2456943457a67e1b6c42ffa73` | Remove global 1940 picker default/open; DOB blank + 18+ max preserved. Staging only. |
+| **Shared date-input P0 (staging tip)** | `2e1d881cec3acea3f0a3b9a41557c3ebdc60efca` | Year pick updates draft; openAnchor≠value; 1989 stays 1989. Staging only. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
