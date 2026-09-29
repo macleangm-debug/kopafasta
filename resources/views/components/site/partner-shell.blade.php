@@ -159,9 +159,12 @@
             <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition">
                 ← {{ brand_name() }}
             </a>
-            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3">
                 <x-site.theme-toggle variant="header" />
                 <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
+                @if ($shellVendor)
+                    @include('site.partner-account._workspace-switcher', ['partner' => $shellVendor, 'variant' => 'chrome', 'chromeTone' => 'light'])
+                @endif
                 <div class="relative" x-data="{ open: false }">
                     <button type="button" @click="open = !open" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $navService->iconSvg('bell') !!}</svg>
@@ -220,6 +223,11 @@
                 <x-site.brand-mark size="sm" />
             </a>
             <div class="flex items-center gap-0.5 shrink-0">
+                @if ($shellVendor)
+                    <div class="mr-1">
+                        @include('site.partner-account._workspace-switcher', ['partner' => $shellVendor, 'variant' => 'chrome', 'chromeTone' => 'light'])
+                    </div>
+                @endif
                 <x-site.theme-toggle variant="compact" />
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <a href="{{ $notificationsHref }}" data-kf-motion="tab" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('site.partner_portal.nav_notifications') }}">
@@ -260,10 +268,7 @@
         @endif
 
         <main class="kf-chrome-page flex-1 px-4 lg:px-8 py-6 lg:py-8 pb-28 lg:pb-8 overflow-x-clip" data-kf-busy-scope>
-            <div class="{{ $contentMax }} w-full mx-auto min-w-0 space-y-6">
-                @if ($shellVendor)
-                    @include('site.partner-account._workspace-switcher', ['partner' => $shellVendor])
-                @endif
+            <div class="{{ $contentMax }} w-full mx-auto min-w-0">
                 @if (is_array($hero) && filled($hero['title'] ?? null))
                     <x-site.account-shell-hero
                         mode="contextual"

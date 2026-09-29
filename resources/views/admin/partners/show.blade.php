@@ -1,3 +1,14 @@
+@php
+    $roleOptions = app(\App\Services\PartnerService::class)->roleOptions();
+    $activeRoleLabels = collect($record->partnerRoles())
+        ->map(fn ($role) => $roleOptions[$role] ?? ucfirst(str_replace('_', ' ', (string) $role)))
+        ->filter()
+        ->values()
+        ->all();
+    $rolesFieldValue = $activeRoleLabels !== []
+        ? implode(' · ', $activeRoleLabels)
+        : ucfirst(str_replace('_', ' ', (string) $record->category));
+@endphp
 <x-admin.show-page
     :title="$record->name"
     :heading="$record->name"
@@ -6,7 +17,7 @@
     :editUrl="route('admin.partners.edit', $record)"
     :fields="array_filter([
         __('admin.partners.field_number')  => $record->vendor_number,
-        __('admin.partners.field_category')  => ucfirst(str_replace('_', ' ', $record->category)),
+        __('admin.partners.field_roles') => $rolesFieldValue,
         __('admin.partners.field_status')    => ucfirst($record->status ?? ''),
         __('admin.partners.field_performance') => isset($efficiency) && is_array($efficiency)
             ? ($efficiency['status_label'] ?? $efficiency['band_label'] ?? null)
@@ -73,6 +84,15 @@
             ? $requestedTab
             : ((session('partner_invite_ready') || session('partner_activation_url') || ! ($record->activated_at && $record->user_id)) ? 'portal' : 'profile');
 @endphp
+
+@if ($activeRoleLabels !== [])
+    <div class="mt-4 mb-2 flex flex-wrap items-center gap-2">
+        <span class="text-[10px] uppercase tracking-widest text-brand/70 font-semibold">{{ __('admin.partners.field_roles') }}</span>
+        @foreach ($activeRoleLabels as $roleLabel)
+            <span class="inline-flex rounded-full bg-brand-muted px-2.5 py-1 text-xs font-semibold text-brand ring-1 ring-brand/15">{{ $roleLabel }}</span>
+        @endforeach
+    </div>
+@endif
 
 <div class="mt-6 space-y-4"
      x-data="{

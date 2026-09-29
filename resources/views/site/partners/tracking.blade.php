@@ -137,8 +137,16 @@
 
                     <div class="px-5 py-5 space-y-4 text-sm text-gray-700">
                         @if ($status === 'approved')
+                            @php $isActivated = (bool) ($resultPayload['activated'] ?? false); @endphp
                             <div class="rounded-2xl bg-brand-muted/50 ring-1 ring-brand/15 p-4 space-y-3">
-                                <p class="font-semibold text-brand">{{ __('site.partner_apply.track_approved_title') }}</p>
+                                <p class="font-semibold text-brand">
+                                    {{ $isActivated
+                                        ? __('site.partner_apply.track_approved_ready_title')
+                                        : __('site.partner_apply.track_approved_title') }}
+                                </p>
+                                @if (! $isActivated)
+                                    <p class="text-sm text-brand/80">{{ __('site.partner_apply.track_approved_body') }}</p>
+                                @endif
                                 @if ($resultPayload['partner_code'])
                                     <div>
                                         <p class="text-[10px] uppercase tracking-widest text-brand/70 font-semibold">{{ __('site.partner_apply.track_partner_code') }}</p>
@@ -146,7 +154,7 @@
                                         <p class="mt-2 text-xs text-brand/80">{{ __('site.partner_apply.track_partner_code_hint') }}</p>
                                     </div>
                                 @endif
-                                @if ($resultPayload['activated'])
+                                @if ($isActivated)
                                     <a href="{{ route('site.login.partner') }}"
                                        class="inline-flex w-full justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
                                         {{ __('site.partner_apply.track_login_cta') }}
@@ -343,7 +351,7 @@
 
                         <div class="pt-2 border-t border-gray-100">
                             <a href="{{ route('site.partners.apply.tracking') }}"
-                               class="inline-flex text-sm font-semibold text-gray-500 hover:text-brand">
+                               class="inline-flex w-full justify-center items-center rounded-xl px-4 py-2.5 text-sm font-semibold bg-white text-brand ring-1 ring-brand/20 hover:bg-brand-muted/40">
                                 {{ __('site.partner_apply.track_check_another') }}
                             </a>
                         </div>

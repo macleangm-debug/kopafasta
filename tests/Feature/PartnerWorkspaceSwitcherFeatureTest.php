@@ -87,6 +87,13 @@ class PartnerWorkspaceSwitcherFeatureTest extends TestCase
         $this->assertContains(__('site.partner_workspace.affiliate'), $labels);
 
         $this->actingAs($user)
+            ->get(route('site.partner.dashboard'))
+            ->assertOk()
+            ->assertDontSee(__('site.partner_workspace.hint'), false)
+            ->assertSee('Aventris Insurance', false)
+            ->assertSee(__('site.partner_workspace.switch'), false);
+
+        $this->actingAs($user)
             ->post(route('site.partner.workspace.switch'), ['workspace' => 'affiliate'])
             ->assertRedirect(route('site.affiliate.dashboard'));
         $this->assertSame('affiliate', $ws->currentKey($partner->fresh()));

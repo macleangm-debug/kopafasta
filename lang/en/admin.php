@@ -255,6 +255,7 @@ return [
     'partners' => [
         'field_number' => 'Partner #',
         'field_category' => 'Category',
+        'field_roles' => 'Roles',
         'field_status' => 'Status',
         'field_performance' => 'Performance',
         'field_can_receive' => 'Can receive work',

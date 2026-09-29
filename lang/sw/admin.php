@@ -126,6 +126,7 @@ return [
     'partners' => [
         'field_number' => 'Namba ya mshirika',
         'field_category' => 'Kategoria',
+        'field_roles' => 'Majukumu',
         'field_status' => 'Hali',
         'field_performance' => 'Utendaji',
         'field_can_receive' => 'Anaweza kupokea kazi',
