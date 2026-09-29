@@ -44,6 +44,7 @@ class PartnerApplicationController extends Controller
             'region' => ['required', 'string', 'max:100'],
             'district' => ['required', 'string', 'max:100'],
             'ward' => ['nullable', 'string', 'max:100'],
+            'street' => ['required', 'string', 'max:255'],
             'coverage_regions' => ['nullable', 'array'],
             'coverage_regions.*' => ['string', 'max:100'],
             'occupation' => ['required', 'string', 'max:150'],
@@ -61,7 +62,11 @@ class PartnerApplicationController extends Controller
             'channels.*' => ['string', 'in:whatsapp,instagram,tiktok,facebook,physical,business,other'],
             'social_profile_url' => ['nullable', 'url', 'max:255'],
             'monthly_reach' => ['required', 'in:1-10,11-30,31-50,51-100,100+'],
-            'how_heard' => ['required', 'string', 'max:500'],
+            'how_heard' => ['required', Rule::in([
+                'friend', 'whatsapp', 'instagram', 'facebook', 'tiktok',
+                'google', 'existing_member', 'affiliate', 'event', 'other',
+            ])],
+            'how_heard_other' => ['nullable', 'string', 'max:500', 'required_if:how_heard,other'],
             'first_10_customers' => ['required', 'string', 'max:2000'],
             'registered_business' => ['required', 'in:yes,no'],
             'declaration_accepted' => ['accepted'],
@@ -72,6 +77,14 @@ class PartnerApplicationController extends Controller
             'doc_national_id_front' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'doc_national_id_back' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
+
+        $channels = array_values($data['channels'] ?? []);
+        $needsSocialProfile = count(array_intersect($channels, ['instagram', 'facebook', 'tiktok'])) > 0;
+        if ($needsSocialProfile && blank($data['social_profile_url'] ?? null)) {
+            return back()->withErrors([
+                'social_profile_url' => __('site.affiliate_apply.missing_social_profile'),
+            ])->withInput();
+        }
 
         if ($isCompany && blank($data['business_name'] ?? null)) {
             return back()->withErrors(['business_name' => __('site.affiliate_apply.business_required')])->withInput();
@@ -97,6 +110,16 @@ class PartnerApplicationController extends Controller
             $data['occupation'] = $data['occupation_other'];
         }
 
+        $howHeardKey = (string) ($data['how_heard'] ?? '');
+        $howHeardLabels = trans('site.affiliate_apply.how_heard_options');
+        if (! is_array($howHeardLabels)) {
+            $howHeardLabels = [];
+        }
+        $acquisitionSource = $howHeardKey === 'other'
+            ? (string) ($data['how_heard_other'] ?? '')
+            : (string) ($howHeardLabels[$howHeardKey] ?? $howHeardKey);
+        $data['how_heard'] = $acquisitionSource;
+
         $acceptedAt = now()->toIso8601String();
 
         $application = app(PartnerEnrollmentService::class)->submitApplication(
@@ -111,7 +134,8 @@ class PartnerApplicationController extends Controller
                         'gender' => $data['gender'],
                         'phone_alt' => $data['phone_alt'] ?? null,
                         'district' => $data['district'],
-                        'ward' => $data['ward'],
+                        'ward' => $data['ward'] ?? null,
+                        'street' => $data['street'],
                     ],
                     'occupation' => $data['occupation'],
                     'sales_experience' => $data['sales_experience'],
@@ -121,11 +145,15 @@ class PartnerApplicationController extends Controller
                     'previous_agent_details' => $data['previous_agent_details'] ?? null,
                     'why_affiliate' => $data['why_affiliate'],
                     'acquisition_methods' => array_values($data['acquisition_methods']),
-                    'channels' => array_values($data['channels']),
+                    'channels' => $channels,
                     'social_profile_url' => $data['social_profile_url'] ?? null,
                     'reach' => $data['monthly_reach'],
                     'monthly_reach' => $data['monthly_reach'],
-                    'how_heard' => $data['how_heard'],
+                    'how_heard' => $acquisitionSource,
+                    'acquisition_source' => [
+                        'key' => $howHeardKey,
+                        'label' => $acquisitionSource,
+                    ],
                     'first_10_customers' => $data['first_10_customers'],
                     'registered_business' => $data['registered_business'],
                     'declarations' => [

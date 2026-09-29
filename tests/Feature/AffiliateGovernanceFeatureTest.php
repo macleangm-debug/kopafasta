@@ -317,6 +317,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'gender' => 'female',
             'district' => 'Ilala',
             'ward' => 'Kariakoo',
+            'street' => 'Uhuru Street',
             'region' => 'Dar es Salaam',
             'occupation' => 'Shop owner',
             'sales_experience' => 'I sell airtime and assist customers daily.',
@@ -326,7 +327,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'acquisition_methods' => ['existing_customers', 'community'],
             'channels' => ['whatsapp'],
             'monthly_reach' => '11-30',
-            'how_heard' => 'Friend',
+            'how_heard' => 'friend',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
             'registered_business' => 'no',
             'declaration_accepted' => '1',
@@ -340,6 +341,9 @@ class AffiliateGovernanceFeatureTest extends TestCase
         // Standard affiliate apply opens the application fee payment before review.
         $this->assertSame('awaiting_fee', $application->status);
         $this->assertSame('Shop owner', $application->payload['occupation'] ?? null);
+        $this->assertSame('friend', $application->payload['acquisition_source']['key'] ?? null);
+        $this->assertSame(__('site.affiliate_apply.how_heard_options.friend'), $application->payload['how_heard'] ?? null);
+        $this->assertSame('Uhuru Street', $application->payload['identity']['street'] ?? null);
         $this->assertSame([], $application->coverage_regions ?? []);
         $this->assertSame(1, CustomerPayment::query()->where('payment_type', 'affiliate_application_fee')->count());
     }
@@ -358,6 +362,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
                 'gender' => 'male',
                 'district' => 'Ilala',
                 'ward' => 'Kariakoo',
+                'street' => 'Samora Avenue',
                 'occupation' => 'Content creator',
                 'sales_experience' => 'I promote products to an online audience.',
                 'languages' => ['sw'],
@@ -365,8 +370,9 @@ class AffiliateGovernanceFeatureTest extends TestCase
                 'why_affiliate' => 'I already advise followers about loans.',
                 'acquisition_methods' => ['social_media'],
                 'channels' => ['instagram'],
+                'social_profile_url' => 'https://instagram.com/example',
                 'monthly_reach' => '100+',
-                'how_heard' => 'Social media',
+                'how_heard' => 'instagram',
                 'first_10_customers' => 'I will share from my existing online audience.',
                 'registered_business' => 'no',
                 'declaration_accepted' => '1',
@@ -385,6 +391,7 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'gender' => 'male',
             'district' => 'Ilala',
             'ward' => 'Kariakoo',
+            'street' => 'Samora Avenue',
             'region' => 'Dar es Salaam',
             'occupation' => 'Content creator',
             'sales_experience' => 'I promote products to an online audience.',
@@ -393,8 +400,9 @@ class AffiliateGovernanceFeatureTest extends TestCase
             'why_affiliate' => 'I already advise followers about loans.',
             'acquisition_methods' => ['social_media'],
             'channels' => ['instagram'],
+            'social_profile_url' => 'https://instagram.com/example',
             'monthly_reach' => '100+',
-            'how_heard' => 'Social media',
+            'how_heard' => 'instagram',
             'first_10_customers' => 'I will share from my existing online audience.',
             'registered_business' => 'no',
             'declaration_accepted' => '1',

@@ -53,7 +53,20 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertStringContainsString('goNext()', $html);
         $this->assertStringContainsString('canLeaveStep', $html);
         $this->assertStringContainsString('missingOnStep', $html);
+        $this->assertStringContainsString('needsSocialProfile', $html);
         $this->assertStringContainsString('function affiliateApplyForm', $html);
+        $apply = file_get_contents(resource_path('views/site/affiliate/apply.blade.php'));
+        $this->assertStringContainsString(':requireStreet="true"', $apply);
+        $this->assertStringContainsString('how_heard_options', $apply);
+        $this->assertStringContainsString('how_heard_other', $apply);
+        $this->assertStringContainsString('needsSocialProfile()', $apply);
+        $nida = file_get_contents(resource_path('views/components/site/form-nida-capture.blade.php'));
+        $this->assertStringContainsString('kf-document-saved', $nida);
+        $this->assertStringContainsString('nida_camera_title_front', $nida);
+        $single = file_get_contents(resource_path('views/components/site/single-image-document-upload.blade.php'));
+        $this->assertStringContainsString('data-kf-form-nida-capture', $single);
+        $this->assertStringContainsString('_commitLock', $single);
+        $this->assertStringContainsString('markAttachedLocally', $single);
         $this->assertStringNotContainsString('scrollStepIntoView()); }); this.$watch', $html);
         $this->assertStringNotContainsString('data-step=\"', $html);
     }
@@ -78,6 +91,7 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
                 'date_of_birth',
                 'gender',
                 'district',
+                'street',
                 'occupation',
                 'conduct_accepted',
                 'doc_national_id_front',
@@ -126,10 +140,38 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
         $this->assertNotNull($application);
         $this->assertSame('1990-05-12', $application->payload['identity']['date_of_birth'] ?? null);
         $this->assertSame('female', $application->payload['identity']['gender'] ?? null);
+        $this->assertSame('Uhuru Street', $application->payload['identity']['street'] ?? null);
         $this->assertSame('11-30', $application->payload['monthly_reach'] ?? null);
+        $this->assertSame('friend', $application->payload['acquisition_source']['key'] ?? null);
         $this->assertTrue((bool) ($application->payload['declarations']['applicant']['accepted'] ?? false));
         $this->assertSame('application_conduct_v1', $application->payload['declarations']['conduct']['version'] ?? null);
         $this->assertNotEmpty($application->payload['declarations']['conduct']['accepted_at'] ?? null);
+    }
+
+    public function test_offline_affiliate_can_submit_without_social_profile(): void
+    {
+        Storage::fake('public');
+        Setting::set('affiliates.application_fee_required', false);
+
+        $this->post(route('site.affiliate.apply.post'), $this->completePayload([
+            'channels' => ['physical', 'business'],
+            'social_profile_url' => '',
+        ]))->assertRedirect(route('site.partners.apply.tracking', ['phone' => '+255712345911']));
+
+        $this->assertNotNull(PartnerApplication::query()->where('email', 'complete@example.com')->first());
+    }
+
+    public function test_social_channel_requires_social_profile_url(): void
+    {
+        Storage::fake('public');
+
+        $this->from(route('site.affiliate.apply'))
+            ->post(route('site.affiliate.apply.post'), $this->completePayload([
+                'channels' => ['instagram'],
+                'social_profile_url' => '',
+            ]))
+            ->assertRedirect(route('site.affiliate.apply'))
+            ->assertSessionHasErrors('social_profile_url');
     }
 
     public function test_contract_revision_four_publishes_conduct_without_overwriting_history(): void
@@ -180,6 +222,7 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
             'gender' => 'female',
             'district' => 'Ilala',
             'ward' => 'Kariakoo',
+            'street' => 'Uhuru Street',
             'region' => 'Dar es Salaam',
             'occupation' => 'shop_owner',
             'sales_experience' => 'I sell airtime and assist customers daily.',
@@ -189,7 +232,7 @@ class AffiliateApplicationUatBlockerPassFeatureTest extends TestCase
             'acquisition_methods' => ['existing_customers', 'community'],
             'channels' => ['whatsapp'],
             'monthly_reach' => '11-30',
-            'how_heard' => 'Friend',
+            'how_heard' => 'friend',
             'first_10_customers' => 'I will start with my regular shop customers this month.',
             'registered_business' => 'no',
             'declaration_accepted' => '1',

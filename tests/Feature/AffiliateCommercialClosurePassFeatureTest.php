@@ -523,9 +523,10 @@ class AffiliateCommercialClosurePassFeatureTest extends TestCase
             'gender' => 'female',
             'district' => 'Ilala',
             'ward' => 'Kariakoo',
+            'street' => 'Uhuru Street',
             'previous_agent' => 'no',
             'channels' => ['whatsapp', 'physical'],
-            'how_heard' => 'Friend referral',
+            'how_heard' => 'friend',
             'registered_business' => 'no',
             'conduct_accepted' => '1',
         ];

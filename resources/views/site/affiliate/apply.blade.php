@@ -75,6 +75,10 @@
             'business' => __('site.affiliate_apply.channel_business'),
             'other' => __('site.affiliate_apply.channel_other'),
         ];
+        $howHeardOptions = trans('site.affiliate_apply.how_heard_options');
+        if (! is_array($howHeardOptions)) {
+            $howHeardOptions = [];
+        }
         $conductItems = trans('site.affiliate_apply.conduct_items');
         if (! is_array($conductItems)) {
             $conductItems = array_values(array_filter([
@@ -91,6 +95,7 @@
             'phone' => __('site.affiliate_apply.missing_phone'),
             'region' => __('site.affiliate_apply.missing_region'),
             'district' => __('site.affiliate_apply.missing_district'),
+            'street' => __('site.affiliate_apply.missing_street'),
             'business_name' => __('site.affiliate_apply.missing_business_name'),
             'occupation' => __('site.affiliate_apply.missing_occupation'),
             'occupation_other' => __('site.affiliate_apply.missing_occupation_other'),
@@ -102,6 +107,8 @@
             'channels' => __('site.affiliate_apply.missing_channels'),
             'monthly_reach' => __('site.affiliate_apply.missing_monthly_reach'),
             'how_heard' => __('site.affiliate_apply.missing_how_heard'),
+            'how_heard_other' => __('site.affiliate_apply.missing_how_heard_other'),
+            'social_profile_url' => __('site.affiliate_apply.missing_social_profile'),
             'first_10_customers' => __('site.affiliate_apply.missing_first_10'),
             'registered_business' => __('site.affiliate_apply.missing_registered_business'),
             'registration_number' => __('site.affiliate_apply.missing_registration_number'),
@@ -114,10 +121,11 @@
         ];
         $missingSteps = [
             'full_name' => 1, 'date_of_birth' => 1, 'gender' => 1, 'email' => 1, 'phone' => 1,
-            'region' => 1, 'district' => 1, 'business_name' => 1,
+            'region' => 1, 'district' => 1, 'street' => 1, 'business_name' => 1,
             'occupation' => 2, 'occupation_other' => 2, 'sales_experience' => 2, 'languages' => 2,
             'why_affiliate' => 2, 'previous_agent_details' => 2,
             'acquisition_methods' => 3, 'channels' => 3, 'monthly_reach' => 3, 'how_heard' => 3,
+            'how_heard_other' => 3, 'social_profile_url' => 3,
             'first_10_customers' => 3, 'registered_business' => 3, 'registration_number' => 3, 'tin' => 3,
             'doc_brela' => 3, 'doc_tin_certificate' => 3, 'doc_national_id' => 3,
             'declaration_accepted' => 4, 'conduct_accepted' => 4,
@@ -158,9 +166,7 @@
               x-ref="affiliateForm"
               @input="computeMissing()"
               @change="computeMissing()"
-              class="glass-card p-6 sm:p-8 space-y-5"
-              data-inline-document-progress
-              data-saving-message="{{ __('borrower.document_upload.saving') }}">
+              class="glass-card p-6 sm:p-8 space-y-5">
             @csrf
 
             <div x-ref="stepRail"
@@ -188,7 +194,7 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.full_name') }}</label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.full_name') }} <span class="text-red-500">*</span></label>
                     <input name="full_name" value="{{ old('full_name') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 </div>
                 <div class="grid sm:grid-cols-2 gap-4 items-start">
@@ -218,7 +224,7 @@
                 </div>
                 <p class="text-xs text-gray-500 -mt-2">{{ __('borrower.register.age_notice', ['age' => 18]) }}</p>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.email') }}</label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.email') }} <span class="text-red-500">*</span></label>
                     <input type="email" name="email" value="{{ old('email') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
                 </div>
                 <div class="min-w-0">
@@ -236,7 +242,9 @@
                         :region="old('region')"
                         :district="old('district')"
                         :ward="old('ward')"
-                        :showStreet="false"
+                        :street="old('street')"
+                        :showStreet="true"
+                        :requireStreet="true"
                         :required="true"
                     />
                     <p class="mt-1 text-xs text-gray-500">{{ __('site.affiliate_apply.region_hint') }}</p>
@@ -364,20 +372,27 @@
                     </div>
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-gray-600 mb-2">{{ __('site.affiliate_apply.channels_label') }}</p>
+                    <p class="text-xs font-medium text-gray-600 mb-2">{{ __('site.affiliate_apply.channels_label') }} <span class="text-red-500">*</span></p>
                     <div class="flex flex-wrap gap-3">
                         @foreach ($channelOptions as $value => $label)
                             <label class="inline-flex items-center gap-2 text-sm rounded-xl ring-1 ring-gray-200 px-3 py-2">
-                                <input type="checkbox" name="channels[]" value="{{ $value }}" class="rounded border-gray-300 text-brand" @checked(in_array($value, old('channels', []), true))>
+                                <input type="checkbox" name="channels[]" value="{{ $value }}" class="rounded border-gray-300 text-brand"
+                                       @change="computeMissing()"
+                                       @checked(in_array($value, old('channels', []), true))>
                                 {{ $label }}
                             </label>
                         @endforeach
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.social_profile_url') }}</label>
+                <div x-show="needsSocialProfile()" x-cloak>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">
+                        {{ __('site.affiliate_apply.social_profile_url') }}
+                        <span class="text-red-500">*</span>
+                    </label>
                     <input type="url" name="social_profile_url" value="{{ old('social_profile_url') }}" placeholder="https://"
-                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                           class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm"
+                           :required="needsSocialProfile()">
+                    <p class="mt-1 text-xs text-gray-500">{{ __('site.affiliate_apply.social_profile_hint') }}</p>
                 </div>
                 <div>
                     <x-site.sheet-select
@@ -390,11 +405,19 @@
                     />
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.how_heard') }}</label>
-                    <input name="how_heard" value="{{ old('how_heard') }}" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">
+                    <x-site.sheet-select
+                        name="how_heard"
+                        :label="__('site.affiliate_apply.how_heard')"
+                        :options="$howHeardOptions"
+                        :value="old('how_heard')"
+                        :placeholder="__('site.affiliate_apply.select_how_heard')"
+                        :required="true"
+                        other-name="how_heard_other"
+                        :other-label="__('site.affiliate_apply.how_heard_other')"
+                    />
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.first_10') }}</label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">{{ __('site.affiliate_apply.first_10') }} <span class="text-red-500">*</span></label>
                     <textarea name="first_10_customers" rows="4" required class="w-full rounded-lg border-gray-300 ring-1 ring-gray-200 px-3 py-2.5 text-sm">{{ old('first_10_customers') }}</textarea>
                 </div>
                 <div>
@@ -572,6 +595,13 @@
                     return (frontHidden && backHidden)
                         || (this.hasFile('doc_national_id_front') && this.hasFile('doc_national_id_back'));
                 },
+                needsSocialProfile() {
+                    const form = this.$refs.affiliateForm;
+                    if (!form) return false;
+                    return ['instagram', 'facebook', 'tiktok'].some((channel) => {
+                        return !!form.querySelector('[name="channels[]"][value="' + channel + '"]:checked');
+                    });
+                },
                 computeMissing() {
                     const next = [];
                     const push = (key) => {
@@ -590,6 +620,7 @@
                     if (!this.formValue('phone')) push('phone');
                     if (!this.formValue('region')) push('region');
                     if (!this.formValue('district')) push('district');
+                    if (!this.formValue('street')) push('street');
                     if (this.applicant === 'company' && !this.formValue('business_name')) push('business_name');
                     const occ = this.formValue('occupation');
                     if (!occ) push('occupation');
@@ -601,7 +632,10 @@
                     if (this.checkedCount('acquisition_methods') < 1) push('acquisition_methods');
                     if (this.checkedCount('channels') < 1) push('channels');
                     if (!this.formValue('monthly_reach')) push('monthly_reach');
-                    if (!this.formValue('how_heard')) push('how_heard');
+                    const howHeard = this.formValue('how_heard');
+                    if (!howHeard) push('how_heard');
+                    if (howHeard === 'other' && !this.formValue('how_heard_other')) push('how_heard_other');
+                    if (this.needsSocialProfile() && !this.formValue('social_profile_url')) push('social_profile_url');
                     if (!this.formValue('first_10_customers')) push('first_10_customers');
                     if (!this.registeredBusiness) push('registered_business');
                     if (this.registeredBusiness === 'yes' && this.applicant === 'individual') {

@@ -22,29 +22,29 @@
         backName: '',
         frontPreview: '',
         backPreview: '',
-        start() {
+        openSide(which) {
             this.phase = 'journey';
-            this.side = 'front';
+            this.side = which;
+            const hostId = which === 'front' ? @js($frontHost) : @js($backHost);
             this.$nextTick(() => {
                 window.dispatchEvent(new CustomEvent('document-source', {
-                    detail: { source: 'camera', hostId: @js($frontHost) },
+                    detail: { source: 'camera', hostId },
                 }));
             });
         },
+        start() { this.openSide('front'); },
         markFront(detail) {
+            if (this.frontDone) return;
             this.frontDone = true;
             this.frontName = detail?.file?.name || @js(__('borrower.profile.national_id_side_front'));
             if (detail?.file && String(detail.file.type || '').startsWith('image/')) {
                 try { this.frontPreview = URL.createObjectURL(detail.file); } catch (e) { this.frontPreview = ''; }
             }
-            this.side = 'back';
-            this.$nextTick(() => {
-                window.dispatchEvent(new CustomEvent('document-source', {
-                    detail: { source: 'camera', hostId: @js($backHost) },
-                }));
-            });
+            // Advance after the camera has closed (same surface, Borrower Front→Back).
+            this.$nextTick(() => this.openSide('back'));
         },
         markBack(detail) {
+            if (this.backDone) return;
             this.backDone = true;
             this.backName = detail?.file?.name || @js(__('borrower.profile.national_id_side_back'));
             if (detail?.file && String(detail.file.type || '').startsWith('image/')) {
@@ -53,8 +53,6 @@
             this.phase = 'complete';
         },
         retake(which) {
-            this.phase = 'journey';
-            this.side = which;
             if (which === 'front') {
                 this.frontDone = false;
                 this.frontName = '';
@@ -67,15 +65,10 @@
                 if (this.backPreview) { try { URL.revokeObjectURL(this.backPreview); } catch (e) {} }
                 this.backPreview = '';
             }
-            const hostId = which === 'front' ? @js($frontHost) : @js($backHost);
-            this.$nextTick(() => {
-                window.dispatchEvent(new CustomEvent('document-source', {
-                    detail: { source: 'camera', hostId },
-                }));
-            });
+            this.openSide(which);
         },
      }"
-     @kf-document-file.window="
+     @kf-document-saved.window="
         if ($event.detail?.hostId === @js($frontHost) && $event.detail?.file) {
             markFront($event.detail);
         }
@@ -150,7 +143,8 @@
                 :input-host-id="$frontHost"
                 facing="environment"
                 guide-frame="id-card"
-                :guide="__('borrower.document_upload.nida_front_guide')"
+                :guide-title="__('site.affiliate_apply.nida_camera_title_front')"
+                :guide="__('site.affiliate_apply.nida_camera_hint_front')"
                 :source-driven="true"
                 :camera-only="true"
                 :required="$required"
@@ -175,7 +169,8 @@
                 :input-host-id="$backHost"
                 facing="environment"
                 guide-frame="id-card"
-                :guide="__('borrower.document_upload.nida_back_guide')"
+                :guide-title="__('site.affiliate_apply.nida_camera_title_back')"
+                :guide="__('site.affiliate_apply.nida_camera_hint_back')"
                 :source-driven="true"
                 :camera-only="true"
                 :required="$required"

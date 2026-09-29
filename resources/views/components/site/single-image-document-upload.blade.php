@@ -7,6 +7,7 @@
     'cameraOnly' => false,
     'autoSubmit' => false,
     'guide' => null,
+    'guideTitle' => null,
     'guideFrame' => null,
     'showOval' => null,
     'largePreview' => false,
@@ -47,6 +48,7 @@
     if ($sourceDriven || $cameraOnly) {
         $labelDefaults['saving'] = $labelDefaults['saving'] ?? __('borrower.document_upload.saving');
         $labelDefaults['saved'] = $labelDefaults['saved'] ?? __('borrower.document_upload.saved');
+        $labelDefaults['couldNotSave'] = $labelDefaults['couldNotSave'] ?? __('borrower.document_upload.could_not_save');
     }
     $mergedLabels = array_merge($labelDefaults, $labels);
     $inlinePreview = $autoSubmit && $cameraOnly;
@@ -180,9 +182,19 @@
                 @endif
             @elseif ($showIdCard)
                 <div class="absolute inset-0 z-[2] flex flex-col items-center justify-center pointer-events-none px-6 gap-4">
-                    @if (filled($guide))
-                        <p class="absolute top-[max(3.5rem,calc(env(safe-area-inset-top)+2.75rem))] left-1/2 -translate-x-1/2 w-[calc(100%-2.5rem)] max-w-sm text-center text-sm font-semibold text-white bg-black/50 backdrop-blur-sm rounded-2xl px-4 py-2.5 leading-snug shadow-sm">{{ $guide }}</p>
-                    @endif
+                    {{-- Reuse facial-camera instruction hierarchy; keep ID-card frame. --}}
+                    <div class="absolute inset-x-0 top-[max(3.5rem,calc(env(safe-area-inset-top)+2.75rem))] z-[4] flex justify-center pointer-events-none px-5">
+                        <div class="w-full max-w-sm text-center rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/20 px-4 py-3 text-white shadow-lg">
+                            @if (filled($guideTitle))
+                                <p class="text-lg sm:text-xl font-extrabold leading-tight uppercase tracking-wide">{{ $guideTitle }}</p>
+                                @if (filled($guide))
+                                    <p class="text-xs sm:text-sm text-white/90 mt-1.5 leading-snug font-semibold">{{ $guide }}</p>
+                                @endif
+                            @elseif (filled($guide))
+                                <p class="text-lg sm:text-xl font-extrabold leading-tight">{{ $guide }}</p>
+                            @endif
+                        </div>
+                    </div>
                     <div class="w-full max-w-md aspect-[1.586] rounded-xl border-[2.5px] border-dashed border-amber-300/90 shadow-[0_0_20px_rgba(251,191,36,0.25)]"></div>
                 </div>
             @elseif (filled($guide))
@@ -207,6 +219,13 @@
                     <span class="size-4 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true"></span>
                     <span x-text="labels.saving || @js(__('borrower.document_upload.saving'))"></span>
                 </p>
+            </div>
+            <div x-show="saveState === 'error'" x-cloak class="absolute inset-0 z-[6] bg-black/70 flex flex-col items-center justify-center gap-3 px-6">
+                <p class="text-sm font-semibold text-white text-center" x-text="cameraNotice || labels.couldNotSave || @js(__('borrower.document_upload.could_not_save'))"></p>
+                <button type="button" @click="saveState = ''; cameraNotice = null; requestCamera()"
+                        class="rounded-full bg-brand-gold text-brand font-bold px-5 py-3 text-sm">
+                    {{ __('borrower.document_upload.retry') }}
+                </button>
             </div>
         </div>
     </template>
@@ -255,6 +274,8 @@
                 saveState: '', // '' | saving | saved | error
                 _cameraStarting: false,
                 _cameraToken: 0,
+                _commitLock: false,
+                _saveWatchdog: null,
                 requestCamera() {
                     if (this.hasGuide) {
                         this.guideOpen = true;
@@ -281,6 +302,11 @@
                     }
                 },
                 markSaved() {
+                    if (this._saveWatchdog) {
+                        clearTimeout(this._saveWatchdog);
+                        this._saveWatchdog = null;
+                    }
+                    this._commitLock = false;
                     if (this.saveState === 'saving' || this.saveState === '') {
                         this.saveState = 'saved';
                         this.submitting = false;
@@ -288,6 +314,11 @@
                     }
                 },
                 markAttachedLocally() {
+                    if (this._saveWatchdog) {
+                        clearTimeout(this._saveWatchdog);
+                        this._saveWatchdog = null;
+                    }
+                    this._commitLock = false;
                     this.submitting = false;
                     this.saveState = 'saved';
                     this.closeCamera();
@@ -295,6 +326,13 @@
                     if (form) {
                         delete form.dataset.kfSubmitting;
                     }
+                    window.dispatchEvent(new CustomEvent('kf-document-saved', {
+                        detail: {
+                            hostId: this.hostId,
+                            fieldName: this.fieldName,
+                            file: this.pendingFile,
+                        },
+                    }));
                     if (typeof window.kfFlashInlineSaved === 'function') {
                         window.kfFlashInlineSaved(this.labels.saved || @js(__('borrower.document_upload.saved')));
                     } else if (typeof window.kfHideSaving === 'function') {
@@ -302,9 +340,20 @@
                     }
                 },
                 markSaveError() {
+                    if (this._saveWatchdog) {
+                        clearTimeout(this._saveWatchdog);
+                        this._saveWatchdog = null;
+                    }
+                    this._commitLock = false;
                     if (this.saveState === 'saving') {
                         this.saveState = 'error';
-                        this.closeCamera();
+                        if (! this.cameraOnly) {
+                            this.closeCamera();
+                        }
+                        if (typeof window.kfHideSaving === 'function') {
+                            window.kfHideSaving();
+                        }
+                        this.cameraNotice = this.labels.couldNotSave || @js(__('borrower.document_upload.could_not_save'));
                     }
                 },
                 init() {
@@ -461,7 +510,7 @@
                 },
                 captureImage() {
                     const video = this.$refs.camVideo;
-                    if (!video?.videoWidth || this.saveState === 'saving') return;
+                    if (!video?.videoWidth || this.saveState === 'saving' || this._commitLock) return;
                     const canvas = document.createElement('canvas');
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
@@ -472,7 +521,7 @@
                     }
                     ctx.drawImage(video, 0, 0);
                     canvas.toBlob(blob => {
-                        if (!blob) return;
+                        if (!blob || this.saveState === 'saving' || this._commitLock) return;
                         const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
                         // National ID camera-only: keep camera up with Saving… (face-style), then close.
                         if (this.cameraOnly && this.sourceDriven) {
@@ -532,7 +581,10 @@
                 },
                 syncFile(file, opts = {}) {
                     const host = document.getElementById(this.hostId);
-                    if (!host) return;
+                    if (!host) {
+                        this.markSaveError();
+                        return;
+                    }
                     host.innerHTML = '';
                     const input = document.createElement('input');
                     input.type = 'file';
@@ -551,7 +603,9 @@
                     // Camera-only (National ID): shutter autosaves — no Hifadhi / Tumia picha review.
                     // Other source-driven camera paths may still offer a brief Use-photo confirm.
                     this.awaitingReview = !!(this.sourceDriven && this.fromCamera && ! this.autoSubmit && ! this.cameraOnly);
-                    this.saveState = '';
+                    if (! (this.cameraOnly && this.sourceDriven && this.fromCamera)) {
+                        this.saveState = '';
+                    }
                     this.previewName = file.name || 'capture.jpg';
                     if (file.type && file.type.startsWith('image/')) {
                         this.previewUrl = URL.createObjectURL(file);
@@ -570,8 +624,17 @@
                 commitFile(file) {
                     const payload = file || this.pendingFile;
                     if (! payload) return;
+                    if (this._commitLock) return;
+                    this._commitLock = true;
                     this.saveState = 'saving';
                     this.awaitingReview = false;
+                    if (this._saveWatchdog) clearTimeout(this._saveWatchdog);
+                    this._saveWatchdog = setTimeout(() => {
+                        if (this.saveState === 'saving') {
+                            this.markSaveError();
+                        }
+                    }, 12000);
+
                     window.dispatchEvent(new CustomEvent('kf-document-file', {
                         detail: { hostId: this.hostId, fieldName: this.fieldName, file: payload },
                     }));
@@ -579,26 +642,34 @@
                         this.submitClosestForm();
                         return;
                     }
-                    // Prevent form autosubmit when inside the NIDA directive journey (AJAX owns persistence).
+                    // Borrower Profile NIDA: AJAX journey owns persistence + kf-document-saved.
+                    if (this.sourceDriven && this.$el.closest('[data-kf-national-id-holder]')) {
+                        return;
+                    }
+                    // Form-local attach (Affiliate apply NIDA / public holders): file stays on the
+                    // parent form. Never requestSubmit — that stalls forever on Saving….
+                    const localAttach = !!(
+                        this.$el.closest('[data-document-attach-only]')
+                        || this.$el.closest('[data-kf-form-nida-capture]')
+                        || (this.sourceDriven && this.cameraOnly)
+                    );
+                    if (localAttach) {
+                        this.markAttachedLocally();
+                        return;
+                    }
                     if (this.sourceDriven) {
-                        if (this.$el.closest('[data-kf-national-id-holder]')) {
-                            return;
-                        }
                         const form = this.$el.closest('form');
                         const isApply = !!(form && (form.id === 'apply-wizard-form' || form.hasAttribute('data-apply-wizard-form')));
-                        const attachOnly = !!this.$el.closest('[data-document-attach-only]');
-                        if (attachOnly) {
-                            // Public/admin apply holders keep the file on the parent form.
-                            // Never requestSubmit() the unfinished application — that stalls on Saving….
-                            this.markAttachedLocally();
-                            return;
-                        }
                         if (form && ! isApply) {
                             this.submitClosestForm();
                         } else if (isApply) {
                             // Apply AJAX upload owns persistence; mark saved when holder clears pending.
                             this.saveState = 'saving';
+                        } else {
+                            this.markAttachedLocally();
                         }
+                    } else {
+                        this.markAttachedLocally();
                     }
                 },
                 submitClosestForm() {

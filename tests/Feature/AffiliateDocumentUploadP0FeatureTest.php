@@ -16,9 +16,9 @@ class AffiliateDocumentUploadP0FeatureTest extends TestCase
 
         $this->assertStringContainsString('data-document-attach-only', $formDoc);
         $this->assertStringContainsString('data-document-attach-only', $adminDoc);
-        $this->assertStringContainsString('const attachOnly = !!this.$el.closest(\'[data-document-attach-only]\')', $single);
+        $this->assertStringContainsString("this.\$el.closest('[data-document-attach-only]')", $single);
         $this->assertStringContainsString('this.markAttachedLocally()', $single);
-        $this->assertStringContainsString('Never requestSubmit() the unfinished application', $single);
+        $this->assertStringContainsString('Never requestSubmit', $single);
         $this->assertStringContainsString('kfFlashInlineSaved', $single);
         $this->assertStringContainsString('[data-document-attach-only]', $multi);
         $this->assertStringContainsString('kfFlashInlineSaved', $multi);
