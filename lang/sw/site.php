@@ -187,6 +187,7 @@ return [
         'track_info_supplied_body' => 'Taarifa zimetumwa — Kopafasta inaendelea na ukaguzi.',
         'track_request_item' => 'Kipengele kilichoombwa',
         'track_request_fill' => 'Jaza',
+        'track_request_replace' => 'Badilisha +',
         'track_request_submitted' => 'Imetumwa',
         'track_request_submit' => 'Tuma',
         'track_request_saved' => 'Asante — majibu yako yametumwa.',

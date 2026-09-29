@@ -61,6 +61,8 @@ class PartnerApplicationController extends Controller
             'application' => $partnerApplication,
             'review' => $review,
             'requestCatalog' => app(PartnerApplicationDecisionService::class)->requestCatalog(),
+            'existingDocumentOptions' => app(PartnerApplicationDecisionService::class)
+                ->existingDocumentOptions($partnerApplication),
             'anomalies' => app(\App\Services\PartnerEnrollmentAnomalyService::class)
                 ->forApplication($partnerApplication, $review),
             'performance' => $performance,
@@ -75,8 +77,11 @@ class PartnerApplicationController extends Controller
             'rejection_reason' => ['nullable', 'string', 'max:60'],
             'request_kind' => ['nullable', 'in:document,information'],
             'request_type' => ['nullable', 'string', 'max:60'],
+            'request_mode' => ['nullable', 'in:new,replace'],
             'request_other_label' => ['nullable', 'string', 'max:120'],
             'request_explanation' => ['nullable', 'string', 'max:2000'],
+            'replace_reason' => ['nullable', 'string', 'max:60'],
+            'replace_reason_other' => ['nullable', 'string', 'max:200'],
         ]);
 
         try {

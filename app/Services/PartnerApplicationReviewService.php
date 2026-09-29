@@ -49,8 +49,8 @@ class PartnerApplicationReviewService
             : 100;
 
         $identity = [
-            'national_id_front' => $documents->firstWhere('doc_type', 'national_id_front'),
-            'national_id_back'  => $documents->firstWhere('doc_type', 'national_id_back'),
+            'national_id_front' => $documents->where('doc_type', 'national_id_front')->sortByDesc('id')->first(),
+            'national_id_back'  => $documents->where('doc_type', 'national_id_back')->sortByDesc('id')->first(),
         ];
 
         $payload = is_array($application->payload) ? $application->payload : [];
@@ -136,7 +136,11 @@ class PartnerApplicationReviewService
             'checklist_progress' => $checklistProgress,
             'required_docs'      => $requiredCount,
             'satisfied_docs'     => $satisfiedCount,
-            'documents'          => $documents->values()->all(),
+            'documents'          => $documents
+                ->groupBy('doc_type')
+                ->map(fn ($group) => $group->sortByDesc('id')->first())
+                ->values()
+                ->all(),
             'identity'           => $identity,
             'decision' => [
                 'status'       => $application->status,

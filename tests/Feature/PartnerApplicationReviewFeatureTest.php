@@ -216,6 +216,73 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->assertSame(1, Partner::query()->where('phone', '255712000111')->count());
     }
 
+    public function test_review_decision_panel_renders_actions_when_matching_partner_exists(): void
+    {
+        Partner::create([
+            'vendor_number' => 'PT-MATCH-001',
+            'name' => 'Existing Match',
+            'phone' => '255712000111',
+            'email' => 'amina@example.com',
+            'category' => 'debt_collector',
+            'status' => 'active',
+        ]);
+
+        $application = $this->makeApplication();
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.partner-applications.show', $application))
+            ->assertOk()
+            ->assertSee('Review decision', false)
+            ->assertSee('Action', false)
+            ->assertSee('>Approve<', false)
+            ->assertSee('Request information', false)
+            ->assertSee('>Decline<', false)
+            ->assertSee('Matching partner already exists', false)
+            ->assertSee('partnerApplicationDecision(JSON.parse(', false)
+            ->getContent();
+
+        $this->assertStringNotContainsString(
+            'partnerApplicationDecision({\n                    initialStatus: "',
+            $html
+        );
+    }
+
+    public function test_admin_can_request_document_replacement_without_declining(): void
+    {
+        Storage::fake('public');
+        $application = $this->makeApplication();
+        PartnerApplicationDocument::create([
+            'partner_application_id' => $application->id,
+            'doc_type' => 'national_id_front',
+            'file_path' => "partner-applications/{$application->id}/front.jpg",
+            'original_name' => 'front.jpg',
+            'mime' => 'image/jpeg',
+            'size_bytes' => 1024,
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.partner-applications.update', $application), [
+                'status' => 'needs_info',
+                'request_kind' => 'document',
+                'request_type' => 'national_id_front',
+                'request_mode' => 'replace',
+                'replace_reason' => 'not_clear',
+                'request_explanation' => 'Please retake in good lighting.',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application));
+
+        $application->refresh();
+        $this->assertSame('needs_info', $application->status);
+        $this->assertNull($application->partner_id);
+        $req = $application->payload['info_requests'][0];
+        $this->assertSame('replace', $req['mode']);
+        $this->assertSame('national_id_front', $req['type']);
+        $this->assertSame('not_clear', $req['replace_reason']);
+        $this->assertStringContainsString('not clear', strtolower((string) $req['explanation']));
+    }
+
     public function test_partners_list_view_redirects_to_canonical_partner_360_when_application_linked(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

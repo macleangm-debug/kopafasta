@@ -447,16 +447,167 @@
         {{-- Decision panel — Action → Review → Confirm → Execute (same surface) --}}
         <div class="lg:col-span-4 space-y-4">
             @php
-                $requestCatalog = $requestCatalog ?? ['documents' => [], 'information' => []];
+                $requestCatalog = $requestCatalog ?? ['documents' => [], 'information' => [], 'replace_reasons' => []];
+                $existingDocumentOptions = $existingDocumentOptions ?? [];
                 $existingPartnerMatch = collect($anomalies ?? [])->contains(fn ($a) => ($a['code'] ?? '') === 'existing_partner');
+                $decisionInitialStatus = in_array(($decision['status'] ?? ''), ['approved', 'rejected', 'needs_info'], true)
+                    ? $decision['status']
+                    : 'approved';
             @endphp
+
+            {{-- Define before Alpine evaluates nested x-data (must not break on parent tab scope). --}}
+            <script>
+                window.partnerApplicationDecision = function partnerApplicationDecision(config) {
+                    config = config || {};
+                    return {
+                        phase: 'compose',
+                        busy: false,
+                        status: config.initialStatus || 'approved',
+                        existingPartnerMatch: !!config.existingPartnerMatch,
+                        requestKind: 'document',
+                        requestMode: 'new',
+                        requestType: '',
+                        requestOtherMode: false,
+                        requestOtherLabel: '',
+                        requestExplanation: '',
+                        replaceReason: '',
+                        replaceReasonOtherMode: false,
+                        replaceReasonOther: '',
+                        rejectionReason: '',
+                        adminNotes: '',
+                        documentOptions: Object.entries(config.documentOptions || {}).map(([value, label]) => ({ value, label })),
+                        informationOptions: Object.entries(config.informationOptions || {}).map(([value, label]) => ({ value, label })),
+                        existingDocuments: Array.isArray(config.existingDocuments) ? config.existingDocuments : [],
+                        replaceReasons: Object.entries(config.replaceReasons || {}).map(([value, label]) => ({ value, label })),
+                        currentOptions() {
+                            if (this.requestKind === 'information') return this.informationOptions;
+                            if (this.requestMode === 'replace') return this.existingDocuments;
+                            // New requests: exclude types already present (those use Request update).
+                            const present = new Set(this.existingDocuments.map(d => d.value));
+                            return this.documentOptions.filter(o => !present.has(o.value) || o.value === 'other_document');
+                        },
+                        pickRequestType(value) {
+                            this.requestType = value;
+                            this.requestOtherMode = (value === 'other_document' || value === 'other_information');
+                            if (this.requestOtherMode) this.requestOtherLabel = '';
+                        },
+                        startReplace(value) {
+                            this.requestKind = 'document';
+                            this.requestMode = 'replace';
+                            this.requestType = value;
+                            this.requestOtherMode = false;
+                            this.replaceReason = '';
+                            this.replaceReasonOtherMode = false;
+                            this.replaceReasonOther = '';
+                        },
+                        cancelOther() {
+                            this.requestOtherMode = false;
+                            this.requestType = '';
+                            this.requestOtherLabel = '';
+                        },
+                        confirmOther() {
+                            if (!(this.requestOtherLabel || '').trim()) return;
+                            this.requestOtherMode = false;
+                        },
+                        pickReplaceReason(value) {
+                            this.replaceReason = value;
+                            this.replaceReasonOtherMode = value === 'other';
+                            if (!this.replaceReasonOtherMode) this.replaceReasonOther = '';
+                        },
+                        cancelReplaceReasonOther() {
+                            this.replaceReasonOtherMode = false;
+                            this.replaceReason = '';
+                            this.replaceReasonOther = '';
+                        },
+                        confirmReplaceReasonOther() {
+                            if (!(this.replaceReasonOther || '').trim()) return;
+                            this.replaceReasonOtherMode = false;
+                        },
+                        canReview() {
+                            if (this.status === 'needs_info') {
+                                if (!this.requestKind || !this.requestType) return false;
+                                if ((this.requestType === 'other_document' || this.requestType === 'other_information')
+                                    && !(this.requestOtherLabel || '').trim()) return false;
+                                if (this.requestOtherMode) return false;
+                                if (this.requestKind === 'document' && this.requestMode === 'replace') {
+                                    if (!this.replaceReason) return false;
+                                    if (this.replaceReason === 'other' && !(this.replaceReasonOther || '').trim()) return false;
+                                    if (this.replaceReasonOtherMode) return false;
+                                }
+                                return true;
+                            }
+                            if (this.status === 'rejected') {
+                                return !!this.rejectionReason && !!(this.adminNotes || '').trim();
+                            }
+                            return true;
+                        },
+                        primaryLabel() {
+                            return this.status === 'approved' ? 'Review & approve'
+                                : (this.status === 'rejected' ? 'Review & decline'
+                                    : (this.status === 'needs_info' ? 'Review & request info' : 'Review'));
+                        },
+                        confirmTitle() {
+                            return this.status === 'approved' ? 'Approve this application?'
+                                : (this.status === 'rejected' ? 'Decline this application?'
+                                    : (this.status === 'needs_info' ? 'Request this information?' : 'Save decision?'));
+                        },
+                        confirmMessage() {
+                            if (this.status === 'approved') {
+                                return this.existingPartnerMatch
+                                    ? 'Matching partner already exists. Approve will link this application to that partner (no duplicate account). They must still accept the Affiliate Agreement before Share & Earn.'
+                                    : 'This will create their ordinary Affiliate account using existing enrollment infrastructure. They must still accept the Affiliate Agreement before Share & Earn.';
+                            }
+                            if (this.status === 'needs_info') {
+                                const label = this.requestOtherLabel || (this.currentOptions().find(o => o.value === this.requestType)?.label || this.requestType);
+                                const reason = this.replaceReason === 'other'
+                                    ? this.replaceReasonOther
+                                    : (this.replaceReasons.find(r => r.value === this.replaceReason)?.label || '');
+                                const modeNote = this.requestMode === 'replace' ? ('Update/replace — ' + reason + '\n') : '';
+                                return modeNote + 'Applicant will see “' + label + '” on their tracking card.\n' + (this.requestExplanation || '');
+                            }
+                            if (this.status === 'rejected') {
+                                return 'The applicant will see your description on tracking. No partner account will be created.';
+                            }
+                            return 'Keep this application under review.';
+                        },
+                        confirmLabel() {
+                            return this.status === 'approved' ? 'Approve'
+                                : (this.status === 'rejected' ? 'Decline'
+                                    : (this.status === 'needs_info' ? 'Request information' : 'Save'));
+                        },
+                        onSubmit(event) {
+                            if (this.busy) {
+                                event.preventDefault();
+                                return;
+                            }
+                            if (this.phase === 'compose') {
+                                event.preventDefault();
+                                if (!this.canReview()) return;
+                                this.busy = true;
+                                setTimeout(() => {
+                                    this.busy = false;
+                                    this.phase = 'review';
+                                }, 180);
+                            }
+                        },
+                        execute() {
+                            if (this.busy) return;
+                            this.busy = true;
+                            this.$refs.decisionForm.submit();
+                        },
+                    };
+                };
+            </script>
+
             <div class="rounded-2xl shadow-sm overflow-hidden ring-2 ring-brand/25 bg-gradient-to-b from-brand-muted/50 to-white lg:sticky lg:top-4"
-                 x-data="partnerApplicationDecision({
-                    initialStatus: @js($decision['status']),
-                    existingPartnerMatch: @js($existingPartnerMatch),
-                    documentOptions: @js($requestCatalog['documents'] ?? []),
-                    informationOptions: @js($requestCatalog['information'] ?? []),
-                 })">
+                 x-data="partnerApplicationDecision(@js([
+                    'initialStatus' => $decisionInitialStatus,
+                    'existingPartnerMatch' => $existingPartnerMatch,
+                    'documentOptions' => $requestCatalog['documents'] ?? [],
+                    'informationOptions' => $requestCatalog['information'] ?? [],
+                    'replaceReasons' => $requestCatalog['replace_reasons'] ?? [],
+                    'existingDocuments' => $existingDocumentOptions,
+                 ]))">
                 <div class="bg-brand px-5 py-4 text-white">
                     <h2 class="text-[11px] font-bold uppercase tracking-widest text-brand-gold">Review decision</h2>
                     <p class="text-sm text-white/80 mt-1">Approve · Request information · Decline</p>
@@ -477,14 +628,19 @@
                     @csrf @method('PUT')
                     <input type="hidden" name="status" :value="status">
 
-                    {{-- Compose --}}
                     <div x-show="phase === 'compose'" class="space-y-4">
+                        @if ($existingPartnerMatch)
+                            <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2 text-xs text-amber-950">
+                                <p class="font-semibold">Matching partner already exists</p>
+                                <p class="mt-0.5 opacity-90">Phone, email or TIN matches an existing partner record. Approve will link to that partner (no duplicate). Request information and Decline remain available.</p>
+                            </div>
+                        @endif
+
                         <div>
                             <label class="block text-xs font-semibold text-brand mb-1">Action</label>
                             <select x-model="status" class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm focus:border-brand focus:ring-brand">
-                                <option value="pending">Under review</option>
-                                <option value="needs_info">Request information</option>
                                 <option value="approved">Approve</option>
+                                <option value="needs_info">Request information</option>
                                 <option value="rejected">Decline</option>
                             </select>
                         </div>
@@ -494,25 +650,72 @@
                                 <p class="text-xs font-semibold text-brand mb-2">What do you need?</p>
                                 <div class="grid grid-cols-2 gap-2">
                                     <label class="cursor-pointer">
-                                        <input type="radio" class="peer sr-only" value="document" x-model="requestKind" name="request_kind_ui">
+                                        <input type="radio" class="peer sr-only" value="document" x-model="requestKind" @change="requestMode = 'new'; requestType = ''; replaceReason = ''" name="request_kind_ui">
                                         <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-2 text-center text-xs font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50">Document</span>
                                     </label>
                                     <label class="cursor-pointer">
-                                        <input type="radio" class="peer sr-only" value="information" x-model="requestKind" name="request_kind_ui">
+                                        <input type="radio" class="peer sr-only" value="information" x-model="requestKind" @change="requestMode = 'new'; requestType = ''; replaceReason = ''" name="request_kind_ui">
                                         <span class="block rounded-xl ring-1 ring-gray-200 px-3 py-2 text-center text-xs font-semibold peer-checked:ring-brand peer-checked:bg-brand-muted/50">Information</span>
                                     </label>
                                 </div>
                             </div>
 
-                            <div x-show="requestKind && !requestOtherMode" x-cloak>
-                                <label class="block text-xs font-semibold text-brand mb-1">Select</label>
+                            <div x-show="requestKind === 'document' && existingDocuments.length" x-cloak class="space-y-2">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Existing documents — request update</p>
+                                <ul class="space-y-1 rounded-xl ring-1 ring-gray-200 p-1 max-h-40 overflow-y-auto">
+                                    <template x-for="doc in existingDocuments" :key="'ex-'+doc.value">
+                                        <li class="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50">
+                                            <span class="text-sm text-gray-800 truncate" x-text="doc.label"></span>
+                                            <button type="button" @click="startReplace(doc.value)"
+                                                    class="shrink-0 text-[11px] font-semibold text-brand px-2 py-1 rounded-lg ring-1 ring-brand/25 hover:bg-brand-muted/40"
+                                                    :class="requestMode === 'replace' && requestType === doc.value ? 'bg-brand-muted text-brand' : ''">
+                                                Request update
+                                            </button>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <div x-show="requestKind && !requestOtherMode && !(requestMode === 'replace' && requestType)" x-cloak>
+                                <label class="block text-xs font-semibold text-brand mb-1" x-text="requestKind === 'document' ? 'Request new document' : 'Select'"></label>
                                 <div class="max-h-48 overflow-y-auto space-y-1 rounded-xl ring-1 ring-gray-200 p-1">
                                     <template x-for="opt in currentOptions()" :key="opt.value">
-                                        <button type="button" @click="pickRequestType(opt.value)"
+                                        <button type="button" @click="requestMode = 'new'; pickRequestType(opt.value)"
                                                 class="w-full text-left px-3 py-2 rounded-lg text-sm"
-                                                :class="requestType === opt.value ? 'bg-brand-muted text-brand font-semibold' : 'hover:bg-gray-50 text-gray-800'"
+                                                :class="requestMode === 'new' && requestType === opt.value ? 'bg-brand-muted text-brand font-semibold' : 'hover:bg-gray-50 text-gray-800'"
                                                 x-text="opt.label"></button>
                                     </template>
+                                </div>
+                            </div>
+
+                            <div x-show="requestMode === 'replace' && requestType && !replaceReasonOtherMode" x-cloak class="space-y-2">
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="text-xs font-semibold text-brand truncate">
+                                        Update: <span x-text="existingDocuments.find(d => d.value === requestType)?.label || requestType"></span>
+                                    </p>
+                                    <button type="button" @click="requestMode = 'new'; requestType = ''; replaceReason = ''" class="text-xs font-semibold text-gray-500">Cancel</button>
+                                </div>
+                                <label class="block text-xs font-semibold text-brand mb-1">Reason <span class="text-red-500">*</span></label>
+                                <div class="max-h-40 overflow-y-auto space-y-1 rounded-xl ring-1 ring-gray-200 p-1">
+                                    <template x-for="reason in replaceReasons" :key="reason.value">
+                                        <button type="button" @click="pickReplaceReason(reason.value)"
+                                                class="w-full text-left px-3 py-2 rounded-lg text-sm"
+                                                :class="replaceReason === reason.value ? 'bg-brand-muted text-brand font-semibold' : 'hover:bg-gray-50 text-gray-800'"
+                                                x-text="reason.label"></button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div x-show="replaceReasonOtherMode" x-cloak class="space-y-2">
+                                <label class="block text-xs font-semibold text-brand">Custom reason <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="replaceReasonOther" maxlength="200"
+                                       class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm px-3 py-2.5"
+                                       placeholder="Describe why the document must be updated">
+                                <div class="flex justify-between gap-2">
+                                    <button type="button" @click="cancelReplaceReasonOther()" class="text-sm font-semibold text-gray-600 px-2 py-2">Cancel</button>
+                                    <button type="button" @click="confirmReplaceReasonOther()" class="rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2"
+                                            :disabled="!(replaceReasonOther || '').trim()"
+                                            :class="!(replaceReasonOther || '').trim() ? 'opacity-40 pointer-events-none' : ''">Continue</button>
                                 </div>
                             </div>
 
@@ -529,8 +732,8 @@
                                 </div>
                             </div>
 
-                            <div x-show="requestType && !requestOtherMode" x-cloak>
-                                <label class="block text-xs font-semibold text-brand mb-1">Short explanation (optional)</label>
+                            <div x-show="requestType && !requestOtherMode && !replaceReasonOtherMode && (requestMode !== 'replace' || replaceReason)" x-cloak>
+                                <label class="block text-xs font-semibold text-brand mb-1">Short instruction (optional)</label>
                                 <textarea x-model="requestExplanation" rows="2"
                                           class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm"
                                           placeholder="Shown to the applicant with this request"></textarea>
@@ -558,22 +761,25 @@
                             </div>
                         </div>
 
-                        <div x-show="status === 'approved' || status === 'pending'" x-cloak>
+                        <div x-show="status === 'approved'" x-cloak>
                             <label class="block text-xs font-semibold text-brand mb-1">Internal notes (optional)</label>
                             <textarea name="admin_notes" x-model="adminNotes" rows="2"
-                                      :disabled="status !== 'approved' && status !== 'pending'"
+                                      :disabled="status !== 'approved'"
                                       class="w-full rounded-xl border-brand/20 bg-white ring-1 ring-brand/20 text-sm"
                                       placeholder="Optional internal notes"></textarea>
-                            <p x-show="status === 'approved' && existingPartnerMatch" x-cloak class="mt-2 text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
-                                Matching partner already exists — Approve will link this application to that partner instead of creating a duplicate.
+                            <p x-show="existingPartnerMatch" x-cloak class="mt-2 text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-2">
+                                Approve will link this application to the existing matching partner instead of creating a duplicate.
                             </p>
                         </div>
 
                         <div x-show="status === 'needs_info'" x-cloak>
                             <input type="hidden" name="request_kind" :value="requestKind" :disabled="status !== 'needs_info'">
                             <input type="hidden" name="request_type" :value="requestType" :disabled="status !== 'needs_info'">
+                            <input type="hidden" name="request_mode" :value="requestMode" :disabled="status !== 'needs_info'">
                             <input type="hidden" name="request_other_label" :value="requestOtherLabel" :disabled="status !== 'needs_info'">
                             <input type="hidden" name="request_explanation" :value="requestExplanation" :disabled="status !== 'needs_info'">
+                            <input type="hidden" name="replace_reason" :value="replaceReason" :disabled="status !== 'needs_info'">
+                            <input type="hidden" name="replace_reason_other" :value="replaceReasonOther" :disabled="status !== 'needs_info'">
                         </div>
 
                         <button type="submit"
@@ -584,7 +790,6 @@
                         </button>
                     </div>
 
-                    {{-- Same-surface confirmation --}}
                     <div x-show="phase === 'review'" x-cloak class="space-y-4">
                         <div class="rounded-xl bg-brand-muted/50 ring-1 ring-brand/15 p-4 text-sm text-brand space-y-2">
                             <p class="font-bold" x-text="confirmTitle()"></p>
@@ -617,114 +822,4 @@
         </div>
     </div>
 
-    @once
-    @push('scripts')
-    <script>
-        function partnerApplicationDecision(config) {
-            return {
-                phase: 'compose',
-                busy: false,
-                status: config.initialStatus || 'pending',
-                existingPartnerMatch: !!config.existingPartnerMatch,
-                requestKind: 'document',
-                requestType: '',
-                requestOtherMode: false,
-                requestOtherLabel: '',
-                requestExplanation: '',
-                rejectionReason: '',
-                adminNotes: '',
-                documentOptions: Object.entries(config.documentOptions || {}).map(([value, label]) => ({ value, label })),
-                informationOptions: Object.entries(config.informationOptions || {}).map(([value, label]) => ({ value, label })),
-                currentOptions() {
-                    return this.requestKind === 'information' ? this.informationOptions : this.documentOptions;
-                },
-                pickRequestType(value) {
-                    this.requestType = value;
-                    if (value === 'other_document' || value === 'other_information') {
-                        this.requestOtherMode = true;
-                        this.requestOtherLabel = '';
-                    } else {
-                        this.requestOtherMode = false;
-                        this.requestOtherLabel = '';
-                    }
-                },
-                cancelOther() {
-                    this.requestOtherMode = false;
-                    this.requestType = '';
-                    this.requestOtherLabel = '';
-                },
-                confirmOther() {
-                    if (!(this.requestOtherLabel || '').trim()) return;
-                    this.requestOtherMode = false;
-                },
-                canReview() {
-                    if (this.status === 'needs_info') {
-                        if (!this.requestKind || !this.requestType) return false;
-                        if ((this.requestType === 'other_document' || this.requestType === 'other_information')
-                            && !(this.requestOtherLabel || '').trim()) return false;
-                        if (this.requestOtherMode) return false;
-                        return true;
-                    }
-                    if (this.status === 'rejected') {
-                        return !!this.rejectionReason && !!(this.adminNotes || '').trim();
-                    }
-                    return true;
-                },
-                primaryLabel() {
-                    return this.status === 'approved' ? 'Review & approve'
-                        : (this.status === 'rejected' ? 'Review & decline'
-                            : (this.status === 'needs_info' ? 'Review & request info' : 'Review & save'));
-                },
-                confirmTitle() {
-                    return this.status === 'approved' ? 'Approve this application?'
-                        : (this.status === 'rejected' ? 'Decline this application?'
-                            : (this.status === 'needs_info' ? 'Request this information?' : 'Save decision?'));
-                },
-                confirmMessage() {
-                    if (this.status === 'approved') {
-                        return this.existingPartnerMatch
-                            ? 'This will approve the application and link it to the existing matching partner (no duplicate account). They must still accept the Affiliate Agreement before Share & Earn.'
-                            : 'This will create their ordinary Affiliate account using existing enrollment infrastructure. Territory and default commercial Settings apply. They must still accept the Affiliate Agreement before Share & Earn. Paying the fee does not approve them — this decision does.';
-                    }
-                    if (this.status === 'needs_info') {
-                        const label = this.requestOtherLabel || (this.currentOptions().find(o => o.value === this.requestType)?.label || this.requestType);
-                        return 'Applicant will see “‘ + label + '” on their tracking card with a + / Fill action.\n' + (this.requestExplanation || '');
-                    }
-                    if (this.status === 'rejected') {
-                        return 'The applicant will see your description on tracking. No partner account will be created.';
-                    }
-                    return 'Keep this application under review.';
-                },
-                confirmLabel() {
-                    return this.status === 'approved' ? 'Approve'
-                        : (this.status === 'rejected' ? 'Decline'
-                            : (this.status === 'needs_info' ? 'Request information' : 'Save'));
-                },
-                onSubmit(event) {
-                    if (this.busy) {
-                        event.preventDefault();
-                        return;
-                    }
-                    if (this.phase === 'compose') {
-                        event.preventDefault();
-                        if (!this.canReview()) return;
-                        this.busy = true;
-                        // Brief loader on CTA then same-surface confirmation.
-                        setTimeout(() => {
-                            this.busy = false;
-                            this.phase = 'review';
-                        }, 180);
-                        return;
-                    }
-                },
-                execute() {
-                    if (this.busy) return;
-                    this.busy = true;
-                    this.$refs.decisionForm.submit();
-                },
-            };
-        }
-    </script>
-    @endpush
-    @endonce
 </x-admin.layout>

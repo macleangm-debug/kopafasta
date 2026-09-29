@@ -188,11 +188,17 @@
                                                 @if ($reqStatus === 'submitted')
                                                     <span class="shrink-0 text-xs font-semibold text-emerald-700">✓ {{ __('site.partner_apply.track_request_submitted') }}</span>
                                                 @else
+                                                    @php
+                                                        $isReplace = ($req['mode'] ?? '') === 'replace';
+                                                        $ctaLabel = $isReplace
+                                                            ? __('site.partner_apply.track_request_replace')
+                                                            : ($isDoc ? '+' : __('site.partner_apply.track_request_fill'));
+                                                    @endphp
                                                     <button type="button"
                                                             @click="openRequest = openRequest === @js($reqId) ? '' : @js($reqId)"
-                                                            class="shrink-0 inline-flex items-center justify-center min-w-9 h-9 rounded-lg bg-brand text-white text-lg font-bold leading-none"
+                                                            class="shrink-0 inline-flex items-center justify-center min-w-9 h-9 px-2 rounded-lg bg-brand text-white text-sm font-bold leading-none"
                                                             :aria-expanded="openRequest === @js($reqId)">
-                                                        <span x-show="openRequest !== @js($reqId)" x-text="@js($isDoc ? '+' : __('site.partner_apply.track_request_fill'))"></span>
+                                                        <span x-show="openRequest !== @js($reqId)" x-text="@js($ctaLabel)"></span>
                                                         <span x-show="openRequest === @js($reqId)" x-cloak>×</span>
                                                     </button>
                                                 @endif
@@ -217,6 +223,20 @@
                                                                 :required="true"
                                                                 capture="nida"
                                                             />
+                                                            <x-site.form-document-field
+                                                                name="doc_national_id_back"
+                                                                :label="__('site.partner_apply.nida_back')"
+                                                                :required="true"
+                                                                capture="nida"
+                                                            />
+                                                        @elseif ($isDoc && ($req['type'] ?? '') === 'national_id_front')
+                                                            <x-site.form-document-field
+                                                                name="doc_national_id_front"
+                                                                :label="__('site.partner_apply.nida_front')"
+                                                                :required="true"
+                                                                capture="nida"
+                                                            />
+                                                        @elseif ($isDoc && ($req['type'] ?? '') === 'national_id_back')
                                                             <x-site.form-document-field
                                                                 name="doc_national_id_back"
                                                                 :label="__('site.partner_apply.nida_back')"

@@ -187,6 +187,7 @@ return [
         'track_info_supplied_body' => 'Your information has been submitted. Kopafasta is continuing the review.',
         'track_request_item' => 'Requested item',
         'track_request_fill' => 'Fill',
+        'track_request_replace' => 'Replace +',
         'track_request_submitted' => 'Submitted',
         'track_request_submit' => 'Submit',
         'track_request_saved' => 'Thank you — your response was sent.',
