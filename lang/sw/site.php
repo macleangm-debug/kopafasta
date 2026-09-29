@@ -2005,6 +2005,9 @@ return [
         'affiliate' => 'Affiliate',
         'supplier' => 'Supplier',
         'capital' => 'Capital Partner',
+        'insurance' => 'Bima',
+        'valuer' => 'Mthamini',
+        'collection' => 'Ukusanyaji',
         'service' => 'Service Partner',
     ],
 

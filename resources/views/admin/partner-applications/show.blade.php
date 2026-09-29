@@ -518,9 +518,9 @@
                         },
                         reviewTitle() {
                             if (this.matchAction === 'link') {
-                                return this.currentMatch()?.is_affiliate_collision
-                                    ? 'Use existing Affiliate?'
-                                    : 'Link to this Partner?';
+                                const m = this.currentMatch();
+                                if (m?.is_affiliate_collision) return 'Use existing Affiliate?';
+                                return 'Link identity to this Partner?';
                             }
                             if (this.matchAction === 'keep_separate') return 'Keep these records separate?';
                             return 'Confirm';

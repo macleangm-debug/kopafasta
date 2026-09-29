@@ -170,6 +170,20 @@ class PartnerEnrollmentService
             (string) ($application->partner_category ?: ($application->type === 'affiliate' ? 'affiliate' : 'debt_collector'))
         );
 
+        // Never create a second login/Partner when phone or email already belongs to one.
+        $existingByPhone = filled($application->phone)
+            ? Vendor::query()->where('phone', $application->phone)->orderByDesc('id')->first()
+            : null;
+        $existingByEmail = filled($application->email)
+            ? Vendor::query()->whereRaw('LOWER(email) = ?', [strtolower((string) $application->email)])->orderByDesc('id')->first()
+            : null;
+        $conflict = $existingByPhone ?: $existingByEmail;
+        if ($conflict) {
+            throw ValidationException::withMessages([
+                'status' => 'A Partner already uses this phone or email ('.$conflict->name.'). Resolve via Review match → Same person → Link identity — do not create another login.',
+            ]);
+        }
+
         return DB::transaction(function () use ($application, $category, $actor) {
             $roles = $this->normalizeRequestedRoles(
                 $category,

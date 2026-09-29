@@ -270,6 +270,107 @@ class PartnerApplicationReviewFeatureTest extends TestCase
         $this->assertTrue($existing->fresh()->hasPartnerRole('affiliate'));
     }
 
+    public function test_same_person_link_adds_affiliate_workspace_to_insurance_partner_without_new_user(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Aventris Insurance',
+            'phone' => '255715222132',
+            'email' => 'info@aventris.co.tz',
+            'role' => 'vendor',
+        ]);
+        $existing = Partner::create([
+            'vendor_number' => 'PT-IN-TZ-C9VE',
+            'name' => 'Aventris Insurance',
+            'phone' => '255715222132',
+            'email' => 'info@aventris.co.tz',
+            'category' => 'insurance',
+            'roles' => ['insurance'],
+            'user_id' => $user->id,
+            'status' => 'active',
+            'activated_at' => now(),
+        ]);
+
+        $application = $this->makeApplication([
+            'full_name' => 'Maclean Mwaijonga',
+            'phone' => '255715222132',
+            'email' => 'geofrey.maclean@gmail.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
+        ]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.partner-applications.show', $application))
+            ->assertOk()
+            ->assertSee('Link identity', false)
+            ->assertSee('Phone matched', false)
+            ->assertSee('Aventris Insurance', false)
+            ->getContent();
+        $this->assertStringContainsString('another workspace', $html);
+
+        // Name differs from existing Partner — Owner must confirm despite conflicts (UI does this).
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.partner-applications.match-resolution', $application), [
+                'decision' => 'link',
+                'partner_id' => $existing->id,
+                'confirm_despite_conflicts' => true,
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.partner-applications.update', $application), [
+                'status' => 'approved',
+            ])
+            ->assertRedirect(route('admin.partner-applications.show', $application))
+            ->assertSessionHasNoErrors();
+
+        $application->refresh();
+        $existing->refresh();
+        $this->assertSame('approved', $application->status);
+        $this->assertSame($existing->id, $application->partner_id);
+        $this->assertSame($user->id, $existing->user_id);
+        $this->assertTrue($existing->hasPartnerRole('insurance'));
+        $this->assertTrue($existing->hasPartnerRole('affiliate'));
+        $this->assertSame(1, Partner::query()->where('phone', '255715222132')->count());
+        $this->assertSame(1, User::query()->where('phone', '255715222132')->count());
+        $this->assertSame($existing->id, $application->payload['identity_link']['partner_id'] ?? null);
+        $this->assertSame($admin->id, $application->payload['identity_link']['linked_by'] ?? null);
+        $this->assertSame('affiliate', $application->payload['identity_link']['added_role'] ?? null);
+
+        $ws = app(\App\Services\PartnerWorkspaceService::class);
+        $this->assertTrue($ws->canSwitch($existing));
+        $labels = collect($ws->workspaces($existing))->pluck('label')->all();
+        $this->assertContains(__('site.partner_workspace.affiliate'), $labels);
+        $this->assertContains(__('site.partner_workspace.insurance'), $labels);
+        $keys = collect($ws->workspaces($existing))->pluck('key')->all();
+        $this->assertContains('affiliate', $keys);
+        $this->assertContains('service', $keys);
+    }
+
+    public function test_convert_to_partner_refuses_duplicate_phone_without_link(): void
+    {
+        Partner::create([
+            'vendor_number' => 'PT-IN-TZ-DUP',
+            'name' => 'Existing Phone Owner',
+            'phone' => '255715999888',
+            'email' => 'owner@example.com',
+            'category' => 'insurance',
+            'status' => 'active',
+        ]);
+
+        $application = $this->makeApplication([
+            'phone' => '255715999888',
+            'email' => 'new.applicant@example.com',
+            'type' => 'affiliate',
+            'partner_category' => 'affiliate',
+            'status' => 'approved',
+        ]);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(\App\Services\PartnerEnrollmentService::class)->convertToPartner($application);
+    }
+
     public function test_keep_separate_records_resolution_and_blocks_shared_email_approve(): void
     {
         $existing = Partner::create([

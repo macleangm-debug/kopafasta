@@ -263,15 +263,17 @@ class PartnerApplicationDecisionService
             ]);
         }
 
-        // Keep-separate with shared login email cannot activate a second identity.
+        // Keep-separate with shared login email/phone cannot activate a second identity.
         foreach ($this->matchResolution->matchesFor($application) as $match) {
             if (($match['resolution'] ?? null) !== 'keep_separate') {
                 continue;
             }
-            if (! empty($match['uniqueness']['email_shared_with_existing_login'])) {
+            $emailBlocked = ! empty($match['uniqueness']['email_shared_with_existing_login']);
+            $phoneBlocked = ! empty($match['uniqueness']['phone_shared_with_existing_login']);
+            if ($emailBlocked || $phoneBlocked) {
                 throw ValidationException::withMessages([
                     'status' => $match['uniqueness']['message']
-                        ?? 'Correct the duplicated email before Approve — Keep separate was recorded, but email must stay unique for login.',
+                        ?? 'Correct the duplicated contact details before Approve — Keep separate was recorded, but login identifiers must stay unique.',
                 ]);
             }
         }
@@ -445,13 +447,33 @@ class PartnerApplicationDecisionService
             (string) ($application->partner_category ?: ($application->type === 'affiliate' ? 'affiliate' : 'debt_collector'))
         );
         $roles = $partner->partnerRoles();
-        if (! in_array($category, $roles, true)) {
+        $addedRole = ! in_array($category, $roles, true);
+        if ($addedRole) {
             $roles[] = $category;
             $partner->update(['roles' => array_values($roles)]);
         }
 
+        $payload = is_array($application->payload) ? $application->payload : [];
+        $activity = is_array($payload['review_activity'] ?? null) ? $payload['review_activity'] : [];
+        $activity[] = [
+            'at' => now()->toIso8601String(),
+            'label' => 'Identity linked to existing Partner',
+            'detail' => $partner->name.' ('.($partner->vendor_number ?: $partner->partner_number ?: 'P-'.$partner->id).')'
+                .($addedRole ? ' · added '.$this->enrollment->categoryLabel($category).' workspace' : ' · role already present')
+                .' · no new user · profile fields not overwritten',
+            'actor_id' => Auth::id(),
+        ];
+        $payload['identity_link'] = [
+            'partner_id' => $partner->id,
+            'linked_at' => now()->toIso8601String(),
+            'linked_by' => Auth::id(),
+            'added_role' => $addedRole ? $category : null,
+        ];
+        $payload['review_activity'] = $activity;
+
         $application->update([
             'partner_id' => $partner->id,
+            'payload' => $payload,
             'reviewed_by' => Auth::id() ?? $application->reviewed_by,
             'reviewed_at' => $application->reviewed_at ?? now(),
         ]);

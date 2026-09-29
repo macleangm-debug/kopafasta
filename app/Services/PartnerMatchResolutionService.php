@@ -53,7 +53,7 @@ class PartnerMatchResolutionService
                 'is_affiliate_collision' => $comparison['is_affiliate_collision'],
                 'same_person_label' => $comparison['is_affiliate_collision']
                     ? 'Same person → Use existing Affiliate'
-                    : 'Same person → Link to this Partner',
+                    : 'Same person → Link identity',
                 'same_person_helper' => $comparison['is_affiliate_collision']
                     ? 'This application belongs to this existing Affiliate. No new Affiliate account will be created and existing profile information will not be automatically overwritten.'
                     : $this->linkPreview($application, $partner),
@@ -369,13 +369,26 @@ class PartnerMatchResolutionService
             $likelySame = false;
         }
 
-        // Shared email cannot activate a second Partner login — Admin must correct it after Keep separate.
+        // Shared email/phone cannot activate a second Partner login — Admin must correct after Keep separate.
         $emailUniqueBlock = $emailMatch
             || (filled($application->email)
                 && User::query()
                     ->where('email', $application->email)
                     ->when($partner->user_id, fn ($q) => $q->where('id', '!=', $partner->user_id))
                     ->exists());
+
+        $phoneUniqueBlock = $phoneMatch
+            || (filled($application->phone)
+                && (
+                    Partner::query()
+                        ->where('phone', $application->phone)
+                        ->where('id', '!=', $partner->id)
+                        ->exists()
+                    || User::query()
+                        ->where('phone', $application->phone)
+                        ->when($partner->user_id, fn ($q) => $q->where('id', '!=', $partner->user_id))
+                        ->exists()
+                ));
 
         $applicant = [
             'name' => $application->full_name,
@@ -426,10 +439,10 @@ class PartnerMatchResolutionService
             'rows' => $rows,
             'uniqueness' => [
                 'email_shared_with_existing_login' => $emailUniqueBlock,
+                'phone_shared_with_existing_login' => $phoneUniqueBlock,
                 'email' => $emailUniqueBlock ? (string) $application->email : null,
-                'message' => $emailUniqueBlock
-                    ? 'Email is already used on the existing Partner login. Keep separate does not bypass uniqueness — correct the duplicated email before this applicant can activate.'
-                    : null,
+                'phone' => $phoneUniqueBlock ? (string) $application->phone : null,
+                'message' => $this->uniquenessMessage($emailUniqueBlock, $phoneUniqueBlock),
             ],
         ];
     }
@@ -458,6 +471,21 @@ class PartnerMatchResolutionService
         })->implode(' · ').' matched';
     }
 
+    private function uniquenessMessage(bool $emailBlock, bool $phoneBlock): ?string
+    {
+        if ($emailBlock && $phoneBlock) {
+            return 'Email and phone are already used on an existing Partner login. Keep separate does not bypass uniqueness — correct the duplicated contact details before this applicant can activate.';
+        }
+        if ($emailBlock) {
+            return 'Email is already used on the existing Partner login. Keep separate does not bypass uniqueness — correct the duplicated email before this applicant can activate.';
+        }
+        if ($phoneBlock) {
+            return 'Phone is already used on the existing Partner login. Keep separate does not bypass uniqueness — correct the duplicated phone before this applicant can activate.';
+        }
+
+        return null;
+    }
+
     private function linkPreview(PartnerApplication $application, Partner $partner): string
     {
         $category = $this->enrollment->normalizeCategory(
@@ -472,12 +500,13 @@ class PartnerMatchResolutionService
 
         $label = $this->enrollment->categoryLabel($category);
         $hasRole = $partner->hasPartnerRole($category) || $partner->category === $category;
+        $existingLabel = $this->enrollment->categoryLabel((string) ($partner->category ?: 'partner'));
 
         if ($hasRole) {
-            return 'Link this application to '.$partner->name.' ('.$this->matchCode($partner).'). No new Partner identity. Existing '.$label.' role remains.';
+            return 'Link this application to '.$partner->name.' ('.$this->matchCode($partner).'). One login identity. No new Partner or user. Existing '.$label.' role remains. Profile fields are not overwritten.';
         }
 
-        return 'Link this application to '.$partner->name.' ('.$this->matchCode($partner).') and add '.$label.' to that Partner’s roles. No new Partner identity will be created.';
+        return 'Link this application to '.$partner->name.' ('.$this->matchCode($partner).'). One login identity keeps '.$existingLabel.'; '.$label.' is added as another workspace. No new user. Partner business records stay separate. Profile fields are not overwritten.';
     }
 
     private function matchCode(Partner $partner): string

@@ -59,4 +59,38 @@ class PartnerWorkspaceSwitcherFeatureTest extends TestCase
 
         $this->assertFalse(app(PartnerWorkspaceService::class)->canSwitch($partner));
     }
+
+    public function test_insurance_and_affiliate_share_login_and_switch_workspaces(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'vendor',
+            'phone' => '255715222132',
+            'pin_hash' => bcrypt('1234'),
+            'pin_set_at' => now(),
+        ]);
+        $partner = Partner::create([
+            'user_id' => $user->id,
+            'vendor_number' => 'PT-IN-TZ-C9VE',
+            'name' => 'Aventris Insurance',
+            'phone' => '255715222132',
+            'email' => 'info@aventris.co.tz',
+            'category' => 'insurance',
+            'roles' => ['insurance', 'affiliate'],
+            'status' => 'active',
+            'activated_at' => now(),
+        ]);
+
+        $ws = app(PartnerWorkspaceService::class);
+        $this->assertTrue($ws->canSwitch($partner));
+        $labels = collect($ws->workspaces($partner))->pluck('label')->all();
+        $this->assertContains(__('site.partner_workspace.insurance'), $labels);
+        $this->assertContains(__('site.partner_workspace.affiliate'), $labels);
+
+        $this->actingAs($user)
+            ->post(route('site.partner.workspace.switch'), ['workspace' => 'affiliate'])
+            ->assertRedirect(route('site.affiliate.dashboard'));
+        $this->assertSame('affiliate', $ws->currentKey($partner->fresh()));
+        $this->assertSame(1, Partner::query()->where('user_id', $user->id)->count());
+        $this->assertSame(1, User::query()->where('phone', '255715222132')->count());
+    }
 }

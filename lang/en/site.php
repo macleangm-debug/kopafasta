@@ -2023,6 +2023,9 @@ return [
         'affiliate' => 'Affiliate',
         'supplier' => 'Supplier',
         'capital' => 'Capital Partner',
+        'insurance' => 'Insurance',
+        'valuer' => 'Valuer',
+        'collection' => 'Collection',
         'service' => 'Service Partner',
     ],
 

@@ -34,7 +34,7 @@ class PartnerWorkspaceService
             $seen[$key] = true;
             $out[] = [
                 'key' => $key,
-                'label' => $this->labelForWorkspace($key),
+                'label' => $this->labelForRole((string) $role),
                 'home_route' => $this->homeRouteForWorkspace($key),
             ];
         }
@@ -102,6 +102,19 @@ class PartnerWorkspaceService
             'insurance', 'valuer', 'gps_installer', 'debt_collector', 'call_center',
             'legal_partner', 'auctioneer', 'towing', 'yard' => 'service',
             default => filled($role) ? 'service' : null,
+        };
+    }
+
+    private function labelForRole(string $role): string
+    {
+        return match ($role) {
+            'affiliate' => __('site.partner_workspace.affiliate'),
+            'supplier' => __('site.partner_workspace.supplier'),
+            'capital' => __('site.partner_workspace.capital'),
+            'insurance' => __('site.partner_workspace.insurance'),
+            'valuer' => __('site.partner_workspace.valuer'),
+            'debt_collector' => __('site.partner_workspace.collection'),
+            default => __('site.partner_workspace.service'),
         };
     }
 
