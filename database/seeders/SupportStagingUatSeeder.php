@@ -151,7 +151,6 @@ class SupportStagingUatSeeder extends Seeder
                         'interest_rate' => 0.15,
                         'tenure_months' => 12,
                         'status' => 'active',
-                        'disbursed_at' => now()->subMonths(2),
                     ]
                 );
             } catch (\Throwable $e) {
