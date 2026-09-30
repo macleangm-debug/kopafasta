@@ -33,6 +33,10 @@ class PublicGuarantorController extends Controller
             return view('site.guarantor.declined', compact('invitation'));
         }
 
+        if ($invitation->needsQuoteReconfirmation()) {
+            return view('site.guarantor.show', compact('invitation'));
+        }
+
         if ($invitation->status === 'accepted') {
             return $this->showAccepted($request, $invitation, $onboarding);
         }
@@ -99,12 +103,13 @@ class PublicGuarantorController extends Controller
 
             if ($link = $invitation->customerGuarantor) {
                 $service->approve($link);
+            } else {
+                $invitation->update([
+                    'status'       => 'accepted',
+                    'responded_at' => now(),
+                ]);
+                $service->recordConsentSnapshot($invitation->fresh());
             }
-
-            $invitation->update([
-                'status'       => 'accepted',
-                'responded_at' => now(),
-            ]);
 
             $this->auditBorrower('guarantor_invitation.accepted', $invitation, [
                 'application_id' => $invitation->loan_application_id,
@@ -119,6 +124,7 @@ class PublicGuarantorController extends Controller
             'status'       => 'accepted',
             'responded_at' => now(),
         ]);
+        $service->recordConsentSnapshot($invitation->fresh());
 
         $this->auditBorrower('guarantor_invitation.accepted', $invitation, [
             'application_id' => $invitation->loan_application_id,
@@ -141,11 +147,60 @@ class PublicGuarantorController extends Controller
             ->with('status', __('borrower.guarantor_invite.accept_recorded_continue'));
     }
 
+    public function reconfirm(
+        Request $request,
+        string $token,
+        GuarantorInvitationService $service,
+        GuarantorOnboardingService $onboarding,
+    ): RedirectResponse {
+        $invitation = GuarantorInvitation::query()
+            ->where('token', $token)
+            ->with(['customerGuarantor'])
+            ->firstOrFail();
+
+        if (! $invitation->needsQuoteReconfirmation()) {
+            return redirect()->route('site.guarantor.show', $token)
+                ->with('error', __('borrower.guarantor_invite.no_longer_active'));
+        }
+
+        if ($invitation->type === 'internal') {
+            if (! auth()->check()) {
+                session(['login_redirect' => route('site.guarantor.show', $invitation->token)]);
+
+                return redirect()
+                    ->route('site.login')
+                    ->with('status', __('borrower.guarantor_invite.login_to_respond'));
+            }
+
+            $customer = auth()->user()->customer;
+            if (! $customer || ! app(PortalContextService::class)->canActAsGuarantorFor($invitation, $customer)) {
+                return back()->with('error', __('borrower.guarantor_invite.wrong_account'));
+            }
+        }
+
+        $service->reconfirmConsent($invitation);
+
+        $this->auditBorrower('guarantor_invitation.consent_reconfirmed', $invitation, [
+            'application_id' => $invitation->loan_application_id,
+        ]);
+
+        if ($invitation->type === 'internal') {
+            return redirect()->route('site.borrower.loans', ['tab' => 'guarantor'])
+                ->with('status', __('borrower.guarantor_invite.reconfirm_cta'));
+        }
+
+        $onboarding->rememberInvitation($request, $invitation->fresh());
+
+        return redirect()->route('site.guarantor.show', $token)
+            ->with('status', __('borrower.guarantor_invite.accept_recorded_continue'));
+    }
+
     public function reject(Request $request, string $token, GuarantorInvitationService $service): RedirectResponse
     {
         $invitation = GuarantorInvitation::query()->where('token', $token)->firstOrFail();
 
-        if (! $invitation->isPending() || $invitation->isExpired()) {
+        $canRespond = $invitation->isPending() || $invitation->needsQuoteReconfirmation();
+        if (! $canRespond || ($invitation->isExpired() && $invitation->isPending())) {
             return back()->with('error', __('borrower.guarantor_invite.no_longer_active'));
         }
 
@@ -158,6 +213,7 @@ class PublicGuarantorController extends Controller
                 'status'         => 'rejected',
                 'responded_at'   => now(),
                 'response_notes' => $notes,
+                'confirmation_status' => null,
             ]);
         }
 

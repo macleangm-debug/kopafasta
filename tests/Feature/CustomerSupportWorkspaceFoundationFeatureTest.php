@@ -33,6 +33,7 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
             'roles' => ['agent'],
             'name' => $name,
             'is_active' => true,
+            'preferences' => ['support_availability' => 'online'],
         ]);
     }
 

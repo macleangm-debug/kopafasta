@@ -763,7 +763,7 @@ return [
             'submitted_message' => 'Ombi lako limepokelewa. Tunaangalia ustahiki wako wa kwanza. Tutawasiliana na mdhamini wako tu ikiwa ombi litapita hatua hii.',
             'part_submitted_message' => 'Sehemu yako imewasilishwa. Hii haimaanishi ombi lote limekamilika.',
             'already_submitted_message' => 'Ombi lako tayari limewasilishwa. Unaweza kufuatilia maendeleo hapa chini.',
-            'submitted_guarantor_pending_message' => 'Ombi lako limepita ukaguzi wa kwanza. Mdhamini wako sasa lazima akamilishe taarifa zake kabla ombi lako haliwezi kwenda kwenye ukaguzi wa mikopo.',
+            'submitted_guarantor_pending_message' => 'Ombi lako linasubiri mdhamini wako akamilishe sehemu yake. Tutaendelea kuchakata mara hii itakapokamilika.',
             'reference_label' => 'Rejea',
             'tracking_share_title' => 'Shiriki hali ya ombi lako',
             'tracking_share_hint' => 'Tuma kiungo cha kufuatilia kwa mwanafamilia au mshirika wa biashara kupitia WhatsApp.',

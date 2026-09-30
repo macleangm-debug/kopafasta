@@ -828,7 +828,7 @@ return [
             'submitted_message' => 'Your application has been received. We are checking your initial eligibility. We will contact your guarantor only if the application passes this stage.',
             'part_submitted_message' => 'Your part is submitted. This does not mean the whole application is complete.',
             'already_submitted_message' => 'Your application was already submitted. You can track its progress below.',
-            'submitted_guarantor_pending_message' => 'Your application passed the initial check. Your guarantor must now complete their information before your application can proceed to credit screening.',
+            'submitted_guarantor_pending_message' => 'Your application is waiting for your guarantor to complete their part. We’ll continue processing once this is done.',
             'awaiting_guarantor_title' => 'Waiting for guarantor profile',
             'awaiting_guarantor_message' => 'Your application stays under Applications — screening has not started. Credit review begins only after your guarantor accepts and finishes their profile.',
             'reference_label' => 'Reference',

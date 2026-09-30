@@ -231,6 +231,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/guarantor-request/{token}', [PublicGuarantorController::class, 'show'])->name('guarantor.show');
     Route::get('/guarantor-request/{token}/declined', [PublicGuarantorController::class, 'declined'])->name('guarantor.declined');
     Route::post('/guarantor-request/{token}/accept', [PublicGuarantorController::class, 'accept'])->name('guarantor.accept');
+    Route::post('/guarantor-request/{token}/reconfirm', [PublicGuarantorController::class, 'reconfirm'])->name('guarantor.reconfirm');
     Route::post('/guarantor-request/{token}/reject', [PublicGuarantorController::class, 'reject'])->name('guarantor.reject');
     Route::get('/group-member-invite/{token}', [GroupMemberInviteController::class, 'show'])->name('group-member.invite');
     Route::get('/group-member-invite/{token}/declined', [GroupMemberInviteController::class, 'declined'])->name('group-member.declined');

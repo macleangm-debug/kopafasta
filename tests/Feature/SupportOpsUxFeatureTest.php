@@ -34,6 +34,7 @@ class SupportOpsUxFeatureTest extends TestCase
             'roles' => ['agent'],
             'name' => $name,
             'is_active' => true,
+            'preferences' => ['support_availability' => 'online'],
         ]);
     }
 
@@ -385,6 +386,66 @@ class SupportOpsUxFeatureTest extends TestCase
             ->assertSessionHas('error');
 
         $this->assertNull($conversation->fresh()->assigned_to);
+    }
+
+    public function test_accept_refuses_offline_agent_without_unassigning_later(): void
+    {
+        $admin = $this->admin();
+        $agent = $this->agent('Rogathe Nyela');
+        $agent->forceFill([
+            'preferences' => array_merge((array) $agent->preferences, ['support_availability' => 'offline']),
+        ])->save();
+        [$user, $customer] = $this->member();
+        $conversation = app(SupportConversationService::class)->requestHuman($customer, $user, 'Need agent');
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+        $this->post(route('admin.role-view.select-staff'), ['staff_id' => $agent->id]);
+
+        $this->post(route('admin.support.inbox.accept', $conversation))
+            ->assertRedirect(route('admin.support.inbox.show', $conversation))
+            ->assertSessionHas('error');
+
+        $this->assertNull($conversation->fresh()->assigned_to);
+
+        $agent->forceFill([
+            'preferences' => array_merge((array) $agent->preferences, ['support_availability' => 'online']),
+        ])->save();
+        app(SupportConversationService::class)->accept($conversation->fresh(), $agent->fresh());
+        $this->assertSame($agent->id, (int) $conversation->fresh()->assigned_to);
+
+        $agent->forceFill([
+            'preferences' => array_merge((array) $agent->preferences, ['support_availability' => 'offline']),
+        ])->save();
+
+        app(SupportConversationService::class)->requestHuman($customer, $user, 'Are you there?');
+        $conversation->refresh();
+        $this->assertSame($agent->id, (int) $conversation->assigned_to);
+        $this->assertTrue(
+            $conversation->messages()->where('is_automated', true)->where('body', 'like', 'Mtoa huduma wako hayupo mtandaoni%')->exists()
+        );
+        // Once per offline stretch — second customer message does not duplicate.
+        app(SupportConversationService::class)->requestHuman($customer, $user, 'Still waiting');
+        $this->assertSame(
+            1,
+            $conversation->messages()->where('is_automated', true)->where('body', 'like', 'Mtoa huduma wako hayupo mtandaoni%')->count()
+        );
+    }
+
+    public function test_waiting_acknowledgement_allows_follow_up_without_resetting_waiting_since(): void
+    {
+        [$user, $customer] = $this->member();
+        $svc = app(SupportConversationService::class);
+        $first = $svc->requestHuman($customer, $user, 'First ping');
+        $since = $first->waiting_since?->copy();
+        $this->assertNotNull($since);
+        $this->assertStringContainsString('Unaweza kuongeza maelezo mengine hapa wakati unasubiri', $svc->waitingAcknowledgement());
+
+        sleep(1);
+        $second = $svc->requestHuman($customer, $user, 'More detail while waiting');
+        $this->assertSame($first->id, $second->id);
+        $this->assertTrue($second->waiting_since?->equalTo($since));
+        $this->assertFalse(in_array($second->status, ['closed', 'resolved'], true));
     }
 
     public function test_member_support_round_trip_same_conversation(): void
