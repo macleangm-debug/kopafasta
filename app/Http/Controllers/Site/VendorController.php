@@ -1045,10 +1045,23 @@ class VendorController extends Controller
                 ->where('user_id', $user->id)
                 ->whereNull('customer_id')
                 ->whereNotIn('status', ['closed', 'resolved'])
-                ->with(['messages' => fn ($q) => $q->orderBy('id')])
+                ->with(['messages' => fn ($q) => $q->orderBy('id'), 'assignedTo'])
                 ->latest('id')
                 ->first()
             : null;
+
+        $history = $user
+            ? \App\Models\SupportConversation::query()
+                ->where('user_id', $user->id)
+                ->whereNull('customer_id')
+                ->whereIn('status', ['closed', 'resolved'])
+                ->latest('last_message_at')
+                ->limit(8)
+                ->get(['id', 'topic', 'status', 'rating', 'last_message_at', 'created_at', 'resolution_category'])
+            : collect();
+
+        $help = app(\App\Services\Support\SupportHelpLibraryService::class);
+        $q = trim((string) request('q', ''));
 
         return view('site.vendor.support', [
             'vendor' => $vendor,
@@ -1057,7 +1070,11 @@ class VendorController extends Controller
             'supportEmail' => support_contact('email'),
             'supportWhatsapp' => support_contact('whatsapp'),
             'supportConversation' => $conversation,
-            'openHumanChat' => request()->boolean('chat') || ($conversation && $conversation->messages()->exists()),
+            'supportHistory' => $history,
+            'helpGroups' => $help->groups('partner'),
+            'helpResults' => $q !== '' ? $help->search($q, 'partner') : [],
+            'helpQuery' => $q,
+            'openHumanChat' => request()->boolean('chat'),
             'speakUrl' => request()->routeIs('site.vendor.*')
                 ? route('site.vendor.support.speak')
                 : route('site.partner.support.speak'),
@@ -1065,8 +1082,12 @@ class VendorController extends Controller
                 ? route('site.vendor.support.thread')
                 : route('site.partner.support.thread'),
             'supportPageUrl' => request()->routeIs('site.vendor.*')
+                ? route('site.vendor.support')
+                : route('site.partner.support'),
+            'chatUrl' => request()->routeIs('site.vendor.*')
                 ? route('site.vendor.support', ['chat' => 1])
                 : route('site.partner.support', ['chat' => 1]),
+            'feedbackUrl' => route('site.feedback', ['open' => 1, 'from' => 'partner']),
         ]);
     }
 

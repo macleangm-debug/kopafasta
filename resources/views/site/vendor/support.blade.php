@@ -1,68 +1,116 @@
 <x-site.vendor-layout :title="__('site.partner_portal.nav_support')" active="support">
     @php
-        $wa = preg_replace('/\D+/', '', (string) $supportWhatsapp) ?: '255700000000';
+        $wa = preg_replace('/\D+/', '', (string) $supportWhatsapp) ?: '';
         $tel = preg_replace('/\s+/', '', (string) $supportPhone);
         $openHumanChat = $openHumanChat ?? false;
         $supportConversation = $supportConversation ?? null;
+        $supportHistory = $supportHistory ?? collect();
+        $helpGroups = $helpGroups ?? [];
+        $helpResults = $helpResults ?? [];
+        $helpQuery = $helpQuery ?? '';
+        $chatUrl = $chatUrl ?? route('site.partner.support', ['chat' => 1]);
+        $homeUrl = $supportPageUrl ?? route('site.partner.support');
+        $feedbackUrl = $feedbackUrl ?? route('site.feedback', ['open' => 1, 'from' => 'partner']);
+        $isSw = str_starts_with(app()->getLocale(), 'sw');
     @endphp
 
     <div x-data="{ human: @js((bool) $openHumanChat) }">
-        <div x-show="!human" x-cloak>
-            <div class="grid sm:grid-cols-3 gap-4 mb-8">
-                <a href="tel:{{ $tel }}" class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 hover:shadow-sm">
-                    <div class="size-10 rounded-full bg-indigo-100 text-brand grid place-items-center mb-3">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 13 13 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 13 13 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                    </div>
-                    <p class="font-bold">{{ __('site.partner_portal.support_call') }}</p>
-                    <p class="text-xs text-gray-500 mt-1">{{ $supportPhone }}</p>
-                </a>
-                <a href="https://wa.me/{{ $wa }}" target="_blank" rel="noopener" class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 hover:shadow-sm">
-                    <div class="size-10 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center mb-3">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4a10 10 0 0 0-15 13l-1 4 4-1a10 10 0 0 0 12-16z"/></svg>
-                    </div>
-                    <p class="font-bold">{{ __('site.partner_portal.support_whatsapp') }}</p>
-                    <p class="text-xs text-gray-500 mt-1">{{ __('site.partner_portal.support_whatsapp_hint') }}</p>
-                </a>
-                <a href="mailto:{{ $supportEmail }}" class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 hover:shadow-sm">
-                    <div class="size-10 rounded-full bg-sky-100 text-sky-700 grid place-items-center mb-3">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
-                    </div>
-                    <p class="font-bold">{{ __('site.partner_portal.support_email') }}</p>
-                    <p class="text-xs text-gray-500 mt-1">{{ $supportEmail }}</p>
-                </a>
-            </div>
-
-            <section class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 sm:p-6 mb-6">
-                <h2 class="text-lg font-bold text-gray-900 mb-1">{{ __('site.partner_portal.faq_title') }}</h2>
-                <p class="text-sm text-gray-500 mb-4">{{ __('site.partner_portal.faq_subtitle') }}</p>
-                <div class="divide-y divide-gray-100" x-data="{ open: null }">
-                    @foreach ($faqs as $i => $item)
-                        <div class="py-3">
-                            <button type="button" class="w-full flex items-center justify-between gap-3 text-left"
-                                    @click="open = open === {{ $i }} ? null : {{ $i }}">
-                                <span class="font-semibold text-sm text-gray-900">{{ $item['q'] ?? '' }}</span>
-                                <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="open === {{ $i }} && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-                            </button>
-                            <p class="text-sm text-gray-600 mt-2" x-show="open === {{ $i }}" x-cloak>{{ $item['a'] ?? '' }}</p>
-                        </div>
-                    @endforeach
+        <div x-show="!human" x-cloak class="space-y-6">
+            <section class="relative overflow-hidden rounded-3xl kf-premium-panel">
+                <div class="relative px-5 sm:px-8 py-7 sm:py-9">
+                    <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">Kopafasta Support</p>
+                    <h1 class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-white">{{ $isSw ? 'Unahitaji msaada gani?' : 'How can we help?' }}</h1>
+                    <form method="GET" action="{{ $homeUrl }}" class="mt-5 max-w-xl">
+                        <input type="search" name="q" value="{{ $helpQuery }}"
+                               placeholder="{{ $isSw ? 'Tafuta msaada wa Partner…' : 'Search Partner help…' }}"
+                               class="w-full rounded-2xl border-0 bg-white/95 text-gray-900 text-sm px-4 py-3 shadow-sm">
+                    </form>
                 </div>
             </section>
 
-            <div class="glass-card rounded-2xl ring-1 ring-brand/10 p-5 sm:p-6">
-                <p class="text-sm font-semibold text-gray-900">{{ __('borrower.support_page.still_need_help') }}</p>
-                <p class="text-sm text-gray-500 mt-1">{{ __('borrower.support_page.still_need_help_hint') }}</p>
-                <button type="button" @click="human = true"
-                        class="mt-4 inline-flex rounded-xl bg-brand-gold text-brand font-bold text-sm px-5 py-2.5 hover:brightness-95">
-                    {{ __('borrower.support_page.talk_to_team') }}
-                </button>
+            @if ($supportConversation)
+                <a href="{{ $chatUrl }}" class="block rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4 hover:bg-brand-muted/20">
+                    <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $isSw ? 'Endelea mazungumzo' : 'Continue conversation' }}</p>
+                    <p class="text-sm font-bold text-gray-900 mt-1">Kopafasta Support · #{{ $supportConversation->id }}</p>
+                </a>
+            @endif
+
+            @if ($helpQuery !== '')
+                <section class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 space-y-3">
+                    @forelse ($helpResults as $row)
+                        <div class="rounded-xl bg-slate-50 px-4 py-3">
+                            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ strtoupper($row['type']) }} · {{ $row['group'] }}</p>
+                            <p class="text-sm font-bold text-gray-900 mt-1">{{ $row['title'] }}</p>
+                            <p class="text-sm text-gray-600 mt-1">{{ $row['body'] }}</p>
+                        </div>
+                    @empty
+                        <p class="text-sm text-gray-500">{{ $isSw ? 'Hakuna matokeo.' : 'No matches.' }}</p>
+                    @endforelse
+                </section>
+            @else
+                <section class="space-y-3">
+                    @foreach ($helpGroups as $group)
+                        @php $gLabel = $isSw ? ($group['label_sw'] ?? $group['label_en']) : ($group['label_en'] ?? $group['label_sw']); @endphp
+                        <details class="glass-card rounded-2xl overflow-hidden">
+                            <summary class="px-4 py-3.5 font-semibold text-sm cursor-pointer">{{ $gLabel }}</summary>
+                            <div class="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
+                                @foreach ($group['faqs'] ?? [] as $faq)
+                                    <div>
+                                        <p class="text-sm font-semibold">{{ $isSw ? ($faq['q_sw'] ?? $faq['q_en']) : ($faq['q_en'] ?? $faq['q_sw']) }}</p>
+                                        <p class="text-sm text-gray-600 mt-1">{{ $isSw ? ($faq['a_sw'] ?? $faq['a_en']) : ($faq['a_en'] ?? $faq['a_sw']) }}</p>
+                                    </div>
+                                @endforeach
+                                @foreach ($group['howtos'] ?? [] as $how)
+                                    <div class="rounded-xl bg-brand-muted/30 px-3 py-3">
+                                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">HOW TO</p>
+                                        <p class="text-sm font-bold mt-1">{{ $isSw ? ($how['title_sw'] ?? $how['title_en']) : ($how['title_en'] ?? $how['title_sw']) }}</p>
+                                        <ol class="mt-2 list-decimal ml-5 text-sm space-y-1">
+                                            @foreach (($isSw ? ($how['steps_sw'] ?? []) : ($how['steps_en'] ?? [])) as $step)
+                                                <li>{{ $step }}</li>
+                                            @endforeach
+                                        </ol>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </details>
+                    @endforeach
+                </section>
+            @endif
+
+            @if ($supportHistory->isNotEmpty())
+                <section class="rounded-2xl bg-white ring-1 ring-brand/10 p-5">
+                    <h2 class="font-semibold text-sm">{{ $isSw ? 'Historia' : 'History' }}</h2>
+                    <ul class="mt-3 divide-y divide-gray-100">
+                        @foreach ($supportHistory as $h)
+                            <li class="py-2.5 text-sm">
+                                <p class="font-semibold">{{ $h->topic ?: ('#'.$h->id) }}</p>
+                                <p class="text-xs text-gray-500">{{ format_app_datetime($h->last_message_at ?? $h->created_at, 'd M Y · H:i') }}</p>
+                            </li>
+                        @endforeach
+                    </ul>
+                </section>
+            @endif
+
+            <div class="grid sm:grid-cols-2 gap-3">
+                <a href="{{ $chatUrl }}" class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Ongea na Timu ya Usaidizi' : 'Talk to Support' }}</a>
+                <a href="{{ $feedbackUrl }}" class="rounded-2xl ring-1 ring-brand/20 text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</a>
+            </div>
+
+            <div class="grid sm:grid-cols-3 gap-3 text-sm">
+                @if ($tel)
+                    <a href="tel:{{ $tel }}" class="glass-card rounded-2xl p-4">{{ __('site.partner_portal.support_call') }} · {{ $supportPhone }}</a>
+                @endif
+                @if ($wa !== '')
+                    <a href="https://wa.me/{{ $wa }}" target="_blank" rel="noopener" class="glass-card rounded-2xl p-4">{{ __('site.partner_portal.support_whatsapp') }}</a>
+                @endif
+                <a href="mailto:{{ $supportEmail }}" class="glass-card rounded-2xl p-4">{{ $supportEmail }}</a>
             </div>
         </div>
 
-        <div x-show="human"
-             x-cloak
-             class="max-w-2xl"
-             @support-back-to-faqs.window="human = false">
+        <div x-show="human" x-cloak class="max-w-2xl">
+            <div class="mb-3">
+                <a href="{{ $homeUrl }}" class="text-sm font-semibold text-brand hover:underline">← {{ $isSw ? 'Rudi Support Home' : 'Back to Support Home' }}</a>
+            </div>
             <x-site.ai-support-chat
                 class="mb-4"
                 :member-mode="true"
@@ -71,7 +119,6 @@
                 :thread-url="$threadUrl"
                 :conversation="$supportConversation"
                 :existing-messages="$supportConversation?->messages"
-                :show-back-to-faqs="! ($supportConversation && $supportConversation->messages->isNotEmpty())"
             />
         </div>
     </div>

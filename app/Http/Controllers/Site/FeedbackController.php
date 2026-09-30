@@ -8,6 +8,7 @@ use App\Services\Support\SupportTicketService;
 use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -19,6 +20,28 @@ class FeedbackController extends Controller
 
     public function index(): View
     {
+        $user = auth()->user();
+        $from = (string) request('from', '');
+        $inBorrowerShell = $user && ($user->customer || $from === 'borrower');
+        $inPartnerShell = $user && ! $user->customer && ($user->vendor || $from === 'partner');
+
+        if ($inBorrowerShell) {
+            return view('site.borrower.feedback', [
+                'categories' => $this->categories(),
+                'customer' => $user->customer,
+                'supportHome' => route('site.borrower.support'),
+            ]);
+        }
+
+        if ($inPartnerShell) {
+            return view('site.partner.feedback', [
+                'categories' => $this->categories(),
+                'supportHome' => Route::has('site.partner.support')
+                    ? route('site.partner.support')
+                    : route('site.vendor.support'),
+            ]);
+        }
+
         return view('site.feedback.index', [
             'categories' => $this->categories(),
             'openOnLoad' => request()->boolean('open') || old('category') || session('status'),
@@ -27,28 +50,51 @@ class FeedbackController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $user = auth()->user();
+        $authenticated = (bool) $user;
         $categories = array_keys($this->categories());
-        $validated = $request->validate([
+
+        $rules = [
             'category' => ['required', 'string', 'in:'.implode(',', $categories)],
-            'name' => ['required', 'string', 'max:120'],
-            'email' => ['nullable', 'email', 'max:150'],
-            'phone' => ['nullable', 'string', 'max:30'],
             'subject' => ['required', 'string', 'max:200'],
             'message' => ['required', 'string', 'max:5000'],
             'reference' => ['nullable', 'string', 'max:80'],
-        ]);
+            'from' => ['nullable', 'string', 'max:32'],
+        ];
 
-        $phone = PhoneNumber::fromRequest($request, 'phone', 'TZ');
-        $validated['phone'] = $phone;
+        if ($authenticated) {
+            $rules['name'] = ['nullable', 'string', 'max:120'];
+            $rules['email'] = ['nullable', 'email', 'max:150'];
+            $rules['phone'] = ['nullable', 'string', 'max:30'];
+        } else {
+            $rules['name'] = ['required', 'string', 'max:120'];
+            $rules['email'] = ['nullable', 'email', 'max:150'];
+            $rules['phone'] = ['nullable', 'string', 'max:30'];
+        }
 
-        $customerId = auth()->user()?->customer?->id;
+        $validated = $request->validate($rules);
+
+        $customer = $user?->customer;
+        $name = $authenticated
+            ? (trim((string) ($customer?->first_name.' '.$customer?->last_name)) ?: (string) $user->name)
+            : $validated['name'];
+        $email = $authenticated
+            ? (operator_email_display($user->email) !== '—' ? $user->email : ($validated['email'] ?? null))
+            : ($validated['email'] ?? null);
+        $phone = $authenticated
+            ? ($customer?->phone ?: $user->phone ?: PhoneNumber::fromRequest($request, 'phone', 'TZ'))
+            : PhoneNumber::fromRequest($request, 'phone', 'TZ');
+
+        $customerId = $customer?->id;
         $description = trim(collect([
             $validated['message'],
             filled($validated['reference'] ?? null) ? __('site.feedback.reference_label').': '.$validated['reference'] : null,
-            filled($phone) ? __('site.feedback.phone_label').': '.$phone : null,
-            filled($validated['email'] ?? null) ? __('site.feedback.email_label').': '.$validated['email'] : null,
+            (! $authenticated && filled($phone)) ? __('site.feedback.phone_label').': '.$phone : null,
+            (! $authenticated && filled($email)) ? __('site.feedback.email_label').': '.$email : null,
         ])->filter()->join("\n\n"));
 
+        // Feedback record only — never auto-convert compliment/suggestion into operational case work.
+        // Complaints may create a Complaint record; Support decides if a Case is needed.
         if ($validated['category'] === 'complaint') {
             Complaint::create([
                 'complaint_number' => 'CMP-'.now()->format('ymd').'-'.Str::upper(Str::random(4)),
@@ -57,26 +103,40 @@ class FeedbackController extends Controller
                 'description' => $description,
                 'severity' => 'moderate',
                 'status' => 'received',
-                'channel' => 'website',
+                'channel' => $authenticated ? 'in_app' : 'website',
             ]);
         } else {
-            $priority = in_array($validated['category'], ['technical', 'complaint'], true) ? 'high' : 'normal';
-
             $this->tickets->create([
                 'customer_id' => $customerId,
-                'guest_name' => $customerId ? null : $validated['name'],
-                'guest_email' => $customerId ? null : ($validated['email'] ?? null),
+                'guest_name' => $customerId ? null : $name,
+                'guest_email' => $customerId ? null : $email,
                 'guest_phone' => $customerId ? null : $phone,
                 'contact_kind' => $customerId ? 'customer' : 'guest',
                 'source' => 'public_feedback',
-                'subject' => $validated['subject'],
+                'subject' => '['.ucfirst(str_replace('_', ' ', $validated['category'])).'] '.$validated['subject'],
                 'description' => $description,
-                'priority' => $priority,
+                'priority' => $validated['category'] === 'technical' ? 'high' : 'normal',
                 'priority_locked' => false,
                 'status' => 'open',
                 'category' => $validated['category'],
-                'actor' => auth()->user(),
+                'actor' => $user,
             ]);
+        }
+
+        $from = (string) ($validated['from'] ?? $request->query('from', ''));
+        if ($customerId || $from === 'borrower') {
+            return redirect()
+                ->route('site.borrower.support')
+                ->with('status', __('site.feedback.success'));
+        }
+        if ($from === 'partner' || ($user && ! $customerId && method_exists($user, 'vendor') && $user->vendor)) {
+            $home = \Illuminate\Support\Facades\Route::has('site.partner.support')
+                ? 'site.partner.support'
+                : 'site.vendor.support';
+
+            return redirect()
+                ->route($home)
+                ->with('status', __('site.feedback.success'));
         }
 
         return redirect()

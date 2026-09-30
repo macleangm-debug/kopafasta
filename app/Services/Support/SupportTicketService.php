@@ -434,7 +434,16 @@ class SupportTicketService
     /** @return list<string> */
     public function escalationRoles(): array
     {
-        return ['credit', 'screening', 'manager', 'accounting', 'admin', 'partner_support'];
+        return [
+            'screening',
+            'credit',
+            'accounting',
+            'recovery',
+            'partner_support',
+            'technical',
+            'manager',
+            'admin',
+        ];
     }
 
     /** @return \Illuminate\Support\Collection<int, User> */

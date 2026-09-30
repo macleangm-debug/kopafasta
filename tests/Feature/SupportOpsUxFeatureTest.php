@@ -62,9 +62,9 @@ class SupportOpsUxFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.support'))
             ->assertOk()
-            ->assertSee(__('borrower.support_page.faq_title'), false)
-            ->assertSee(__('borrower.support_page.talk_to_team'), false)
-            ->assertSee(__('borrower.support_page.still_need_help'), false);
+            ->assertSee('Kopafasta Support', false)
+            ->assertSee('Ongea na Timu ya Usaidizi', false)
+            ->assertSee('HOW TO', false);
     }
 
     public function test_habari_message_is_clean_and_visible_in_inbox(): void
@@ -150,10 +150,14 @@ class SupportOpsUxFeatureTest extends TestCase
             ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
         $this->post(route('admin.role-view.select-staff'), ['staff_id' => $agent->id]);
 
-        $this->post(route('admin.support.inbox.resolve', $conversation))
+        $this->post(route('admin.support.inbox.resolve', $conversation), [
+            'resolution_category' => 'answered',
+            'ask_rating' => 1,
+        ])
             ->assertRedirect(route('admin.support.inbox'));
 
         $this->assertSame('resolved', $conversation->fresh()->status);
+        $this->assertSame('answered', $conversation->fresh()->resolution_category);
         $this->assertSame(0, SupportTicket::query()->where('support_conversation_id', $conversation->id)->count());
     }
 
@@ -256,18 +260,82 @@ class SupportOpsUxFeatureTest extends TestCase
         ]);
     }
 
+    public function test_new_conversation_waits_on_team_not_historical_agent(): void
+    {
+        [$user, $customer] = $this->member();
+        $agent = $this->agent('Rogathe Nyela');
+        $svc = app(SupportConversationService::class);
+
+        $first = $svc->requestHuman($customer, $user, 'Old issue');
+        $svc->accept($first, $agent);
+        $svc->resolve($first, $agent, 'Done', 'answered', true);
+        $this->assertSame('resolved', $first->fresh()->status);
+
+        $second = $svc->requestHuman($customer, $user, 'New issue');
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertNull($second->assigned_to);
+        $this->assertSame('waiting', $second->status);
+
+        $presence = $svc->memberChatPresence($second);
+        $this->assertNull($presence['agent_first_name']);
+        $this->assertSame('online', $presence['presence']);
+        $this->assertStringContainsString('Waiting', $presence['desk_label']);
+        $this->assertTrue($second->messages()->where('body', 'like', 'Ujumbe wako umepokelewa%')->exists());
+    }
+
     public function test_member_chat_presence_shows_assigned_agent_first_name(): void
     {
         [$user, $customer] = $this->member();
         $agent = $this->agent('Rogathe Mushi');
         $svc = app(SupportConversationService::class);
         $conversation = $svc->requestHuman($customer, $user, 'Need help');
+
+        $before = $svc->memberChatPresence($conversation->fresh());
+        $this->assertNull($before['agent_first_name']);
+        $this->assertSame('online', $before['presence']);
+
         $svc->accept($conversation, $agent);
 
         $presence = $svc->memberChatPresence($conversation->fresh('assignedTo'));
         $this->assertSame('assigned', $presence['presence']);
         $this->assertSame('Rogathe', $presence['agent_first_name']);
         $this->assertSame((int) $agent->id, (int) $presence['assigned_to']);
+    }
+
+    public function test_support_home_does_not_auto_open_chat(): void
+    {
+        [$user, $customer] = $this->member();
+        app(SupportConversationService::class)->requestHuman($customer, $user, 'Hello');
+
+        $html = $this->actingAs($user)
+            ->get(route('site.borrower.support'))
+            ->assertOk()
+            ->getContent();
+        $this->assertTrue(
+            str_contains($html, 'Continue conversation') || str_contains($html, 'Mazungumzo yanayoendelea'),
+            'Support Home should show a continue card when an open thread exists'
+        );
+        $this->assertStringContainsString('human: false', $html);
+
+        $this->actingAs($user)
+            ->get(route('site.borrower.support', ['chat' => 1]))
+            ->assertOk()
+            ->assertSee('Kopafasta Support', false);
+    }
+
+    public function test_timestamps_serialize_in_display_timezone(): void
+    {
+        config(['app.timezone' => 'UTC', 'app.display_timezone' => 'Africa/Dar_es_Salaam']);
+        [$user, $customer] = $this->member();
+        $svc = app(SupportConversationService::class);
+        $conversation = $svc->requestHuman($customer, $user, 'Timezone check');
+        $msg = $conversation->messages()->where('sender_type', 'customer')->latest('id')->first();
+        $this->assertNotNull($msg);
+        $msg->forceFill(['created_at' => \Illuminate\Support\Carbon::parse('2026-09-30 12:49:00', 'UTC')])->saveQuietly();
+
+        $serialized = $svc->serializeMessages($conversation->fresh());
+        $row = collect($serialized)->firstWhere('id', $msg->id);
+        $this->assertSame('15:49', $row['time']);
     }
 
     public function test_quick_replies_signature_only_on_introduction(): void

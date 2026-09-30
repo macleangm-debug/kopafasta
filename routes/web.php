@@ -537,6 +537,8 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/borrower/support', [BorrowerController::class, 'support'])->name('borrower.support');
             Route::post('/borrower/support/speak', [BorrowerController::class, 'speakToSupport'])->name('borrower.support.speak');
             Route::get('/borrower/support/thread', [BorrowerController::class, 'supportThread'])->name('borrower.support.thread');
+            Route::get('/borrower/support/history/{supportConversation}', [BorrowerController::class, 'supportHistory'])->name('borrower.support.history');
+            Route::post('/borrower/support/conversations/{supportConversation}/rate', [BorrowerController::class, 'rateSupportConversation'])->name('borrower.support.conversation.rate');
             Route::post('/borrower/support/rate/{support_ticket}', [BorrowerController::class, 'rateSupportTicket'])->name('borrower.support.rate');
             Route::get('/borrower/refunds', [BorrowerRefundController::class, 'index'])->name('borrower.refunds');
             Route::post('/borrower/refunds/{borrowerRefund}/details', [BorrowerRefundController::class, 'submitDetails'])->name('borrower.refunds.details');

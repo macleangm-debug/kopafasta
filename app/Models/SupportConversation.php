@@ -15,6 +15,7 @@ class SupportConversation extends Model
         return [
             'needs_human'     => 'boolean',
             'last_message_at' => 'datetime',
+            'rated_at'        => 'datetime',
         ];
     }
 

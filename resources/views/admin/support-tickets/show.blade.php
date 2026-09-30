@@ -191,16 +191,14 @@
                 <div class="px-5 py-4 border-b border-gray-100">
                     <h2 class="text-sm font-semibold text-brand">Conversation</h2>
                 </div>
-                <div class="p-5 space-y-3 max-h-[24rem] overflow-y-auto">
+                <div class="p-5 space-y-3 max-h-[24rem] overflow-y-auto bg-[#f7f8fa]">
                     @if ($conversation)
                         @forelse ($conversation->messages as $message)
-                            @php $staff = $message->sender_type === 'staff'; @endphp
-                            <div class="flex {{ $staff ? 'justify-end' : 'justify-start' }}">
-                                <div class="max-w-[90%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap {{ $staff ? 'bg-brand text-white' : 'bg-sky-50 text-gray-900' }}">
-                                    <p>{{ $message->body }}</p>
-                                    <p class="text-[10px] mt-1 {{ $staff ? 'text-white/70' : 'text-gray-400' }}">{{ $message->created_at?->format('d M H:i') }}</p>
-                                </div>
-                            </div>
+                            <x-site.support-chat-bubble
+                                :outbound="in_array($message->sender_type, ['staff', 'bot'], true)"
+                                :text="$message->body"
+                                :time="format_app_datetime($message->created_at, 'H:i')"
+                            />
                         @empty
                             <p class="text-sm text-gray-500">No messages on the linked conversation.</p>
                         @endforelse
@@ -220,7 +218,7 @@
                     @forelse ($internalNotes as $note)
                         <li class="px-5 py-3 text-sm">
                             <p class="text-gray-800 whitespace-pre-wrap">{{ $note->body }}</p>
-                            <p class="text-[10px] text-gray-400 mt-1">{{ $note->actor?->name }} · {{ $note->created_at?->format('d M Y H:i') }}</p>
+                            <p class="text-[10px] text-gray-400 mt-1">{{ $note->actor?->name }} · {{ format_app_datetime($note->created_at, 'd M Y H:i') }}</p>
                         </li>
                     @empty
                         <li class="px-5 py-8 text-sm text-gray-500">No internal notes yet.</li>

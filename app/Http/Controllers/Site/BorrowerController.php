@@ -3862,16 +3862,33 @@ class BorrowerController extends Controller
         $conversation = \App\Models\SupportConversation::query()
             ->where('customer_id', $customer->id)
             ->whereNotIn('status', ['closed', 'resolved'])
-            ->with(['messages' => fn ($q) => $q->orderBy('id')])
+            ->with(['messages' => fn ($q) => $q->orderBy('id'), 'assignedTo'])
             ->latest('id')
             ->first();
 
-        $openChat = request()->boolean('chat') || ($conversation && $conversation->messages()->exists());
+        $history = \App\Models\SupportConversation::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['closed', 'resolved'])
+            ->latest('last_message_at')
+            ->limit(8)
+            ->get(['id', 'topic', 'status', 'rating', 'last_message_at', 'created_at', 'resolution_category']);
+
+        $help = app(\App\Services\Support\SupportHelpLibraryService::class);
+        $q = trim((string) request('q', ''));
+
+        // Support Home first — never auto-enter chat. ?chat=1 is Continue / Talk to Support only.
+        $openChat = request()->boolean('chat');
 
         return view('site.borrower.support', [
             'customer' => $customer,
             'supportConversation' => $conversation,
+            'supportHistory' => $history,
+            'helpGroups' => $help->groups('member'),
+            'helpResults' => $q !== '' ? $help->search($q, 'member') : [],
+            'helpQuery' => $q,
             'openHumanChat' => $openChat,
+            'phones' => support_phones(),
+            'primaryPhone' => support_phones()[0] ?? null,
         ]);
     }
 
@@ -3939,6 +3956,41 @@ class BorrowerController extends Controller
             'needs_human' => $conversation->needs_human,
             'messages' => $service->serializeMessages($conversation),
         ], $service->memberChatPresence($conversation)));
+    }
+
+    public function supportHistory(\App\Models\SupportConversation $supportConversation): View
+    {
+        $customer = $this->customer();
+        abort_unless((int) $supportConversation->customer_id === (int) $customer->id, 404);
+        $supportConversation->load(['messages' => fn ($q) => $q->orderBy('id')]);
+
+        return view('site.borrower.support-history', [
+            'customer' => $customer,
+            'conversation' => $supportConversation,
+        ]);
+    }
+
+    public function rateSupportConversation(Request $request, \App\Models\SupportConversation $supportConversation): JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless((int) $supportConversation->customer_id === (int) $customer->id, 403);
+        abort_unless(in_array($supportConversation->status, ['resolved', 'closed'], true), 422);
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        app(\App\Services\Support\SupportConversationService::class)
+            ->recordConversationRating($supportConversation, (int) $data['rating'], $data['comment'] ?? null);
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return redirect()
+            ->route('site.borrower.support')
+            ->with('status', 'Asante kwa tathmini yako.');
     }
 
     public function rateSupportTicket(Request $request, \App\Models\SupportTicket $support_ticket): JsonResponse|\Illuminate\Http\RedirectResponse

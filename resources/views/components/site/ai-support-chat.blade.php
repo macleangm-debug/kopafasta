@@ -62,11 +62,12 @@
          'conversationId' => $conversation?->id,
          'agentFirstName' => $presence['agent_first_name'],
          'presence' => $presence['presence'],
-         'brandTitle' => 'Kopafasta Support',
-         'assignedSuffix' => 'Customer Support',
-         'statusOnline' => 'Online',
+         'statusOnline' => 'Waiting for support',
          'statusAssigned' => 'Agent assigned',
          'tagline' => 'Kwa ajili yako · Here to help',
+         'brandTitle' => 'Kopafasta Support',
+         'assignedSuffix' => 'Customer Support',
+         'deskLabel' => $presence['desk_label'] ?? 'Waiting for support',
      ]))">
     @if ($forceHuman)
         {{-- Premium live-support header — compact; no phone/website --}}
@@ -86,7 +87,7 @@
                         <span class="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide">
                             <span class="size-1.5 rounded-full"
                                   :class="presence === 'assigned' ? 'bg-brand-gold' : 'bg-emerald-300'"></span>
-                            <span x-text="presence === 'assigned' ? config.statusAssigned : config.statusOnline"></span>
+                            <span x-text="presence === 'assigned' ? config.statusAssigned : (config.deskLabel || config.statusOnline)"></span>
                         </span>
                     </div>
                     <p class="text-[11px] sm:text-xs text-white/75 mt-0.5 truncate" x-text="config.tagline"></p>

@@ -363,22 +363,31 @@ class SupportWorkspaceController extends Controller
     public function resolveConversation(Request $request, SupportConversation $supportConversation): RedirectResponse
     {
         $data = $request->validate([
+            'resolution_category' => ['required', 'string', 'max:64'],
             'note' => ['nullable', 'string', 'max:2000'],
+            'ask_rating' => ['nullable', 'boolean'],
         ]);
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
         $agent = $this->workspace->actingAgent() ?? $actor;
-        $this->conversations->resolve($supportConversation, $agent, $data['note'] ?? null);
+        $this->conversations->resolve(
+            $supportConversation,
+            $agent,
+            $data['note'] ?? null,
+            $data['resolution_category'],
+            $request->boolean('ask_rating', true),
+        );
 
         if ($actor) {
             $this->audit->logAdminAction($actor, 'admin.support.conversation.resolve', $supportConversation, [
                 'conversation_id' => $supportConversation->id,
+                'resolution_category' => $data['resolution_category'],
             ]);
         }
 
         return redirect()
             ->route('admin.support.inbox')
-            ->with('status', 'Conversation resolved. No case required.');
+            ->with('status', 'Conversation resolved and moved to History. Member can start a fresh thread next time.');
     }
 
     public function newInteraction(Request $request): View

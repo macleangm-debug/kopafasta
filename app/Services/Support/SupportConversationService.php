@@ -53,7 +53,13 @@ class SupportConversationService
 
             $conversation->update([
                 'needs_human' => true,
-                'status' => $conversation->assigned_to ? self::STATUS_ASSIGNED : self::STATUS_WAITING,
+                // Fresh member contact never inherits a historical agent claim while waiting.
+                'assigned_to' => $conversation->assigned_to && in_array($conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true)
+                    ? $conversation->assigned_to
+                    : null,
+                'status' => ($conversation->assigned_to && in_array($conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true))
+                    ? self::STATUS_ASSIGNED
+                    : self::STATUS_WAITING,
                 'topic' => $topic ?: $conversation->topic,
                 'channel' => $channel ?: ($conversation->channel ?: 'web_chat'),
                 'last_message_at' => now(),
@@ -64,7 +70,10 @@ class SupportConversationService
 
             $hasWaitingAck = $conversation->messages()
                 ->where('is_automated', true)
-                ->where('body', 'like', 'Tumepokea ujumbe%')
+                ->where(function ($q) {
+                    $q->where('body', 'like', 'Ujumbe wako umepokelewa%')
+                        ->orWhere('body', 'like', 'Tumepokea ujumbe%');
+                })
                 ->exists();
             if (! $hasWaitingAck) {
                 $this->appendMessage(
@@ -249,12 +258,16 @@ class SupportConversationService
             if ($senderType === 'staff' && ! $automated) {
                 $updates['needs_human'] = false;
                 $updates['status'] = self::STATUS_ACTIVE;
-                if ($senderUserId && ! $conversation->assigned_to) {
-                    $updates['assigned_to'] = $senderUserId;
-                }
+                // Never auto-claim: agent identity appears only after Accept/Take.
             } elseif (in_array($senderType, ['customer', 'guest'], true)) {
                 $updates['needs_human'] = true;
-                $updates['status'] = $conversation->assigned_to ? self::STATUS_ASSIGNED : self::STATUS_WAITING;
+                // New inbound activity returns the thread to team queue unless already accepted.
+                if (! $conversation->assigned_to) {
+                    $updates['status'] = self::STATUS_WAITING;
+                    $updates['assigned_to'] = null;
+                } else {
+                    $updates['status'] = self::STATUS_ASSIGNED;
+                }
             } else {
                 $updates['last_message_at'] = now();
             }
@@ -266,13 +279,22 @@ class SupportConversationService
         return $message;
     }
 
-    public function resolve(SupportConversation $conversation, ?User $actor = null, ?string $note = null): SupportConversation
-    {
+    public function resolve(
+        SupportConversation $conversation,
+        ?User $actor = null,
+        ?string $note = null,
+        ?string $category = null,
+        bool $askRating = true,
+    ): SupportConversation {
         if (in_array($conversation->status, [self::STATUS_RESOLVED, self::STATUS_CLOSED], true)) {
             return $conversation;
         }
 
-        $body = app(SupportQuickReplyService::class)->compose('resolved', 'sw');
+        $first = $this->requesterFirstName($conversation) ?: 'mteja';
+        $body = "Habari {$first}, suala lako limekamilishwa. Tunatumaini tumekusaidia.";
+        if ($askRating) {
+            $body .= ' Tafadhali tathmini huduma yetu kwa kuchagua nyota 1–5.';
+        }
         if ($note) {
             $body = trim($body)."\n\n".$note;
         }
@@ -282,10 +304,32 @@ class SupportConversationService
         $conversation->update([
             'status' => self::STATUS_RESOLVED,
             'needs_human' => false,
+            'assigned_to' => $conversation->assigned_to,
+            'resolution_category' => $category,
+            'resolution_note' => $note,
             'last_message_at' => now(),
         ]);
 
         return $conversation->fresh();
+    }
+
+    public function recordConversationRating(SupportConversation $conversation, int $rating, ?string $comment = null): SupportConversation
+    {
+        $rating = max(1, min(5, $rating));
+        $conversation->update([
+            'rating' => $rating,
+            'rated_at' => now(),
+            'resolution_note' => $comment
+                ? trim((string) $conversation->resolution_note."\nRating note: ".$comment)
+                : $conversation->resolution_note,
+        ]);
+
+        return $conversation->fresh();
+    }
+
+    public function waitingAcknowledgement(): string
+    {
+        return 'Ujumbe wako umepokelewa. Uko kwenye foleni ya Huduma kwa Wateja; mhudumu atakujibu hapa.';
     }
 
     public function markReadForStaff(SupportConversation $conversation): void
@@ -302,11 +346,6 @@ class SupportConversationService
             ->whereNull('read_at')
             ->whereIn('sender_type', ['customer', 'guest'])
             ->count();
-    }
-
-    public function waitingAcknowledgement(): string
-    {
-        return 'Tumepokea ujumbe wako. Timu yetu ya Huduma kwa Wateja imejulishwa. Mtoa huduma atakapochukua mazungumzo haya, utaendelea kuwasiliana naye hapa.';
     }
 
     public function agentIntroduction(SupportConversation $conversation, User $agent): string
@@ -377,14 +416,15 @@ class SupportConversationService
             'sender_type' => (string) $m->sender_type,
             'text' => (string) $m->body,
             'at' => $m->created_at?->toIso8601String(),
-            'time' => $m->created_at?->format('H:i'),
+            'time' => $m->created_at ? format_app_datetime($m->created_at, 'H:i') : null,
         ])->all();
     }
 
     /**
      * Member/Partner chat header presence (does not affect message delivery).
+     * Agent identity is shown only after Accept (assigned/active), never on waiting queue.
      *
-     * @return array{assigned_to:?int, agent_first_name:?string, status:string, presence:string}
+     * @return array{assigned_to:?int, agent_first_name:?string, status:string, presence:string, desk_label:string}
      */
     public function memberChatPresence(?SupportConversation $conversation): array
     {
@@ -394,19 +434,23 @@ class SupportConversationService
                 'agent_first_name' => null,
                 'status' => self::STATUS_WAITING,
                 'presence' => 'online',
+                'desk_label' => 'Waiting for support',
             ];
         }
 
         $conversation->loadMissing('assignedTo');
-        $agentFirst = $conversation->assigned_to
+        $accepted = $conversation->assigned_to
+            && in_array($conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true);
+        $agentFirst = $accepted
             ? ($this->personFirstName((string) ($conversation->assignedTo?->name ?? '')) ?: null)
             : null;
 
         return [
-            'assigned_to' => $conversation->assigned_to ? (int) $conversation->assigned_to : null,
+            'assigned_to' => $accepted ? (int) $conversation->assigned_to : null,
             'agent_first_name' => $agentFirst,
             'status' => (string) $conversation->status,
             'presence' => $agentFirst ? 'assigned' : 'online',
+            'desk_label' => $agentFirst ? 'Agent assigned' : 'Waiting for support',
         ];
     }
 

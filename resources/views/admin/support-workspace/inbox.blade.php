@@ -16,7 +16,7 @@
                 'id' => (int) $message->id,
                 'role' => in_array($message->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
                 'text' => (string) $message->body,
-                'time' => $message->created_at?->format('H:i'),
+                'time' => $message->created_at ? format_app_datetime($message->created_at, 'H:i') : null,
             ];
         }
     }
@@ -130,15 +130,83 @@
                                 <button type="button" @click="acceptConversation()" :disabled="sending"
                                         class="rounded-lg ring-1 ring-brand/20 text-brand text-xs font-semibold px-3 py-1.5 hover:bg-brand-muted/40 disabled:opacity-60">Accept</button>
                             @endif
-                            <form method="POST" action="{{ route('admin.support.inbox.resolve', $conversation) }}"
-                                  onsubmit="event.preventDefault(); confirmForm(this, { title: 'Resolve conversation?', message: 'Use this when the issue is answered here. Create a case only if investigation or another department is needed.' })">
-                                @csrf
-                                <button class="rounded-lg ring-1 ring-emerald-200 text-emerald-800 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-50">Resolve</button>
-                            </form>
-                            <form method="POST" action="{{ route('admin.support.inbox.create-case', $conversation) }}">
-                                @csrf
-                                <button class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95">Create case</button>
-                            </form>
+                            <div x-data="{ resolveOpen: false }" class="relative">
+                                <button type="button" @click="resolveOpen = !resolveOpen"
+                                        class="rounded-lg ring-1 ring-emerald-200 text-emerald-800 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-50">Resolve</button>
+                                <div x-show="resolveOpen" x-cloak @click.outside="resolveOpen = false"
+                                     class="absolute right-0 top-full mt-2 z-20 w-72 rounded-xl bg-white ring-1 ring-emerald-200 shadow-lg p-3 space-y-2">
+                                    <form method="POST" action="{{ route('admin.support.inbox.resolve', $conversation) }}"
+                                          onsubmit="event.preventDefault(); confirmForm(this, { title: 'Resolve conversation?', message: 'Member receives a resolution message and optional rating. Next Talk to Support starts a new thread. History is preserved.' })">
+                                        @csrf
+                                        <label class="block text-[11px] font-semibold text-gray-700">Resolution category
+                                            <select name="resolution_category" required class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                <option value="answered">Answered directly</option>
+                                                <option value="guidance_provided">Guidance provided</option>
+                                                <option value="technical_fixed">Technical fixed</option>
+                                                <option value="payment_clarified">Payment clarified</option>
+                                                <option value="application_clarified">Application clarified</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </label>
+                                        <label class="block text-[11px] font-semibold text-gray-700 mt-2">Note (optional)
+                                            <textarea name="note" rows="2" maxlength="2000" class="mt-1 w-full rounded-lg border-gray-200 text-xs"></textarea>
+                                        </label>
+                                        <label class="inline-flex items-center gap-2 text-[11px] text-gray-700 mt-2">
+                                            <input type="checkbox" name="ask_rating" value="1" checked class="rounded border-gray-300 text-brand">
+                                            Ask 1–5 rating
+                                        </label>
+                                        <button class="mt-2 w-full rounded-lg bg-emerald-700 text-white text-xs font-semibold px-3 py-2">Confirm resolve</button>
+                                    </form>
+                                </div>
+                            </div>
+                            <div x-data="{ caseOpen: false }" class="relative">
+                                <button type="button" @click="caseOpen = !caseOpen"
+                                        class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95">Create case</button>
+                                <div x-show="caseOpen" x-cloak @click.outside="caseOpen = false"
+                                     class="absolute right-0 top-full mt-2 z-20 w-80 rounded-xl bg-white ring-1 ring-brand/20 shadow-lg p-3 space-y-2">
+                                    <form method="POST" action="{{ route('admin.support.inbox.create-case', $conversation) }}" class="space-y-2"
+                                          onsubmit="event.preventDefault(); confirmForm(this, { title: 'Create follow-up case?', message: 'Use a case only when investigation or another department must own follow-up. Ordinary answers should stay as conversation only.' })">
+                                        @csrf
+                                        <label class="block text-[11px] font-semibold text-gray-700">Subject
+                                            <input type="text" name="subject" value="{{ $conversation->topic }}" maxlength="180" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                        </label>
+                                        <label class="block text-[11px] font-semibold text-gray-700">Category
+                                            <select name="category" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                <option value="general">General</option>
+                                                <option value="complaint">Complaint</option>
+                                                <option value="technical">Technical</option>
+                                                <option value="payment">Payment</option>
+                                                <option value="loan">Loan</option>
+                                                <option value="partner">Partner</option>
+                                            </select>
+                                        </label>
+                                        <label class="block text-[11px] font-semibold text-gray-700">Related record
+                                            <select name="related_type" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                <option value="">None</option>
+                                                <option value="application">Application</option>
+                                                <option value="loan">Loan</option>
+                                                <option value="payment">Payment</option>
+                                                <option value="account">Profile / account</option>
+                                            </select>
+                                        </label>
+                                        <label class="block text-[11px] font-semibold text-gray-700">Related ID (optional)
+                                            <input type="number" name="related_id" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                        </label>
+                                        <label class="block text-[11px] font-semibold text-gray-700">Priority
+                                            <select name="priority" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                <option value="normal">Normal</option>
+                                                <option value="low">Low</option>
+                                                <option value="high">High</option>
+                                                <option value="urgent">Urgent</option>
+                                            </select>
+                                        </label>
+                                        <label class="block text-[11px] font-semibold text-gray-700">Summary
+                                            <textarea name="body" rows="3" maxlength="5000" class="mt-1 w-full rounded-lg border-gray-200 text-xs" placeholder="Prefill from conversation if blank"></textarea>
+                                        </label>
+                                        <button class="w-full rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2">Create case</button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -156,14 +224,20 @@
 
                     <div class="border-t border-slate-200/80 p-4 space-y-3 bg-white">
                         @if (! empty($quickReplies))
-                            <div class="flex flex-wrap gap-1.5">
-                                @foreach ($quickReplies as $qr)
-                                    <button type="button"
-                                            @click="insertQuick(@js($qr['key']))"
-                                            class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-muted">
-                                        {{ $qr['label_'.$locale] ?? $qr['label_sw'] }}
-                                    </button>
-                                @endforeach
+                            <div x-data="{ tq: '', replies: @js(collect($quickReplies)->map(fn ($qr) => [
+                                'key' => $qr['key'],
+                                'group' => $qr['group'] ?? '',
+                                'label' => $qr['label_'.$locale] ?? $qr['label_sw'],
+                            ])->values()) }" class="space-y-2">
+                                <input type="search" x-model="tq" placeholder="Search templates (SW/EN)…"
+                                       class="w-full rounded-lg border-slate-200 text-xs">
+                                <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                    <template x-for="qr in replies.filter(r => !tq || (r.label + ' ' + r.group + ' ' + r.key).toLowerCase().includes(tq.toLowerCase()))" :key="qr.key">
+                                        <button type="button" @click="insertQuick(qr.key)"
+                                                class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-muted"
+                                                x-text="qr.label"></button>
+                                    </template>
+                                </div>
                             </div>
                         @endif
                         <form @submit.prevent="sendReply()" class="flex gap-3 items-end">
