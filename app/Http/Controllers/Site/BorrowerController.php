@@ -3903,12 +3903,7 @@ class BorrowerController extends Controller
                 'conversation_id' => $conversation->id,
                 'status' => $conversation->status,
                 'ack' => $ack,
-                'messages' => $conversation->messages()->orderBy('id')->get()->map(fn ($m) => [
-                    'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
-                    'sender_type' => $m->sender_type,
-                    'text' => $m->body,
-                    'at' => $m->created_at?->toIso8601String(),
-                ]),
+                'messages' => $service->serializeMessages($conversation),
             ]);
         }
 
@@ -3920,28 +3915,25 @@ class BorrowerController extends Controller
     public function supportThread(): JsonResponse
     {
         $customer = $this->customer();
+        $service = app(\App\Services\Support\SupportConversationService::class);
         $conversation = \App\Models\SupportConversation::query()
             ->where('customer_id', $customer->id)
             ->whereNotIn('status', ['closed', 'resolved'])
-            ->with(['messages' => fn ($q) => $q->orderBy('id')])
             ->latest('id')
             ->first();
 
         if (! $conversation) {
-            return response()->json(['ok' => true, 'messages' => []]);
+            return response()->json(['ok' => true, 'conversation_id' => null, 'messages' => []]);
         }
+
+        $service->normalizeLegacyStatus($conversation);
 
         return response()->json([
             'ok' => true,
             'conversation_id' => $conversation->id,
             'status' => $conversation->status,
             'needs_human' => $conversation->needs_human,
-            'messages' => $conversation->messages->map(fn ($m) => [
-                'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
-                'sender_type' => $m->sender_type,
-                'text' => $m->body,
-                'at' => $m->created_at?->toIso8601String(),
-            ]),
+            'messages' => $service->serializeMessages($conversation),
         ]);
     }
 

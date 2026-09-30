@@ -9,6 +9,17 @@
     $locale = str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw';
     $quickReplyBodies = $quickReplyBodies ?? [];
     $specialistFollowUps = $specialistFollowUps ?? 0;
+    $seedMessages = [];
+    if ($conversation) {
+        foreach ($conversation->messages as $message) {
+            $seedMessages[] = [
+                'id' => (int) $message->id,
+                'role' => in_array($message->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
+                'text' => (string) $message->body,
+                'time' => $message->created_at?->format('H:i'),
+            ];
+        }
+    }
 @endphp
 <x-admin.layout title="Inbox" heading="" subheading="">
     <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -22,23 +33,32 @@
         </a>
     </div>
 
+    @if (session('error'))
+        <div class="mb-3 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-900">{{ session('error') }}</div>
+    @endif
+    @if (session('status'))
+        <div class="mb-3 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950">{{ session('status') }}</div>
+    @endif
+
     @if ($specialistFollowUps > 0)
         <div class="mb-3 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
             <span class="font-semibold">{{ $specialistFollowUps }}</span> specialist response(s) awaiting Support follow-up on open cases.
         </div>
     @endif
 
-    <div class="mx-auto w-full max-w-6xl rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden"
-         x-data="{
-            draft: '',
-            bodies: @js($quickReplyBodies),
-            insertQuick(key) {
-                this.draft = this.bodies[key] || '';
-                $refs.composer?.focus();
-            }
-         }">
-        {{-- ~26% / 42% / 32% — chat column deliberately narrower than before --}}
-        <div class="grid lg:grid-cols-[minmax(15rem,1.1fr)_minmax(0,1.55fr)_minmax(14rem,1.2fr)] min-h-[34rem]">
+    <div class="w-full rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden"
+         x-data="supportInboxDesk(@js([
+             'draft' => '',
+             'bodies' => $quickReplyBodies,
+             'messages' => $seedMessages,
+             'threadUrl' => $conversation ? route('admin.support.inbox.thread', $conversation) : null,
+             'replyUrl' => $conversation ? route('admin.support.inbox.reply', $conversation) : null,
+             'acceptUrl' => $conversation ? route('admin.support.inbox.accept', $conversation) : null,
+             'csrf' => csrf_token(),
+             'pollMs' => 2500,
+         ]))">
+        {{-- Full Admin content width; internal ~24% / 48% / 28% --}}
+        <div class="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.8fr)_minmax(0,1.05fr)] min-h-[34rem]">
             {{-- CONVERSATIONS --}}
             <aside class="bg-slate-50/80 border-b lg:border-b-0 lg:border-r border-slate-200/80 flex flex-col {{ $conversation ? 'hidden lg:flex' : 'flex' }}">
                 <div class="px-3 pt-3 pb-1">
@@ -90,16 +110,15 @@
                             <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">Conversation</p>
                             <p class="text-base font-bold text-slate-900 truncate">{{ $serialized['name'] ?? 'Conversation' }}</p>
                             <p class="text-sm text-slate-500">
-                                {{ $serialized['desk_state'] ?? ucfirst($conversation->status) }}
+                                <span x-text="deskState || @js($serialized['desk_state'] ?? ucfirst($conversation->status))"></span>
                                 @if (! empty($serialized['topic'])) · {{ $serialized['topic'] }} @endif
                             </p>
+                            <p class="text-xs text-red-700 mt-1" x-show="error" x-text="error" x-cloak></p>
                         </div>
                         <div class="flex flex-wrap gap-1.5 shrink-0">
                             @if (! $conversation->assigned_to)
-                                <form method="POST" action="{{ route('admin.support.inbox.accept', $conversation) }}">
-                                    @csrf
-                                    <button class="rounded-lg ring-1 ring-brand/20 text-brand text-xs font-semibold px-3 py-1.5 hover:bg-brand-muted/40">Accept</button>
-                                </form>
+                                <button type="button" @click="acceptConversation()" :disabled="busy"
+                                        class="rounded-lg ring-1 ring-brand/20 text-brand text-xs font-semibold px-3 py-1.5 hover:bg-brand-muted/40 disabled:opacity-60">Accept</button>
                             @endif
                             <form method="POST" action="{{ route('admin.support.inbox.resolve', $conversation) }}"
                                   onsubmit="event.preventDefault(); confirmForm(this, { title: 'Resolve conversation?', message: 'Use this when the issue is answered here. Create a case only if investigation or another department is needed.' })">
@@ -113,23 +132,17 @@
                         </div>
                     </div>
 
-                    <div class="flex-1 overflow-y-auto px-3 py-3 space-y-2 bg-[#f7f8fa] max-h-[22rem] lg:max-h-[28rem]">
-                        @forelse ($conversation->messages as $message)
-                            @php
-                                $staff = in_array($message->sender_type, ['staff', 'bot'], true);
-                            @endphp
-                            <div class="flex {{ $staff ? 'justify-end' : 'justify-start' }}">
-                                <div class="max-w-[min(18rem,78%)] rounded-2xl px-3 py-2 text-[15px] leading-snug whitespace-pre-wrap shadow-sm
-                                    {{ $staff ? 'bg-brand text-white rounded-br-md' : 'bg-white text-slate-900 rounded-bl-md ring-1 ring-slate-200/70' }}">
-                                    <p>{{ $message->body }}</p>
-                                    <p class="text-xs mt-1 text-right {{ $staff ? 'text-white/70' : 'text-slate-400' }}">
-                                        {{ $message->created_at?->format('H:i') }}
-                                    </p>
+                    <div class="flex-1 overflow-y-auto px-3 py-3 space-y-2 bg-[#f7f8fa] max-h-[22rem] lg:max-h-[28rem]" x-ref="scroll">
+                        <template x-for="msg in messages" :key="msg.id || msg.text + (msg.time || '')">
+                            <div class="flex" :class="msg.role === 'bot' ? 'justify-end' : 'justify-start'">
+                                <div class="w-fit max-w-[70%] rounded-2xl px-3 py-2 text-[15px] leading-snug whitespace-pre-wrap shadow-sm"
+                                     :class="msg.role === 'bot' ? 'bg-brand text-white rounded-br-md' : 'bg-white text-slate-900 rounded-bl-md ring-1 ring-slate-200/70'">
+                                    <p x-text="msg.text"></p>
+                                    <p class="text-xs mt-1 text-right" :class="msg.role === 'bot' ? 'text-white/70' : 'text-slate-400'" x-text="msg.time || ''"></p>
                                 </div>
                             </div>
-                        @empty
-                            <p class="text-sm text-slate-500 text-center py-10">No messages yet.</p>
-                        @endforelse
+                        </template>
+                        <p class="text-sm text-slate-500 text-center py-10" x-show="!messages.length">No messages yet.</p>
                     </div>
 
                     <div class="border-t border-slate-200/80 p-3 space-y-2 bg-white">
@@ -144,12 +157,12 @@
                                 @endforeach
                             </div>
                         @endif
-                        <form method="POST" action="{{ route('admin.support.inbox.reply', $conversation) }}" class="flex gap-2 items-end">
-                            @csrf
+                        <form @submit.prevent="sendReply()" class="flex gap-2 items-end">
                             <textarea name="body" x-model="draft" x-ref="composer" rows="2" required maxlength="5000"
                                       placeholder="Write a reply… quick replies insert here for edit before send"
                                       class="flex-1 rounded-xl border-slate-200 text-base focus:ring-brand/30"></textarea>
-                            <button type="submit" class="shrink-0 rounded-xl bg-brand-gold text-brand font-semibold text-sm px-4 py-2.5 hover:brightness-95">Send</button>
+                            <button type="submit" :disabled="busy || !draft.trim()"
+                                    class="shrink-0 rounded-xl bg-brand-gold text-brand font-semibold text-sm px-4 py-2.5 hover:brightness-95 disabled:opacity-60">Send</button>
                         </form>
                     </div>
                 @else
@@ -157,7 +170,7 @@
                         <div>
                             <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">Conversation</p>
                             <p class="text-base font-semibold text-slate-900 mt-1">Select a conversation</p>
-                            <p class="text-sm text-slate-500 mt-1 max-w-xs">Waiting and unread chats appear on the left. Accept before introducing yourself by name.</p>
+                            <p class="text-sm text-slate-500 mt-1 max-w-xs">Waiting and unread chats appear on the left. Select a Support staff member, then Accept before introducing yourself by name.</p>
                         </div>
                     </div>
                 @endif
@@ -230,4 +243,146 @@
             </aside>
         </div>
     </div>
+
+    @once
+        <script>
+            document.addEventListener('alpine:init', function () {
+                Alpine.data('supportInboxDesk', function (config) {
+                    return {
+                        draft: config.draft || '',
+                        bodies: config.bodies || {},
+                        messages: Array.isArray(config.messages) ? config.messages.slice() : [],
+                        threadUrl: config.threadUrl,
+                        replyUrl: config.replyUrl,
+                        acceptUrl: config.acceptUrl,
+                        csrf: config.csrf,
+                        pollMs: config.pollMs || 2500,
+                        busy: false,
+                        error: '',
+                        deskState: '',
+                        _timer: null,
+                        insertQuick(key) {
+                            this.draft = this.bodies[key] || '';
+                            this.$refs.composer?.focus();
+                        },
+                        mapMessages(list) {
+                            return (list || []).map(function (m) {
+                                return {
+                                    id: m.id,
+                                    role: m.role,
+                                    text: m.text,
+                                    time: m.time || (m.at ? String(m.at).slice(11, 16) : ''),
+                                };
+                            });
+                        },
+                        scrollBottom() {
+                            var self = this;
+                            this.$nextTick(function () {
+                                if (self.$refs.scroll) self.$refs.scroll.scrollTop = self.$refs.scroll.scrollHeight;
+                            });
+                        },
+                        async poll() {
+                            if (!this.threadUrl || this.busy) return;
+                            try {
+                                var res = await fetch(this.threadUrl, {
+                                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                    credentials: 'same-origin',
+                                });
+                                if (!res.ok) return;
+                                var data = await res.json();
+                                if (!data.ok || !data.messages) return;
+                                var next = this.mapMessages(data.messages);
+                                var prevLast = this.messages.length ? this.messages[this.messages.length - 1].id : null;
+                                var nextLast = next.length ? next[next.length - 1].id : null;
+                                if (next.length !== this.messages.length || prevLast !== nextLast) {
+                                    this.messages = next;
+                                    this.scrollBottom();
+                                }
+                                if (data.desk_state) this.deskState = data.desk_state;
+                            } catch (e) { /* keep polling */ }
+                        },
+                        async acceptConversation() {
+                            if (!this.acceptUrl || this.busy) return;
+                            this.busy = true;
+                            this.error = '';
+                            try {
+                                var res = await fetch(this.acceptUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': this.csrf,
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify({}),
+                                });
+                                var data = await res.json().catch(function () { return {}; });
+                                if (!res.ok || !data.ok) {
+                                    this.error = data.error || 'Accept failed. Select a Support staff member first.';
+                                    return;
+                                }
+                                this.messages = this.mapMessages(data.messages || []);
+                                this.deskState = 'Assigned';
+                                this.scrollBottom();
+                            } catch (e) {
+                                this.error = 'Accept failed. Try again.';
+                            } finally {
+                                this.busy = false;
+                            }
+                        },
+                        async sendReply() {
+                            var body = (this.draft || '').trim();
+                            if (!body || !this.replyUrl || this.busy) return;
+                            this.busy = true;
+                            this.error = '';
+                            var optimistic = { id: 'tmp-' + Date.now(), role: 'bot', text: body, time: new Date().toTimeString().slice(0, 5) };
+                            this.messages.push(optimistic);
+                            this.draft = '';
+                            this.scrollBottom();
+                            try {
+                                var res = await fetch(this.replyUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': this.csrf,
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify({ body: body }),
+                                });
+                                var data = await res.json().catch(function () { return {}; });
+                                if (!res.ok || !data.ok) {
+                                    this.messages = this.messages.filter(function (m) { return m.id !== optimistic.id; });
+                                    this.draft = body;
+                                    this.error = data.error || 'Reply failed.';
+                                    return;
+                                }
+                                this.messages = this.mapMessages(data.messages || []);
+                                this.deskState = 'Active';
+                                this.scrollBottom();
+                            } catch (e) {
+                                this.messages = this.messages.filter(function (m) { return m.id !== optimistic.id; });
+                                this.draft = body;
+                                this.error = 'Reply failed. Try again.';
+                            } finally {
+                                this.busy = false;
+                            }
+                        },
+                        init() {
+                            this.scrollBottom();
+                            if (this.threadUrl) {
+                                var self = this;
+                                this._timer = setInterval(function () { self.poll(); }, this.pollMs);
+                            }
+                        },
+                        destroy() {
+                            if (this._timer) clearInterval(this._timer);
+                        },
+                    };
+                });
+            });
+        </script>
+    @endonce
 </x-admin.layout>

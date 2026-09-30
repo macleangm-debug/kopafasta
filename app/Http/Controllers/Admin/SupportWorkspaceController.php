@@ -97,7 +97,7 @@ class SupportWorkspaceController extends Controller
             'agent' => $agent,
             'quickReplies' => $this->quickReplies->all(),
             'quickReplyBodies' => collect($this->quickReplies->all())->mapWithKeys(
-                fn ($row) => [$row['key'] => $this->quickReplies->compose($row['key'], str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw')]
+                fn ($row) => [$row['key'] => $this->quickReplies->compose($row['key'], str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw', [], false)]
             )->all(),
             'signature' => $this->quickReplies->signature(str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw'),
             'activeId' => null,
@@ -168,9 +168,25 @@ class SupportWorkspaceController extends Controller
             'q' => $q,
             'agent' => $agent,
             'quickReplies' => $this->quickReplies->all(),
-            'quickReplyBodies' => collect($this->quickReplies->all())->mapWithKeys(
-                fn ($row) => [$row['key'] => $this->quickReplies->compose($row['key'], $locale)]
-            )->all(),
+            'quickReplyBodies' => collect($this->quickReplies->all())->mapWithKeys(function ($row) use ($locale, $supportConversation, $agent) {
+                $vars = [];
+                if ($row['key'] === 'introduction') {
+                    $vars = [
+                        'member_first_name' => $this->conversations->requesterFirstName($supportConversation),
+                        'agent_first_name' => $agent
+                            ? ($this->conversations->personFirstName($agent->name) ?: 'Mtoa huduma')
+                            : '',
+                    ];
+                }
+
+                // Signature only on Introduction quick-reply body (editable before send).
+                return [$row['key'] => $this->quickReplies->compose(
+                    $row['key'],
+                    $locale,
+                    $vars,
+                    $row['key'] === 'introduction'
+                )];
+            })->all(),
             'signature' => $this->quickReplies->signature($locale),
             'activeId' => $supportConversation->id,
             'conversation' => $supportConversation,
@@ -235,25 +251,34 @@ class SupportWorkspaceController extends Controller
         return back()->with('status', 'Availability set to '.ucfirst($state).'.');
     }
 
-    public function reply(Request $request, SupportConversation $supportConversation): RedirectResponse
+    public function reply(Request $request, SupportConversation $supportConversation): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $data = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
         ]);
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
-        $agent = $this->workspace->actingAgent() ?? $actor;
+        $agent = $this->workspace->actingAgent();
 
-        if (! $supportConversation->assigned_to && $agent) {
+        if (! $supportConversation->assigned_to) {
+            if (! $agent || ! $this->workspace->isAssignableSupportAgent($agent)) {
+                $message = 'Select a Support staff member (staff filter) before replying to an unassigned conversation.';
+                if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                    return response()->json(['ok' => false, 'error' => $message], 422);
+                }
+
+                return back()->withInput()->with('error', $message);
+            }
             $this->conversations->accept($supportConversation, $agent);
             $supportConversation->refresh();
         }
 
-        $this->conversations->appendMessage(
+        $senderId = $agent?->id ?? $supportConversation->assigned_to;
+        $message = $this->conversations->appendMessage(
             $supportConversation,
             'staff',
             trim($data['body']),
-            $agent?->id,
+            $senderId ? (int) $senderId : null,
             false,
             true,
         );
@@ -261,16 +286,37 @@ class SupportWorkspaceController extends Controller
         if ($actor) {
             $this->audit->logAdminAction($actor, 'admin.support.conversation.reply', $supportConversation, [
                 'conversation_id' => $supportConversation->id,
+                'message_id' => $message->id,
+            ]);
+        }
+
+        $supportConversation->load(['messages' => fn ($q) => $q->orderBy('id')]);
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'conversation_id' => $supportConversation->id,
+                'message_id' => $message->id,
+                'messages' => $this->conversations->serializeMessages($supportConversation),
             ]);
         }
 
         return back()->with('status', 'Reply sent.');
     }
 
-    public function accept(Request $request, SupportConversation $supportConversation): RedirectResponse
+    public function accept(Request $request, SupportConversation $supportConversation): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $agent = $this->workspace->actingAgent();
-        abort_unless($agent, 403, 'Select a support staff member before accepting.');
+        if (! $agent || ! $this->workspace->isAssignableSupportAgent($agent)) {
+            $message = 'Select a Support staff member before Accept. Do not Accept while viewing All Support as Admin without a staff filter.';
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'error' => $message], 422);
+            }
+
+            return redirect()
+                ->route('admin.support.inbox.show', $supportConversation)
+                ->with('error', $message);
+        }
 
         $this->conversations->accept($supportConversation, $agent);
 
@@ -281,9 +327,36 @@ class SupportWorkspaceController extends Controller
             ]);
         }
 
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            $supportConversation->refresh()->load(['messages' => fn ($q) => $q->orderBy('id')]);
+
+            return response()->json([
+                'ok' => true,
+                'conversation_id' => $supportConversation->id,
+                'assigned_to' => $agent->id,
+                'assigned_name' => $agent->name,
+                'messages' => $this->conversations->serializeMessages($supportConversation),
+            ]);
+        }
+
         return redirect()
             ->route('admin.support.inbox.show', $supportConversation)
             ->with('status', 'Assigned to '.$agent->name.'. Introduction sent.');
+    }
+
+    public function conversationThread(SupportConversation $supportConversation): \Illuminate\Http\JsonResponse
+    {
+        $this->conversations->markReadForStaff($supportConversation);
+        $supportConversation->load(['messages' => fn ($q) => $q->orderBy('id')]);
+
+        return response()->json([
+            'ok' => true,
+            'conversation_id' => $supportConversation->id,
+            'status' => $supportConversation->status,
+            'assigned_to' => $supportConversation->assigned_to,
+            'desk_state' => $this->conversations->deskState($supportConversation),
+            'messages' => $this->conversations->serializeMessages($supportConversation),
+        ]);
     }
 
     public function resolveConversation(Request $request, SupportConversation $supportConversation): RedirectResponse

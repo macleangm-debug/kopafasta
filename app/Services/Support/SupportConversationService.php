@@ -92,6 +92,7 @@ class SupportConversationService
         ?string $guestPhone = null,
         ?string $channel = 'web_chat',
     ): SupportConversation {
+        // Deterministic active thread: latest non-terminal conversation for this requester.
         $query = SupportConversation::query()
             ->whereNotIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED])
             ->latest('id');
@@ -104,12 +105,13 @@ class SupportConversationService
             if ($guestPhone) {
                 $existing = SupportConversation::query()
                     ->whereNull('customer_id')
+                    ->whereNull('user_id')
                     ->where('guest_phone', $guestPhone)
                     ->whereNotIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED])
                     ->latest('id')
                     ->first();
                 if ($existing) {
-                    return $existing;
+                    return $this->normalizeLegacyStatus($existing);
                 }
             }
 
@@ -125,7 +127,7 @@ class SupportConversationService
 
         $existing = $query->first();
         if ($existing) {
-            return $existing;
+            return $this->normalizeLegacyStatus($existing);
         }
 
         return SupportConversation::query()->create([
@@ -138,6 +140,22 @@ class SupportConversationService
             'guest_phone' => $customer ? null : $guestPhone,
             'last_message_at' => now(),
         ]);
+    }
+
+    /** Map legacy `open` (and similar) into Waiting/Assigned desk states without destroying history. */
+    public function normalizeLegacyStatus(SupportConversation $conversation): SupportConversation
+    {
+        $status = (string) $conversation->status;
+        if (in_array($status, [self::STATUS_WAITING, self::STATUS_ASSIGNED, self::STATUS_ACTIVE, self::STATUS_RESOLVED, self::STATUS_CLOSED], true)) {
+            return $conversation;
+        }
+
+        $conversation->update([
+            'status' => $conversation->assigned_to ? self::STATUS_ASSIGNED : self::STATUS_WAITING,
+            'needs_human' => $conversation->needs_human || ! $conversation->assigned_to,
+        ]);
+
+        return $conversation->fresh() ?? $conversation;
     }
 
     /**
@@ -250,11 +268,74 @@ class SupportConversationService
 
     public function agentIntroduction(SupportConversation $conversation, User $agent): string
     {
-        $memberFirst = $conversation->customer?->first_name
-            ?: (explode(' ', trim((string) ($conversation->guest_name ?: 'ndugu')), 2)[0] ?: 'ndugu');
-        $agentFirst = explode(' ', trim($agent->name ?: 'Mtoa huduma'), 2)[0] ?: 'Mtoa huduma';
+        $requesterFirst = $this->requesterFirstName($conversation);
+        $agentFirst = $this->personFirstName($agent->name) ?: 'Mtoa huduma';
 
-        return "Habari {$memberFirst}, jina langu ni {$agentFirst} kutoka Huduma kwa Wateja ya Kopafasta. Nitafanya kila niwezalo kukusaidia kutatua suala lako.";
+        $greeting = $requesterFirst !== ''
+            ? "Habari {$requesterFirst},"
+            : 'Habari,';
+
+        $body = "{$greeting} jina langu ni {$agentFirst} kutoka Huduma kwa Wateja ya Kopafasta. Nitafanya kila niwezalo kukusaidia kutatua suala lako.";
+
+        // Contact footer only on the first human introduction for this interaction.
+        $sig = app(SupportQuickReplyService::class)->signature('sw');
+        if ($sig !== '') {
+            $body .= "\n\n".$sig;
+        }
+
+        return $body;
+    }
+
+    public function requesterFirstName(SupportConversation $conversation): string
+    {
+        $customer = $conversation->customer;
+        if ($customer) {
+            $fromField = $this->personFirstName((string) ($customer->first_name ?? ''));
+            if ($fromField !== '') {
+                return $fromField;
+            }
+            $fromFull = $this->personFirstName(trim((string) ($customer->full_name ?? '')));
+            if ($fromFull !== '') {
+                return $fromFull;
+            }
+        }
+
+        $guest = $this->personFirstName((string) ($conversation->guest_name ?? ''));
+        if ($guest !== '') {
+            return $guest;
+        }
+
+        return $this->personFirstName((string) ($conversation->user?->name ?? ''));
+    }
+
+    public function personFirstName(?string $name): string
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return '';
+        }
+
+        $first = explode(' ', preg_replace('/\s+/', ' ', $name) ?? $name, 2)[0] ?? '';
+        $first = trim($first, " \t\n\r\0\x0B,.");
+
+        return $first;
+    }
+
+    /**
+     * Serialize messages for member/staff polling JSON.
+     *
+     * @return list<array{id:int, role:string, sender_type:string, text:string, at:?string}>
+     */
+    public function serializeMessages(SupportConversation $conversation): array
+    {
+        return $conversation->messages()->orderBy('id')->get()->map(fn (SupportMessage $m) => [
+            'id' => (int) $m->id,
+            'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
+            'sender_type' => (string) $m->sender_type,
+            'text' => (string) $m->body,
+            'at' => $m->created_at?->toIso8601String(),
+            'time' => $m->created_at?->format('H:i'),
+        ])->all();
     }
 
     /** Human-readable desk state for staff UI. */

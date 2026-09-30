@@ -134,15 +134,23 @@ class SupportQuickReplyService
      *
      * @param  array<string, string>  $vars
      */
-    public function compose(string $key, string $locale = 'sw', array $vars = [], bool $withSignature = true): string
+    public function compose(string $key, string $locale = 'sw', array $vars = [], bool $withSignature = false): string
     {
         $body = $this->bodyFor($key, $locale);
         foreach ($vars as $name => $value) {
             $body = str_replace('{'.$name.'}', (string) $value, $body);
         }
+
+        // Never leave broken "Habari ," / "jina langu ni  kutoka" after empty placeholders.
         $body = preg_replace('/\{[a-z_]+\}/', '', $body) ?? $body;
+        $body = preg_replace('/\bHabari\s+,/u', 'Habari,', $body) ?? $body;
+        $body = preg_replace('/\bHello\s+,/u', 'Hello,', $body) ?? $body;
+        $body = preg_replace('/jina langu ni\s+kutoka/u', 'jina langu ni Mtoa huduma kutoka', $body) ?? $body;
+        $body = preg_replace('/my name is\s+from/u', 'my name is a support agent from', $body) ?? $body;
+        $body = preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body;
         $body = trim($body);
 
+        // Signature/footer only when explicitly requested (first human introduction).
         if ($withSignature) {
             $sig = $this->signature($locale);
             if ($sig !== '') {

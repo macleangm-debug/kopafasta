@@ -1039,12 +1039,101 @@ class VendorController extends Controller
             $faqs = __('site.partner_portal.faq.default');
         }
 
+        $user = auth()->user();
+        $conversation = $user
+            ? \App\Models\SupportConversation::query()
+                ->where('user_id', $user->id)
+                ->whereNull('customer_id')
+                ->whereNotIn('status', ['closed', 'resolved'])
+                ->with(['messages' => fn ($q) => $q->orderBy('id')])
+                ->latest('id')
+                ->first()
+            : null;
+
         return view('site.vendor.support', [
             'vendor' => $vendor,
             'faqs' => is_array($faqs) ? $faqs : [],
             'supportPhone' => support_contact('phone'),
             'supportEmail' => support_contact('email'),
             'supportWhatsapp' => support_contact('whatsapp'),
+            'supportConversation' => $conversation,
+            'openHumanChat' => request()->boolean('chat') || ($conversation && $conversation->messages()->exists()),
+            'speakUrl' => request()->routeIs('site.vendor.*')
+                ? route('site.vendor.support.speak')
+                : route('site.partner.support.speak'),
+            'threadUrl' => request()->routeIs('site.vendor.*')
+                ? route('site.vendor.support.thread')
+                : route('site.partner.support.thread'),
+            'supportPageUrl' => request()->routeIs('site.vendor.*')
+                ? route('site.vendor.support', ['chat' => 1])
+                : route('site.partner.support', ['chat' => 1]),
+        ]);
+    }
+
+    public function speakToSupport(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        $vendor = $this->vendor();
+        $user = $request->user();
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+            'topic' => ['nullable', 'string', 'max:180'],
+        ]);
+
+        $service = app(\App\Services\Support\SupportConversationService::class);
+        $conversation = $service->requestHuman(
+            null,
+            $user,
+            trim($data['body']),
+            $data['topic'] ?? ('Partner · '.($vendor->name ?: 'Support')),
+            $vendor->name ?: $user?->name,
+            $vendor->phone ?: $user?->phone,
+        );
+
+        $ack = $service->waitingAcknowledgement();
+        $supportPage = $request->routeIs('site.vendor.*')
+            ? 'site.vendor.support'
+            : 'site.partner.support';
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'conversation_id' => $conversation->id,
+                'status' => $conversation->status,
+                'ack' => $ack,
+                'messages' => $service->serializeMessages($conversation),
+            ]);
+        }
+
+        return redirect()
+            ->route($supportPage, ['chat' => 1])
+            ->with('status', $ack);
+    }
+
+    public function supportThread(): \Illuminate\Http\JsonResponse
+    {
+        $user = auth()->user();
+        abort_unless($user, 401);
+
+        $service = app(\App\Services\Support\SupportConversationService::class);
+        $conversation = \App\Models\SupportConversation::query()
+            ->where('user_id', $user->id)
+            ->whereNull('customer_id')
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->latest('id')
+            ->first();
+
+        if (! $conversation) {
+            return response()->json(['ok' => true, 'conversation_id' => null, 'messages' => []]);
+        }
+
+        $service->normalizeLegacyStatus($conversation);
+
+        return response()->json([
+            'ok' => true,
+            'conversation_id' => $conversation->id,
+            'status' => $conversation->status,
+            'needs_human' => $conversation->needs_human,
+            'messages' => $service->serializeMessages($conversation),
         ]);
     }
 

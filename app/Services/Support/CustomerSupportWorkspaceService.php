@@ -81,26 +81,45 @@ class CustomerSupportWorkspaceService
     }
 
     /**
-     * Selected support staff when filtered; null means All Support (aggregate).
+     * Selected support staff when filtered; null means All Support with no assignable agent.
+     *
+     * When Admin/Support is in All Support view but the logged-in user is themselves
+     * an agent / partner_support, they are the acting agent (Accept must not 403).
+     * Pure Admin watching All without selecting staff returns null — caller must prompt.
      */
     public function actingAgent(?User $viewer = null): ?User
     {
+        $viewer ??= auth('admin')->user() ?? auth()->user();
         $ctx = $this->roleView->active();
+
         if ($ctx && $this->isSupportRoleKey($ctx['role_key'] ?? null)) {
             if (($ctx['filter_mode'] ?? 'all') === 'staff' && ! empty($ctx['subject_id'])) {
                 return User::query()->find((int) $ctx['subject_id']);
             }
 
-            // Team/aggregate view — no single agent.
+            // All Support: the signed-in support agent is the actor.
+            if ($viewer && ($viewer->hasRole(self::ROLE_KEY) || $viewer->hasRole('partner_support'))) {
+                return $viewer;
+            }
+
             return null;
         }
 
-        $viewer ??= auth('admin')->user() ?? auth()->user();
         if ($viewer && ($viewer->hasRole(self::ROLE_KEY) || $viewer->hasRole('partner_support'))) {
             return $viewer;
         }
 
         return null;
+    }
+
+    /** True when the user may be assigned as the Support conversation agent. */
+    public function isAssignableSupportAgent(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->hasRole(self::ROLE_KEY) || $user->hasRole('partner_support');
     }
 
     /** @return list<array{id: int, name: string, subtitle: string}> */

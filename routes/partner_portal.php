@@ -54,6 +54,8 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::put('/settings/pin', [PartnerAccountController::class, 'updatePin'])->name('settings.pin');
         Route::put('/settings/preferences', [PartnerAccountController::class, 'updatePreferences'])->name('settings.preferences');
         Route::get('/support', [VendorController::class, 'support'])->name('support');
+        Route::post('/support/speak', [VendorController::class, 'speakToSupport'])->name('support.speak');
+        Route::get('/support/thread', [VendorController::class, 'supportThread'])->name('support.thread');
         Route::get('/terms', [VendorController::class, 'terms'])->name('terms');
         Route::post('/terms', [VendorController::class, 'acceptTerms'])->name('terms.accept');
         Route::get('/verify', [CardVerificationController::class, 'partnerIndex'])->name('verify');

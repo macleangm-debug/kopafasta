@@ -134,6 +134,9 @@ class SupportOpsUxFeatureTest extends TestCase
         $this->assertTrue(
             $conversation->messages()->where('body', 'like', '%Habari Maclean%')->exists()
         );
+        $this->assertTrue(
+            $conversation->messages()->where('is_automated', true)->where('body', 'like', '%Kopafasta Customer Support%')->exists()
+        );
     }
 
     public function test_resolve_conversation_without_case(): void
@@ -244,15 +247,113 @@ class SupportOpsUxFeatureTest extends TestCase
         ]);
     }
 
-    public function test_quick_replies_include_introduction_and_signature(): void
+    public function test_quick_replies_signature_only_on_introduction(): void
     {
         $svc = app(SupportQuickReplyService::class);
         $keys = collect($svc->defaults())->pluck('key')->all();
         $this->assertContains('introduction', $keys);
-        $composed = $svc->compose('received', 'sw');
-        $this->assertStringContainsString('Tumepokea ombi lako', $composed);
-        $this->assertStringContainsString('Kopafasta Customer Support', $composed);
-        $this->assertStringContainsString('Simu:', $composed);
+
+        $received = $svc->compose('received', 'sw', [], false);
+        $this->assertStringContainsString('Tumepokea ombi lako', $received);
+        $this->assertStringNotContainsString('Kopafasta Customer Support', $received);
+
+        $intro = $svc->compose('introduction', 'sw', [
+            'member_first_name' => 'Maclean',
+            'agent_first_name' => 'Rogathe',
+        ], true);
+        $this->assertStringContainsString('Habari Maclean', $intro);
+        $this->assertStringContainsString('Rogathe', $intro);
+        $this->assertStringContainsString('Kopafasta Customer Support', $intro);
+        $this->assertStringContainsString('Simu:', $intro);
+
+        $broken = $svc->compose('introduction', 'sw', [], false);
+        $this->assertStringNotContainsString('Habari ,', $broken);
+        $this->assertStringNotContainsString('jina langu ni  kutoka', $broken);
+    }
+
+    public function test_accept_without_staff_stays_on_inbox_with_error(): void
+    {
+        $admin = $this->admin();
+        [$user, $customer] = $this->member();
+        $conversation = app(SupportConversationService::class)->requestHuman($customer, $user, 'Need help');
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+
+        $this->post(route('admin.support.inbox.accept', $conversation))
+            ->assertRedirect(route('admin.support.inbox.show', $conversation))
+            ->assertSessionHas('error');
+
+        $this->assertNull($conversation->fresh()->assigned_to);
+    }
+
+    public function test_member_support_round_trip_same_conversation(): void
+    {
+        $admin = $this->admin();
+        $agent = $this->agent('Rogathe Nyela');
+        [$user, $customer] = $this->member();
+
+        $this->actingAs($user)
+            ->postJson(route('site.borrower.support.speak'), ['body' => 'P0-A'])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $conversation = SupportConversation::query()->where('customer_id', $customer->id)->latest('id')->first();
+        $this->assertNotNull($conversation);
+        $msgA = $conversation->messages()->where('body', 'P0-A')->where('sender_type', 'customer')->first();
+        $this->assertNotNull($msgA);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+        $this->post(route('admin.role-view.select-staff'), ['staff_id' => $agent->id]);
+
+        $this->postJson(route('admin.support.inbox.accept', $conversation))
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('assigned_to', $agent->id);
+
+        $conversation->refresh();
+        $this->assertSame($agent->id, (int) $conversation->assigned_to);
+        $this->assertTrue($conversation->messages()->where('body', 'like', '%jina langu ni Rogathe%')->exists());
+        $this->assertTrue($conversation->messages()->where('body', 'like', '%Simu:%')->exists());
+
+        $reply = $this->postJson(route('admin.support.inbox.reply', $conversation), ['body' => 'P0-B'])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->json();
+        $msgB = (int) ($reply['message_id'] ?? 0);
+        $this->assertGreaterThan(0, $msgB);
+
+        $thread = $this->actingAs($user)
+            ->getJson(route('site.borrower.support.thread'))
+            ->assertOk()
+            ->json();
+        $this->assertSame($conversation->id, (int) $thread['conversation_id']);
+        $texts = collect($thread['messages'])->pluck('text')->all();
+        $this->assertContains('P0-A', $texts);
+        $this->assertContains('P0-B', $texts);
+
+        $this->postJson(route('site.borrower.support.speak'), ['body' => 'P0-C'])
+            ->assertOk();
+
+        $staffThread = $this->actingAs($admin, 'admin')
+            ->getJson(route('admin.support.inbox.thread', $conversation))
+            ->assertOk()
+            ->json();
+        $staffTexts = collect($staffThread['messages'])->pluck('text')->all();
+        $this->assertContains('P0-C', $staffTexts);
+
+        $this->postJson(route('admin.support.inbox.reply', $conversation), ['body' => 'P0-D'])
+            ->assertOk();
+
+        $final = $this->actingAs($user)
+            ->getJson(route('site.borrower.support.thread'))
+            ->assertOk()
+            ->json();
+        $finalTexts = collect($final['messages'])->pluck('text')->all();
+        $this->assertContains('P0-D', $finalTexts);
+        $this->assertSame($conversation->id, (int) $final['conversation_id']);
+        $this->assertSame(1, SupportConversation::query()->where('customer_id', $customer->id)->whereNotIn('status', ['resolved', 'closed'])->count());
     }
 
     public function test_notifications_route_redirects_to_inbox(): void

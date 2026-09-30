@@ -20,6 +20,7 @@
     if (is_iterable($existingMessages)) {
         foreach ($existingMessages as $m) {
             $seedMessages[] = [
+                'id' => (int) ($m->id ?? 0) ?: null,
                 'role' => in_array($m->sender_type ?? '', ['staff', 'bot'], true) ? 'bot' : 'user',
                 'text' => (string) ($m->body ?? ''),
             ];
@@ -50,6 +51,7 @@
          'humanModeLabel' => __('borrower.support_page.human_mode_label'),
          'seedMessages' => $seedMessages,
          'startHuman' => $startHuman,
+         'pollMs' => 2500,
      ]))">
     <div class="flex items-center gap-3 mb-4">
         <div class="relative size-11 rounded-xl bg-brand text-white grid place-items-center font-bold text-sm shrink-0">
@@ -63,9 +65,9 @@
     </div>
 
     <div class="rounded-xl bg-gradient-to-b from-brand-muted/30 to-white border border-gray-100/80 p-3.5 max-h-80 overflow-y-auto space-y-2.5 text-[15px] mb-3" x-ref="scroll">
-        <template x-for="(msg, i) in messages" :key="i">
+        <template x-for="(msg, i) in messages" :key="msg.id || i">
             <div :class="msg.role === 'user' ? 'text-right' : ''">
-                <span class="inline-block px-3.5 py-2 rounded-2xl max-w-[min(18rem,78%)] text-left whitespace-pre-wrap leading-snug"
+                <span class="inline-block w-fit max-w-[70%] px-3.5 py-2 rounded-2xl text-left whitespace-pre-wrap leading-snug"
                       :class="msg.role === 'user' ? 'bg-brand text-white rounded-br-md' : 'bg-white ring-1 ring-gray-200/80 text-gray-800 rounded-bl-md'"
                       x-text="msg.text"></span>
             </div>
@@ -125,9 +127,40 @@
                         humanMode: !!(config.startHuman || config.forceHuman),
                         showProductChips: false,
                         messages: seeded,
+                        _timer: null,
                         askSuggestion(text) {
                             this.input = text;
                             this.ask();
+                        },
+                        scrollBottom() {
+                            var self = this;
+                            this.$nextTick(function () {
+                                if (self.$refs.scroll) self.$refs.scroll.scrollTop = self.$refs.scroll.scrollHeight;
+                            });
+                        },
+                        mapThread(list) {
+                            return (list || []).map(function (m) {
+                                return { id: m.id, role: m.role, text: m.text };
+                            });
+                        },
+                        async pollThread() {
+                            if (!this.humanMode || !config.threadUrl || this.typing) return;
+                            try {
+                                var res = await fetch(config.threadUrl, {
+                                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                    credentials: 'same-origin',
+                                });
+                                if (!res.ok) return;
+                                var data = await res.json();
+                                if (!data.ok || !data.messages || !data.messages.length) return;
+                                var next = this.mapThread(data.messages);
+                                var prevLast = this.messages.length ? (this.messages[this.messages.length - 1].id || this.messages[this.messages.length - 1].text) : null;
+                                var nextLast = next.length ? (next[next.length - 1].id || next[next.length - 1].text) : null;
+                                if (next.length !== this.messages.length || prevLast !== nextLast) {
+                                    this.messages = next;
+                                    this.scrollBottom();
+                                }
+                            } catch (e) { /* keep polling */ }
                         },
                         matchReply(q) {
                             var lower = q.toLowerCase();
@@ -154,6 +187,7 @@
                             setTimeout(function () {
                                 self.messages.push({ role: 'bot', text: reply });
                                 self.typing = false;
+                                self.scrollBottom();
                             }, 500);
                         },
                         ask() {
@@ -162,6 +196,7 @@
                             this.messages.push({ role: 'user', text: q });
                             this.input = '';
                             this.typing = true;
+                            this.scrollBottom();
                             var self = this;
 
                             if (this.humanMode && config.speakUrl) {
@@ -176,16 +211,12 @@
                                     body: JSON.stringify({ body: q }),
                                 }).then(function (r) { return r.json(); }).then(function (data) {
                                     if (data.messages && data.messages.length) {
-                                        self.messages = data.messages.map(function (m) {
-                                            return { role: m.role, text: m.text };
-                                        });
+                                        self.messages = self.mapThread(data.messages);
                                     } else if (data.ack) {
                                         self.messages.push({ role: 'bot', text: data.ack });
                                     }
                                     self.typing = false;
-                                    self.$nextTick(function () {
-                                        if (self.$refs.scroll) self.$refs.scroll.scrollTop = self.$refs.scroll.scrollHeight;
-                                    });
+                                    self.scrollBottom();
                                 }).catch(function () {
                                     self.messages.push({ role: 'bot', text: 'Imeshindikana kutuma. Jaribu tena.' });
                                     self.typing = false;
@@ -203,7 +234,18 @@
                             setTimeout(function () {
                                 self.messages.push({ role: 'bot', text: reply });
                                 self.typing = false;
+                                self.scrollBottom();
                             }, delay);
+                        },
+                        init() {
+                            this.scrollBottom();
+                            if (this.humanMode && config.threadUrl) {
+                                var self = this;
+                                this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2500);
+                            }
+                        },
+                        destroy() {
+                            if (this._timer) clearInterval(this._timer);
                         },
                     };
                 });
