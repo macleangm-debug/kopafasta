@@ -13,21 +13,29 @@
 
 @if ($needsGuarantor)
     @php
-        $editGuarantorUrl = $profile['edit_guarantor_url'] ?? null;
-        $guarantorSupplementOpen = $application
-            ? app(\App\Services\GuarantorSupplementService::class)->hasOpenRequest($application)
-            : false;
-        if (! $isDraft && $application && ! $editGuarantorUrl && $guarantorSupplementOpen) {
-            $editGuarantorUrl = app(\App\Services\GuarantorSupplementService::class)->borrowerWizardUrl($application);
-        }
-        if (! $isDraft && ! $guarantorSupplementOpen) {
-            $editGuarantorUrl = $guarantorSupplementOpen ? $editGuarantorUrl : null;
-        }
-
+        $supplementSvc = app(\App\Services\GuarantorSupplementService::class);
         $inviteSvc = app(\App\Services\GuarantorInvitationService::class);
         $customer = $application?->customer ?? ($profile['draft']?->customer ?? null);
 
-        $rows = collect();
+        $editGuarantorUrl = $profile['edit_guarantor_url'] ?? null;
+        $guarantorSupplementOpen = $application ? $supplementSvc->hasOpenRequest($application) : false;
+        $isAdditionalSupplement = $application ? $supplementSvc->hasOpenAdditionalRequest($application) : false;
+        $isChangeSupplement = $application ? $supplementSvc->hasOpenChangeRequest($application) : false;
+        $awaitingQuoteReconfirm = $application ? $supplementSvc->awaitingQuoteReconfirm($application) : false;
+        if (! $isDraft && $application && ! $editGuarantorUrl && $guarantorSupplementOpen) {
+            $editGuarantorUrl = $supplementSvc->borrowerWizardUrl($application);
+        }
+        if (! $isDraft && ! $guarantorSupplementOpen) {
+            $editGuarantorUrl = null;
+        }
+
+        $historyCodes = ['rejected', 'declined', 'expired', 'cancelled', 'replaced'];
+        $activeInviteStatuses = ['pending', 'accepted', 'opened', 'sent'];
+        $activeLinkStatuses = ['pending', 'approved'];
+
+        $currentRows = collect();
+        $historyRows = collect();
+
         foreach ($guarantorInvitations as $invite) {
             $status = $inviteSvc->borrowerInvitationStatus($invite);
             $gCustomer = $invite->guarantorCustomer
@@ -37,60 +45,115 @@
             $memberNo = $gCustomer?->member_no
                 ?? $invite->membership_id
                 ?? null;
-            $rows->push((object) [
+            $row = (object) [
                 'name'      => $invite->invitee_name
                     ?? $gCustomer?->legalDisplayName()
                     ?? $invite->contact
                     ?? '—',
                 'type'      => __('borrower.application.guarantor_role'),
                 'member_no' => $memberNo,
+                'phone'     => $invite->contact ?? $gCustomer?->phone,
                 'status'    => $status,
                 'share'     => $inviteSvc->sharePayload($invite, $customer),
-            ]);
+                'invite'    => $invite,
+            ];
+            $inviteStatus = (string) ($invite->status ?? '');
+            $code = (string) ($status['code'] ?? '');
+            if (in_array($inviteStatus, $historyCodes, true) || in_array($code, ['rejected', 'expired'], true)) {
+                $historyRows->push($row);
+            } else {
+                $currentRows->push($row);
+            }
         }
+
         foreach ($guarantorLinks as $link) {
             if ($guarantorInvitations->contains('customer_guarantor_id', $link->id)) {
                 continue;
             }
             $status = $inviteSvc->workflowStatus($link);
             $gCustomer = app(\App\Services\GuarantorAccessService::class)->guarantorCustomerForLink($link);
-            $rows->push((object) [
+            $code = (string) ($status['code'] ?? '');
+            $linkStatus = (string) ($link->status ?? '');
+            $row = (object) [
                 'name'      => $link->displayName(),
                 'type'      => __('borrower.application.guarantor_role'),
                 'member_no' => $gCustomer?->member_no,
+                'phone'     => $gCustomer?->phone,
                 'status'    => array_merge($status, [
                     'profile_percent' => null,
-                    'accepted' => in_array($status['code'] ?? '', ['ready', 'pending_profile'], true),
-                    'ready' => ($status['code'] ?? '') === 'ready',
+                    'accepted' => in_array($code, ['ready', 'pending_profile'], true),
+                    'ready' => $code === 'ready',
                     'steps' => [],
                 ]),
                 'share'     => null,
-            ]);
+                'invite'    => null,
+            ];
+            if (in_array($linkStatus, $historyCodes, true) || in_array($code, ['rejected', 'expired'], true)) {
+                $historyRows->push($row);
+            } elseif (in_array($linkStatus, $activeLinkStatuses, true)) {
+                $currentRows->push($row);
+            } else {
+                $historyRows->push($row);
+            }
         }
 
-        $readyCount = $rows->filter(fn ($row) => ($row->status['ready'] ?? false) || ($row->status['code'] ?? '') === 'ready')->count();
-        $allReady = $rows->isNotEmpty() && $readyCount >= $rows->count();
-        $primary = $rows->first();
+        $readyCount = $currentRows->filter(fn ($row) => ($row->status['ready'] ?? false) || ($row->status['code'] ?? '') === 'ready')->count();
+        $allReady = $currentRows->isNotEmpty() && $readyCount >= $currentRows->count();
+        $primary = $currentRows->first();
         $share = $primary?->share;
+        $primaryCode = (string) ($primary?->status['code'] ?? '');
+        $primaryPendingInvite = in_array($primaryCode, ['pending_acceptance', 'invitation_sent'], true);
+        $primaryIncomplete = in_array($primaryCode, ['pending_profile', 'guarantee_pending', 'registration_in_progress', 'kyc_in_progress'], true);
+        $primaryReady = ($primary?->status['ready'] ?? false) || $primaryCode === 'ready';
+
         $showChangeGuarantor = ($isDraft && $editGuarantorUrl) || ($guarantorSupplementOpen && $editGuarantorUrl);
         $canChangeWhileHeld = ! $isDraft && ! $showChangeGuarantor && (bool) ($profile['can_change_guarantor_while_held'] ?? false);
         $isHeld = $application && (
             ($application->status ?? '') === 'awaiting_guarantor'
             || ($application->current_stage ?? '') === 'awaiting_guarantor'
         );
-        $pending = $rows->isEmpty() || ! $allReady;
         $deadline = $application
             ? app(\App\Services\GuarantorDeadlineService::class)->progress($application)
             : null;
-        // Hold / nudge copy only while UW is blocked on the guarantor (awaiting_guarantor),
-        // or while the draft still needs a ready guarantor. Once submitted + ready, under review.
-        $showWaitingCopy = $isHeld || ($pending && $isDraft);
-        $showReadyBeforeSubmit = $allReady && $isDraft && ! $isHeld;
+
+        // State machine for Guarantor Details (Section P).
+        $uiState = match (true) {
+            $awaitingQuoteReconfirm => 'quote_reconfirm',
+            $allReady && ! $isDraft => 'completed',
+            $allReady && $isDraft => 'ready_before_submit',
+            $currentRows->isEmpty() && ($historyRows->isNotEmpty() || $isChangeSupplement || $canChangeWhileHeld || $guarantorSupplementOpen) => 'needs_replacement',
+            $currentRows->isEmpty() => 'required_empty',
+            $primaryIncomplete => 'accepted_incomplete',
+            $primaryPendingInvite => 'pending',
+            default => 'pending',
+        };
+
+        $showInviteActions = in_array($uiState, ['pending', 'accepted_incomplete'], true)
+            && $share
+            && empty($share['ready']);
+        $showCountdown = $isHeld && $showInviteActions && (! empty($deadline['label']) || isset($deadline['days_left']));
+        $showChangeSecondary = in_array($uiState, ['pending', 'accepted_incomplete'], true)
+            && ($showChangeGuarantor || $canChangeWhileHeld);
+        $showPrimaryChoose = in_array($uiState, ['needs_replacement', 'required_empty'], true)
+            && ($showChangeGuarantor || $canChangeWhileHeld || ($isDraft && $editGuarantorUrl));
+        // Additional UW banner only when kind=additional. Change uses change banner only when open.
+        $supplementBanner = null;
+        if ($isAdditionalSupplement) {
+            $supplementBanner = $supplementSvc->borrowerBanner($application);
+        } elseif ($isChangeSupplement && $uiState !== 'needs_replacement') {
+            $supplementBanner = $supplementSvc->borrowerBanner($application);
+        }
+        $primaryCtaLabel = $isAdditionalSupplement
+            ? __('borrower.guarantor_supplement.cta')
+            : __('borrower.guarantor_supplement.change_cta');
+        if ($isDraft && $uiState === 'required_empty') {
+            $primaryCtaLabel = __('borrower.loan_profile.actions.complete_guarantor');
+        }
     @endphp
 
     <div id="guarantor-progress" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15"
          x-data="{ copied: false }">
-        @if ($allReady && ! $isDraft)
+        @if ($uiState === 'completed')
             {{-- Submitted + ready: premium guarantor details card. --}}
             <div class="relative overflow-hidden bg-gradient-to-br from-brand via-brand to-brand-light text-white">
                 <div class="absolute -right-10 -top-10 size-40 rounded-full bg-white/10 pointer-events-none"></div>
@@ -99,7 +162,7 @@
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div class="min-w-0">
                             <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold/90 font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
-                            @foreach ($rows as $row)
+                            @foreach ($currentRows as $row)
                                 @php
                                     $memberDisplay = \App\Support\MemberNumberFormatter::display($row->member_no ?? null);
                                 @endphp
@@ -113,219 +176,233 @@
                                 @endif
                             @endforeach
                         </div>
-                        @if ($showChangeGuarantor)
+                        @if ($showChangeGuarantor && $isAdditionalSupplement)
                             <a href="{{ $editGuarantorUrl }}"
                                class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
-                                {{ $guarantorSupplementOpen
-                                    ? __('borrower.guarantor_supplement.cta')
-                                    : __('borrower.loan_profile.actions.edit_guarantor') }}
+                                {{ __('borrower.guarantor_supplement.cta') }}
                             </a>
                         @endif
                     </div>
-                    @if ($guarantorSupplementOpen)
-                        <p class="text-xs text-amber-100">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
+                    @if ($isAdditionalSupplement && $supplementBanner)
+                        <p class="text-xs text-amber-100">{{ $supplementBanner }}</p>
                     @endif
                 </div>
             </div>
         @else
-        <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5 space-y-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0 flex-1">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
-                    <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                        <h2 class="text-lg font-bold text-gray-900">
-                            @if ($rows->isEmpty())
-                                {{ __('borrower.loan_profile.guarantor_not_added') }}
-                            @elseif ($allReady)
-                                {{ $primary->name }}
-                            @else
-                                {{ __('borrower.loan_profile.guarantor_waiting_title') }}
+            <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5 space-y-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
+                        <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <h2 class="text-lg font-bold text-gray-900">
+                                @if ($uiState === 'needs_replacement')
+                                    {{ __('borrower.loan_profile.guarantor_required_title') }}
+                                @elseif ($uiState === 'required_empty')
+                                    {{ __('borrower.loan_profile.guarantor_not_added') }}
+                                @elseif ($uiState === 'quote_reconfirm')
+                                    {{ __('borrower.loan_profile.guarantor_reconfirm_title') }}
+                                @elseif ($uiState === 'accepted_incomplete')
+                                    {{ __('borrower.loan_profile.guarantor_completing_title') }}
+                                @elseif ($uiState === 'ready_before_submit')
+                                    {{ $primary->name }}
+                                @else
+                                    {{ __('borrower.loan_profile.guarantor_waiting_title') }}
+                                @endif
+                            </h2>
+                            @if ($primary && in_array($uiState, ['pending', 'accepted_incomplete', 'quote_reconfirm'], true))
+                                <span class="text-sm font-semibold text-gray-500 truncate max-w-full">· {{ $primary->name }}</span>
                             @endif
-                        </h2>
-                        @if ($primary && ! $allReady)
-                            <span class="text-sm font-semibold text-gray-500 truncate max-w-full">· {{ $primary->name }}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">
+                            @if ($uiState === 'needs_replacement')
+                                {{ __('borrower.loan_profile.guarantor_required_body') }}
+                            @elseif ($uiState === 'required_empty')
+                                {{ __('borrower.loan_profile.guarantor_not_added_hint') }}
+                            @elseif ($uiState === 'quote_reconfirm')
+                                {{ __('borrower.loan_profile.guarantor_reconfirm_body') }}
+                            @elseif ($uiState === 'accepted_incomplete')
+                                {{ __('borrower.loan_profile.guarantor_completing_body') }}
+                            @elseif ($uiState === 'ready_before_submit')
+                                {{ $primary->type }}
+                            @else
+                                {{ __('borrower.loan_profile.guarantor_hold_body') }}
+                            @endif
+                        </p>
+                        @if ($primary && in_array($uiState, ['pending', 'accepted_incomplete'], true) && ! empty($primary->phone))
+                            <p class="text-sm font-semibold text-gray-800 mt-2">{{ $primary->name }} · {{ $primary->phone }}</p>
                         @endif
                     </div>
-                    @if ($rows->isEmpty())
-                        <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_not_added_hint') }}</p>
-            @elseif ($showWaitingCopy)
-                <p class="text-sm text-gray-600 mt-1">{{ __('borrower.loan_profile.guarantor_hold_body') }}</p>
-                @php
-                    $policyNotices = collect();
-                    if ($isHeld) {
-                        $completion = app(\App\Services\ProfileCompletionService::class);
-                        foreach ($guarantorLinks as $link) {
-                            $guarantorCustomer = app(\App\Services\GuarantorAccessService::class)->guarantorCustomerForLink($link);
-                            $notice = $guarantorCustomer ? $completion->policyUpdateNotice($guarantorCustomer) : null;
-                            if (! empty($notice['items'])) {
-                                $policyNotices->push([
-                                    'name' => $link->displayName(),
-                                    'notice' => $notice,
-                                ]);
-                            }
-                        }
-                    }
-                @endphp
-                @foreach ($policyNotices as $policyNotice)
-                    <div class="mt-3 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
-                        <p class="font-semibold">{{ $policyNotice['notice']['title'] }}</p>
-                        <p class="mt-1">{{ $policyNotice['name'] }} — {{ $policyNotice['notice']['body'] }}</p>
-                        <ul class="mt-2 space-y-1">
-                            @foreach ($policyNotice['notice']['items'] as $item)
-                                <li class="font-semibold">{{ $item['label'] }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endforeach
-                @if ($isHeld && $application)
-                    @php $preScreeningHold = app(\App\Services\GuarantorInvitationService::class)->preScreeningHold($application); @endphp
-                    @foreach ($preScreeningHold['parties'] ?? [] as $party)
-                        <div class="mt-3 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
-                            <p class="font-semibold">
-                                {{ $party['role'] === 'borrower' ? __('borrower.loan_profile.prescreening_role_borrower') : __('borrower.loan_profile.prescreening_role_guarantor') }}
-                                @if (! empty($party['name'])) — {{ $party['name'] }} @endif
-                            </p>
-                            <ul class="mt-2 space-y-1">
-                                @foreach ($party['missing'] as $item)
-                                    <li class="font-semibold">{{ $item }}</li>
-                                @endforeach
-                            </ul>
-                            <p class="mt-2 text-amber-900">{{ $party['next'] }}</p>
-                            @if (! empty($party['url']))
-                                <a href="{{ $party['url'] }}" class="mt-2 inline-flex font-semibold underline">{{ __('borrower.loan_profile.prescreening_open_profile') }}</a>
-                            @endif
-                        </div>
-                    @endforeach
-                @endif
-            @elseif ($showReadyBeforeSubmit)
-                        <p class="text-sm text-gray-600 mt-1">{{ $primary->type }}</p>
+
+                    @if ($showPrimaryChoose)
+                        @if ($showChangeGuarantor && $editGuarantorUrl)
+                            <a href="{{ $editGuarantorUrl }}"
+                               class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                                {{ $primaryCtaLabel }}
+                            </a>
+                        @elseif ($isDraft && $editGuarantorUrl)
+                            <a href="{{ $editGuarantorUrl }}"
+                               class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                                {{ $primaryCtaLabel }}
+                            </a>
+                        @elseif ($canChangeWhileHeld && $application)
+                            <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
+                                  @submit.prevent="window.confirmForm($el, {
+                                      title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
+                                      message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
+                                      confirmLabel: @js(__('borrower.guarantor_supplement.change_cta')),
+                                      confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
+                                  })">
+                                @csrf
+                                <button type="submit"
+                                        class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                                    {{ __('borrower.guarantor_supplement.change_cta') }}
+                                </button>
+                            </form>
+                        @endif
+                    @elseif ($showChangeSecondary)
+                        @if ($showChangeGuarantor && $editGuarantorUrl)
+                            <a href="{{ $editGuarantorUrl }}"
+                               class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                                {{ $isAdditionalSupplement
+                                    ? __('borrower.guarantor_supplement.cta')
+                                    : __('borrower.loan_profile.actions.edit_guarantor') }}
+                            </a>
+                        @elseif ($canChangeWhileHeld && $application)
+                            <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
+                                  @submit.prevent="window.confirmForm($el, {
+                                      title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
+                                      message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
+                                      confirmLabel: @js(__('borrower.loan_profile.actions.edit_guarantor')),
+                                      confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
+                                  })">
+                                @csrf
+                                <button type="submit"
+                                        class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                                    {{ __('borrower.loan_profile.actions.edit_guarantor') }}
+                                </button>
+                            </form>
+                        @endif
                     @endif
                 </div>
-                @if ($showChangeGuarantor)
-                    <a href="{{ $editGuarantorUrl }}"
-                       class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
-                        {{ $guarantorSupplementOpen
-                            ? __('borrower.guarantor_supplement.cta')
-                            : __('borrower.loan_profile.actions.edit_guarantor') }}
-                    </a>
-                @elseif ($canChangeWhileHeld && $application)
-                    <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
-                          @submit.prevent="window.confirmForm($el, {
-                              title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
-                              message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
-                              confirmLabel: @js(__('borrower.loan_profile.actions.edit_guarantor')),
-                              confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
-                          })">
-                        @csrf
-                        <button type="submit"
-                                class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
-                            {{ __('borrower.loan_profile.actions.edit_guarantor') }}
-                        </button>
-                    </form>
+
+                @if ($showCountdown)
+                    <x-site.deadline-badge
+                        :label="$deadline['label'] ?? null"
+                        :days-left="$deadline['days_left'] ?? null"
+                        :date="$deadline['date'] ?? null"
+                        :purpose="__('borrower.loan_profile.deadline_purpose_guarantor_profile')"
+                        :urgent="($deadline['days_left'] ?? 99) <= 2"
+                        :expired="(bool) ($deadline['expired'] ?? false)"
+                    />
+                @endif
+
+                {{-- Additional-only banner. Replacement never uses “Underwriting needs another…”. --}}
+                @if ($isAdditionalSupplement && $supplementBanner)
+                    <p class="text-xs text-amber-800">{{ $supplementBanner }}</p>
+                @elseif ($isChangeSupplement && $supplementBanner && $uiState !== 'needs_replacement')
+                    <p class="text-xs text-amber-800">{{ $supplementBanner }}</p>
+                @elseif ($canChangeWhileHeld && $uiState === 'pending')
+                    <p class="text-xs text-gray-500">{{ __('borrower.guarantor_supplement.borrower_change_hint') }}</p>
+                @endif
+
+                @if ($showInviteActions)
+                    <div class="flex flex-wrap gap-2">
+                        @if (! empty($share['whatsapp_url']))
+                            <a href="{{ $share['whatsapp_url'] }}" target="_blank" rel="noopener"
+                               class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                {{ __('borrower.loan_profile.guarantor_nudge_whatsapp') }}
+                            </a>
+                        @endif
+                        @if (! empty($share['invitation_url']) || ! empty($share['short_url']))
+                            <button type="button"
+                                    @click="navigator.clipboard.writeText(@js($share['short_url'] ?? $share['invitation_url'])); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="inline-flex items-center gap-2 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.loan_profile.guarantor_nudge_copy'))"></span>
+                            </button>
+                        @endif
+                    </div>
                 @endif
             </div>
 
-            @if ($isHeld && (! empty($deadline['label']) || isset($deadline['days_left'])))
-                <x-site.deadline-badge
-                    :label="$deadline['label'] ?? null"
-                    :days-left="$deadline['days_left'] ?? null"
-                    :date="$deadline['date'] ?? null"
-                    :purpose="__('borrower.loan_profile.deadline_purpose_guarantor_profile')"
-                    :urgent="($deadline['days_left'] ?? 99) <= 2"
-                    :expired="(bool) ($deadline['expired'] ?? false)"
-                />
-            @endif
-
-            @if ($guarantorSupplementOpen)
-                <p class="text-xs text-amber-800">{{ __('borrower.guarantor_supplement.borrower_banner') }}</p>
-            @elseif ($canChangeWhileHeld)
-                <p class="text-xs text-gray-500">{{ __('borrower.guarantor_supplement.borrower_change_hint') }}</p>
-            @endif
-
-            @if ($pending && $share && empty($share['ready']))
-                <div class="flex flex-wrap gap-2">
-                    @if (! empty($share['whatsapp_url']))
-                        <a href="{{ $share['whatsapp_url'] }}" target="_blank" rel="noopener"
-                           class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                            {{ __('borrower.loan_profile.guarantor_nudge_whatsapp') }}
-                        </a>
-                    @endif
-                    @if (! empty($share['invitation_url']) || ! empty($share['short_url']))
-                        <button type="button"
-                                @click="navigator.clipboard.writeText(@js($share['short_url'] ?? $share['invitation_url'])); copied = true; setTimeout(() => copied = false, 2000)"
-                                class="inline-flex items-center gap-2 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
-                            <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.loan_profile.guarantor_nudge_copy'))"></span>
-                        </button>
-                    @endif
-                </div>
-            @endif
-        </div>
-
-        @if ($rows->isNotEmpty() && ! $allReady)
-            <div class="px-5 sm:px-6 py-5 border-t border-gray-100/80 space-y-4">
-                @foreach ($rows as $row)
-                    @php
-                        $code = $row->status['code'] ?? '';
-                        $done = ($row->status['ready'] ?? false) || $code === 'ready';
-                        $steps = $row->status['steps'] ?? [];
-                        $percent = $row->status['profile_percent'] ?? null;
-                    @endphp
-                    <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
-                        <div class="h-1 w-full bg-gradient-to-r from-brand via-brand to-brand-gold/80" aria-hidden="true"></div>
-                        <div class="px-4 py-4">
-                            <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold text-gray-900 truncate">{{ $row->name }}</p>
-                                    <p class="text-xs text-gray-500 mt-0.5">{{ $row->type }}</p>
+            {{-- Current guarantor progress (Profile-style step ticks) --}}
+            @if ($currentRows->isNotEmpty() && ! $allReady)
+                <div class="px-5 sm:px-6 py-5 border-t border-gray-100/80 space-y-4">
+                    @foreach ($currentRows as $row)
+                        @php
+                            $code = $row->status['code'] ?? '';
+                            $done = ($row->status['ready'] ?? false) || $code === 'ready';
+                            $steps = $row->status['steps'] ?? [];
+                            $percent = $row->status['profile_percent'] ?? null;
+                        @endphp
+                        <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
+                            <div class="h-1 w-full bg-gradient-to-r from-brand via-brand to-brand-gold/80" aria-hidden="true"></div>
+                            <div class="px-4 py-4 space-y-3">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-bold text-gray-900 truncate">{{ $row->name }}</p>
+                                        <p class="text-xs text-gray-500 mt-0.5">{{ $row->type }}</p>
+                                    </div>
+                                    <span @class([
+                                        'shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
+                                        'bg-emerald-50 text-emerald-800 ring-emerald-200' => $done,
+                                        'bg-amber-50 text-amber-900 ring-amber-200' => ! $done && $code === 'pending_profile',
+                                        'bg-sky-50 text-sky-800 ring-sky-200' => ! $done && $code !== 'pending_profile',
+                                    ])>
+                                        @if ($done)
+                                            {{ __('borrower.apply.guarantor_status.ready') }}
+                                        @elseif ($code === 'pending_profile' && $percent !== null)
+                                            {{ __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $percent]) }}
+                                        @else
+                                            {{ $row->status['label'] ?? '—' }}
+                                        @endif
+                                    </span>
                                 </div>
-                                <span @class([
-                                    'shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
-                                    'bg-emerald-50 text-emerald-800 ring-emerald-200' => $done,
-                                    'bg-amber-50 text-amber-900 ring-amber-200' => ! $done && $code === 'pending_profile',
-                                    'bg-sky-50 text-sky-800 ring-sky-200' => ! $done && $code !== 'pending_profile',
-                                ])>
-                                    @if ($done)
-                                        {{ __('borrower.apply.guarantor_status.ready') }}
-                                    @elseif ($code === 'pending_profile' && $percent !== null)
-                                        {{ __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $percent]) }}
-                                    @else
-                                        {{ $row->status['label'] ?? '—' }}
-                                    @endif
-                                </span>
+                                @if (! empty($steps))
+                                    <ol class="grid sm:grid-cols-4 gap-2">
+                                        @foreach ($steps as $step)
+                                            <li @class([
+                                                'rounded-xl bg-white/80 ring-1 px-3 py-2',
+                                                'ring-emerald-200' => $step['complete'] ?? false,
+                                                'ring-amber-300' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
+                                                'ring-gray-200' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
+                                            ])>
+                                                <p @class([
+                                                    'text-[10px] uppercase tracking-widest font-semibold',
+                                                    'text-emerald-700' => $step['complete'] ?? false,
+                                                    'text-amber-800' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
+                                                    'text-gray-400' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
+                                                ])>
+                                                    {{ ($step['complete'] ?? false) ? '✓' : (($step['current'] ?? false) ? '·' : '○') }}
+                                                </p>
+                                                <p @class([
+                                                    'text-xs font-semibold mt-0.5',
+                                                    'text-gray-900' => $step['current'] ?? false,
+                                                    'text-gray-600' => ! ($step['current'] ?? false),
+                                                ])>{{ $step['label'] ?? '' }}</p>
+                                            </li>
+                                        @endforeach
+                                    </ol>
+                                @endif
                             </div>
                         </div>
-                    </div>
-                @endforeach
-            </div>
-        @elseif (($isDraft && $editGuarantorUrl && $rows->isEmpty()) || ((! $isDraft) && $rows->isEmpty() && ($showChangeGuarantor || $canChangeWhileHeld)))
-            <div class="px-5 sm:px-6 py-4 border-t border-gray-100">
-                @if ($isDraft && $editGuarantorUrl)
-                    <a href="{{ $editGuarantorUrl }}"
-                       class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                        {{ __('borrower.loan_profile.actions.complete_guarantor') }}
-                    </a>
-                @elseif ($showChangeGuarantor && $editGuarantorUrl)
-                    <a href="{{ $editGuarantorUrl }}"
-                       class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                        + {{ __('borrower.guarantor_supplement.cta') }}
-                    </a>
-                @elseif ($canChangeWhileHeld && $application)
-                    <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
-                          @submit.prevent="window.confirmForm($el, {
-                              title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
-                              message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
-                              confirmLabel: @js(__('borrower.apply.change_guarantor')),
-                              confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
-                          })">
-                        @csrf
-                        <button type="submit"
-                                class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                            + {{ __('borrower.guarantor_supplement.cta') }}
-                        </button>
-                    </form>
-                @endif
-            </div>
-        @endif
+                    @endforeach
+                </div>
+            @endif
+
+            {{-- Previous guarantors — compact history only --}}
+            @if ($historyRows->isNotEmpty())
+                <div class="px-5 sm:px-6 py-4 border-t border-gray-100/80 space-y-2">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.guarantor_history_title') }}</p>
+                    @foreach ($historyRows as $row)
+                        <div class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                            <p class="text-sm text-gray-700 truncate">{{ $row->name }}</p>
+                            <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                                {{ $row->status['label'] ?? __('borrower.apply.guarantor_status.rejected') }}
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         @endif
     </div>
 @endif

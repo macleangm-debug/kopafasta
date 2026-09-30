@@ -26,10 +26,19 @@ class GuarantorInvitation extends Model
         'expires_at',
         'responded_at',
         'response_notes',
+        'consent_snapshot',
+        'confirmation_status',
+        'consent_history',
         'guarantor_signer_name',
         'guarantor_signature_data',
         'guarantor_signed_at',
     ];
+
+    public const CONFIRMATION_CONFIRMED = 'confirmed';
+
+    public const CONFIRMATION_PENDING_RECONFIRMATION = 'pending_reconfirmation';
+
+    public const CONFIRMATION_SUPERSEDED = 'superseded';
 
     protected function casts(): array
     {
@@ -37,7 +46,14 @@ class GuarantorInvitation extends Model
             'expires_at'         => 'datetime',
             'responded_at'       => 'datetime',
             'guarantor_signed_at'=> 'datetime',
+            'consent_snapshot'   => 'array',
+            'consent_history'    => 'array',
         ];
+    }
+
+    public function needsQuoteReconfirmation(): bool
+    {
+        return $this->confirmation_status === self::CONFIRMATION_PENDING_RECONFIRMATION;
     }
 
     public function borrower(): BelongsTo

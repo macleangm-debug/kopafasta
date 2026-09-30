@@ -196,11 +196,11 @@
                     <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
-                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $t->ticket_number }}</p>
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $t->publicNumber() }}</p>
                                 <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $t->subject }}</p>
                                 <p class="text-xs text-gray-500 mt-1">{{ ucfirst($t->status) }} · {{ format_app_datetime($t->updated_at, 'd M Y · H:i') }}</p>
                             </div>
-                            <a href="{{ route('site.borrower.support', ['section' => 'active']) }}"
+                            <a href="{{ route('site.borrower.support.ticket.show', $t) }}"
                                class="shrink-0 rounded-xl ring-1 ring-brand/25 text-brand text-xs font-bold px-3.5 py-2 hover:bg-brand-muted/40">
                                 {{ $isSw ? 'Angalia tiketi' : 'View ticket' }}
                             </a>
@@ -256,11 +256,11 @@
                     <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
-                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $t->ticket_number }}</p>
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $t->publicNumber() }}</p>
                                 <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $t->subject }}</p>
                                 <p class="text-xs text-gray-500 mt-1">{{ $isSw ? 'Imekamilishwa' : 'Resolved' }} · {{ format_app_datetime($t->resolved_at ?? $t->updated_at, 'd M Y · H:i') }}</p>
                             </div>
-                            <a href="{{ route('site.borrower.support', ['section' => 'history']) }}"
+                            <a href="{{ route('site.borrower.support.ticket.show', $t) }}"
                                class="shrink-0 rounded-xl ring-1 ring-brand/25 text-brand text-xs font-bold px-3.5 py-2 hover:bg-brand-muted/40">
                                 {{ $isSw ? 'Angalia' : 'View' }}
                             </a>

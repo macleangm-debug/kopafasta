@@ -128,6 +128,7 @@ class ApplyController extends Controller
 
         $supplementApplication = null;
         $supplementMode = false;
+        $supplementKind = null;
         if ($request->boolean('guarantor_supplement') && $request->filled('application') && $customer) {
             $supplementApplication = LoanApplication::query()
                 ->where('customer_id', $customer->id)
@@ -135,6 +136,8 @@ class ApplyController extends Controller
 
             if ($supplementApplication && app(GuarantorSupplementService::class)->hasOpenRequest($supplementApplication)) {
                 $supplementMode = true;
+                $openReq = app(GuarantorSupplementService::class)->openRequest($supplementApplication);
+                $supplementKind = (string) ($openReq['kind'] ?? 'additional');
                 $preselect = $supplementApplication->loan_product_id;
                 $request->merge(['resume' => 1, 'step_key' => 'guarantor']);
             } else {
@@ -567,6 +570,7 @@ class ApplyController extends Controller
             'feeLoyaltyOption',
             'returnTo',
             'supplementMode',
+            'supplementKind',
             'supplementApplication',
             'repeatJourney',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
@@ -2651,7 +2655,7 @@ class ApplyController extends Controller
         $message = match ($intake['state'] ?? '') {
             ApplicationIntakeReadinessService::STATE_HOLD,
             ApplicationIntakeReadinessService::STATE_INITIAL_CHECK => __('borrower.intake.received_hold_body'),
-            ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR => __('borrower.intake.passed_guarantor_body'),
+            ApplicationIntakeReadinessService::STATE_AWAITING_GUARANTOR => __('borrower.intake.waiting_guarantor_body'),
             ApplicationIntakeReadinessService::STATE_GUARANTOR_MISSING => __('borrower.intake.add_guarantor_body'),
             ApplicationIntakeReadinessService::STATE_READY => __('borrower.intake.ready_body'),
             default => __('borrower.apply.success.part_submitted_message'),

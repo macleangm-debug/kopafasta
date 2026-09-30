@@ -604,6 +604,15 @@ class LoanApplicationDraftService
             );
         }
 
+        if ($product && is_array($payload['form'] ?? null)) {
+            app(GuarantorInvitationService::class)->syncOpenInvitationQuotesFromDraft(
+                $customer,
+                (int) $productId,
+                $payload['form'],
+                $draft->draft_reference,
+            );
+        }
+
         return $draft;
     }
 

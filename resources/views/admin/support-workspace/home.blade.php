@@ -93,8 +93,14 @@
         </x-slot:actions>
         <x-slot:stats>
             @php
+                $longestSeconds = (int) ($counters['longest_waiting_seconds'] ?? 0);
+                $longestLabel = sprintf('%02d:%02d', intdiv($longestSeconds, 60) % 60, $longestSeconds % 60);
+                if ($longestSeconds >= 3600) {
+                    $longestLabel = sprintf('%02d:%02d:%02d', intdiv($longestSeconds, 3600), intdiv($longestSeconds, 60) % 60, $longestSeconds % 60);
+                }
                 $kpiStrip = [
                     ['Waiting now', $counters['waiting'] ?? 0, route('admin.support.inbox'), 'Conversations in the queue that no Support person has accepted yet.'],
+                    ['Longest waiting', $longestLabel, route('admin.support.inbox', ['filter' => 'waiting']), 'Age of the oldest unassigned waiting conversation (Africa/Dar_es_Salaam clock).'],
                     ['Active chats', $counters['active_chats'] ?? 0, route('admin.support.inbox'), 'Accepted conversations that are still open (assigned or active).'],
                     ['Open tickets', $counters['open_tickets'] ?? 0, route('admin.support.cases'), 'Tickets still open or in progress.'],
                     ['SLA at risk', $counters['sla_at_risk'] ?? 0, route('admin.support.cases'), 'Open tickets approaching their snapshotted due time.'],
@@ -102,15 +108,15 @@
                     ['Resolved today', $counters['resolved_today'] ?? 0, route('admin.support.performance'), 'Conversations and tickets closed today (Africa/Dar_es_Salaam calendar day).'],
                 ];
             @endphp
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
                 @foreach ($kpiStrip as [$label, $value, $url, $hint])
                     <a href="{{ $url }}" class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-2.5 hover:ring-brand/30 transition" title="{{ $hint }}">
                         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold flex items-center gap-1">
                             <span>{{ $label }}</span>
                             <span class="inline-flex size-3.5 items-center justify-center rounded-full bg-white/80 text-[9px] font-bold text-brand" aria-label="{{ $hint }}">ⓘ</span>
                         </p>
-                        <p class="text-xl font-bold text-gray-900 mt-1 tabular-nums">
-                            {{ format_number((int) $value) }}
+                        <p class="text-xl font-bold text-gray-900 mt-1 tabular-nums {{ $label === 'Longest waiting' ? 'font-mono text-lg' : '' }}">
+                            {{ $label === 'Longest waiting' ? $value : format_number((int) $value) }}
                         </p>
                     </a>
                 @endforeach

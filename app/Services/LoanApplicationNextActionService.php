@@ -193,9 +193,57 @@ class LoanApplicationNextActionService
         }
 
         if ($status === 'awaiting_guarantor' || (string) ($application->current_stage ?? '') === 'awaiting_guarantor') {
+            $supplements = app(GuarantorSupplementService::class);
+            $nomination = app(ApplicationIntakeReadinessService::class)->guarantorNomination($application);
+            $progress = (string) ($nomination['progress'] ?? '');
+
+            if ($supplements->awaitingQuoteReconfirm($application)) {
+                return $this->action(
+                    'awaiting_guarantor_reconfirm',
+                    __('borrower.loan_profile.next_actions.awaiting_guarantor_reconfirm'),
+                    __('borrower.applications_list.view'),
+                    $profileUrl.'#guarantor-progress',
+                    tone: 'secondary',
+                );
+            }
+
+            if ($supplements->hasOpenRequest($application)) {
+                $isAdditional = $supplements->hasOpenAdditionalRequest($application);
+
+                return $this->action(
+                    $isAdditional ? 'add_guarantor' : 'change_guarantor',
+                    $isAdditional
+                        ? __('borrower.loan_profile.next_actions.add_guarantor')
+                        : __('borrower.loan_profile.next_actions.change_guarantor'),
+                    $supplements->borrowerCtaLabel($application),
+                    $supplements->borrowerWizardUrl($application),
+                    tone: 'primary',
+                );
+            }
+
+            if (in_array($progress, ['declined', 'expired', 'not_nominated'], true)) {
+                return $this->action(
+                    'change_guarantor',
+                    __('borrower.loan_profile.next_actions.change_guarantor'),
+                    __('borrower.guarantor_supplement.change_cta'),
+                    $profileUrl.'#guarantor-progress',
+                    tone: 'primary',
+                );
+            }
+
+            if ($progress === 'profile_incomplete') {
+                return $this->action(
+                    'awaiting_guarantor_profile',
+                    __('borrower.loan_profile.next_actions.awaiting_guarantor_profile'),
+                    __('borrower.applications_list.view'),
+                    $profileUrl.'#guarantor-progress',
+                    tone: 'secondary',
+                );
+            }
+
             return $this->action(
                 'awaiting_guarantor',
-                __('borrower.loan_profile.next_actions.awaiting_guarantor_detail'),
+                __('borrower.loan_profile.next_actions.awaiting_guarantor'),
                 __('borrower.applications_list.view'),
                 $profileUrl.'#guarantor-progress',
                 tone: 'secondary',
@@ -212,12 +260,17 @@ class LoanApplicationNextActionService
             );
         }
 
-        if (app(GuarantorSupplementService::class)->hasOpenRequest($application)) {
+        $supplements = app(GuarantorSupplementService::class);
+        if ($supplements->hasOpenRequest($application)) {
+            $isAdditional = $supplements->hasOpenAdditionalRequest($application);
+
             return $this->action(
-                'add_guarantor',
-                __('borrower.loan_profile.next_actions.add_guarantor'),
-                __('borrower.guarantor_supplement.cta'),
-                app(GuarantorSupplementService::class)->borrowerWizardUrl($application),
+                $isAdditional ? 'add_guarantor' : 'change_guarantor',
+                $isAdditional
+                    ? __('borrower.loan_profile.next_actions.add_guarantor')
+                    : __('borrower.loan_profile.next_actions.change_guarantor'),
+                $supplements->borrowerCtaLabel($application),
+                $supplements->borrowerWizardUrl($application),
                 tone: 'primary',
             );
         }

@@ -108,7 +108,8 @@ class SupportConversationService
                 ->where('is_automated', true)
                 ->where(function ($q) {
                     $q->where('body', 'like', 'Tumepokea ujumbe wako%')
-                        ->orWhere('body', 'like', 'Ujumbe wako umepokelewa%');
+                        ->orWhere('body', 'like', 'Ujumbe wako umepokelewa%')
+                        ->orWhere('body', 'like', 'We received your message%');
                 })
                 ->exists();
             if (! $hasWaitingAck) {
@@ -130,7 +131,10 @@ class SupportConversationService
                 $this->maybeSendWaitingNudge($conversation->fresh() ?? $conversation);
             }
 
-            return $conversation->fresh(['customer', 'user', 'messages']);
+            $fresh = $conversation->fresh(['customer', 'user', 'messages', 'assignedTo']) ?? $conversation;
+            $this->maybeSendAssignedAgentOfflineAck($fresh);
+
+            return $fresh;
         });
     }
 
@@ -254,9 +258,17 @@ class SupportConversationService
 
     /**
      * Accept / assign: agent introduction is sent only now.
+     * Offline / away agents cannot accept — ownership is only claimed while online.
      */
     public function accept(SupportConversation $conversation, User $agent): SupportConversation
     {
+        $availability = app(CustomerSupportWorkspaceService::class)->availability($agent);
+        if ($availability !== 'online') {
+            throw new \InvalidArgumentException(
+                'Agent must be Online to accept or assign this conversation (current: '.ucfirst($availability).').'
+            );
+        }
+
         $firstAssign = ! $conversation->assigned_to || (int) $conversation->assigned_to !== (int) $agent->id;
 
         $conversation->update([
@@ -316,6 +328,9 @@ class SupportConversationService
                 $updates['last_message_at'] = now();
             }
             $conversation->update($updates);
+            if (in_array($senderType, ['customer', 'guest'], true) && $conversation->assigned_to) {
+                $this->maybeNotifyAssignedAgentOffline($conversation->fresh() ?? $conversation);
+            }
         } else {
             $conversation->update(['last_message_at' => now()]);
         }
@@ -452,7 +467,127 @@ class SupportConversationService
 
     public function waitingAcknowledgement(): string
     {
-        return 'Tumepokea ujumbe wako. Timu yetu ya Usaidizi itakuhudumia hivi karibuni.';
+        if (str_starts_with(app()->getLocale(), 'en')) {
+            return 'We received your message. Our Support team will help you shortly. You can add more details here while you wait.';
+        }
+
+        return 'Tumepokea ujumbe wako. Timu yetu ya Usaidizi itakuhudumia hivi karibuni. Unaweza kuongeza maelezo mengine hapa wakati unasubiri.';
+    }
+
+    public function assignedAgentOfflineAcknowledgement(): string
+    {
+        if (str_starts_with(app()->getLocale(), 'en')) {
+            return 'Your support agent is offline right now. Your message has been saved and they will see it when they return.';
+        }
+
+        return 'Mtoa huduma wako hayupo mtandaoni kwa sasa. Ujumbe wako umehifadhiwa na atauona atakaporejea.';
+    }
+
+    /**
+     * Once per offline period while an assigned agent is offline — do not unassign.
+     */
+    public function maybeSendAssignedAgentOfflineAck(SupportConversation $conversation): void
+    {
+        if (! $conversation->assigned_to) {
+            return;
+        }
+        if (! in_array((string) $conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true)) {
+            return;
+        }
+
+        $agent = $conversation->assignedTo ?: User::query()->find($conversation->assigned_to);
+        if (! $agent) {
+            return;
+        }
+
+        $availability = app(CustomerSupportWorkspaceService::class)->availability($agent);
+        if ($availability === 'online') {
+            return;
+        }
+
+        $marker = 'support_offline_ack:'.$agent->id.':'.now()->toDateString();
+        $already = $conversation->messages()
+            ->where('is_automated', true)
+            ->where(function ($q) {
+                $q->where('body', 'like', 'Mtoa huduma wako hayupo%')
+                    ->orWhere('body', 'like', 'Your support agent is offline%');
+            })
+            ->where('created_at', '>=', now()->subHours(8))
+            ->exists();
+        if ($already) {
+            return;
+        }
+
+        $this->appendMessage(
+            $conversation,
+            'staff',
+            $this->assignedAgentOfflineAcknowledgement(),
+            null,
+            true,
+            false,
+        );
+        // Keep assignment; only touch last_message_at via appendMessage.
+        unset($marker);
+    }
+
+    public function offlineAgentAcknowledgement(): string
+    {
+        if (str_starts_with(app()->getLocale(), 'en')) {
+            return 'Your Support agent is offline right now. They will reply when they are back online. Your message is saved — they remain assigned to you.';
+        }
+
+        return 'Mtoa huduma wako hayupo mtandaoni kwa sasa. Atakujibu atakaporudi mtandaoni. Ujumbe wako umehifadhiwa — bado anahudumia mazungumzo yako.';
+    }
+
+    /**
+     * Once per offline stretch: notify the member that the assigned agent is offline.
+     * Does not unassign — ownership stays with the agent.
+     */
+    public function maybeNotifyAssignedAgentOffline(SupportConversation $conversation): void
+    {
+        if (! $conversation->assigned_to || in_array($conversation->status, [self::STATUS_CLOSED, self::STATUS_RESOLVED], true)) {
+            return;
+        }
+
+        $agent = $conversation->assignedTo ?: User::query()->find($conversation->assigned_to);
+        if (! $agent) {
+            return;
+        }
+
+        $availability = app(CustomerSupportWorkspaceService::class)->availability($agent);
+        if ($availability === 'online') {
+            return;
+        }
+
+        $since = $conversation->messages()
+            ->where('sender_type', 'staff')
+            ->where('is_automated', false)
+            ->latest('id')
+            ->value('created_at')
+            ?? $conversation->accepted_at
+            ?? $conversation->created_at;
+
+        $already = $conversation->messages()
+            ->where('is_automated', true)
+            ->where(function ($q) {
+                $q->where('body', 'like', 'Mtoa huduma wako hayupo mtandaoni%')
+                    ->orWhere('body', 'like', 'Your Support agent is offline%');
+            })
+            ->when($since, fn ($q) => $q->where('created_at', '>=', $since))
+            ->exists();
+
+        if ($already) {
+            return;
+        }
+
+        $this->appendMessage(
+            $conversation,
+            'staff',
+            $this->offlineAgentAcknowledgement(),
+            null,
+            true,
+            false,
+        );
     }
 
     public function waitingFollowUpAcknowledgement(): string

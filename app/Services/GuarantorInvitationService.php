@@ -184,27 +184,78 @@ class GuarantorInvitationService
         }
     }
 
-    /** @return array{amount: int, amount_label: string, tenure_months: int, duration_label: string, product_name: string, installment_label: string} */
+    /**
+     * Canonical accepted-quote context for guarantor invitation surfaces.
+     *
+     * @return array{
+     *   amount: int,
+     *   amount_label: string,
+     *   tenure_months: int,
+     *   duration_label: string,
+     *   product_name: string,
+     *   installment: float,
+     *   installment_label: string,
+     *   repayment_cadence: string,
+     *   repayment_frequency_label: string,
+     *   application_reference: string,
+     *   borrower_name: string,
+     *   fingerprint: string
+     * }
+     */
     public function invitationLoanContext(GuarantorInvitation $invitation): array
     {
-        $invitation->loadMissing(['application.product', 'product']);
+        $invitation->loadMissing(['application.product', 'product', 'borrower']);
         $product = $this->resolveInvitationProduct($invitation);
-        $amount = (int) ($invitation->application?->requested_amount ?? $invitation->requested_amount ?? 0);
-        $tenure = (int) ($invitation->application?->requested_tenure_months ?? $invitation->requested_tenure_months ?? 0);
-        $productName = trim((string) ($product?->localizedName() ?? ''));
-        $installmentLabel = __('borrower.guarantor_invite.installment_tbd');
+        $draftQuote = $this->draftQuoteForInvitation($invitation);
 
+        $amount = (int) ($invitation->application?->requested_amount
+            ?? $invitation->requested_amount
+            ?? $draftQuote['amount']
+            ?? 0);
+        $tenure = (int) ($invitation->application?->requested_tenure_months
+            ?? $invitation->requested_tenure_months
+            ?? $draftQuote['tenure']
+            ?? 0);
+
+        $productName = trim((string) ($product?->localizedName() ?? ''));
+        $cadence = $product
+            ? app(GroupLendingService::class)->effectiveRepaymentCadence($product)
+            : (string) ($draftQuote['cadence'] ?? 'monthly');
+        if (! in_array($cadence, ['weekly', 'monthly'], true)) {
+            $cadence = 'monthly';
+        }
+
+        $installment = 0.0;
+        $installmentLabel = __('borrower.guarantor_invite.installment_tbd');
         if ($amount > 0 && $tenure > 0 && $product) {
             $monthlyRate = app(DisplayedRateService::class)->displayedMonthlyRate($product, (float) $amount);
-            $cadence = $product->repayment_cadence ?? 'weekly';
-            $preview = app(RepaymentScheduleGenerator::class)->preview($amount, $monthlyRate, $tenure, $cadence);
+            $method = in_array(($product->interest_method ?? 'reducing'), ['flat', 'reducing'], true)
+                ? (string) ($product->interest_method ?? 'reducing')
+                : 'reducing';
+            $preview = app(RepaymentScheduleGenerator::class)->preview($amount, $monthlyRate, $tenure, $cadence, null, $method);
             $first = $preview[0] ?? null;
             if ($first) {
-                $installmentLabel = 'TZS '.number_format((float) $first['total_due']);
+                $installment = round((float) $first['total_due'], 2);
+                $installmentLabel = 'TZS '.number_format($installment);
             }
         }
 
-        return [
+        $borrowerName = trim((string) (
+            ($invitation->borrower?->legalDisplayName() ?? null)
+            ?: trim(($invitation->borrower->first_name ?? '').' '.($invitation->borrower->last_name ?? ''))
+        ));
+        $reference = (string) (
+            $invitation->application?->application_number
+            ?? $invitation->application?->draft_reference
+            ?? $draftQuote['draft_reference']
+            ?? ($invitation->short_code ? strtoupper((string) $invitation->short_code) : '')
+        );
+
+        $frequencyLabel = $cadence === 'weekly'
+            ? __('site.product_detail.repayment_weekly')
+            : __('site.product_detail.repayment_monthly');
+
+        $context = [
             'amount' => $amount,
             'amount_label' => $amount > 0 ? 'TZS '.number_format($amount) : __('borrower.guarantor_invite.amount_tbd'),
             'tenure_months' => $tenure,
@@ -212,8 +263,270 @@ class GuarantorInvitationService
                 ? trans_choice('borrower.guarantor_invite.duration_months', $tenure, ['count' => $tenure])
                 : __('borrower.guarantor_invite.duration_tbd'),
             'product_name' => $productName !== '' ? $productName : __('borrower.guarantor_invite.product_tbd'),
+            'installment' => $installment,
             'installment_label' => $installmentLabel,
+            'repayment_cadence' => $cadence,
+            'repayment_frequency_label' => $frequencyLabel,
+            'application_reference' => $reference !== '' ? $reference : '—',
+            'borrower_name' => $borrowerName !== '' ? $borrowerName : '—',
         ];
+        $context['fingerprint'] = $this->quoteFingerprint($context);
+
+        return $context;
+    }
+
+    /** @return array{amount?: int, tenure?: int, cadence?: string, draft_reference?: string} */
+    protected function draftQuoteForInvitation(GuarantorInvitation $invitation): array
+    {
+        $drafts = LoanApplicationDraft::query()
+            ->where('customer_id', $invitation->customer_id)
+            ->when($invitation->loan_product_id, fn ($q) => $q->where('loan_product_id', $invitation->loan_product_id))
+            ->latest('id')
+            ->get();
+
+        foreach ($drafts as $draft) {
+            $payload = $draft->payload ?? [];
+            $invitationId = (int) ($payload['external_guarantor']['invitation_id']
+                ?? $payload['internal_guarantor']['invitation_id']
+                ?? 0);
+            if ($invitation->loan_application_id === null && $invitationId !== 0 && $invitationId !== (int) $invitation->id) {
+                continue;
+            }
+
+            $form = is_array($payload['form'] ?? null) ? $payload['form'] : [];
+            $amount = (int) ($form['requested_amount'] ?? 0);
+            $tenure = (int) ($form['requested_tenure_months'] ?? 0);
+            if ($amount <= 0 && $tenure <= 0 && blank($draft->draft_reference)) {
+                continue;
+            }
+
+            $product = $draft->product ?? ($draft->loan_product_id ? LoanProduct::query()->find($draft->loan_product_id) : null);
+
+            return array_filter([
+                'amount' => $amount > 0 ? $amount : null,
+                'tenure' => $tenure > 0 ? $tenure : null,
+                'cadence' => $product
+                    ? app(GroupLendingService::class)->effectiveRepaymentCadence($product)
+                    : null,
+                'draft_reference' => $draft->draft_reference ?: ($payload['draft_reference'] ?? null),
+            ], fn ($value) => $value !== null && $value !== '');
+        }
+
+        return [];
+    }
+
+    /** @param  array<string, mixed>  $context */
+    public function quoteFingerprint(array $context): string
+    {
+        return hash('sha256', implode('|', [
+            (int) ($context['amount'] ?? 0),
+            (int) ($context['tenure_months'] ?? 0),
+            (string) ($context['repayment_cadence'] ?? ''),
+            round((float) ($context['installment'] ?? 0), 2),
+            mb_strtolower(trim((string) ($context['product_name'] ?? ''))),
+        ]));
+    }
+
+    public function materialQuoteChanged(GuarantorInvitation $invitation, ?array $current = null): bool
+    {
+        $snapshot = is_array($invitation->consent_snapshot) ? $invitation->consent_snapshot : null;
+        if (! $snapshot || empty($snapshot['fingerprint'])) {
+            return false;
+        }
+
+        $current ??= $this->invitationLoanContext($invitation);
+        if ((int) ($current['amount'] ?? 0) <= 0 || (int) ($current['tenure_months'] ?? 0) <= 0) {
+            return false;
+        }
+
+        return (string) $snapshot['fingerprint'] !== (string) ($current['fingerprint'] ?? '');
+    }
+
+    /**
+     * Push latest quote onto the invitation; if the guarantor already consented and the quote
+     * changed materially, supersede confirmation and require reconfirmation (profile/signature stay).
+     */
+    public function syncInvitationQuote(GuarantorInvitation $invitation, ?int $amount = null, ?int $tenure = null, ?int $loanProductId = null): GuarantorInvitation
+    {
+        $updates = [];
+        if ($amount !== null && $amount > 0) {
+            $updates['requested_amount'] = $amount;
+        }
+        if ($tenure !== null && $tenure > 0) {
+            $updates['requested_tenure_months'] = $tenure;
+        }
+        if ($loanProductId !== null && $loanProductId > 0) {
+            $updates['loan_product_id'] = $loanProductId;
+        }
+
+        if ($updates !== []) {
+            $invitation->update($updates);
+            $invitation = $invitation->fresh(['application.product', 'product', 'borrower', 'customerGuarantor']);
+        }
+
+        if ($this->hasRecordedConsent($invitation) && $this->materialQuoteChanged($invitation)) {
+            $this->markConsentPendingReconfirmation($invitation);
+        }
+
+        return $invitation->fresh(['application.product', 'product', 'borrower', 'customerGuarantor']);
+    }
+
+    public function hasRecordedConsent(GuarantorInvitation $invitation): bool
+    {
+        if (is_array($invitation->consent_snapshot) && ! empty($invitation->consent_snapshot['fingerprint'])) {
+            return true;
+        }
+
+        return in_array((string) $invitation->status, ['accepted'], true)
+            || $invitation->customerGuarantor?->status === 'approved';
+    }
+
+    public function recordConsentSnapshot(GuarantorInvitation $invitation): void
+    {
+        $context = $this->invitationLoanContext($invitation);
+        $invitation->update([
+            'consent_snapshot' => array_merge($context, [
+                'confirmed_at' => now()->toIso8601String(),
+            ]),
+            'confirmation_status' => GuarantorInvitation::CONFIRMATION_CONFIRMED,
+        ]);
+    }
+
+    public function markConsentPendingReconfirmation(GuarantorInvitation $invitation): void
+    {
+        $invitation->refresh();
+        if ($invitation->needsQuoteReconfirmation() && ! $this->materialQuoteChanged($invitation)) {
+            return;
+        }
+
+        $prior = is_array($invitation->consent_snapshot) ? $invitation->consent_snapshot : null;
+        $history = is_array($invitation->consent_history) ? $invitation->consent_history : [];
+        if ($prior) {
+            $history[] = array_merge($prior, [
+                'superseded_at' => now()->toIso8601String(),
+                'confirmation_status' => GuarantorInvitation::CONFIRMATION_SUPERSEDED,
+            ]);
+        }
+
+        $current = $this->invitationLoanContext($invitation);
+        $invitation->update([
+            'consent_history' => $history,
+            'confirmation_status' => GuarantorInvitation::CONFIRMATION_PENDING_RECONFIRMATION,
+            // Keep accepted/approved — only confirmation of revised quote is outstanding.
+            'status' => in_array((string) $invitation->status, ['accepted', 'pending'], true)
+                ? (string) $invitation->status
+                : 'accepted',
+        ]);
+
+        app(AuditService::class)->log(null, 'guarantor_invitation.consent_superseded', $invitation, [
+            'confirmation_status' => GuarantorInvitation::CONFIRMATION_CONFIRMED,
+            'consent_snapshot' => $prior,
+        ], [
+            'confirmation_status' => GuarantorInvitation::CONFIRMATION_PENDING_RECONFIRMATION,
+            'prior_consent' => $prior,
+            'revised_quote' => $current,
+            'reason' => 'material_quote_change',
+        ]);
+
+        $this->notifyGuarantorQuoteRevised($invitation->fresh(['borrower', 'application', 'customerGuarantor', 'guarantorCustomer']), $prior, $current);
+    }
+
+    public function reconfirmConsent(GuarantorInvitation $invitation): void
+    {
+        DB::transaction(function () use ($invitation): void {
+            $this->recordConsentSnapshot($invitation);
+            $invitation->update([
+                'responded_at' => now(),
+                'status' => 'accepted',
+            ]);
+
+            if ($link = $invitation->customerGuarantor) {
+                if ($link->status !== 'approved') {
+                    $link->update(['status' => 'approved']);
+                }
+            }
+        });
+
+        $invitation = $invitation->fresh(['customerGuarantor', 'application']);
+        app(AuditService::class)->log(null, 'guarantor_invitation.consent_reconfirmed', $invitation, [
+            'confirmation_status' => GuarantorInvitation::CONFIRMATION_PENDING_RECONFIRMATION,
+        ], [
+            'confirmation_status' => GuarantorInvitation::CONFIRMATION_CONFIRMED,
+            'consent_snapshot' => $invitation->consent_snapshot,
+        ]);
+
+        if ($link = $invitation->customerGuarantor) {
+            $this->tryReleaseApplicationFromGuarantorHold($link->application ?? $invitation->application);
+        }
+    }
+
+    /** @return array{previous: ?array, current: array, needs_reconfirmation: bool} */
+    public function quoteComparison(GuarantorInvitation $invitation): array
+    {
+        $current = $this->invitationLoanContext($invitation);
+        $previous = null;
+        if ($invitation->needsQuoteReconfirmation() && is_array($invitation->consent_snapshot)) {
+            $previous = $invitation->consent_snapshot;
+        } elseif (is_array($invitation->consent_history) && $invitation->consent_history !== []) {
+            $previous = end($invitation->consent_history) ?: null;
+        }
+
+        return [
+            'previous' => is_array($previous) ? $previous : null,
+            'current' => $current,
+            'needs_reconfirmation' => $invitation->needsQuoteReconfirmation(),
+        ];
+    }
+
+    protected function notifyGuarantorQuoteRevised(GuarantorInvitation $invitation, ?array $previous, array $current): void
+    {
+        $guarantor = $invitation->guarantorCustomer;
+        if (! $guarantor && $invitation->type === 'internal' && $invitation->guarantor_customer_id) {
+            $guarantor = Customer::query()->find($invitation->guarantor_customer_id);
+        }
+
+        $borrowerName = $current['borrower_name'] ?? trim(($invitation->borrower->first_name ?? '').' '.($invitation->borrower->last_name ?? ''));
+        $reference = $current['application_reference'] ?? '—';
+                $actionUrl = $invitation->type === 'internal' && $invitation->customer_guarantor_id
+            ? route('site.borrower.guarantor-requests.show', $invitation->customer_guarantor_id)
+            : route('site.guarantor.show', $invitation->token);
+
+        $message = __('borrower.guarantor_invite.quote_revised_body', [
+            'borrower' => $borrowerName,
+            'reference' => $reference,
+            'amount' => $current['amount_label'] ?? '—',
+            'duration' => $current['duration_label'] ?? '—',
+        ]);
+
+        if ($guarantor) {
+            app(NotificationService::class)->notifyInApp(
+                $guarantor,
+                $message,
+                'guarantor',
+                'guarantor_quote_revised',
+                __('borrower.guarantor_invite.quote_revised_title'),
+                $actionUrl,
+                __('borrower.guarantor_invite.reconfirm_cta'),
+                [
+                    'title_key' => 'borrower.guarantor_invite.quote_revised_title',
+                    'body_key' => 'borrower.guarantor_invite.quote_revised_body',
+                    'params' => [
+                        'borrower' => $borrowerName,
+                        'reference' => $reference,
+                        'amount' => $current['amount_label'] ?? '—',
+                        'duration' => $current['duration_label'] ?? '—',
+                    ],
+                    'customer_guarantor_id' => $invitation->customer_guarantor_id,
+                ],
+            );
+        } elseif ($invitation->contact) {
+            app(NotificationService::class)->sendSms(
+                (string) $invitation->contact,
+                $message.' '.$actionUrl,
+                null,
+                'guarantor_quote_revised',
+            );
+        }
     }
 
     public function resolveInvitationProduct(GuarantorInvitation $invitation): ?LoanProduct
@@ -292,6 +605,16 @@ class GuarantorInvitationService
             return $this->borrowerStatusPayload('expired', null, false, false);
         }
 
+        if ($invitation->needsQuoteReconfirmation()) {
+            $profilePercent = null;
+            if ($guarantorCustomer) {
+                $profile = app(GuarantorOnboardingService::class)->guarantorProfileStatus($guarantorCustomer);
+                $profilePercent = (int) ($profile['percent'] ?? 0);
+            }
+
+            return $this->borrowerStatusPayload('pending_reconfirmation', $profilePercent, true, false);
+        }
+
         $accepted = $link?->status === 'approved'
             || in_array((string) $invitation->status, ['accepted'], true);
 
@@ -357,6 +680,7 @@ class GuarantorInvitationService
         $labelKey = match ($code) {
             'pending_acceptance' => 'pending_acceptance',
             'pending_profile' => 'pending_profile',
+            'pending_reconfirmation' => 'pending_reconfirmation',
             'ready' => 'ready',
             'guarantee_pending' => 'guarantee_pending',
             'registration_in_progress' => 'registration_in_progress',
@@ -368,18 +692,18 @@ class GuarantorInvitationService
         };
 
         $invitedDone = true;
-        $acceptedDone = $accepted || $ready || in_array($code, ['pending_profile', 'guarantee_pending', 'ready'], true);
+        $acceptedDone = $accepted || $ready || in_array($code, ['pending_profile', 'guarantee_pending', 'ready', 'pending_reconfirmation'], true);
         $profileDone = $ready || ($acceptedDone && $profilePercent !== null && $profilePercent >= 100 && $code === 'ready');
         if ($code === 'ready') {
             $profileDone = true;
         }
-        if ($code === 'pending_profile') {
-            $profileDone = false;
+        if ($code === 'pending_profile' || $code === 'pending_reconfirmation') {
+            $profileDone = $code === 'pending_reconfirmation';
         }
 
         $current = match ($code) {
             'pending_acceptance', 'invitation_sent', 'registration_in_progress', 'kyc_in_progress' => 'accepted',
-            'pending_profile', 'guarantee_pending' => 'profile',
+            'pending_profile', 'guarantee_pending', 'pending_reconfirmation' => 'profile',
             'ready' => 'ready',
             'rejected', 'expired' => 'accepted',
             default => 'accepted',
@@ -635,7 +959,18 @@ class GuarantorInvitationService
                     $updates['short_code'] = $this->generateShortCode();
                 }
 
+                $hadConsent = $this->hasRecordedConsent($invitation);
                 $invitation->update($updates);
+                if ($hadConsent && ! $identityChanged) {
+                    // Quote/contact refresh after prior consent — keep profile; require reconfirmation if quote moved.
+                    $invitation->update(['status' => 'accepted']);
+                    $this->syncInvitationQuote(
+                        $invitation->fresh(),
+                        $requestedAmount,
+                        $requestedTenureMonths,
+                        $loanProductId,
+                    );
+                }
             } else {
                 $guarantor = Guarantor::create([
                     'first_name' => trim($firstName.' '.($middleName ?: '')),
@@ -713,7 +1048,12 @@ class GuarantorInvitationService
             'requested_tenure_months' => $invitation->requested_tenure_months ?: (int) $application->requested_tenure_months,
         ]);
 
-        $invitation = $invitation->fresh();
+        $invitation = $this->syncInvitationQuote(
+            $invitation->fresh(),
+            (int) $application->requested_amount,
+            (int) $application->requested_tenure_months,
+            (int) $application->loan_product_id,
+        );
         app(GuarantorSignatureService::class)->attachToApplication($invitation, $application, $link);
 
         return $invitation;
@@ -888,6 +1228,12 @@ class GuarantorInvitationService
                         ? 'accepted'
                         : 'pending',
                 ]);
+                $this->syncInvitationQuote(
+                    $invitation->fresh(),
+                    $requestedAmount,
+                    $requestedTenureMonths,
+                    $loanProductId,
+                );
                 $link = $link ?? CustomerGuarantor::query()->find($invitation->customer_guarantor_id);
             } else {
                 [$link, $invitation] = $this->createInternalInvitationRecords(
@@ -955,7 +1301,14 @@ class GuarantorInvitationService
             'requested_tenure_months' => $invitation->requested_tenure_months ?: (int) $application->requested_tenure_months,
         ]);
 
-        return [$link->fresh(), $invitation->fresh()];
+        $invitation = $this->syncInvitationQuote(
+            $invitation->fresh(),
+            (int) $application->requested_amount,
+            (int) $application->requested_tenure_months,
+            (int) $application->loan_product_id,
+        );
+
+        return [$link->fresh(), $invitation];
     }
 
     /** @return array{0: CustomerGuarantor, 1: GuarantorInvitation} */
@@ -1194,10 +1547,14 @@ class GuarantorInvitationService
             GuarantorInvitation::query()
                 ->where('customer_guarantor_id', $link->id)
                 ->whereIn('status', ['pending', 'accepted'])
-                ->update([
-                    'status' => 'accepted',
-                    'responded_at' => now(),
-                ]);
+                ->get()
+                ->each(function (GuarantorInvitation $invitation): void {
+                    $invitation->update([
+                        'status' => 'accepted',
+                        'responded_at' => now(),
+                    ]);
+                    $this->recordConsentSnapshot($invitation->fresh());
+                });
 
             $this->tryReleaseApplicationFromGuarantorHold($link->application ?? $link->fresh()->application);
         });
@@ -1232,6 +1589,13 @@ class GuarantorInvitationService
         }
 
         foreach ($approvedLinks as $approvedLink) {
+            $invitation = GuarantorInvitation::query()
+                ->where('customer_guarantor_id', $approvedLink->id)
+                ->latest('id')
+                ->first();
+            if ($invitation?->needsQuoteReconfirmation()) {
+                return 'guarantor_quote_reconfirmation_required';
+            }
             $guarantorCustomer = $access->guarantorCustomerForLink($approvedLink);
             if (! $guarantorCustomer) {
                 return 'approved_guarantor_not_linked';
@@ -1547,6 +1911,13 @@ class GuarantorInvitationService
         $access = app(GuarantorAccessService::class);
 
         foreach ($approvedLinks as $approvedLink) {
+            $invitation = GuarantorInvitation::query()
+                ->where('customer_guarantor_id', $approvedLink->id)
+                ->latest('id')
+                ->first();
+            if ($invitation?->needsQuoteReconfirmation()) {
+                return false;
+            }
             $guarantorCustomer = $access->guarantorCustomerForLink($approvedLink);
             if (! $guarantorCustomer || ! ($onboarding->guarantorProfileStatus($guarantorCustomer)['met'] ?? false)) {
                 return false;
@@ -1554,6 +1925,33 @@ class GuarantorInvitationService
         }
 
         return true;
+    }
+
+    /**
+     * When the borrower changes the accepted quote on a draft, push it to open invitations
+     * and supersede prior guarantor consent when the change is material.
+     */
+    public function syncOpenInvitationQuotesFromDraft(Customer $borrower, int $loanProductId, array $form, ?string $draftReference = null): void
+    {
+        $amount = isset($form['requested_amount']) ? (int) $form['requested_amount'] : null;
+        $tenure = isset($form['requested_tenure_months']) ? (int) $form['requested_tenure_months'] : null;
+        if (($amount === null || $amount <= 0) && ($tenure === null || $tenure <= 0)) {
+            return;
+        }
+
+        GuarantorInvitation::query()
+            ->where('customer_id', $borrower->id)
+            ->where('loan_product_id', $loanProductId)
+            ->whereNull('loan_application_id')
+            ->whereIn('status', ['pending', 'accepted'])
+            ->each(function (GuarantorInvitation $invitation) use ($amount, $tenure, $loanProductId): void {
+                $this->syncInvitationQuote(
+                    $invitation,
+                    $amount && $amount > 0 ? $amount : null,
+                    $tenure && $tenure > 0 ? $tenure : null,
+                    $loanProductId,
+                );
+            });
     }
 
     protected function ensureShortCode(GuarantorInvitation $invitation): string

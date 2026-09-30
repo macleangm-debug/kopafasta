@@ -19,38 +19,58 @@
         </div>
     </div>
 
-    <section class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-white px-5 py-4 space-y-3">
-        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.intake.readiness_title') }}</p>
-        <ul class="space-y-1.5 text-sm">
-            <li class="flex items-center justify-between gap-3">
-                <span>{{ __('borrower.intake.your_information') }}</span>
-                <span class="text-xs font-semibold" :class="canApply ? 'text-emerald-700' : 'text-amber-700'"
-                      x-text="canApply ? @js(__('borrower.intake.complete')) : @js(__('borrower.intake.incomplete'))"></span>
+    <section class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-white overflow-hidden">
+        <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 py-4 border-b border-gray-100/80">
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.intake.readiness_title') }}</p>
+            <p class="text-sm text-gray-600 mt-1">{{ __('borrower.intake.what_happens_next') }} — {{ __('borrower.intake.nominate_before_invite') }}</p>
+        </div>
+        <ul class="divide-y divide-gray-100 px-5">
+            <li class="flex items-center justify-between gap-3 py-3">
+                <span class="text-sm font-semibold text-gray-900">{{ __('borrower.intake.your_information') }}</span>
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold"
+                      :class="canApply ? 'text-emerald-700' : 'text-amber-700'">
+                    <span x-text="canApply ? '✓' : '·'"></span>
+                    <span x-text="canApply ? @js(__('borrower.intake.complete')) : @js(__('borrower.intake.incomplete'))"></span>
+                </span>
             </li>
-            <li class="flex items-center justify-between gap-3">
-                <span>{{ __('borrower.intake.application_information') }}</span>
-                <span class="text-xs font-semibold text-emerald-700">{{ __('borrower.intake.complete') }}</span>
+            <li class="flex items-center justify-between gap-3 py-3">
+                <span class="text-sm font-semibold text-gray-900">{{ __('borrower.intake.application_information') }}</span>
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                    <span>✓</span>
+                    <span>{{ __('borrower.intake.complete') }}</span>
+                </span>
             </li>
-            <li x-show="hasStep('guarantor')" x-cloak class="flex items-center justify-between gap-3">
-                <span>{{ __('borrower.intake.guarantor_nominated') }}</span>
-                <span class="text-xs font-semibold"
-                      :class="form.guarantor_mode && form.guarantor_mode !== 'none' ? 'text-emerald-700' : 'text-amber-700'"
-                      x-text="form.guarantor_mode && form.guarantor_mode !== 'none' ? @js(__('borrower.intake.complete')) : @js(__('borrower.intake.incomplete'))"></span>
+            <li x-show="hasStep('guarantor')" x-cloak class="flex items-center justify-between gap-3 py-3">
+                <span class="text-sm font-semibold text-gray-900">{{ __('borrower.intake.guarantor_nominated') }}</span>
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold"
+                      :class="form.guarantor_mode && form.guarantor_mode !== 'none' ? 'text-emerald-700' : 'text-amber-700'">
+                    <span x-text="form.guarantor_mode && form.guarantor_mode !== 'none' ? '✓' : '·'"></span>
+                    <span x-text="form.guarantor_mode && form.guarantor_mode !== 'none' ? @js(__('borrower.intake.complete')) : @js(__('borrower.intake.incomplete'))"></span>
+                </span>
             </li>
-            <li class="flex items-center justify-between gap-3">
-                <span>{{ __('borrower.intake.application_fee') }}</span>
-                <span class="text-xs font-semibold text-emerald-700">{{ __('borrower.intake.complete') }}</span>
+            <li class="flex items-center justify-between gap-3 py-3">
+                <span class="text-sm font-semibold text-gray-900">{{ __('borrower.intake.application_fee') }}</span>
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                    <span>✓</span>
+                    <span>{{ __('borrower.intake.complete') }}</span>
+                </span>
             </li>
         </ul>
-        <p class="text-xs text-gray-600 pt-2 border-t border-gray-100">
-            <span class="font-semibold text-gray-800">{{ __('borrower.intake.what_happens_next') }}.</span>
-            {{ __('borrower.intake.nominate_before_invite') }}
-        </p>
+        <div x-show="!supplementMode && canApply && (!hasStep('guarantor') || (form.guarantor_mode && form.guarantor_mode !== 'none'))"
+             x-cloak
+             class="px-5 py-4 bg-emerald-50/80 border-t border-emerald-100">
+            <p class="text-sm font-bold text-emerald-900">{{ __('borrower.apply.submit_step.summary_title') }}</p>
+            <p class="text-xs text-emerald-800 mt-0.5">{{ __('borrower.apply.submit_step.signed_hint_short') }}</p>
+        </div>
     </section>
 
-    <div x-show="supplementMode" x-cloak class="glass-card rounded-2xl ring-1 ring-sky-200 bg-gradient-to-br from-sky-50 to-white px-5 py-4 text-sm text-sky-900 mb-6">
+    <div x-show="supplementMode && supplementKind === 'additional'" x-cloak class="glass-card rounded-2xl ring-1 ring-sky-200 bg-gradient-to-br from-sky-50 to-white px-5 py-4 text-sm text-sky-900 mb-6">
         <p class="font-semibold">{{ __('borrower.apply.submit_step.supplement_title') }}</p>
         <p class="mt-1 text-sky-800">{{ __('borrower.apply.submit_step.supplement_hint') }}</p>
+    </div>
+    <div x-show="supplementMode && supplementKind === 'change'" x-cloak class="glass-card rounded-2xl ring-1 ring-amber-200 bg-gradient-to-br from-amber-50 to-white px-5 py-4 text-sm text-amber-950 mb-6">
+        <p class="font-semibold">{{ __('borrower.guarantor_supplement.change_cta') }}</p>
+        <p class="mt-1 text-amber-900">{{ __('borrower.guarantor_supplement.change_borrower_banner') }}</p>
     </div>
 
     {{-- Group members: readiness roster only (5 per page). Signatures live in one card below. --}}

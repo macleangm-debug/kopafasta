@@ -257,6 +257,7 @@ export function applyWizard(config) {
                 reviewPageCount: 2,
                 assetSubstep: 1,
                 supplementMode: !!config.supplementMode,
+                supplementKind: config.supplementKind || null,
                 draftBlocked: false,
                 supplementApplicationId: config.supplementApplicationId || null,
                 stepIcons: {

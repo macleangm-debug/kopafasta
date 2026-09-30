@@ -1227,6 +1227,68 @@ class VendorController extends Controller
         return redirect()->route($page, ['section' => 'history'])->with('status', $thanks);
     }
 
+    public function showSupportTicket(\App\Models\SupportTicket $support_ticket)
+    {
+        $vendor = $this->vendor();
+        $user = auth()->user();
+        abort_unless($user, 401);
+
+        $phone = \App\Support\PhoneNumber::digits((string) ($vendor->phone ?: $user->phone));
+        $ticketPhone = \App\Support\PhoneNumber::digits((string) ($support_ticket->guest_phone ?? ''));
+        $owns = ($ticketPhone !== '' && $phone !== '' && $ticketPhone === $phone)
+            || (filled($user->email) && strcasecmp((string) $support_ticket->guest_email, (string) $user->email) === 0);
+        abort_unless($owns && $support_ticket->customer_id === null, 404);
+
+        $support_ticket->load(['conversation', 'rating']);
+        $isVendor = request()->routeIs('site.vendor.*');
+
+        return view('site.vendor.support-ticket', [
+            'vendor' => $vendor,
+            'ticket' => $support_ticket,
+            'supportPageUrl' => $isVendor ? route('site.vendor.support') : route('site.partner.support'),
+            'chatUrl' => $isVendor ? route('site.vendor.support', ['chat' => 1]) : route('site.partner.support', ['chat' => 1]),
+            'rateUrl' => $isVendor
+                ? route('site.vendor.support.rate', $support_ticket)
+                : route('site.partner.support.rate', $support_ticket),
+        ]);
+    }
+
+    public function rateSupportTicket(
+        \Illuminate\Http\Request $request,
+        \App\Models\SupportTicket $support_ticket,
+    ): \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse {
+        $vendor = $this->vendor();
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $phone = \App\Support\PhoneNumber::digits((string) ($vendor->phone ?: $user->phone));
+        $ticketPhone = \App\Support\PhoneNumber::digits((string) ($support_ticket->guest_phone ?? ''));
+        $owns = ($ticketPhone !== '' && $phone !== '' && $ticketPhone === $phone)
+            || (filled($user->email) && strcasecmp((string) $support_ticket->guest_email, (string) $user->email) === 0);
+        abort_unless($owns && $support_ticket->customer_id === null, 403);
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        app(\App\Services\Support\SupportTicketService::class)->recordRating(
+            $support_ticket,
+            (int) $data['rating'],
+            $data['comment'] ?? null,
+        );
+
+        $page = $request->routeIs('site.vendor.*') ? 'site.vendor.support' : 'site.partner.support';
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return redirect()
+            ->route($page, ['section' => 'history'])
+            ->with('status', 'Asante kwa maoni yako.');
+    }
+
     public function terms()
     {
         $vendor = $this->vendor();

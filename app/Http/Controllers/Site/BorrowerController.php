@@ -4009,6 +4009,18 @@ class BorrowerController extends Controller
         ]);
     }
 
+    public function showSupportTicket(\App\Models\SupportTicket $support_ticket): View
+    {
+        $customer = $this->customer();
+        abort_unless((int) $support_ticket->customer_id === (int) $customer->id, 404);
+        $support_ticket->load(['conversation', 'rating']);
+
+        return view('site.borrower.support-ticket', [
+            'customer' => $customer,
+            'ticket' => $support_ticket,
+        ]);
+    }
+
     public function rateSupportConversation(Request $request, \App\Models\SupportConversation $supportConversation): JsonResponse|\Illuminate\Http\RedirectResponse
     {
         $customer = $this->customer();

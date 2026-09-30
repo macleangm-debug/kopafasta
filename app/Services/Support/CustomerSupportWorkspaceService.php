@@ -255,9 +255,15 @@ class CustomerSupportWorkspaceService
         $mineOrOpen = $team
             ? $this->openConversations()
             : $this->myConversations($agentId);
-        $queue = $waiting->merge($mineOrOpen)->unique('id')->sortByDesc(function ($row) {
-            return $row->last_message_at?->timestamp ?? $row->updated_at?->timestamp ?? 0;
-        })->values()->take(12);
+        // Waiting rows stay oldest-first; active/mine follow by latest activity.
+        $waitingIds = $waiting->pluck('id');
+        $rest = $mineOrOpen
+            ->reject(fn (SupportConversation $c) => $waitingIds->contains($c->id))
+            ->sortByDesc(fn (SupportConversation $row) => $row->last_message_at?->timestamp
+                ?? $row->updated_at?->timestamp
+                ?? 0)
+            ->values();
+        $queue = $waiting->values()->concat($rest)->unique('id')->values()->take(12);
 
         $ticketsNeedingAttention = $this->ticketsNeedingAttention($agentId);
         $openTicketCount = $team
@@ -287,6 +293,12 @@ class CustomerSupportWorkspaceService
                 ->whereIn('status', ['assigned', 'active'])
                 ->count();
 
+        $longestWaitingSeconds = 0;
+        foreach ($waiting as $row) {
+            $since = $row->waiting_since ?? $row->created_at ?? now();
+            $longestWaitingSeconds = max($longestWaitingSeconds, $since->diffInSeconds(now()));
+        }
+
         return [
             'agent' => $agent,
             'team_view' => $team || $agentId === null,
@@ -296,6 +308,7 @@ class CustomerSupportWorkspaceService
             'agents_online' => $this->agentsOnlineCount(),
             'counters' => [
                 'waiting' => $waiting->count(),
+                'longest_waiting_seconds' => $longestWaitingSeconds,
                 'active_chats' => $activeChats,
                 'open_tickets' => $openTicketCount,
                 'sla_at_risk' => $slaAtRisk,
@@ -597,7 +610,7 @@ class CustomerSupportWorkspaceService
     {
         return [
             'Department workspaces for escalated cases are not built in this pass (Support remains customer contact).',
-            'Agent availability: stored on user preferences only; round-robin does not yet filter Offline agents.',
+            'Agent availability: Online/Offline is stored on user preferences; Accept refuses Offline agents. Assigned Offline agents keep ownership and receive offline acknowledgements.',
         ];
     }
 
@@ -614,7 +627,7 @@ class CustomerSupportWorkspaceService
                     });
             })
             ->whereNotIn('status', ['closed', 'resolved'])
-            ->latest('last_message_at')
+            ->orderByRaw('COALESCE(waiting_since, created_at) asc')
             ->limit(40)
             ->get();
     }

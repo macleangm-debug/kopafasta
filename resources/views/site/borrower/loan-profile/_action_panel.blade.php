@@ -40,11 +40,21 @@
         $editGuarantorUrl = null;
     }
 
-    // Hero already owns wait/status copy. Suppress duplicate status card when there is
-    // no discrete next action (valuation pay, document return, supplement CTA, etc.).
+    // Hero / Wadhamini / _submitted already own wait/status copy. Suppress duplicate
+    // status card unless there is a discrete borrower CTA (valuation, docs, additional
+    // guarantor). Replacement/change is handled inside Guarantor Details.
     $suppressDuplicateStatusCard = ! $isDraft
         && $underwritingActions->isEmpty()
-        && in_array(($next['code'] ?? ''), ['awaiting_guarantor', 'under_review', 'view_application', 'documents_resubmitted', ''], true)
+        && in_array(($next['code'] ?? ''), [
+            'awaiting_guarantor',
+            'awaiting_guarantor_profile',
+            'awaiting_guarantor_reconfirm',
+            'change_guarantor',
+            'under_review',
+            'view_application',
+            'documents_resubmitted',
+            '',
+        ], true)
         && ! in_array(($next['code'] ?? ''), ['pay_valuation_fee', 'add_guarantor', 'collateral_shortfall'], true);
 @endphp
 
@@ -334,8 +344,11 @@
                 </div>
             @endif
 
-            {{-- Secondary add-guarantor only when UW opened a supplement and the primary next action is NOT already add_guarantor --}}
-            @if ($editGuarantorUrl && $guarantorSupplementOpen && ($next['code'] ?? '') !== 'add_guarantor')
+            {{-- Secondary add-guarantor only for explicit additional UW request (never replacement). --}}
+            @if ($editGuarantorUrl
+                && $guarantorSupplementOpen
+                && app(\App\Services\GuarantorSupplementService::class)->hasOpenAdditionalRequest($application)
+                && ($next['code'] ?? '') !== 'add_guarantor')
                 <div class="mt-4">
                     <a href="{{ $editGuarantorUrl }}"
                        class="inline-flex text-xs font-semibold text-brand bg-brand-muted/40 ring-1 ring-brand/20 hover:bg-brand-muted px-3 py-2 rounded-lg">

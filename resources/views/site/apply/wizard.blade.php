@@ -163,6 +163,7 @@
                   groupProgressLabels: @js(app(\App\Services\GroupMemberProgressService::class)->statusLabels()),
                   firstActionUrl: @js($applyRequirements['first_action_url'] ?? null),
                   supplementMode: @js((bool) ($supplementMode ?? false)),
+                  supplementKind: @js($supplementKind ?? null),
                   supplementApplicationId: @js(($supplementApplication ?? null)?->id),
                   repeatJourney: @js($repeatJourney ?? 'full'),
                   i18n: @js([

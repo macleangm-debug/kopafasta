@@ -166,8 +166,11 @@ class SupportWorkspaceController extends Controller
                     }
                 });
             })
-            ->orderByRaw("CASE WHEN needs_human = 1 AND assigned_to IS NULL THEN 0 WHEN needs_human = 1 THEN 1 ELSE 2 END")
-            ->latest('last_message_at')
+            ->when($filter === 'waiting', fn ($query) => $query->orderByRaw('COALESCE(waiting_since, created_at) asc'))
+            ->when($filter !== 'waiting', function ($query) {
+                $query->orderByRaw("CASE WHEN needs_human = 1 AND assigned_to IS NULL THEN 0 WHEN needs_human = 1 THEN 1 ELSE 2 END")
+                    ->latest('last_message_at');
+            })
             ->limit(80)
             ->get();
 
@@ -300,7 +303,23 @@ class SupportWorkspaceController extends Controller
 
                 return back()->withInput()->with('error', $message);
             }
-            $this->conversations->accept($supportConversation, $agent);
+            if ($this->workspace->availability($agent) !== 'online') {
+                $message = 'Go Online before accepting an unassigned conversation.';
+                if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                    return response()->json(['ok' => false, 'error' => $message], 422);
+                }
+
+                return back()->withInput()->with('error', $message);
+            }
+            try {
+                $this->conversations->accept($supportConversation, $agent);
+            } catch (\InvalidArgumentException $e) {
+                if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                    return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+                }
+
+                return back()->withInput()->with('error', $e->getMessage());
+            }
             $supportConversation->refresh();
         }
 
@@ -368,7 +387,28 @@ class SupportWorkspaceController extends Controller
                 ->with('assignableAgents', $options);
         }
 
-        $this->conversations->accept($supportConversation, $agent);
+        if ($this->workspace->availability($agent) !== 'online') {
+            $message = 'That Support person must be Online to accept this conversation (currently '.ucfirst($this->workspace->availability($agent)).').';
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'error' => $message], 422);
+            }
+
+            return redirect()
+                ->route('admin.support.inbox.show', $supportConversation)
+                ->with('error', $message);
+        }
+
+        try {
+            $this->conversations->accept($supportConversation, $agent);
+        } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+            }
+
+            return redirect()
+                ->route('admin.support.inbox.show', $supportConversation)
+                ->with('error', $e->getMessage());
+        }
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
         if ($actor) {

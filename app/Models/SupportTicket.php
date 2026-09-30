@@ -51,6 +51,17 @@ class SupportTicket extends Model
         return $this->hasOne(SupportTicketRating::class);
     }
 
+    /** Public ticket reference — prefer KPF-TKT; never substitute conversation SUP-* ids. */
+    public function publicNumber(): string
+    {
+        $n = trim((string) ($this->ticket_number ?? ''));
+        if ($n !== '') {
+            return $n;
+        }
+
+        return 'KPF-TKT-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+    }
+
     public function contactLabel(): string
     {
         if ($this->customer) {

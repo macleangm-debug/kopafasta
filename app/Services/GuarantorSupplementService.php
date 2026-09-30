@@ -16,7 +16,72 @@ class GuarantorSupplementService
         return $request !== null && empty($request['satisfied_at']);
     }
 
-    /** @return array{requested_at?: string, requested_by?: int, notes?: string|null, satisfied_at?: string|null}|null */
+    /** additional = UW asked for another guarantor; change = replace unusable/declined. */
+    public function openRequestKind(LoanApplication $application): ?string
+    {
+        $request = $this->openRequest($application);
+        if (! $request) {
+            return null;
+        }
+
+        $kind = (string) ($request['kind'] ?? 'additional');
+
+        return in_array($kind, ['additional', 'change'], true) ? $kind : 'additional';
+    }
+
+    public function isChangeRequest(LoanApplication $application): bool
+    {
+        return $this->openRequestKind($application) === 'change';
+    }
+
+    public function isAdditionalRequest(LoanApplication $application): bool
+    {
+        return $this->openRequestKind($application) === 'additional';
+    }
+
+    /** True only when underwriting explicitly asked for an *additional* guarantor (not a replacement). */
+    public function hasOpenAdditionalRequest(LoanApplication $application): bool
+    {
+        $request = $this->openRequest($application);
+
+        return $request !== null && ($request['kind'] ?? 'additional') === 'additional';
+    }
+
+    /** Open change/replacement request (underwriting or borrower-initiated). */
+    public function hasOpenChangeRequest(LoanApplication $application): bool
+    {
+        $request = $this->openRequest($application);
+
+        return $request !== null && ($request['kind'] ?? '') === 'change';
+    }
+
+    /** Borrower-facing CTA for an open supplement — never conflate replacement with additional. */
+    public function borrowerCtaLabel(LoanApplication $application): string
+    {
+        if ($this->hasOpenChangeRequest($application)) {
+            return __('borrower.guarantor_supplement.change_cta');
+        }
+        if ($this->hasOpenAdditionalRequest($application)) {
+            return __('borrower.guarantor_supplement.cta');
+        }
+
+        return __('borrower.guarantor_supplement.change_cta');
+    }
+
+    /** Borrower-facing banner for an open supplement. Empty when no open request. */
+    public function borrowerBanner(LoanApplication $application): ?string
+    {
+        if ($this->hasOpenAdditionalRequest($application)) {
+            return __('borrower.guarantor_supplement.borrower_banner');
+        }
+        if ($this->hasOpenChangeRequest($application)) {
+            return __('borrower.guarantor_supplement.change_borrower_banner');
+        }
+
+        return null;
+    }
+
+    /** @return array{requested_at?: string, requested_by?: int, notes?: string|null, satisfied_at?: string|null, kind?: string}|null */
     public function openRequest(LoanApplication $application): ?array
     {
         $payload = $application->screening_payload ?? [];
@@ -31,6 +96,20 @@ class GuarantorSupplementService
         }
 
         return $request;
+    }
+
+    /**
+     * Material quote changed after guarantor acceptance — awaiting guarantor reconfirmation.
+     * Presentation only until the quote-change engine stores this payload (Section C).
+     */
+    public function awaitingQuoteReconfirm(LoanApplication $application): bool
+    {
+        $pending = data_get($application->screening_payload, 'guarantor_quote_reconfirm');
+        if (! is_array($pending) || empty($pending['requested_at'])) {
+            return false;
+        }
+
+        return empty($pending['confirmed_at']) && empty($pending['declined_at']);
     }
 
     public function request(LoanApplication $application, User $admin, ?string $notes = null): void
