@@ -80,14 +80,14 @@
         </div>
 
         {{-- Human conversation only --}}
-        <div id="support-human-chat" x-show="human" x-cloak class="scroll-mt-24 mb-8">
+        <div id="support-human-chat" x-show="human" x-cloak class="scroll-mt-24 mb-8 max-w-2xl">
             <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.support_page.human_mode_label') }}</p>
-                    <h2 class="text-lg font-bold text-gray-900">{{ __('borrower.support_page.talk_to_team') }}</h2>
+                    <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.support_page.human_mode_label') }}</p>
+                    <h2 class="text-xl font-bold text-gray-900">{{ __('borrower.support_page.talk_to_team') }}</h2>
                 </div>
                 @unless ($supportConversation && $supportConversation->messages->isNotEmpty())
-                    <button type="button" @click="human = false" class="text-xs font-semibold text-brand hover:underline">
+                    <button type="button" @click="human = false" class="text-sm font-semibold text-brand hover:underline">
                         {{ __('borrower.support_page.back_to_faqs') }}
                     </button>
                 @endunless

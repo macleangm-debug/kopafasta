@@ -28,7 +28,7 @@
     $startHuman = $forceHuman || count($seedMessages) > 0;
 @endphp
 
-<div {{ $attributes->merge(['class' => 'glass-card p-5 sm:p-6']) }}
+<div {{ $attributes->merge(['class' => 'glass-card p-5 sm:p-6 max-w-2xl']) }}
      x-data="aiSupportChat(@js([
          'greeting' => $forceHuman
              ? __('borrower.support_page.speak_to_support_hint')
@@ -57,20 +57,20 @@
             <span class="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-white"></span>
         </div>
         <div class="min-w-0 flex-1">
-            <p class="font-semibold text-gray-900">{{ $agentLabel }}</p>
-            <p class="text-xs text-gray-500">{{ $agentSubtitle }}</p>
+            <p class="text-base font-semibold text-gray-900">{{ $agentLabel }}</p>
+            <p class="text-sm text-gray-500">{{ $agentSubtitle }}</p>
         </div>
     </div>
 
-    <div class="rounded-xl bg-gradient-to-b from-brand-muted/30 to-white border border-gray-100/80 p-4 max-h-72 overflow-y-auto space-y-2.5 text-sm mb-3" x-ref="scroll">
+    <div class="rounded-xl bg-gradient-to-b from-brand-muted/30 to-white border border-gray-100/80 p-3.5 max-h-80 overflow-y-auto space-y-2.5 text-[15px] mb-3" x-ref="scroll">
         <template x-for="(msg, i) in messages" :key="i">
             <div :class="msg.role === 'user' ? 'text-right' : ''">
-                <span class="inline-block px-3 py-2 rounded-2xl max-w-[85%] text-left whitespace-pre-wrap"
-                      :class="msg.role === 'user' ? 'bg-brand text-white rounded-br-md' : 'bg-white ring-1 ring-gray-200/80 text-gray-700 rounded-bl-md'"
+                <span class="inline-block px-3.5 py-2 rounded-2xl max-w-[min(18rem,78%)] text-left whitespace-pre-wrap leading-snug"
+                      :class="msg.role === 'user' ? 'bg-brand text-white rounded-br-md' : 'bg-white ring-1 ring-gray-200/80 text-gray-800 rounded-bl-md'"
                       x-text="msg.text"></span>
             </div>
         </template>
-        <div x-show="typing" x-cloak class="flex items-center gap-2 text-xs text-gray-500">
+        <div x-show="typing" x-cloak class="flex items-center gap-2 text-sm text-gray-500">
             <span x-text="config.typingLabel"></span>
         </div>
     </div>
@@ -78,17 +78,17 @@
     <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips">
         <template x-for="suggestion in config.suggestions" :key="suggestion">
             <button type="button" @click="askSuggestion(suggestion)" :disabled="typing"
-                    class="text-xs px-3 py-1.5 rounded-full bg-brand-muted/80 text-brand hover:bg-brand/10 transition disabled:opacity-50"
+                    class="text-sm px-3 py-1.5 rounded-full bg-brand-muted/80 text-brand hover:bg-brand/10 transition disabled:opacity-50"
                     x-text="suggestion"></button>
         </template>
     </div>
 
     <div class="mb-4 space-y-2" x-show="!humanMode && showProductChips" x-cloak>
-        <p class="text-xs font-semibold text-gray-600" x-text="config.chooseProductPrompt"></p>
+        <p class="text-sm font-semibold text-gray-600" x-text="config.chooseProductPrompt"></p>
         <div class="flex flex-wrap gap-2">
             <template x-for="product in config.products" :key="product.code">
                 <button type="button" @click="selectProduct(product)" :disabled="typing"
-                        class="text-xs px-3 py-1.5 rounded-full ring-1 ring-brand/25 bg-white text-brand hover:bg-brand-muted transition disabled:opacity-50"
+                        class="text-sm px-3 py-1.5 rounded-full ring-1 ring-brand/25 bg-white text-brand hover:bg-brand-muted transition disabled:opacity-50"
                         x-text="product.name"></button>
             </template>
         </div>
@@ -97,15 +97,15 @@
     <form @submit.prevent="ask" class="flex gap-2">
         <input type="text" x-model="input" :disabled="typing"
                placeholder="{{ __('site.support.chat_placeholder') }}"
-               class="flex-1 rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60">
+               class="flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-base focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60">
         <button type="submit" :disabled="typing"
-                class="bg-brand hover:bg-brand-light disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-xl">
+                class="bg-brand hover:bg-brand-light disabled:opacity-60 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
             {{ __('site.support.chat_send') }}
         </button>
     </form>
 
     @unless ($memberMode)
-        <p class="mt-3 text-xs text-gray-500">
+        <p class="mt-3 text-sm text-gray-500">
             {{ __('site.support.chat.guest_hint') }}
             <a href="{{ $registerUrl }}" class="font-semibold text-brand hover:underline">{{ __('site.hero.get_started') }}</a>
         </p>
