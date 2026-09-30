@@ -102,15 +102,19 @@
                 if (! el) {
                     return true;
                 }
-                if (el.hasAttribute('x-cloak') || el.hidden) {
-                    return false;
-                }
-                if (el._x_isShown === false) {
-                    return false;
-                }
-                const style = window.getComputedStyle(el);
-                if (style.display === 'none' || style.visibility === 'hidden') {
-                    return false;
+                let node = el;
+                while (node && node.nodeType === 1 && node !== document.documentElement) {
+                    if (node.hasAttribute('x-cloak') || node.hidden) {
+                        return false;
+                    }
+                    if (node._x_isShown === false) {
+                        return false;
+                    }
+                    const style = window.getComputedStyle(node);
+                    if (style.display === 'none' || style.visibility === 'hidden') {
+                        return false;
+                    }
+                    node = node.parentElement;
                 }
                 return true;
             }
@@ -146,6 +150,17 @@
                 el.hidden = false;
                 el.classList.remove('hidden', 'wizard-step-inactive');
                 el.removeAttribute('aria-hidden');
+                el.style.cssText = '';
+            }
+
+            function hideExcludedStep(el) {
+                // Keep gated-out steps fully clipped. Clearing them lets Alpine-shown
+                // sibling steps (e.g. Affiliate program) bleed through while the chrome
+                // still names another step such as Coverage regions.
+                el.hidden = false;
+                el.classList.remove('hidden');
+                el.classList.add('wizard-step-inactive');
+                el.setAttribute('aria-hidden', 'true');
                 el.style.cssText = '';
             }
 
@@ -201,7 +216,7 @@
 
                 allSteps.forEach(function (el) {
                     if (! stepEls.includes(el)) {
-                        clearStepClip(el);
+                        hideExcludedStep(el);
                     }
                 });
 

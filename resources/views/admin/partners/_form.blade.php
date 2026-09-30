@@ -96,6 +96,9 @@
             // the wizard or clear Premium / commercial Alpine state.
             $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
         });
+        $watch('applicantCategory', () => {
+            $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
+        });
         $nextTick(() => $nextTick(() => window.dispatchEvent(new CustomEvent('admin-wizard-rebuild'))));
     "
     class="space-y-0"
@@ -215,7 +218,7 @@
         @endif
     </x-admin.step>
 
-    <div data-step-gate x-show="needsCoverage" x-cloak @error('regions') data-has-error="true" @enderror>
+    <div data-step-gate x-show="needsCoverage && ! isAffiliate" x-cloak @error('regions') data-has-error="true" @enderror>
         <x-admin.step title="Coverage regions">
             <div class="md:col-span-2 space-y-3" x-data="{ coverageType: @js(old('coverage_type', $r?->coverage_type ?? 'nationwide')) }">
                 <p class="text-xs text-gray-500">
