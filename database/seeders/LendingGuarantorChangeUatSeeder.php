@@ -26,7 +26,7 @@ class LendingGuarantorChangeUatSeeder extends Seeder
 
     public const APP_NUMBER = 'APP-UAT-MOH-MACLEAN-01';
 
-    public const FEE_REF = 'PAY-UAT-MOH-MACLEAN-01';
+    public const FEE_REF = 'PAY-UAT-MOH-MAC-01';
 
     public function run(): void
     {
