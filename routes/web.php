@@ -1031,6 +1031,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             ->name('role-view.profile');
         Route::post('role-view/enter', [\App\Http\Controllers\Admin\AdminRoleViewController::class, 'enter'])
             ->name('role-view.enter');
+        Route::post('role-view/select-staff', [\App\Http\Controllers\Admin\AdminRoleViewController::class, 'selectStaff'])
+            ->name('role-view.select-staff');
         Route::post('role-view/exit', [\App\Http\Controllers\Admin\AdminRoleViewController::class, 'exit'])
             ->name('role-view.exit');
         Route::get('nav/shortcuts', [AdminShortcutController::class, 'index'])->name('nav.shortcuts.index');

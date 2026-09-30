@@ -26,7 +26,7 @@ class DashboardController extends Controller
         $roleView = app(\App\Services\AdminRoleViewService::class)->active();
 
         if ($support->isSupportRoleKey($roleView['role_key'] ?? null)
-            || ($user && $user->hasRole('agent') && ! $user->hasRole('admin') && ! $user->hasRole('super_admin') && ! $user->hasRole('manager'))) {
+            || ($user && ($user->hasRole('agent') || $user->hasRole('partner_support')) && ! $user->hasRole('admin') && ! $user->hasRole('super_admin') && ! $user->hasRole('manager'))) {
             return redirect()->route('admin.support.home');
         }
 

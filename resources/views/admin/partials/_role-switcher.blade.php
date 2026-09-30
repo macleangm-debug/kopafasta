@@ -1,4 +1,4 @@
-{{-- Admin Account / Role — internal staff workspace directory --}}
+{{-- Admin Account / Role — role-first internal workspace directory --}}
 @php
     $staffRoleDirectory = app(\App\Services\AdminRoleViewService::class)->staffRoleDirectory();
 @endphp
@@ -7,24 +7,13 @@
         open: false,
         filter: '',
         roles: @js($staffRoleDirectory),
-        selected: {},
-        profileUrl: @js(route('admin.role-view.profile')),
         enterUrl: @js(route('admin.role-view.enter')),
         csrf: @js(csrf_token()),
-        init() {
-            this.roles.forEach((role) => {
-                this.selected[role.key] = role.staff.length === 1 ? role.staff[0].id : (role.staff[0]?.id || null);
-            });
-        },
         filteredRoles() {
             if (! this.filter) {
                 return this.roles;
             }
             return this.roles.filter((role) => role.key === this.filter);
-        },
-        selectedStaff(role) {
-            const id = this.selected[role.key];
-            return role.staff.find((person) => person.id === id) || null;
         }
      }">
     <button type="button"
@@ -52,51 +41,27 @@
             </select>
         </label>
 
-        <ul class="space-y-3 max-h-[60vh] overflow-y-auto pr-0.5">
+        <ul class="space-y-2 max-h-[60vh] overflow-y-auto pr-0.5">
             <template x-for="role in filteredRoles()" :key="role.key">
-                <li class="rounded-2xl ring-1 ring-gray-200 p-3 space-y-2.5">
-                    <div>
-                        <p class="text-sm font-bold text-gray-900" x-text="role.label"></p>
-                        <p class="text-xs text-gray-500" x-show="role.staff_count === 0">
-                            {{ __('admin.role_view.no_staff') }}
-                        </p>
-                        <p class="text-xs text-gray-500" x-show="role.staff_count === 1"
-                           x-text="role.staff[0]?.name + (role.staff[0]?.subtitle ? ' · ' + role.staff[0].subtitle : '')"></p>
-                    </div>
-
-                    <div x-show="role.staff_count > 1">
-                        <label class="block">
-                            <span class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{{ __('admin.role_view.assigned_staff') }}</span>
-                            <select class="mt-1 w-full rounded-xl border-0 ring-1 ring-gray-200 px-3 py-2 text-sm focus:ring-brand/40 bg-white"
-                                    x-model.number="selected[role.key]">
-                                <template x-for="person in role.staff" :key="person.id">
-                                    <option :value="person.id" x-text="person.name + (person.subtitle ? ' · ' + person.subtitle : '')"></option>
-                                </template>
-                            </select>
-                        </label>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2" x-show="role.staff_count > 0 && selectedStaff(role)">
-                        <form method="POST" :action="profileUrl">
-                            <input type="hidden" name="_token" :value="csrf">
-                            <input type="hidden" name="subject_type" value="staff">
-                            <input type="hidden" name="subject_id" :value="selectedStaff(role).id">
-                            <button type="submit"
-                                    class="inline-flex rounded-xl px-3 py-2 text-xs font-semibold ring-1 ring-gray-200 text-gray-800 hover:bg-gray-50">
-                                {{ __('admin.role_view.view_profile') }}
-                            </button>
-                        </form>
-                        <form method="POST" :action="enterUrl">
-                            <input type="hidden" name="_token" :value="csrf">
-                            <input type="hidden" name="subject_type" value="staff">
-                            <input type="hidden" name="subject_id" :value="selectedStaff(role).id">
-                            <input type="hidden" name="role_key" :value="role.key">
-                            <button type="submit"
-                                    class="inline-flex rounded-xl px-3 py-2 text-xs font-semibold bg-brand text-white hover:brightness-95">
-                                {{ __('admin.role_view.enter_workspace') }}
-                            </button>
-                        </form>
-                    </div>
+                <li>
+                    <form method="POST" :action="enterUrl" class="block">
+                        <input type="hidden" name="_token" :value="csrf">
+                        <input type="hidden" name="subject_type" value="workspace">
+                        <input type="hidden" name="workspace_key" :value="role.key">
+                        <button type="submit"
+                                class="w-full text-left rounded-2xl ring-1 ring-gray-200 px-4 py-3 hover:ring-brand/40 hover:bg-brand-muted/20 transition">
+                            <span class="flex items-center justify-between gap-3">
+                                <span>
+                                    <span class="block text-sm font-bold text-gray-900" x-text="role.label"></span>
+                                    <span class="block text-xs text-gray-500 mt-0.5"
+                                          x-text="role.staff_count === 0
+                                            ? @js(__('admin.role_view.no_staff'))
+                                            : (role.staff_count + ' ' + @js(__('admin.role_view.staff_assigned')))"></span>
+                                </span>
+                                <span class="shrink-0 text-xs font-semibold text-brand">{{ __('admin.role_view.enter_workspace') }} →</span>
+                            </span>
+                        </button>
+                    </form>
                 </li>
             </template>
         </ul>

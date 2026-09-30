@@ -1,43 +1,72 @@
 @php
     $agent = $dashboard['agent'] ?? null;
-    $availability = $dashboard['availability'] ?? 'offline';
+    $teamView = (bool) ($dashboard['team_view'] ?? true);
+    $availability = $dashboard['availability'] ?? null;
     $counters = $dashboard['counters'] ?? [];
     $queue = $dashboard['queue'] ?? [];
     $tickets = $dashboard['tickets'] ?? [];
     $performance = $dashboard['performance'] ?? [];
+    $staffOptions = $dashboard['staff_options'] ?? [];
+    $selectedStaffId = $dashboard['selected_staff_id'] ?? null;
+    $agentsOnline = (int) ($dashboard['agents_online'] ?? 0);
     $dot = match ($availability) {
         'online' => 'bg-emerald-400',
         'away' => 'bg-amber-400',
-        default => 'bg-gray-400',
+        'offline' => 'bg-gray-400',
+        default => 'bg-gray-300',
     };
+    $heroSubtitle = $teamView
+        ? 'Help members, partners and guests — answer conversations and resolve cases.'
+        : 'Help members, answer conversations and resolve cases.';
 @endphp
-<x-admin.layout title="Customer Support" heading="" subheading="">
+<x-admin.layout title="Support" heading="" subheading="">
     <x-admin.letterhead
-        kicker="Customer Support"
-        title="Customer Support"
-        :subtitle="$agent?->name ?: 'Help members, answer conversations and resolve cases.'"
+        kicker="Support"
+        title="Support"
+        :subtitle="$agent?->name ?: $heroSubtitle"
     >
-        <x-slot:meta>Help members, answer conversations and resolve cases.</x-slot:meta>
+        <x-slot:meta>{{ $heroSubtitle }}</x-slot:meta>
         <x-slot:actions>
-            <form method="POST" action="{{ route('admin.support.availability') }}" class="inline-flex items-center gap-2">
+            <form method="POST" action="{{ route('admin.role-view.select-staff') }}" class="inline-flex items-center gap-2">
                 @csrf
-                <span class="inline-flex size-2.5 rounded-full {{ $dot }} ring-2 ring-white/40" aria-hidden="true"></span>
-                <select name="availability"
+                <label class="sr-only">{{ __('admin.role_view.staff_filter') }}</label>
+                <select name="staff_id"
                         onchange="this.form.submit()"
-                        class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold px-3 py-2 focus:ring-2 focus:ring-white/40">
-                    <option value="online" @selected($availability === 'online') class="text-gray-900">Online</option>
-                    <option value="away" @selected($availability === 'away') class="text-gray-900">Away</option>
-                    <option value="offline" @selected($availability === 'offline') class="text-gray-900">Offline</option>
+                        class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold px-3 py-2 focus:ring-2 focus:ring-white/40 min-w-[10rem]">
+                    <option value="0" @selected($teamView) class="text-gray-900">{{ __('admin.role_view.staff_all') }}</option>
+                    @foreach ($staffOptions as $person)
+                        <option value="{{ $person['id'] }}" @selected((int) $selectedStaffId === (int) $person['id']) class="text-gray-900">
+                            {{ $person['name'] }}
+                        </option>
+                    @endforeach
                 </select>
             </form>
+            @if ($agent)
+                <form method="POST" action="{{ route('admin.support.availability') }}" class="inline-flex items-center gap-2">
+                    @csrf
+                    <span class="inline-flex size-2.5 rounded-full {{ $dot }} ring-2 ring-white/40" aria-hidden="true"></span>
+                    <select name="availability"
+                            onchange="this.form.submit()"
+                            class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold px-3 py-2 focus:ring-2 focus:ring-white/40">
+                        <option value="online" @selected($availability === 'online') class="text-gray-900">Online</option>
+                        <option value="away" @selected($availability === 'away') class="text-gray-900">Away</option>
+                        <option value="offline" @selected($availability === 'offline') class="text-gray-900">Offline</option>
+                    </select>
+                </form>
+            @else
+                <span class="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white">
+                    <span class="size-2.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
+                    {{ $agentsOnline }} online
+                </span>
+            @endif
         </x-slot:actions>
         <x-slot:stats>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 @foreach ([
-                    ['Unread', $counters['unread'] ?? 0, route('admin.support.inbox')],
                     ['Waiting', $counters['waiting'] ?? 0, route('admin.support.inbox')],
-                    ['Assigned to me', $counters['assigned_to_me'] ?? 0, route('admin.support.inbox')],
+                    [$teamView ? 'Open conversations' : 'Assigned to me', $counters['assigned_to_me'] ?? 0, route('admin.support.inbox')],
                     ['Open tickets', $counters['open_tickets'] ?? 0, route('admin.support.cases')],
+                    [$teamView ? 'Agents online' : 'Unread', $teamView ? $agentsOnline : ($counters['unread'] ?? 0), route('admin.support.inbox')],
                     ['Overdue', $counters['overdue'], route('admin.support.performance')],
                 ] as [$label, $value, $url])
                     <a href="{{ $url }}" class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-3 hover:ring-brand/30 transition">
@@ -59,8 +88,8 @@
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-2">
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">My queue</p>
-                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Waiting & assigned conversations</h2>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Support queue' : 'My queue' }}</p>
+                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Waiting & open conversations</h2>
                     </div>
                     <a href="{{ route('admin.support.inbox') }}" class="text-xs font-semibold text-brand hover:underline">Inbox →</a>
                 </div>
@@ -83,7 +112,7 @@
                             </a>
                         </li>
                     @empty
-                        <li class="px-5 py-10 text-center text-sm text-gray-500">No conversations waiting. When a member asks to speak to a person, they appear here.</li>
+                        <li class="px-5 py-10 text-center text-sm text-gray-500">No conversations waiting. Member, partner and guest support requests appear here.</li>
                     @endforelse
                 </ul>
             </div>
@@ -91,7 +120,7 @@
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-2">
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Tickets assigned to me</p>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Open cases' : 'Tickets assigned to me' }}</p>
                         <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Cases needing attention</h2>
                     </div>
                     <a href="{{ route('admin.support.cases') }}" class="text-xs font-semibold text-brand hover:underline">All cases →</a>
@@ -109,7 +138,7 @@
                             </a>
                         </li>
                     @empty
-                        <li class="px-5 py-10 text-center text-sm text-gray-500">No open cases assigned right now.</li>
+                        <li class="px-5 py-10 text-center text-sm text-gray-500">No open cases right now.</li>
                     @endforelse
                 </ul>
             </div>
@@ -117,7 +146,7 @@
 
         <aside class="space-y-6">
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">My performance</p>
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Team performance' : 'My performance' }}</p>
                 <h2 class="text-sm font-semibold text-gray-900 mt-0.5">{{ $performance['range_label'] ?? 'Today' }}</h2>
                 <dl class="mt-4 space-y-3 text-sm">
                     <div class="flex justify-between gap-3"><dt class="text-gray-500">Resolved today</dt><dd class="font-semibold tabular-nums">{{ format_number($performance['resolved'] ?? 0) }}</dd></div>

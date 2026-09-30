@@ -19,6 +19,11 @@ class AdminRoleViewService
 {
     public const SESSION_KEY = 'admin_role_view';
 
+    public const WORKSPACE_SUPPORT = 'support';
+
+    /** Capability codes that share the Support workspace (historical roles preserved). */
+    public const SUPPORT_ROLE_KEYS = ['agent', 'partner_support'];
+
     public function __construct(
         private PartnerWorkspaceService $partnerWorkspaces,
         private RoleService $roles,
@@ -29,13 +34,18 @@ class AdminRoleViewService
     public function active(): ?array
     {
         $ctx = Session::get(self::SESSION_KEY);
-        if (! is_array($ctx) || empty($ctx['admin_id']) || empty($ctx['subject_type'])) {
+        if (! is_array($ctx) || empty($ctx['admin_id']) || empty($ctx['role_key'])) {
             return null;
         }
 
         $admin = Auth::guard('admin')->user();
         if (! $admin || (int) $ctx['admin_id'] !== (int) $admin->id) {
             return null;
+        }
+
+        // Legacy person-first sessions still valid while active.
+        if (empty($ctx['subject_type'])) {
+            $ctx['subject_type'] = ! empty($ctx['subject_id']) ? 'staff' : 'workspace';
         }
 
         return $ctx;
@@ -53,19 +63,26 @@ class AdminRoleViewService
             return null;
         }
 
-        $name = (string) ($ctx['subject_name'] ?? 'Person');
         $role = (string) ($ctx['role_label'] ?? $ctx['role_key'] ?? '');
+        $filterMode = (string) ($ctx['filter_mode'] ?? 'all');
+        $name = (string) ($ctx['subject_name'] ?? '');
 
-        return trim($name.($role !== '' ? ' · '.$role : ''));
+        if ($filterMode === 'staff' && $name !== '') {
+            return trim($name.($role !== '' ? ' · '.$role : ''));
+        }
+
+        // Role-first: banner is the workspace name (team/aggregate view).
+        return $role !== '' ? $role : 'Workspace';
     }
 
     /**
-     * Internal staff role directory for Account / Role.
-     * Every configured staff role appears even when nobody is assigned.
+     * Internal staff workspace directory for Account / Role (role-first).
+     * Every configured staff capability appears; agent + partner_support collapse to Support.
      *
      * @return list<array{
      *   key: string,
      *   label: string,
+     *   underlying_roles: list<string>,
      *   staff_count: int,
      *   staff: list<array{id: int, name: string, subtitle: string, profile_url: string}>
      * }>
@@ -99,11 +116,35 @@ class AdminRoleViewService
         }
 
         $rows = [];
+        $supportEmitted = false;
         foreach ($roleCodes as $code) {
+            if (in_array($code, self::SUPPORT_ROLE_KEYS, true)) {
+                if ($supportEmitted) {
+                    continue;
+                }
+                $supportEmitted = true;
+                $staff = [];
+                foreach (self::SUPPORT_ROLE_KEYS as $supportCode) {
+                    foreach ($byRole[$supportCode] ?? [] as $id => $row) {
+                        $staff[$id] = $row;
+                    }
+                }
+                $staff = array_values($staff);
+                $rows[] = [
+                    'key' => self::WORKSPACE_SUPPORT,
+                    'label' => 'Support',
+                    'underlying_roles' => self::SUPPORT_ROLE_KEYS,
+                    'staff_count' => count($staff),
+                    'staff' => $staff,
+                ];
+                continue;
+            }
+
             $staff = array_values($byRole[$code]);
             $rows[] = [
                 'key' => $code,
-                'label' => $this->staffRoleLabel($code),
+                'label' => $this->workspaceLabel($code),
+                'underlying_roles' => [$code],
                 'staff_count' => count($staff),
                 'staff' => $staff,
             ];
@@ -112,9 +153,163 @@ class AdminRoleViewService
         return $rows;
     }
 
+    /** @deprecated use workspaceLabel */
     public function staffRoleLabel(string $roleKey): string
     {
-        return $roleKey === 'agent' ? 'Customer Support' : $this->roles->label($roleKey);
+        return $this->workspaceLabel($roleKey);
+    }
+
+    public function workspaceLabel(string $workspaceKey): string
+    {
+        if (in_array($workspaceKey, [self::WORKSPACE_SUPPORT, 'agent', 'partner_support'], true)) {
+            return 'Support';
+        }
+
+        return $this->roles->label($workspaceKey);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function underlyingRolesForWorkspace(string $workspaceKey): array
+    {
+        if (in_array($workspaceKey, [self::WORKSPACE_SUPPORT, 'agent', 'partner_support'], true)) {
+            return self::SUPPORT_ROLE_KEYS;
+        }
+
+        return [$workspaceKey];
+    }
+
+    public function isConfiguredStaffWorkspace(string $workspaceKey): bool
+    {
+        if ($workspaceKey === self::WORKSPACE_SUPPORT) {
+            return true;
+        }
+
+        return in_array($workspaceKey, $this->roles->staffRoles(), true);
+    }
+
+    /**
+     * Role-first enter: opens the role workspace without requiring a staff person.
+     *
+     * @return array{url: string}
+     */
+    public function enterWorkspace(User $admin, string $workspaceKey): array
+    {
+        if (! $admin->canAccessConsole()) {
+            abort(403);
+        }
+
+        if (! $this->isConfiguredStaffWorkspace($workspaceKey)) {
+            abort(422, 'Unknown staff workspace.');
+        }
+
+        $canonical = in_array($workspaceKey, self::SUPPORT_ROLE_KEYS, true)
+            ? self::WORKSPACE_SUPPORT
+            : $workspaceKey;
+
+        $label = $this->workspaceLabel($canonical);
+        $underlying = $this->underlyingRolesForWorkspace($canonical);
+
+        Session::put(self::SESSION_KEY, [
+            'admin_id' => $admin->id,
+            'subject_type' => 'workspace',
+            'subject_id' => null,
+            'subject_name' => null,
+            'filter_mode' => 'all',
+            'workspace_key' => $canonical,
+            'role_key' => $canonical,
+            'role_label' => $label,
+            'underlying_roles' => $underlying,
+            'entered_at' => now()->toIso8601String(),
+        ]);
+
+        $this->audit->logAdminAction($admin, 'admin.role_view.enter', null, [
+            'subject_type' => 'workspace',
+            'role_key' => $canonical,
+            'filter_mode' => 'all',
+            'mode' => 'viewing',
+        ]);
+
+        return ['url' => $this->workspaceHomeUrl($canonical)];
+    }
+
+    /**
+     * Inside a role workspace: All / team view or a specific assigned staff member.
+     *
+     * @return array{url: string}
+     */
+    public function selectWorkspaceStaff(User $admin, ?int $staffId): array
+    {
+        $ctx = $this->active();
+        if (! $ctx || (int) ($ctx['admin_id'] ?? 0) !== (int) $admin->id) {
+            abort(422, 'No active role workspace.');
+        }
+
+        $workspaceKey = (string) ($ctx['workspace_key'] ?? $ctx['role_key'] ?? '');
+        $underlying = $this->underlyingRolesForWorkspace($workspaceKey);
+
+        if ($staffId === null || $staffId <= 0) {
+            $ctx['subject_type'] = 'workspace';
+            $ctx['subject_id'] = null;
+            $ctx['subject_name'] = null;
+            $ctx['filter_mode'] = 'all';
+            Session::put(self::SESSION_KEY, $ctx);
+
+            $this->audit->logAdminAction($admin, 'admin.role_view.filter', null, [
+                'role_key' => $workspaceKey,
+                'filter_mode' => 'all',
+            ]);
+
+            return ['url' => $this->workspaceHomeUrl($workspaceKey)];
+        }
+
+        $staff = User::query()->findOrFail($staffId);
+        $codes = $staff->roleCodes();
+        if (count(array_intersect($codes, $underlying)) === 0) {
+            abort(422, 'Staff member is not assigned to this workspace.');
+        }
+
+        $ctx['subject_type'] = 'staff';
+        $ctx['subject_id'] = $staff->id;
+        $ctx['subject_name'] = (string) $staff->name;
+        $ctx['filter_mode'] = 'staff';
+        Session::put(self::SESSION_KEY, $ctx);
+
+        $this->audit->logAdminAction($admin, 'admin.role_view.filter', $staff, [
+            'role_key' => $workspaceKey,
+            'filter_mode' => 'staff',
+            'subject_id' => $staff->id,
+        ]);
+
+        return ['url' => $this->workspaceHomeUrl($workspaceKey)];
+    }
+
+    public function workspaceHomeUrl(string $workspaceKey): string
+    {
+        if (in_array($workspaceKey, [self::WORKSPACE_SUPPORT, ...self::SUPPORT_ROLE_KEYS], true)) {
+            return app(\App\Services\Support\CustomerSupportWorkspaceService::class)->homeUrl();
+        }
+
+        // Other role workspaces: temporary Console landing until each desk is built.
+        return route('admin.dashboard');
+    }
+
+    /** @return list<array{id: int, name: string, subtitle: string}> */
+    public function workspaceStaffOptions(?array $ctx = null): array
+    {
+        $ctx ??= $this->active();
+        if (! $ctx) {
+            return [];
+        }
+
+        $workspaceKey = (string) ($ctx['workspace_key'] ?? $ctx['role_key'] ?? '');
+        $row = collect($this->staffRoleDirectory())->firstWhere('key', $workspaceKey)
+            ?? collect($this->staffRoleDirectory())->first(
+                fn ($r) => in_array($workspaceKey, $r['underlying_roles'] ?? [], true)
+            );
+
+        return $row['staff'] ?? [];
     }
 
     /**
@@ -288,37 +483,11 @@ class AdminRoleViewService
 
     private function enterStaff(User $admin, int $userId, string $roleKey): array
     {
-        $staff = User::query()->findOrFail($userId);
-        if (! $this->roles->isStaffUser($staff)) {
-            abort(422, 'Not a staff user.');
-        }
-        if (! $staff->hasRole($roleKey)) {
-            abort(422, 'Role is not assigned to this staff member.');
-        }
+        // Prefer role-first: enter the workspace, then filter to this staff member.
+        $result = $this->enterWorkspace($admin, $roleKey);
+        $this->selectWorkspaceStaff($admin, $userId);
 
-        Session::put(self::SESSION_KEY, [
-            'admin_id' => $admin->id,
-            'subject_type' => 'staff',
-            'subject_id' => $staff->id,
-            'subject_name' => (string) $staff->name,
-            'role_key' => $roleKey,
-            'role_label' => $this->staffRoleLabel($roleKey),
-            'workspace_key' => $this->roles->deskCode($roleKey),
-            'entered_at' => now()->toIso8601String(),
-        ]);
-
-        $this->audit->logAdminAction($admin, 'admin.role_view.enter', $staff, [
-            'subject_type' => 'staff',
-            'role_key' => $roleKey,
-            'mode' => 'viewing',
-        ]);
-
-        // Staff workspaces live in Console — Customer Support lands on its own home.
-        if ($roleKey === \App\Services\Support\CustomerSupportWorkspaceService::ROLE_KEY) {
-            return ['url' => app(\App\Services\Support\CustomerSupportWorkspaceService::class)->homeUrl()];
-        }
-
-        return ['url' => route('admin.dashboard')];
+        return $result;
     }
 
     private function clearWebPartnerSessionIfViewing(?array $ctx): void

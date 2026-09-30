@@ -12,12 +12,17 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Customer Support (role: agent) workspace foundation.
+ * Support workspace foundation (Customer Support + Partner Support capabilities).
  * Reuses SupportConversation + SupportTicket. Does not invent a second ticket/chat engine.
  */
 class CustomerSupportWorkspaceService
 {
     public const ROLE_KEY = 'agent';
+
+    public const WORKSPACE_KEY = AdminRoleViewService::WORKSPACE_SUPPORT;
+
+    /** @var list<string> */
+    public const ROLE_KEYS = AdminRoleViewService::SUPPORT_ROLE_KEYS;
 
     public const AVAILABILITY_KEY = 'support_availability';
 
@@ -30,11 +35,11 @@ class CustomerSupportWorkspaceService
 
     public function isSupportRoleKey(?string $roleKey): bool
     {
-        return $roleKey === self::ROLE_KEY;
+        return in_array((string) $roleKey, [self::WORKSPACE_KEY, ...self::ROLE_KEYS], true);
     }
 
     /**
-     * True when Account/Role is viewing Customer Support, or a non-admin agent is signed in,
+     * True when Account/Role is viewing Support, a support agent is signed in,
      * or the request is already inside the support workspace routes.
      */
     public function inSupportShell(?User $viewer = null): bool
@@ -57,7 +62,7 @@ class CustomerSupportWorkspaceService
             return false;
         }
 
-        return $viewer->hasRole(self::ROLE_KEY);
+        return $viewer->hasRole(self::ROLE_KEY) || $viewer->hasRole('partner_support');
     }
 
     public function homeUrl(): string
@@ -65,19 +70,43 @@ class CustomerSupportWorkspaceService
         return route('admin.support.home');
     }
 
+    public function isTeamView(): bool
+    {
+        $ctx = $this->roleView->active();
+        if ($ctx && $this->isSupportRoleKey($ctx['role_key'] ?? null)) {
+            return ($ctx['filter_mode'] ?? 'all') !== 'staff' || empty($ctx['subject_id']);
+        }
+
+        return false;
+    }
+
+    /**
+     * Selected support staff when filtered; null means All Support (aggregate).
+     */
     public function actingAgent(?User $viewer = null): ?User
     {
         $ctx = $this->roleView->active();
-        if ($ctx && ($ctx['subject_type'] ?? '') === 'staff' && $this->isSupportRoleKey($ctx['role_key'] ?? null)) {
-            return User::query()->find((int) $ctx['subject_id']);
+        if ($ctx && $this->isSupportRoleKey($ctx['role_key'] ?? null)) {
+            if (($ctx['filter_mode'] ?? 'all') === 'staff' && ! empty($ctx['subject_id'])) {
+                return User::query()->find((int) $ctx['subject_id']);
+            }
+
+            // Team/aggregate view — no single agent.
+            return null;
         }
 
         $viewer ??= auth('admin')->user() ?? auth()->user();
-        if ($viewer && $viewer->hasRole(self::ROLE_KEY)) {
+        if ($viewer && ($viewer->hasRole(self::ROLE_KEY) || $viewer->hasRole('partner_support'))) {
             return $viewer;
         }
 
-        return $viewer;
+        return null;
+    }
+
+    /** @return list<array{id: int, name: string, subtitle: string}> */
+    public function staffOptions(): array
+    {
+        return $this->roleView->workspaceStaffOptions();
     }
 
     public function availability(?User $agent = null): string
@@ -144,26 +173,37 @@ class CustomerSupportWorkspaceService
     /** @return array<string, mixed> */
     public function dashboard(?User $agent = null): array
     {
-        $agent ??= $this->actingAgent();
-        $agentId = $agent?->id;
+        $team = $agent === null && $this->isTeamView();
+        if (! $team && $agent === null) {
+            $agent = $this->actingAgent();
+        }
+        $agentId = $team ? null : $agent?->id;
 
         $waiting = $this->waitingConversations();
-        $mine = $this->myConversations($agentId);
-        $queue = $waiting->merge($mine)->unique('id')->sortByDesc(function ($row) {
+        $mineOrOpen = $team
+            ? $this->openConversations()
+            : $this->myConversations($agentId);
+        $queue = $waiting->merge($mineOrOpen)->unique('id')->sortByDesc(function ($row) {
             return $row->last_message_at?->timestamp ?? $row->updated_at?->timestamp ?? 0;
         })->values()->take(12);
 
-        $myTickets = $this->myOpenTickets($agentId);
         $ticketsNeedingAttention = $this->ticketsNeedingAttention($agentId);
+        $openTicketCount = $team
+            ? SupportTicket::query()->whereIn('status', ['open', 'in_progress'])->count()
+            : $this->myOpenTickets($agentId)->count();
 
         return [
             'agent' => $agent,
-            'availability' => $this->availability($agent),
+            'team_view' => $team || $agentId === null,
+            'staff_options' => $this->staffOptions(),
+            'selected_staff_id' => $agentId,
+            'availability' => $agent ? $this->availability($agent) : null,
+            'agents_online' => $this->agentsOnlineCount(),
             'counters' => [
                 'unread' => $this->unreadCount($agentId),
                 'waiting' => $waiting->count(),
-                'assigned_to_me' => $mine->count(),
-                'open_tickets' => $myTickets->count(),
+                'assigned_to_me' => $mineOrOpen->count(),
+                'open_tickets' => $openTicketCount,
                 'overdue' => null, // gap: no due_at / SLA clock on support_tickets
             ],
             'queue' => $queue->map(fn (SupportConversation $c) => $this->serializeConversation($c))->all(),
@@ -173,64 +213,63 @@ class CustomerSupportWorkspaceService
         ];
     }
 
+    public function agentsOnlineCount(): int
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->get()
+            ->filter(function (User $user) {
+                if (! $user->hasRole('agent') && ! $user->hasRole('partner_support')) {
+                    return false;
+                }
+
+                return $this->availability($user) === 'online';
+            })
+            ->count();
+    }
+
+    /** @return Collection<int, SupportConversation> */
+    public function openConversations(): Collection
+    {
+        return SupportConversation::query()
+            ->with(['customer', 'user', 'assignedTo', 'messages' => fn ($q) => $q->latest('id')->limit(1)])
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->latest('last_message_at')
+            ->limit(40)
+            ->get();
+    }
+
     /** @return array<string, mixed> */
     public function performanceSnapshot(?int $agentId, string $range = 'today'): array
     {
         [$from, $label] = $this->rangeBounds($range);
 
-        if (! $agentId) {
-            return [
-                'range' => $range,
-                'range_label' => $label,
-                'resolved' => 0,
-                'tickets_assigned' => 0,
-                'conversations_handled' => 0,
-                'open_backlog' => 0,
-                'escalations' => 0,
-                'avg_first_response_minutes' => null,
-                'avg_resolution_minutes' => null,
-                'first_contact_resolution' => null,
-                'sla_met' => null,
-                'customer_rating' => null,
-                'gaps' => ['avg_first_response', 'avg_resolution', 'first_contact_resolution', 'sla_met', 'customer_rating'],
-            ];
-        }
-
-        $resolved = SupportTicket::query()
-            ->where('assigned_to', $agentId)
+        $resolvedQuery = SupportTicket::query()
             ->whereIn('status', ['resolved', 'closed'])
-            ->where('resolved_at', '>=', $from)
-            ->count();
-
-        $ticketsAssigned = SupportTicket::query()
-            ->where('assigned_to', $agentId)
-            ->where('created_at', '>=', $from)
-            ->count();
-
-        $conversationsHandled = SupportConversation::query()
-            ->where('assigned_to', $agentId)
-            ->where('updated_at', '>=', $from)
-            ->count();
-
-        $openBacklog = SupportTicket::query()
-            ->where('assigned_to', $agentId)
-            ->whereIn('status', ['open', 'in_progress'])
-            ->count();
-
-        $escalations = SupportTicketEvent::query()
+            ->where('resolved_at', '>=', $from);
+        $assignedQuery = SupportTicket::query()->where('created_at', '>=', $from);
+        $conversationsQuery = SupportConversation::query()->where('updated_at', '>=', $from);
+        $backlogQuery = SupportTicket::query()->whereIn('status', ['open', 'in_progress']);
+        $escalationsQuery = SupportTicketEvent::query()
             ->where('event', 'escalated')
-            ->where('created_at', '>=', $from)
-            ->whereHas('ticket', fn ($q) => $q->where('assigned_to', $agentId))
-            ->count();
+            ->where('created_at', '>=', $from);
+
+        if ($agentId) {
+            $resolvedQuery->where('assigned_to', $agentId);
+            $assignedQuery->where('assigned_to', $agentId);
+            $conversationsQuery->where('assigned_to', $agentId);
+            $backlogQuery->where('assigned_to', $agentId);
+            $escalationsQuery->whereHas('ticket', fn ($q) => $q->where('assigned_to', $agentId));
+        }
 
         return [
             'range' => $range,
             'range_label' => $label,
-            'resolved' => $resolved,
-            'tickets_assigned' => $ticketsAssigned,
-            'conversations_handled' => $conversationsHandled,
-            'open_backlog' => $openBacklog,
-            'escalations' => $escalations,
+            'resolved' => $resolvedQuery->count(),
+            'tickets_assigned' => $assignedQuery->count(),
+            'conversations_handled' => $conversationsQuery->count(),
+            'open_backlog' => $backlogQuery->count(),
+            'escalations' => $escalationsQuery->count(),
             'avg_first_response_minutes' => null,
             'avg_resolution_minutes' => null,
             'first_contact_resolution' => null,
@@ -313,24 +352,18 @@ class CustomerSupportWorkspaceService
     /** @return Collection<int, SupportTicket> */
     public function ticketsNeedingAttention(?int $agentId): Collection
     {
-        if (! $agentId) {
-            return SupportTicket::query()
-                ->with('customer')
-                ->whereIn('status', ['open', 'in_progress'])
-                ->whereNull('assigned_to')
-                ->latest()
-                ->limit(12)
-                ->get();
-        }
-
-        return SupportTicket::query()
+        $query = SupportTicket::query()
             ->with('customer')
-            ->where('assigned_to', $agentId)
             ->whereIn('status', ['open', 'in_progress'])
             ->orderByRaw("CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END")
             ->latest()
-            ->limit(12)
-            ->get();
+            ->limit(12);
+
+        if ($agentId) {
+            $query->where('assigned_to', $agentId);
+        }
+
+        return $query->get();
     }
 
     public function unreadCount(?int $agentId): int

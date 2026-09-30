@@ -113,7 +113,7 @@ class SupportWorkspaceController extends Controller
         ]);
 
         $agent = $this->workspace->actingAgent();
-        abort_unless($agent, 403);
+        abort_unless($agent, 422, 'Select a support staff member before setting availability.');
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
         $state = $this->workspace->setAvailability($agent, $data['availability'], $actor);

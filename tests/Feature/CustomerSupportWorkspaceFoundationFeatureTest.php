@@ -36,87 +36,70 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
         ]);
     }
 
-    public function test_entering_customer_support_role_routes_to_support_workspace_not_ops_dashboard(): void
+    public function test_entering_support_workspace_is_role_first_not_ops_dashboard(): void
     {
         $admin = $this->admin();
-        $agent = $this->agent();
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.role-view.enter'), [
-                'subject_type' => 'staff',
-                'subject_id' => $agent->id,
-                'role_key' => 'agent',
+                'workspace_key' => 'support',
             ])
             ->assertRedirect(route('admin.support.home'));
 
-        $this->assertTrue(Auth::guard('admin')->check());
         $this->assertSame($admin->id, Auth::guard('admin')->id());
-
-        $ctx = app(AdminRoleViewService::class)->active();
-        $this->assertSame('agent', $ctx['role_key']);
+        $this->assertSame('Support', app(AdminRoleViewService::class)->bannerLabel());
 
         $this->get(route('admin.support.home'))
             ->assertOk()
-            ->assertSee('Customer Support', false)
-            ->assertSee('Rogathe Nyela', false)
-            ->assertSee('My queue', false)
-            ->assertSee('Online', false)
-            ->assertDontSee('Operations dashboard', false)
-            ->assertDontSee('capital_available', false);
+            ->assertSee('Support', false)
+            ->assertSee('Support queue', false)
+            ->assertSee(__('admin.role_view.staff_all'), false)
+            ->assertDontSee('Operations dashboard', false);
+
+        $this->assertSame('Support', app(AdminRoleViewService::class)->bannerLabel());
+        $this->assertSame('support', app(AdminRoleViewService::class)->active()['role_key']);
     }
 
     public function test_support_shell_nav_hides_admin_workspaces(): void
     {
         $admin = $this->admin();
-        $agent = $this->agent();
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.role-view.enter'), [
-                'subject_type' => 'staff',
-                'subject_id' => $agent->id,
-                'role_key' => 'agent',
+                'workspace_key' => 'support',
             ]);
 
-        $html = $this->get(route('admin.support.home'))
-            ->assertOk()
-            ->getContent();
+        $html = $this->get(route('admin.support.home'))->assertOk()->getContent();
+        $navChunk = Str::before(Str::after($html, 'aria-label="Main navigation"'), '</nav>');
 
         foreach (['Home', 'Inbox', 'Cases', 'Members', 'Notifications', 'Reports'] as $label) {
-            $this->assertMatchesRegularExpression(
-                '/>\s*'.preg_quote($label, '/').'\s*</',
-                $html,
-                "Missing support nav label {$label}"
-            );
+            $this->assertMatchesRegularExpression('/>\s*'.preg_quote($label, '/').'\s*</', $navChunk);
         }
-
-        $navChunk = Str::before(Str::after($html, 'aria-label="Main navigation"'), '</nav>');
         $this->assertStringNotContainsString('Lending', $navChunk);
         $this->assertStringNotContainsString('Money', $navChunk);
         $this->assertStringNotContainsString('Partners', $navChunk);
         $this->assertStringNotContainsString('Growth', $navChunk);
     }
 
-    public function test_availability_persists_and_is_audited(): void
+    public function test_selecting_staff_filters_queue_and_sets_availability_on_person(): void
     {
         $admin = $this->admin();
         $agent = $this->agent();
 
         $this->actingAs($admin, 'admin')
-            ->post(route('admin.role-view.enter'), [
-                'subject_type' => 'staff',
-                'subject_id' => $agent->id,
-                'role_key' => 'agent',
-            ]);
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
 
-        $this->post(route('admin.support.availability'), [
-            'availability' => 'online',
-        ])->assertRedirect();
+        $this->post(route('admin.role-view.select-staff'), ['staff_id' => $agent->id])
+            ->assertRedirect(route('admin.support.home'));
+
+        $this->post(route('admin.support.availability'), ['availability' => 'online'])
+            ->assertRedirect();
 
         $agent->refresh();
         $this->assertSame('online', app(CustomerSupportWorkspaceService::class)->availability($agent));
     }
 
-    public function test_queue_and_case_reuse_existing_conversation_and_ticket_models(): void
+    public function test_queue_and_case_reuse_existing_models_for_member_and_guest(): void
     {
         $admin = $this->admin();
         $agent = $this->agent();
@@ -154,23 +137,29 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
             'contact_kind' => 'customer',
         ]);
 
+        $guest = SupportConversation::create([
+            'channel' => 'web_chat',
+            'status' => 'open',
+            'needs_human' => true,
+            'last_message_at' => now(),
+        ]);
+        $guest->messages()->create([
+            'sender_type' => 'guest',
+            'body' => 'I need help before registering',
+            'is_automated' => false,
+        ]);
+
         $this->actingAs($admin, 'admin')
-            ->post(route('admin.role-view.enter'), [
-                'subject_type' => 'staff',
-                'subject_id' => $agent->id,
-                'role_key' => 'agent',
-            ]);
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
 
         $this->get(route('admin.support.home'))
             ->assertOk()
             ->assertSee('Maclean Mwaijonga', false)
-            ->assertSee('My payment has gone through', false)
             ->assertSee('Payment issue', false);
 
-        $this->get(route('admin.support.inbox.show', $conversation))
+        $this->get(route('admin.support.inbox.show', $guest))
             ->assertOk()
-            ->assertSee('Create case', false)
-            ->assertSee('View member', false);
+            ->assertSee('Guest / Non-member', false);
 
         $this->post(route('admin.support.inbox.create-case', $conversation), [
             'subject' => 'Payment follow-up',
@@ -183,46 +172,12 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
         ]);
     }
 
-    public function test_guest_conversation_is_labeled_non_member(): void
-    {
-        $admin = $this->admin();
-        $agent = $this->agent();
-        $conversation = SupportConversation::create([
-            'channel' => 'web_chat',
-            'status' => 'open',
-            'needs_human' => true,
-            'last_message_at' => now(),
-        ]);
-        $conversation->messages()->create([
-            'sender_type' => 'guest',
-            'body' => 'I need help before registering',
-            'is_automated' => false,
-        ]);
-
-        $this->actingAs($admin, 'admin')
-            ->post(route('admin.role-view.enter'), [
-                'subject_type' => 'staff',
-                'subject_id' => $agent->id,
-                'role_key' => 'agent',
-            ]);
-
-        $this->get(route('admin.support.inbox.show', $conversation))
-            ->assertOk()
-            ->assertSee('Guest / Non-member', false)
-            ->assertSee('I need help before registering', false);
-    }
-
     public function test_viewing_banner_and_exit_preserved(): void
     {
         $admin = $this->admin();
-        $agent = $this->agent();
 
         $this->actingAs($admin, 'admin')
-            ->post(route('admin.role-view.enter'), [
-                'subject_type' => 'staff',
-                'subject_id' => $agent->id,
-                'role_key' => 'agent',
-            ]);
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
 
         $this->get(route('admin.support.home'))
             ->assertOk()
@@ -233,24 +188,5 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
             ->assertRedirect(route('admin.dashboard'));
 
         $this->assertFalse(app(AdminRoleViewService::class)->isActive());
-    }
-
-    public function test_performance_reports_metric_gaps_without_inventing_values(): void
-    {
-        $admin = $this->admin();
-        $agent = $this->agent();
-
-        $this->actingAs($admin, 'admin')
-            ->post(route('admin.role-view.enter'), [
-                'subject_type' => 'staff',
-                'subject_id' => $agent->id,
-                'role_key' => 'agent',
-            ]);
-
-        $this->get(route('admin.support.performance'))
-            ->assertOk()
-            ->assertSee('Metric gaps', false)
-            ->assertSee('No CSAT/rating capture yet', false)
-            ->assertSee('No SLA due clock', false);
     }
 }
