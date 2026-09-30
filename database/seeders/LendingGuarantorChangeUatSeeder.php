@@ -57,41 +57,83 @@ class LendingGuarantorChangeUatSeeder extends Seeder
             return;
         }
 
+        $phoneVariants = [
+            self::MACLEAN_PHONE,
+            '0715222132',
+            '715222132',
+            '+255715222132',
+            '255 715 222 132',
+        ];
+
         $borrowerUser = User::query()
-            ->where('phone', self::MACLEAN_PHONE)
-            ->orWhere('phone', '0715222132')
-            ->orWhere('phone', '715222132')
+            ->whereIn('phone', $phoneVariants)
             ->orderBy('id')
             ->first();
 
-        $borrower = Customer::query()
-            ->where('phone', self::MACLEAN_PHONE)
-            ->orWhere('phone', '0715222132')
-            ->orWhere('phone', '715222132')
-            ->when($borrowerUser, fn ($q) => $q->orWhere('user_id', $borrowerUser->id))
-            ->orderBy('id')
-            ->first();
+        // Prefer the Owner MacLean member account (not partner/insurance collisions on digit-only phone).
+        if (! $borrowerUser) {
+            $borrowerUser = User::query()
+                ->where(function ($q) {
+                    $q->where('phone', 'like', '%715222132')
+                        ->orWhere('email', 'like', 'macleangm@%');
+                })
+                ->where('name', 'like', '%Maclean%')
+                ->orderBy('id')
+                ->first();
+        }
+
+        $borrower = null;
+        if ($borrowerUser) {
+            $borrower = Customer::query()->where('user_id', $borrowerUser->id)->orderBy('id')->first();
+        }
+        if (! $borrower) {
+            $borrower = Customer::query()
+                ->whereIn('phone', $phoneVariants)
+                ->orderBy('id')
+                ->first();
+        }
+
+        if (! $borrower) {
+            $borrower = Customer::query()
+                ->where('phone', 'like', '%715222132')
+                ->where(function ($inner) {
+                    $inner->where('first_name', 'like', 'MacLean%')
+                        ->orWhere('first_name', 'like', 'Maclean%');
+                })
+                ->orderBy('id')
+                ->first();
+        }
 
         if (! $borrowerUser && $borrower?->user_id) {
             $borrowerUser = User::query()->find($borrower->user_id);
         }
 
+        // Prefer MacLean-named account when phone collision exists (e.g. partner rows).
+        if ($borrowerUser && ! str_contains(strtolower((string) $borrowerUser->name), 'maclean')) {
+            $named = User::query()
+                ->where(function ($q) {
+                    $q->whereIn('phone', ['+255715222132', '255715222132', '0715222132'])
+                        ->orWhere('phone', 'like', '%715222132');
+                })
+                ->where('name', 'like', '%Maclean%')
+                ->orderBy('id')
+                ->first();
+            if ($named) {
+                $borrowerUser = $named;
+                $borrower = Customer::query()->where('user_id', $named->id)->orderBy('id')->first() ?: $borrower;
+            }
+        }
+
         if (! $borrowerUser || ! $borrower) {
             $this->command?->error(
                 'MacLean staging borrower not found for phone '.self::MACLEAN_PHONE
-                .'. Seed/migrate the Owner MacLean account first; do not invent a separate Mohamed persona.'
+                .' (also tried +255715222132). Seed/migrate the Owner MacLean account first; do not invent a separate Mohamed persona.'
             );
 
             return;
         }
 
-        // Normalize phone on existing MacLean account without changing identity/KYC.
-        if ((string) $borrowerUser->phone !== self::MACLEAN_PHONE) {
-            $borrowerUser->forceFill(['phone' => self::MACLEAN_PHONE])->save();
-        }
-        if ((string) $borrower->phone !== self::MACLEAN_PHONE) {
-            $borrower->forceFill(['phone' => self::MACLEAN_PHONE])->save();
-        }
+        // Keep existing phone formatting so Member login stays valid; do not overwrite KYC/identity.
 
         // Ensure Owner can log in with known PIN without resetting unrelated profile data.
         app(PinService::class)->setPin($borrowerUser, '1234');
