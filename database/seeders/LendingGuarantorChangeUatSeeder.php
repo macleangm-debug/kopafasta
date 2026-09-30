@@ -222,6 +222,12 @@ class LendingGuarantorChangeUatSeeder extends Seeder
             ]
         );
 
+        // Clear leftover underwriting/borrower supplement flags so Mohamed UAT is pending
+        // replacement-capable (Change), not a false additional-guarantor request.
+        $payload = is_array($application->screening_payload) ? $application->screening_payload : [];
+        unset($payload['guarantor_supplement'], $payload['guarantor_quote_reconfirm']);
+        $application->forceFill(['screening_payload' => $payload === [] ? null : $payload])->save();
+
         GuarantorInvitation::query()->where('loan_application_id', $application->id)->delete();
         CustomerGuarantor::query()->where('loan_application_id', $application->id)->delete();
 

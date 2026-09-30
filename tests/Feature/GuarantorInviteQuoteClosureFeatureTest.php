@@ -100,6 +100,52 @@ class GuarantorInviteQuoteClosureFeatureTest extends TestCase
             ->assertDontSee(__('borrower.guarantor_invite.installment_tbd'), false);
     }
 
+    public function test_internal_member_login_invitation_shows_premium_header_and_full_quote(): void
+    {
+        $borrower = $this->makeCustomer('02', [
+            'first_name' => 'MacLean',
+            'last_name'  => 'Mwaijonga',
+        ]);
+        $product = $this->loanProduct();
+        $application = LoanApplication::create([
+            'customer_id'             => $borrower->id,
+            'loan_product_id'         => $product->id,
+            'application_number'      => 'APP-GQC-02',
+            'requested_amount'        => 600_000,
+            'requested_tenure_months' => 6,
+            'status'                  => 'awaiting_guarantor',
+            'current_stage'           => 'awaiting_guarantor',
+        ]);
+
+        GuarantorInvitation::create([
+            'customer_id'             => $borrower->id,
+            'loan_application_id'     => $application->id,
+            'loan_product_id'         => $product->id,
+            'type'                    => 'internal',
+            'channel'                 => 'whatsapp',
+            'token'                   => 'gqc-member-token',
+            'short_code'              => 'GQCM01',
+            'contact'                 => '255700000042',
+            'invitee_name'            => 'UAT Pending Guarantor',
+            'requested_amount'        => 600_000,
+            'requested_tenure_months' => 6,
+            'status'                  => 'pending',
+            'expires_at'              => now()->addDays(7),
+        ]);
+
+        $response = $this->get(route('site.guarantor.show', 'gqc-member-token'));
+
+        $response->assertOk()
+            ->assertSee('kf-premium-panel', false)
+            ->assertSee('APP-GQC-02', false)
+            ->assertSee(__('borrower.guarantor_invite.duration_label'), false)
+            ->assertSee(__('borrower.guarantor_invite.installment_label'), false)
+            ->assertSee(__('borrower.guarantor_invite.frequency_label'), false)
+            ->assertDontSee(__('borrower.guarantor_invite.amount_tbd'), false)
+            ->assertDontSee(__('borrower.guarantor_invite.duration_tbd'), false)
+            ->assertDontSee(__('borrower.guarantor_invite.installment_tbd'), false);
+    }
+
     public function test_material_quote_change_supersedes_consent_and_blocks_ready(): void
     {
         $borrower = $this->makeCustomer('10');
