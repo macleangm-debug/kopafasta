@@ -42,6 +42,7 @@ class ApplicationFeePaymentService
     ): array {
         // One authoritative draft view for every gate (wizard, resume, guarantor, group).
         $draftPayload = $this->canonicalDraftPayloadForFee($customer, $product, $draftPayload);
+        $application ??= $this->resolveFeeBearingApplication($customer, $product, $draftPayload);
 
         $groups = app(GroupLendingService::class);
         $isGroup = $groups->isGroupProduct($product);
@@ -60,10 +61,18 @@ class ApplicationFeePaymentService
             'member_count' => $memberCount,
             'payment' => null,
             'wait_url' => null,
+            'application_id' => $application?->id,
         ];
 
         if ($amount <= 0) {
             return ['status' => 'not_applicable'] + $empty;
+        }
+
+        // Application owns the fee after settlement — wizard/guarantor must not re-charge.
+        if ($application && in_array((string) ($application->application_fee_status ?? ''), ['paid', 'waived', 'charged'], true)) {
+            $payment = $this->latestFeePayment($customer, $product, $application, $draftPayload);
+
+            return ['status' => 'paid', 'payment' => $payment] + $empty;
         }
 
         // Canonical settlement only: verified CustomerPayment (or explicit waive).
@@ -78,11 +87,6 @@ class ApplicationFeePaymentService
 
         if ($draftStatus === 'waived' && (int) ($draftState['amount'] ?? 0) <= 0) {
             return ['status' => 'paid'] + $empty;
-        }
-
-        if ($application && in_array((string) ($application->application_fee_status ?? ''), ['paid', 'waived', 'charged'], true)) {
-            // Application row is authoritative after submit; drafts must still prove payment.
-            return ['status' => 'paid', 'payment' => $payment] + $empty;
         }
 
         if ($payment && in_array($payment->status, ['awaiting_payment', 'processing', 'pending_verification'], true)) {
@@ -102,6 +106,55 @@ class ApplicationFeePaymentService
         }
 
         return ['status' => 'due'] + $empty;
+    }
+
+    /**
+     * Resolve the loan application that already owns a fee obligation for this product.
+     * Prefer draft-linked application, then any open/settled application for the same product.
+     *
+     * @param  array<string, mixed>|null  $draftPayload
+     */
+    public function resolveFeeBearingApplication(
+        Customer $customer,
+        LoanProduct $product,
+        ?array $draftPayload = null,
+    ): ?LoanApplication {
+        $draftReference = trim((string) (
+            $draftPayload['draft_reference']
+            ?? data_get($draftPayload, 'application_fee.draft_reference')
+            ?? ''
+        ));
+
+        if ($draftReference !== '') {
+            $byDraft = LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->where('loan_product_id', $product->id)
+                ->where('application_number', $draftReference)
+                ->latest('id')
+                ->first();
+            if ($byDraft) {
+                return $byDraft;
+            }
+        }
+
+        // Paid applications for this product own the fee even if the wizard draft cite was lost.
+        $paid = LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->where('loan_product_id', $product->id)
+            ->whereIn('application_fee_status', ['paid', 'waived', 'charged'])
+            ->whereNotIn('status', ['withdrawn', 'rejected', 'cancelled'])
+            ->latest('id')
+            ->first();
+        if ($paid) {
+            return $paid;
+        }
+
+        return LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->where('loan_product_id', $product->id)
+            ->whereIn('status', LoanApplication::PRE_SUBMIT_STATUSES)
+            ->latest('id')
+            ->first();
     }
 
     /**
@@ -329,6 +382,25 @@ class ApplicationFeePaymentService
                 ->first();
             if ($bound) {
                 return $bound;
+            }
+
+            // Settled fee cited on the application row (legacy rows may lack source_id).
+            $appRef = trim((string) ($application->application_fee_reference ?? ''));
+            if ($appRef !== '') {
+                $byAppRef = (clone $query)->where('reference', $appRef)->first();
+                if ($byAppRef && in_array($byAppRef->status, ['paid', 'verified'], true)) {
+                    return $byAppRef;
+                }
+            }
+
+            if (in_array((string) ($application->application_fee_status ?? ''), ['paid', 'waived', 'charged'], true)) {
+                $settledForProduct = (clone $query)
+                    ->whereIn('status', ['paid', 'verified'])
+                    ->latest('id')
+                    ->first();
+                if ($settledForProduct) {
+                    return $settledForProduct;
+                }
             }
         }
 
