@@ -22,6 +22,14 @@ class DashboardController extends Controller
     public function __invoke(StaffDashboardService $desks)
     {
         $user = auth()->user();
+        $support = app(\App\Services\Support\CustomerSupportWorkspaceService::class);
+        $roleView = app(\App\Services\AdminRoleViewService::class)->active();
+
+        if ($support->isSupportRoleKey($roleView['role_key'] ?? null)
+            || ($user && $user->hasRole('agent') && ! $user->hasRole('admin') && ! $user->hasRole('super_admin') && ! $user->hasRole('manager'))) {
+            return redirect()->route('admin.support.home');
+        }
+
         $desk = $desks->desk($user);
         $dashboard = $desks->payload($user);
 

@@ -37,7 +37,25 @@
 @php
     $currentRoute = request()->route()?->getName();
     $consoleNav = app(\App\Services\ConsoleNavService::class);
-    $visibleSections = $consoleNav->visibleSections(auth()->user(), $currentRoute);
+    $supportWorkspace = app(\App\Services\Support\CustomerSupportWorkspaceService::class);
+    $supportShell = $supportWorkspace->inSupportShell(auth()->user());
+    $visibleSections = $supportShell
+        ? collect($supportWorkspace->navItems())->map(function (array $item) use ($currentRoute) {
+            $active = collect($item['active_prefixes'])->contains(
+                fn (string $prefix) => str_starts_with((string) $currentRoute, rtrim($prefix, '.'))
+                    || $currentRoute === $item['route']
+                    || str_starts_with((string) $currentRoute, $item['route'])
+            );
+
+            return [
+                'label' => $item['label'],
+                'targetRoute' => $item['route'],
+                'isActive' => $active,
+                'items' => [],
+                'separated' => false,
+            ];
+        })->all()
+        : $consoleNav->visibleSections(auth()->user(), $currentRoute);
     $activeSectionTabs = collect($visibleSections)->firstWhere('isActive')['items'] ?? [];
 
     $adminAlerts = app(\App\Services\AdminAlertService::class);
@@ -68,11 +86,11 @@
              x-data="adminGlobalSearch(@js(route('admin.search')))"
              @keydown.window.prevent.meta.k="openSearch()"
              @keydown.window.prevent.ctrl.k="openSearch()">
-            <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 shrink-0">
+            <a href="{{ $supportShell ? route('admin.support.home') : route('admin.dashboard') }}" class="flex items-center gap-3 shrink-0">
                 <x-site.brand-mark size="sm" />
                 <div class="hidden sm:block">
                     <div class="text-sm font-semibold text-gray-900 leading-tight">{{ brand_name() }}</div>
-                    <div class="text-[11px] text-brand leading-tight font-semibold">Console</div>
+                    <div class="text-[11px] text-brand leading-tight font-semibold">{{ $supportShell ? 'Customer Support' : 'Console' }}</div>
                 </div>
             </a>
 

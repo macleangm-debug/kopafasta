@@ -83,6 +83,7 @@ use App\Http\Controllers\Admin\SettlementController;
 use App\Http\Controllers\Admin\SignatoryController;
 use App\Http\Controllers\Admin\SupportChatController;
 use App\Http\Controllers\Admin\SupportTicketController;
+use App\Http\Controllers\Admin\SupportWorkspaceController;
 use App\Http\Controllers\Admin\SuspiciousActivityController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserController;
@@ -1193,6 +1194,22 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
         Route::get('support-chats/{supportConversation}', [SupportChatController::class, 'show'])->name('support-chats.show');
         Route::post('support-chats/{supportConversation}/assign', [SupportChatController::class, 'assign'])->name('support-chats.assign');
         Route::post('support-chats/{supportConversation}/reply', [SupportChatController::class, 'reply'])->name('support-chats.reply');
+
+        // Customer Support workspace (role: agent) — reuses chats + tickets
+        Route::prefix('support')->name('support.')->group(function (): void {
+            Route::get('/', [SupportWorkspaceController::class, 'home'])->name('home');
+            Route::get('inbox', [SupportWorkspaceController::class, 'inbox'])->name('inbox');
+            Route::get('inbox/{supportConversation}', [SupportWorkspaceController::class, 'showConversation'])->name('inbox.show');
+            Route::post('inbox/{supportConversation}/reply', [SupportWorkspaceController::class, 'reply'])->name('inbox.reply');
+            Route::post('inbox/{supportConversation}/accept', [SupportWorkspaceController::class, 'accept'])->name('inbox.accept');
+            Route::post('inbox/{supportConversation}/create-case', [SupportWorkspaceController::class, 'createCase'])->name('inbox.create-case');
+            Route::get('cases', [SupportWorkspaceController::class, 'cases'])->name('cases');
+            Route::get('members', [SupportWorkspaceController::class, 'members'])->name('members');
+            Route::get('notifications', [SupportWorkspaceController::class, 'notifications'])->name('notifications');
+            Route::get('performance', [SupportWorkspaceController::class, 'performance'])->name('performance');
+            Route::get('reports', fn () => redirect()->route('admin.support.performance'))->name('reports');
+            Route::post('availability', [SupportWorkspaceController::class, 'availability'])->name('availability');
+        });
         $registerResource('complaints', 'complaint', ComplaintController::class);
 
         // Loan modification request queues

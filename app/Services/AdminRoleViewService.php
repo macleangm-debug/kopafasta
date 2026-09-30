@@ -313,7 +313,11 @@ class AdminRoleViewService
             'mode' => 'viewing',
         ]);
 
-        // Staff workspaces live in Console — foundation lands on dashboard with banner.
+        // Staff workspaces live in Console — Customer Support lands on its own home.
+        if ($roleKey === \App\Services\Support\CustomerSupportWorkspaceService::ROLE_KEY) {
+            return ['url' => app(\App\Services\Support\CustomerSupportWorkspaceService::class)->homeUrl()];
+        }
+
         return ['url' => route('admin.dashboard')];
     }
 
