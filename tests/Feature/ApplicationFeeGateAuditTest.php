@@ -738,4 +738,78 @@ class ApplicationFeeGateAuditTest extends TestCase
             ->count());
         $this->assertSame($reference, CustomerPayment::query()->where('id', $payment->id)->value('reference'));
     }
+
+    public function test_paid_application_allows_guarantor_invite_without_draft_fee_cite(): void
+    {
+        // Mohamed-shaped: application fee settled on the application row; draft cite lost;
+        // verified payment may lack source_id. Guarantor invite must not re-demand payment.
+        $customer = $this->borrower();
+        $product = $this->product(['code' => 'EM-MOH']);
+
+        $payment = CustomerPayment::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'payment_type' => 'application_fee',
+            'payment_method' => 'mobile_money',
+            'amount' => 10_000,
+            'currency' => 'TZS',
+            'status' => 'verified',
+            'reference' => 'PAY-N1UXNN-TEST',
+            'paid_at' => now()->subDay(),
+            'verified_at' => now()->subDay(),
+            'source_type' => null,
+            'source_id' => null,
+            'provider_meta' => [
+                'apply_context' => [
+                    'loan_product_id' => $product->id,
+                    // Old draft reference no longer present.
+                    'draft_reference' => 'APP-EM-STALE',
+                ],
+            ],
+        ]);
+
+        $application = \App\Models\LoanApplication::create([
+            'customer_id' => $customer->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-EM-MU8Q-TEST',
+            'requested_amount' => 500_000,
+            'requested_tenure_months' => 6,
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+            'application_fee_status' => 'paid',
+            'application_fee_amount' => 10_000,
+            'application_fee_reference' => $payment->reference,
+            'application_fee_paid_at' => now()->subDay(),
+            'submitted_at' => now()->subDay(),
+        ]);
+
+        $fees = app(ApplicationFeePaymentService::class);
+        $this->assertTrue($fees->isSatisfiedFor($customer, $product, null));
+        $this->assertSame('paid', $fees->obligation($customer, $product, null)['status']);
+        $this->assertSame($application->id, $fees->resolveFeeBearingApplication($customer, $product)?->id);
+
+        // No draft exists — invite must still succeed.
+        $this->assertNull(LoanApplicationDraft::query()->where('customer_id', $customer->id)->first());
+
+        $response = $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.apply.guarantor-invite'), [
+                'loan_product_id' => $product->id,
+                'external_first_name' => 'Asha',
+                'external_last_name' => 'Guest',
+                'external_phone' => '255712345679',
+                'external_relationship' => 'friend',
+                'external_region' => 'Dar es Salaam',
+                'external_district' => 'Kinondoni',
+                'external_channel' => 'whatsapp',
+            ]);
+
+        $response->assertOk();
+        $this->assertTrue((bool) ($response->json('ok') ?? $response->json('share')));
+        $this->assertNull(data_get($response->json(), 'errors.application_fee'));
+        $this->assertSame(1, CustomerPayment::query()
+            ->where('customer_id', $customer->id)
+            ->where('payment_type', 'application_fee')
+            ->whereIn('status', ['verified', 'paid'])
+            ->count());
+    }
 }

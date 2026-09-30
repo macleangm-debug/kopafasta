@@ -2956,7 +2956,13 @@ class ApplyController extends Controller
             $payload['draft_reference'] = $draft->draft_reference;
         }
 
-        if ($fees->isSatisfiedFor($customer, $product, $payload)) {
+        $application = $fees->resolveFeeBearingApplication($customer, $product, $payload);
+        if ($fees->isSatisfiedFor($customer, $product, $payload, $application)) {
+            // Keep draft fee cite aligned with the application/payment that already settled.
+            if ($application && in_array((string) $application->application_fee_status, ['paid', 'waived', 'charged'], true)) {
+                $fees->syncDraftFromVerifiedPayment($customer, $product);
+            }
+
             return;
         }
 
