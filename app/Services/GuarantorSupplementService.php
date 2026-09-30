@@ -43,16 +43,45 @@ class GuarantorSupplementService
     public function hasOpenAdditionalRequest(LoanApplication $application): bool
     {
         $request = $this->openRequest($application);
+        if ($request === null) {
+            return false;
+        }
 
-        return $request !== null && ($request['kind'] ?? 'additional') === 'additional';
+        $kind = $request['kind'] ?? null;
+        if ($kind === 'change') {
+            return false;
+        }
+        if ($kind === 'additional') {
+            return true;
+        }
+
+        // Legacy payload without kind: borrower-initiated / replaced = change, not additional.
+        if (($request['initiated_by'] ?? null) === 'borrower'
+            || filled($request['replaced_customer_guarantor_id'] ?? null)) {
+            return false;
+        }
+
+        return true;
     }
 
     /** Open change/replacement request (underwriting or borrower-initiated). */
     public function hasOpenChangeRequest(LoanApplication $application): bool
     {
         $request = $this->openRequest($application);
+        if ($request === null) {
+            return false;
+        }
 
-        return $request !== null && ($request['kind'] ?? '') === 'change';
+        if (($request['kind'] ?? '') === 'change') {
+            return true;
+        }
+
+        if (($request['kind'] ?? null) !== null) {
+            return false;
+        }
+
+        return ($request['initiated_by'] ?? null) === 'borrower'
+            || filled($request['replaced_customer_guarantor_id'] ?? null);
     }
 
     /** Borrower-facing CTA for an open supplement — never conflate replacement with additional. */

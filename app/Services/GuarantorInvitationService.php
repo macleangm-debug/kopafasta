@@ -364,6 +364,27 @@ class GuarantorInvitationService
             $invitation = $invitation->fresh(['application.product', 'product', 'borrower', 'customerGuarantor']);
         }
 
+        // Keep the linked application quote in step while still on guarantor hold / pre-screen.
+        if ($invitation->application
+            && in_array((string) $invitation->application->status, ['awaiting_guarantor', 'draft', 'submitted'], true)
+            && ($amount !== null || $tenure !== null || $loanProductId !== null)
+        ) {
+            $appUpdates = [];
+            if ($amount !== null && $amount > 0) {
+                $appUpdates['requested_amount'] = $amount;
+            }
+            if ($tenure !== null && $tenure > 0) {
+                $appUpdates['requested_tenure_months'] = $tenure;
+            }
+            if ($loanProductId !== null && $loanProductId > 0) {
+                $appUpdates['loan_product_id'] = $loanProductId;
+            }
+            if ($appUpdates !== []) {
+                $invitation->application->update($appUpdates);
+                $invitation = $invitation->fresh(['application.product', 'product', 'borrower', 'customerGuarantor']);
+            }
+        }
+
         if ($this->hasRecordedConsent($invitation) && $this->materialQuoteChanged($invitation)) {
             $this->markConsentPendingReconfirmation($invitation);
         }
@@ -1581,13 +1602,6 @@ class GuarantorInvitationService
             return 'no_approved_guarantor';
         }
 
-        $access = app(GuarantorAccessService::class);
-        $completion = app(ProfileCompletionService::class);
-        $borrower = $application->customer;
-        if (! $borrower || ! $completion->isFullyComplete($borrower)) {
-            return 'borrower_profile_incomplete';
-        }
-
         foreach ($approvedLinks as $approvedLink) {
             $invitation = GuarantorInvitation::query()
                 ->where('customer_guarantor_id', $approvedLink->id)
@@ -1596,6 +1610,16 @@ class GuarantorInvitationService
             if ($invitation?->needsQuoteReconfirmation()) {
                 return 'guarantor_quote_reconfirmation_required';
             }
+        }
+
+        $access = app(GuarantorAccessService::class);
+        $completion = app(ProfileCompletionService::class);
+        $borrower = $application->customer;
+        if (! $borrower || ! $completion->isFullyComplete($borrower)) {
+            return 'borrower_profile_incomplete';
+        }
+
+        foreach ($approvedLinks as $approvedLink) {
             $guarantorCustomer = $access->guarantorCustomerForLink($approvedLink);
             if (! $guarantorCustomer) {
                 return 'approved_guarantor_not_linked';
@@ -1813,16 +1837,17 @@ class GuarantorInvitationService
 
             $invitation = GuarantorInvitation::query()
                 ->where('customer_guarantor_id', $link->id)
-                ->where('status', 'pending')
+                ->whereIn('status', ['pending', 'accepted'])
                 ->first();
 
             GuarantorInvitation::query()
                 ->where('customer_guarantor_id', $link->id)
-                ->where('status', 'pending')
+                ->whereIn('status', ['pending', 'accepted'])
                 ->update([
                     'status' => 'rejected',
                     'responded_at' => now(),
                     'response_notes' => $notes,
+                    'confirmation_status' => null,
                 ]);
 
             $borrower = $link->customer;

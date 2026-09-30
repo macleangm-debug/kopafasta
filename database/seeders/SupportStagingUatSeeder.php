@@ -174,6 +174,11 @@ class SupportStagingUatSeeder extends Seeder
 
         $conversations = app(SupportConversationService::class);
         $tickets = app(SupportTicketService::class);
+        $workspace = app(\App\Services\Support\CustomerSupportWorkspaceService::class);
+
+        // Accept / assign require Online — seed agents available before Accept.
+        $workspace->setAvailability($agent, 'online');
+        $workspace->setAvailability($supervisor, 'online');
 
         // Waiting unread — Maclean application stuck (queue timer)
         $waiting = $conversations->requestHuman(

@@ -169,8 +169,9 @@ class ApplyReviewSubmitUxFeatureTest extends TestCase
         $this->assertStringContainsString('isOtherPurpose', $js);
         $this->assertStringContainsString("purpose_other", $js);
         $this->assertStringContainsString('format_loan_purpose_display', $activity);
-        $this->assertStringContainsString('showReadyBeforeSubmit', $progress);
-        $this->assertStringContainsString('showWaitingCopy', $progress);
+        $this->assertStringContainsString('ready_before_submit', $progress);
+        $this->assertStringContainsString('uiState', $progress);
+        $this->assertStringContainsString('needs_replacement', $progress);
         $this->assertStringNotContainsString('guarantor_section_hint', $submitted);
         $this->assertStringContainsString('kfLockBodyScroll', $adminLayout);
         $this->assertStringContainsString('kfUnlockBodyScroll', $adminLayout);

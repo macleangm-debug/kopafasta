@@ -4,16 +4,17 @@
     content-width="narrow">
 
     @php
-        $borrowerName = trim(($invitation->borrower->first_name ?? '').' '.($invitation->borrower->last_name ?? '')) ?: '—';
-        $productName = $invitation->application?->product?->localizedName()
-            ?? $invitation->product?->localizedName()
-            ?? __('borrower.guarantor.loan');
-        $amount = $invitation->application?->requested_amount ?? $invitation->requested_amount;
-        $reference = $invitation->application?->application_number
-            ?? $invitation->application?->draft_reference
-            ?? ($invitation->short_code ? strtoupper((string) $invitation->short_code) : '—');
+        $loanContext = $loanContext ?? app(\App\Services\GuarantorInvitationService::class)->invitationLoanContext($invitation);
+        $quoteComparison = $quoteComparison ?? app(\App\Services\GuarantorInvitationService::class)->quoteComparison($invitation);
+        $needsReconfirm = $invitation->needsQuoteReconfirmation();
+        $borrowerName = $loanContext['borrower_name'] ?? (trim(($invitation->borrower->first_name ?? '').' '.($invitation->borrower->last_name ?? '')) ?: '—');
+        $productName = $loanContext['product_name'] ?? __('borrower.guarantor.loan');
+        $reference = $loanContext['application_reference'] ?? '—';
         $profileMet = (bool) ($profileStatus['met'] ?? false);
         $profilePercent = (int) ($profileStatus['percent'] ?? 0);
+        $stateLabel = $needsReconfirm
+            ? __('borrower.guarantor_invite.state_reconfirm')
+            : __('borrower.guarantor.action_required');
     @endphp
 
     <div class="mb-4">
@@ -35,39 +36,95 @@
             <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.loans_page.guarantor_badge') }}</p>
             <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $productName }}</h1>
             <p class="mt-2 text-sm text-white/85">{{ $borrowerName }} · {{ $reference }}</p>
-            <p class="mt-4 inline-flex text-xs font-semibold rounded-full px-3 py-1.5 bg-white/15 ring-1 ring-white/25">
-                {{ __('borrower.guarantor.action_required') }}
+            <p class="mt-4 inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $needsReconfirm ? 'bg-amber-400/25 ring-1 ring-amber-200/40 text-amber-50' : 'bg-white/15 ring-1 ring-white/25' }}">
+                {{ $stateLabel }}
             </p>
         </div>
     </section>
 
-    <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
-        <p class="font-semibold">{{ __('borrower.guarantor.your_decision') }}</p>
-        <p class="mt-1 opacity-90">{{ __('borrower.guarantor.awaiting_your_decision') }}</p>
-    </div>
+    @if ($needsReconfirm)
+        <div class="mb-6 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+            <p class="font-semibold">{{ __('borrower.guarantor_invite.terms_changed_title') }}</p>
+            <p class="mt-1 opacity-90">{{ __('borrower.guarantor_invite.terms_changed_body') }}</p>
+        </div>
 
-    {{-- At a glance --}}
-    <div class="mb-6 glass-card overflow-hidden">
-        <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5 border-b border-gray-100/80">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div class="min-w-0">
-                    <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.detail_eyebrow') }}</p>
-                    <h2 class="text-lg sm:text-xl font-bold text-gray-900 mt-1">{{ __('borrower.guaranteed.detail_glance_title') }}</h2>
-                    <p class="text-sm text-gray-600 mt-1">{{ __('borrower.guarantor.awaiting_your_decision') }}</p>
+        @if (! empty($quoteComparison['previous']))
+            <div class="mb-4 glass-card overflow-hidden text-sm">
+                <div class="px-5 py-3 border-b border-gray-100">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.previous_terms') }}</p>
+                </div>
+                <div class="grid sm:grid-cols-3 gap-4 px-5 py-4">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.amount_label') }}</p>
+                        <p class="font-semibold mt-1 line-through text-gray-500">{{ $quoteComparison['previous']['amount_label'] ?? '—' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.duration_label') }}</p>
+                        <p class="font-semibold mt-1 line-through text-gray-500">{{ $quoteComparison['previous']['duration_label'] ?? '—' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.installment_label') }}</p>
+                        <p class="font-semibold mt-1 line-through text-gray-500">{{ $quoteComparison['previous']['installment_label'] ?? '—' }}</p>
+                    </div>
                 </div>
             </div>
+        @endif
+    @else
+        <div class="mb-6 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+            <p class="font-semibold">{{ __('borrower.guarantor.your_decision') }}</p>
+            <p class="mt-1 opacity-90">{{ __('borrower.guarantor.awaiting_your_decision') }}</p>
+        </div>
+    @endif
 
-            <div class="mt-4 rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-gradient-to-br from-brand-muted/40 via-white to-white px-4 py-3">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loans_page.loan_amount') }}</p>
-                <p class="text-sm text-gray-700 mt-0.5">
-                    {{ $amount !== null ? format_money((float) $amount) : '—' }}
-                    · {{ __('borrower.loans_page.not_disbursed') }}
-                </p>
+    <div class="glass-card p-5 mb-6 ring-1 ring-brand/15">
+        <div class="mb-4">
+            <h2 class="font-semibold">{{ $needsReconfirm ? __('borrower.guarantor_invite.revised_terms') : __('borrower.loan_profile.summary_title') }}</h2>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4 text-sm">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.borrower') }}</p>
+                <p class="font-semibold mt-1">{{ $borrowerName }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.product_label') }}</p>
+                <p class="font-semibold mt-1">{{ $productName }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.amount_label') }}</p>
+                <p class="font-semibold mt-1">{{ $loanContext['amount_label'] }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.duration_label') }}</p>
+                <p class="font-semibold mt-1">{{ $loanContext['duration_label'] }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.frequency_label') }}</p>
+                <p class="font-semibold mt-1">{{ $loanContext['repayment_frequency_label'] }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.installment_label') }}</p>
+                <p class="font-semibold mt-1 text-brand">{{ $loanContext['installment_label'] }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.reference') }}</p>
+                <p class="font-semibold mt-1 font-mono">{{ $reference }}</p>
             </div>
         </div>
+        @if (! empty($guarantorExposure))
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/10 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_actions.guarantee_exposure') }}</p>
+                    <p class="mt-1 text-lg font-bold tabular-nums text-gray-900">{{ $guarantorExposure['count'] }}/{{ $guarantorExposure['max'] }}</p>
+                </div>
+                <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/10 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_actions.guarantee_total') }}</p>
+                    <p class="mt-1 text-lg font-bold tabular-nums text-gray-900">{{ format_money($guarantorExposure['exposure']) }}</p>
+                </div>
+            </div>
+        @endif
     </div>
 
-    @unless ($profileMet)
+    @unless ($profileMet || $needsReconfirm)
         <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
             <div class="px-5 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div class="min-w-0 flex-1">
@@ -89,52 +146,19 @@
         </div>
     @endunless
 
-    <div class="glass-card p-5 mb-6 ring-1 ring-brand/15">
-        <div class="mb-4">
-            <h2 class="font-semibold">{{ __('borrower.loan_profile.summary_title') }}</h2>
-        </div>
-        <div class="grid sm:grid-cols-2 gap-4 text-sm">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.borrower') }}</p>
-                <p class="font-semibold mt-1">{{ $borrowerName }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.product_label') }}</p>
-                <p class="font-semibold mt-1">{{ $productName }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.amount') }}</p>
-                <p class="font-semibold mt-1">{{ $amount !== null ? format_money((float) $amount) : '—' }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.reference') }}</p>
-                <p class="font-semibold mt-1 font-mono">{{ $reference }}</p>
-            </div>
-        </div>
-        @if (! empty($guarantorExposure))
-            <div class="mt-4 grid grid-cols-2 gap-3">
-                <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/10 px-4 py-3">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_actions.guarantee_exposure') }}</p>
-                    <p class="mt-1 text-lg font-bold tabular-nums text-gray-900">{{ $guarantorExposure['count'] }}/{{ $guarantorExposure['max'] }}</p>
-                </div>
-                <div class="rounded-2xl bg-gradient-to-br from-brand-muted/50 to-white ring-1 ring-brand/10 px-4 py-3">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.loan_actions.guarantee_total') }}</p>
-                    <p class="mt-1 text-lg font-bold tabular-nums text-gray-900">{{ format_money($guarantorExposure['exposure']) }}</p>
-                </div>
-            </div>
-        @endif
-    </div>
-
-    {{-- Decision (primary action) --}}
     <div class="mb-2 glass-card overflow-hidden ring-1 ring-brand/15">
         <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5">
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.guarantor.disclaimer_eyebrow') }}</p>
             <h2 class="text-lg font-bold text-gray-900 mt-1">{{ __('borrower.guarantor.your_decision') }}</h2>
-            <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ __('borrower.guarantor.disclaimer_body') }}</p>
+            <p class="mt-2 text-sm text-gray-700 leading-relaxed">
+                {{ $needsReconfirm
+                    ? __('borrower.guarantor_invite.reconfirm_message')
+                    : __('borrower.guarantor.disclaimer_body') }}
+            </p>
 
             <div class="mt-6 flex flex-col-reverse sm:flex-row gap-3 sm:items-center sm:justify-end">
                 <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $customerGuarantor) }}"
-                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.guarantor.decline_title')), message: @js(__('borrower.guarantor.decline_message')), confirmLabel: @js(__('borrower.loans_page.decline')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+                      @submit.prevent="window.confirmForm($el, { title: @js($needsReconfirm ? __('borrower.guarantor_invite.reconfirm_decline_title') : __('borrower.guarantor.decline_title')), message: @js($needsReconfirm ? __('borrower.guarantor_invite.reconfirm_decline_message') : __('borrower.guarantor.decline_message')), confirmLabel: @js(__('borrower.loans_page.decline')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
                     @csrf
                     <input type="hidden" name="action" value="reject">
                     <button type="submit" class="w-full sm:w-auto bg-white ring-1 ring-gray-300 hover:bg-gray-50 text-gray-800 font-semibold px-5 py-2.5 rounded-xl text-sm">
@@ -142,11 +166,11 @@
                     </button>
                 </form>
                 <form method="POST" action="{{ route('site.borrower.guarantor-requests.respond', $customerGuarantor) }}"
-                      @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.guarantor.approve_title')), message: @js(__('borrower.guarantor.approve_message')), confirmLabel: @js(__('borrower.guarantor.approve_cta')), confirmClass: 'bg-brand hover:bg-brand-light text-white' })">
+                      @submit.prevent="window.confirmForm($el, { title: @js($needsReconfirm ? __('borrower.guarantor_invite.reconfirm_title') : __('borrower.guarantor.approve_title')), message: @js($needsReconfirm ? __('borrower.guarantor_invite.reconfirm_message') : __('borrower.guarantor.approve_message')), confirmLabel: @js($needsReconfirm ? __('borrower.guarantor_invite.reconfirm_cta') : __('borrower.guarantor.approve_cta')), confirmClass: 'bg-brand hover:bg-brand-light text-white' })">
                     @csrf
                     <input type="hidden" name="action" value="approve">
                     <button type="submit" class="w-full sm:w-auto bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-3.5 rounded-xl text-sm shadow-sm">
-                        {{ __('borrower.guarantor.approve_cta') }}
+                        {{ $needsReconfirm ? __('borrower.guarantor_invite.reconfirm_cta') : __('borrower.guarantor.approve_cta') }}
                     </button>
                 </form>
             </div>

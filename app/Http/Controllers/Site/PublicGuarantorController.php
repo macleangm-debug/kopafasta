@@ -34,6 +34,14 @@ class PublicGuarantorController extends Controller
         }
 
         if ($invitation->needsQuoteReconfirmation()) {
+            if ($invitation->type === 'internal' && auth()->user()?->customer) {
+                $customer = auth()->user()->customer;
+                if (app(PortalContextService::class)->canActAsGuarantorFor($invitation, $customer)
+                    && $invitation->customer_guarantor_id) {
+                    return redirect()->route('site.borrower.guarantor-requests.show', $invitation->customer_guarantor_id);
+                }
+            }
+
             return view('site.guarantor.show', compact('invitation'));
         }
 

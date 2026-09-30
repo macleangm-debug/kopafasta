@@ -3453,7 +3453,9 @@ class BorrowerController extends Controller
             ->first();
 
         abort_unless($invitation, 403);
-        abort_unless($customerGuarantor->status === 'pending', 422);
+
+        $needsReconfirm = $invitation->needsQuoteReconfirmation();
+        abort_unless($customerGuarantor->status === 'pending' || $needsReconfirm, 422);
 
         $data = $request->validate([
             'action' => ['required', 'in:approve,reject'],
@@ -3461,6 +3463,17 @@ class BorrowerController extends Controller
         ]);
 
         if ($data['action'] === 'approve') {
+            if ($needsReconfirm) {
+                $guarantors->reconfirmConsent($invitation);
+                $this->auditBorrower('guarantor_request.reconfirm', $customerGuarantor, [
+                    'invitation_id' => $invitation?->id,
+                ]);
+
+                return redirect()
+                    ->route('site.borrower.loans', ['tab' => 'guarantor'])
+                    ->with('status', __('borrower.guarantor_invite.reconfirm_cta'));
+            }
+
             $guarantors->approve($customerGuarantor);
             $profileStatus = $guarantorOnboarding->guarantorProfileStatus($customer);
 
@@ -3510,12 +3523,17 @@ class BorrowerController extends Controller
             ->first();
 
         abort_unless($invitation, 403);
-        abort_unless($customerGuarantor->status === 'pending', 404);
+        abort_unless(
+            $customerGuarantor->status === 'pending' || $invitation->needsQuoteReconfirmation(),
+            404
+        );
 
         $profileStatus = $guarantorOnboarding->guarantorProfileStatus($customer);
         $guarantorExposure = app(PortalContextService::class)->hasGuarantorWork($customer)
             ? app(LoanPolicyService::class)->guarantorExposureSummary($customer)
             : null;
+        $loanContext = app(GuarantorInvitationService::class)->invitationLoanContext($invitation);
+        $quoteComparison = app(GuarantorInvitationService::class)->quoteComparison($invitation);
 
         return view('site.borrower.guarantor-request-show', compact(
             'customer',
@@ -3523,6 +3541,8 @@ class BorrowerController extends Controller
             'customerGuarantor',
             'profileStatus',
             'guarantorExposure',
+            'loanContext',
+            'quoteComparison',
         ));
     }
 

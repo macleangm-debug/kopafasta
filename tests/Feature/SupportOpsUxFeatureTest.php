@@ -286,7 +286,12 @@ class SupportOpsUxFeatureTest extends TestCase
         $this->assertNull($presence['agent_first_name']);
         $this->assertSame('online', $presence['presence']);
         $this->assertStringContainsString('Waiting', $presence['desk_label']);
-        $this->assertTrue($second->messages()->where('body', 'like', 'Tumepokea ujumbe wako%')->exists());
+        $this->assertTrue(
+            $second->messages()->where('is_automated', true)->where(function ($q) {
+                $q->where('body', 'like', 'Tumepokea ujumbe wako%')
+                    ->orWhere('body', 'like', 'We received your message%');
+            })->exists()
+        );
     }
 
     public function test_member_chat_presence_shows_assigned_agent_first_name(): void
@@ -422,13 +427,19 @@ class SupportOpsUxFeatureTest extends TestCase
         $conversation->refresh();
         $this->assertSame($agent->id, (int) $conversation->assigned_to);
         $this->assertTrue(
-            $conversation->messages()->where('is_automated', true)->where('body', 'like', 'Mtoa huduma wako hayupo mtandaoni%')->exists()
+            $conversation->messages()->where('is_automated', true)->where(function ($q) {
+                $q->where('body', 'like', 'Mtoa huduma wako hayupo mtandaoni%')
+                    ->orWhere('body', 'like', 'Your Support agent is offline%');
+            })->exists()
         );
         // Once per offline stretch — second customer message does not duplicate.
         app(SupportConversationService::class)->requestHuman($customer, $user, 'Still waiting');
         $this->assertSame(
             1,
-            $conversation->messages()->where('is_automated', true)->where('body', 'like', 'Mtoa huduma wako hayupo mtandaoni%')->count()
+            $conversation->messages()->where('is_automated', true)->where(function ($q) {
+                $q->where('body', 'like', 'Mtoa huduma wako hayupo mtandaoni%')
+                    ->orWhere('body', 'like', 'Your Support agent is offline%');
+            })->count()
         );
     }
 
@@ -436,16 +447,22 @@ class SupportOpsUxFeatureTest extends TestCase
     {
         [$user, $customer] = $this->member();
         $svc = app(SupportConversationService::class);
+        $frozen = now()->startOfSecond();
+        \Illuminate\Support\Carbon::setTestNow($frozen);
+        app()->setLocale('sw');
         $first = $svc->requestHuman($customer, $user, 'First ping');
         $since = $first->waiting_since?->copy();
         $this->assertNotNull($since);
         $this->assertStringContainsString('Unaweza kuongeza maelezo mengine hapa wakati unasubiri', $svc->waitingAcknowledgement());
+        app()->setLocale('en');
+        $this->assertStringContainsString('You can add more details here while you wait', $svc->waitingAcknowledgement());
 
-        sleep(1);
+        \Illuminate\Support\Carbon::setTestNow($frozen->copy()->addMinutes(2));
         $second = $svc->requestHuman($customer, $user, 'More detail while waiting');
         $this->assertSame($first->id, $second->id);
         $this->assertTrue($second->waiting_since?->equalTo($since));
         $this->assertFalse(in_array($second->status, ['closed', 'resolved'], true));
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_member_support_round_trip_same_conversation(): void

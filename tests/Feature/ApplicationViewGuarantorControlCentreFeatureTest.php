@@ -34,6 +34,33 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
         $this->assertStringNotContainsString(__('borrower.loan_profile.back_to_loan'), $html);
         // Duplicate status eyebrow from the old large status card must be gone.
         $this->assertStringNotContainsString(__('borrower.loan_profile.current_status'), $html);
+        // Section O: waiting copy, not initial-pass / YOUR PART IS SUBMITTED.
+        $this->assertStringContainsString(__('borrower.intake.waiting_guarantor_title'), $html);
+        $this->assertStringNotContainsString(__('borrower.intake.passed_title'), $html);
+        $this->assertStringNotContainsString(__('borrower.intake.part_submitted'), $html);
+        // Section D: Mohamed-shaped pending is replacement-capable, not "Add another".
+        $this->assertStringNotContainsString(__('borrower.guarantor_supplement.borrower_banner'), $html);
+        $this->assertStringNotContainsString(__('borrower.apply.submit_step.supplement_title'), $html);
+    }
+
+    public function test_declined_guarantor_shows_choose_another_without_invite_actions(): void
+    {
+        [$borrower, $application, $link] = $this->awaitingGuarantorPair(incomplete: true);
+        $link->update(['status' => 'rejected']);
+        \App\Models\GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->update(['status' => 'rejected']);
+
+        $html = $this->actingAs($borrower->user)
+            ->get(route('site.borrower.application', $application))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(__('borrower.loan_profile.guarantor_required_title'), $html);
+        $this->assertStringContainsString(__('borrower.guarantor_supplement.change_cta'), $html);
+        $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_nudge_whatsapp'), $html);
+        $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_nudge_copy'), $html);
+        $this->assertStringNotContainsString(__('borrower.guarantor_supplement.borrower_banner'), $html);
     }
 
     public function test_incomplete_awaiting_guarantor_can_be_replaced_without_new_fee(): void

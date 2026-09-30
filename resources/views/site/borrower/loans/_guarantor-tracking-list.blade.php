@@ -21,7 +21,10 @@
                         $borrowerName = $row->borrower?->legalDisplayName() ?? __('borrower.loans_page.borrower');
                         $productName = $row->product?->localizedName() ?? __('borrower.guarantor.loan');
                         $needsProfile = $row->needs_guarantor_profile ?? false;
-                        $detailUrl = route('site.borrower.guaranteed.show', $row->link);
+                        $needsReconfirm = (bool) ($row->needs_reconfirm ?? false);
+                        $detailUrl = $needsReconfirm && ! empty($row->reconfirm_url)
+                            ? $row->reconfirm_url
+                            : route('site.borrower.guaranteed.show', $row->link);
                     @endphp
                     <tr class="hover:bg-brand-muted/20 {{ ($row->is_terminal ?? false) ? 'opacity-75' : '' }}">
                         <td class="px-4 py-3">
@@ -31,13 +34,15 @@
                         <td class="px-4 py-3">{{ $productName }}</td>
                         <td class="px-4 py-3 text-right font-mono tabular-nums">{{ format_money($row->amount) }}</td>
                         <td class="px-4 py-3">
-                            <span class="inline-flex text-xs font-semibold rounded-full px-2 py-0.5 {{ $needsProfile ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800' }}">{{ $row->stage_label }}</span>
+                            <span class="inline-flex text-xs font-semibold rounded-full px-2 py-0.5 {{ ($needsProfile || $needsReconfirm) ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800' }}">{{ $row->stage_label }}</span>
                             @if (! empty($row->deadline_label))
                                 <p class="text-[11px] text-gray-500 mt-1">{{ $row->deadline_label }}</p>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <a href="{{ $detailUrl }}" data-kf-share="kf-gtd-{{ $row->link->id }}" class="text-brand font-semibold hover:underline">{{ __('borrower.applications_list.view') }}</a>
+                            <a href="{{ $detailUrl }}" data-kf-share="kf-gtd-{{ $row->link->id }}" class="text-brand font-semibold hover:underline">
+                                {{ $needsReconfirm ? __('borrower.guarantor_invite.reconfirm_cta') : __('borrower.applications_list.view') }}
+                            </a>
                         </td>
                     </tr>
                 @endforeach
@@ -52,7 +57,10 @@
                 $borrowerName = $row->borrower?->legalDisplayName() ?? __('borrower.loans_page.borrower');
                 $productName = $row->product?->localizedName() ?? __('borrower.guarantor.loan');
                 $needsProfile = (bool) ($row->needs_guarantor_profile ?? false);
-                $detailUrl = route('site.borrower.guaranteed.show', $row->link);
+                $needsReconfirm = (bool) ($row->needs_reconfirm ?? false);
+                $detailUrl = $needsReconfirm && ! empty($row->reconfirm_url)
+                    ? $row->reconfirm_url
+                    : route('site.borrower.guaranteed.show', $row->link);
                 $isTerminal = (bool) ($row->is_terminal ?? false);
             @endphp
             <div class="glass-card p-5 ring-1 ring-brand/10 {{ $isTerminal ? 'opacity-80' : '' }}" data-kf-share="kf-gtd-{{ $row->link->id }}">
@@ -63,7 +71,7 @@
                         <p class="font-mono text-xs text-gray-500 mt-1">{{ $row->reference }}</p>
                     </div>
                     <div class="flex flex-col items-end gap-1.5 shrink-0">
-                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ $needsProfile ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800' }}">
+                        <span class="text-xs font-semibold rounded-full px-2.5 py-1 {{ ($needsProfile || $needsReconfirm) ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-800' }}">
                             {{ $row->stage_label }}
                         </span>
                         @if ($needsProfile)
@@ -95,7 +103,7 @@
 
                 <a href="{{ $detailUrl }}"
                    class="inline-flex items-center justify-center w-full sm:w-auto font-bold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                    {{ __('borrower.applications_list.view') }}
+                    {{ $needsReconfirm ? __('borrower.guarantor_invite.reconfirm_cta') : __('borrower.applications_list.view') }}
                 </a>
             </div>
         @endforeach

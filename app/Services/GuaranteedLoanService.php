@@ -109,9 +109,11 @@ class GuaranteedLoanService
         // Any accepted, not-yet-disbursed guarantee stays blocked on the guarantor's
         // own profile until it is 100% — not only when the app is in awaiting_guarantor.
         $needsGuarantorProfile = ! ($profileStatus['met'] ?? false) && ! $isDisbursed && ! $isTerminal;
+        $needsReconfirm = (bool) ($invitation?->needsQuoteReconfirmation());
         $awaitingBorrowerSubmit = $appCode === 'pending_submission' || $application === null;
 
         $pendingHint = match (true) {
+            $needsReconfirm => __('borrower.guarantor_invite.terms_changed_body'),
             $needsGuarantorProfile && $awaitingBorrowerSubmit => __('borrower.guaranteed.pending_hint_profile_and_borrower', [
                 'percent' => (int) ($profileStatus['percent'] ?? 0),
             ]),
@@ -126,6 +128,7 @@ class GuaranteedLoanService
         };
 
         $stageLabel = match (true) {
+            $needsReconfirm => __('borrower.guarantor_invite.state_reconfirm'),
             $needsGuarantorProfile => __('borrower.guaranteed.waiting_on_your_profile'),
             $awaitingBorrowerSubmit => __('borrower.guaranteed.awaiting_submission'),
             $appCode === 'awaiting_guarantor' => __('borrower.guaranteed.waiting_on_guarantor_step'),
@@ -149,8 +152,12 @@ class GuaranteedLoanService
             'stage_label'             => $stageLabel,
             'pending_hint'            => $pendingHint,
             'needs_guarantor_profile' => $needsGuarantorProfile,
+            'needs_reconfirm'         => $needsReconfirm,
             'profile_percent'         => (int) ($profileStatus['percent'] ?? 0),
             'profile_url'             => route('site.borrower.profile'),
+            'reconfirm_url'           => $needsReconfirm && $link
+                ? route('site.borrower.guarantor-requests.show', $link)
+                : null,
             'is_terminal'             => $isTerminal,
             'is_loan_approved'        => $isLoanApproved,
             'is_disbursed'            => $isDisbursed,
