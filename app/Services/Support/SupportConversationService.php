@@ -63,6 +63,9 @@ class SupportConversationService
                 'topic' => $topic ?: $conversation->topic,
                 'channel' => $channel ?: ($conversation->channel ?: 'web_chat'),
                 'last_message_at' => now(),
+                'waiting_since' => ($conversation->assigned_to && in_array($conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true))
+                    ? $conversation->waiting_since
+                    : ($conversation->waiting_since ?: now()),
             ]);
 
             $sender = ($customer || $user) ? 'customer' : 'guest';
@@ -71,8 +74,8 @@ class SupportConversationService
             $hasWaitingAck = $conversation->messages()
                 ->where('is_automated', true)
                 ->where(function ($q) {
-                    $q->where('body', 'like', 'Ujumbe wako umepokelewa%')
-                        ->orWhere('body', 'like', 'Tumepokea ujumbe%');
+                    $q->where('body', 'like', 'Tumepokea ujumbe wako%')
+                        ->orWhere('body', 'like', 'Ujumbe wako umepokelewa%');
                 })
                 ->exists();
             if (! $hasWaitingAck) {
@@ -87,7 +90,11 @@ class SupportConversationService
                 $conversation->update([
                     'needs_human' => true,
                     'status' => $conversation->assigned_to ? self::STATUS_ASSIGNED : self::STATUS_WAITING,
+                    'waiting_nudge_level' => max(1, (int) ($conversation->waiting_nudge_level ?? 0)),
+                    'waiting_since' => $conversation->waiting_since ?: now(),
                 ]);
+            } else {
+                $this->maybeSendWaitingNudge($conversation->fresh() ?? $conversation);
             }
 
             return $conversation->fresh(['customer', 'user', 'messages']);
@@ -221,6 +228,8 @@ class SupportConversationService
             'assigned_to' => $agent->id,
             'status' => self::STATUS_ASSIGNED,
             'needs_human' => true,
+            'accepted_at' => now(),
+            'waiting_since' => null,
         ]);
 
         if ($firstAssign) {
@@ -329,7 +338,56 @@ class SupportConversationService
 
     public function waitingAcknowledgement(): string
     {
-        return 'Ujumbe wako umepokelewa. Uko kwenye foleni ya Huduma kwa Wateja; mhudumu atakujibu hapa.';
+        return 'Tumepokea ujumbe wako. Timu yetu ya Usaidizi itakuhudumia hivi karibuni.';
+    }
+
+    public function waitingFollowUpAcknowledgement(): string
+    {
+        return 'Samahani kwa kusubiri. Watoa huduma wetu wote wanahudumia wateja wengine kwa sasa. Ujumbe wako bado uko kwenye foleni na tutakuhudumia mara tu mhudumu atakapopatikana.';
+    }
+
+    /**
+     * Send staged waiting nudges based on Settings thresholds (minutes).
+     * Level 1 = first ack (on create). Level 2 = delay apology after threshold.
+     */
+    public function maybeSendWaitingNudge(SupportConversation $conversation): void
+    {
+        if ($conversation->assigned_to || ! in_array($conversation->status, [self::STATUS_WAITING], true)) {
+            return;
+        }
+
+        $since = $conversation->waiting_since ?? $conversation->created_at ?? now();
+        $minutes = max(0, $since->diffInMinutes(now()));
+        $level2At = (int) \App\Models\Setting::get('support.waiting.followup_minutes', 3);
+
+        if ((int) ($conversation->waiting_nudge_level ?? 0) < 2 && $minutes >= $level2At) {
+            $this->appendMessage(
+                $conversation,
+                'staff',
+                $this->waitingFollowUpAcknowledgement(),
+                null,
+                true,
+                false,
+            );
+            $conversation->update(['waiting_nudge_level' => 2]);
+        }
+    }
+
+    public function waitingDurationLabel(SupportConversation $conversation): string
+    {
+        $since = $conversation->waiting_since
+            ?? $conversation->last_message_at
+            ?? $conversation->created_at
+            ?? now();
+        $seconds = max(0, $since->diffInSeconds(now()));
+        $h = intdiv($seconds, 3600);
+        $m = intdiv($seconds % 3600, 60);
+        $s = $seconds % 60;
+        if ($h > 0) {
+            return sprintf('%02d:%02d:%02d', $h, $m, $s);
+        }
+
+        return sprintf('%02d:%02d', $m, $s);
     }
 
     public function markReadForStaff(SupportConversation $conversation): void

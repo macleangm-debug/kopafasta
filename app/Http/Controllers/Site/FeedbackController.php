@@ -18,28 +18,22 @@ class FeedbackController extends Controller
         private readonly SupportTicketService $tickets,
     ) {}
 
-    public function index(): View
+    public function index(): View|\Illuminate\Http\RedirectResponse
     {
         $user = auth()->user();
         $from = (string) request('from', '');
         $inBorrowerShell = $user && ($user->customer || $from === 'borrower');
         $inPartnerShell = $user && ! $user->customer && ($user->vendor || $from === 'partner');
 
+        // Authenticated Help Center uses the reusable feedback modal/sheet — not a standalone page.
         if ($inBorrowerShell) {
-            return view('site.borrower.feedback', [
-                'categories' => $this->categories(),
-                'customer' => $user->customer,
-                'supportHome' => route('site.borrower.support'),
-            ]);
+            return redirect()->route('site.borrower.support', ['feedback' => 1]);
         }
 
         if ($inPartnerShell) {
-            return view('site.partner.feedback', [
-                'categories' => $this->categories(),
-                'supportHome' => Route::has('site.partner.support')
-                    ? route('site.partner.support')
-                    : route('site.vendor.support'),
-            ]);
+            $home = Route::has('site.partner.support') ? 'site.partner.support' : 'site.vendor.support';
+
+            return redirect()->route($home, ['feedback' => 1]);
         }
 
         return view('site.feedback.index', [
@@ -126,7 +120,7 @@ class FeedbackController extends Controller
         $from = (string) ($validated['from'] ?? $request->query('from', ''));
         if ($customerId || $from === 'borrower') {
             return redirect()
-                ->route('site.borrower.support')
+                ->route('site.borrower.support', ['feedback' => 1])
                 ->with('status', __('site.feedback.success'));
         }
         if ($from === 'partner' || ($user && ! $customerId && method_exists($user, 'vendor') && $user->vendor)) {
@@ -135,7 +129,7 @@ class FeedbackController extends Controller
                 : 'site.vendor.support';
 
             return redirect()
-                ->route($home)
+                ->route($home, ['feedback' => 1])
                 ->with('status', __('site.feedback.success'));
         }
 

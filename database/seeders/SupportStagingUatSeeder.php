@@ -35,7 +35,7 @@ class SupportStagingUatSeeder extends Seeder
         $agent = User::query()->updateOrCreate(
             ['email' => 'uat.support.agent@staging.kopafasta.com'],
             [
-                'name' => 'UAT Support Agent',
+                'name' => 'Rogathe Nyela',
                 'phone' => '255700000021',
                 'role' => 'agent',
                 'roles' => ['agent'],
@@ -161,7 +161,7 @@ class SupportStagingUatSeeder extends Seeder
         $conversations = app(SupportConversationService::class);
         $tickets = app(SupportTicketService::class);
 
-        // Waiting unread — Maclean application stuck
+        // Waiting unread — Maclean application stuck (queue timer)
         $waiting = $conversations->requestHuman(
             $member,
             $memberUser,
@@ -172,82 +172,101 @@ class SupportStagingUatSeeder extends Seeder
             'needs_human' => true,
             'status' => 'waiting',
             'assigned_to' => null,
-            'last_message_at' => now()->subMinutes(3),
+            'accepted_at' => null,
+            'waiting_since' => now()->subMinutes(4)->subSeconds(12),
+            'waiting_nudge_level' => 2,
+            'last_message_at' => now()->subMinutes(4),
         ]);
         $waiting->messages()->where('sender_type', 'customer')->update(['read_at' => null]);
+        if (! $waiting->messages()->where('body', 'like', 'Samahani kwa kusubiri%')->exists()) {
+            $conversations->appendMessage($waiting, 'staff', $conversations->waitingFollowUpAcknowledgement(), null, true, false);
+        }
 
-        // Mine / assigned with unread reply waiting
+        // Active conversation (accepted) — payment enquiry
         $mine = $conversations->openConversationFor($loanMember, $loanMemberUser);
         $conversations->appendMessage($mine, 'customer', 'Niliweka malipo jana lakini bado ninaona outstanding sawa.', $loanMemberUser->id);
-        $conversations->appendMessage($mine, 'staff', 'Tumepokea. Tunachunguza malipo yako sasa.', $agent->id);
+        $conversations->accept($mine, $agent);
+        $conversations->appendMessage($mine, 'staff', 'Asante Asha — niko kwenye malipo yako sasa.', $agent->id, false, true);
         $conversations->appendMessage($mine, 'customer', 'Asante — bado najibu? Nimeona SMS lakini saldo haijabadilika.', $loanMemberUser->id);
         $mine->update([
             'assigned_to' => $agent->id,
             'needs_human' => true,
-            'status' => 'assigned',
+            'status' => 'active',
             'topic' => 'Payment',
+            'accepted_at' => now()->subMinutes(20),
+            'waiting_since' => null,
             'last_message_at' => now()->subMinutes(12),
         ]);
         $mine->messages()->where('sender_type', 'customer')->latest('id')->limit(1)->update(['read_at' => null]);
 
-        // Guest conversation
+        // Guest waiting conversation
         $guest = SupportConversation::query()->updateOrCreate(
-            ['guest_phone' => '255711000099', 'status' => 'open'],
+            ['guest_phone' => '255711000099', 'status' => 'waiting'],
             [
                 'channel' => 'web_chat',
                 'needs_human' => true,
                 'guest_name' => 'Guest Juma',
                 'topic' => 'Registration help',
-                'last_message_at' => now()->subMinutes(8),
+                'assigned_to' => null,
+                'waiting_since' => now()->subMinutes(2),
+                'last_message_at' => now()->subMinutes(2),
             ]
         );
         if ($guest->messages()->count() === 0) {
             $conversations->appendMessage($guest, 'guest', 'Nataka kujua jinsi ya kujiunga kabla sijajisajili.');
+            $conversations->appendMessage($guest, 'staff', $conversations->waitingAcknowledgement(), null, true, false);
         }
 
-        // Read conversation (already replied)
-        $read = $conversations->openConversationFor(
-            Customer::query()->where('customer_number', 'CU-UAT-0001')->first(),
-            User::query()->where('email', 'uat.borrower@staging.kopafasta.com')->first(),
-        );
-        if ($read->customer_id) {
-            $conversations->appendMessage($read, 'customer', 'Je, ada ya uanachama ni kiasi gani?', $read->user_id);
-            $conversations->appendMessage($read, 'staff', 'Ada ya uanachama inaonekana kwenye akaunti yako chini ya Membership.', $agent->id);
-            $read->update([
-                'assigned_to' => $agent->id,
+        // Resolved + rated conversation (history)
+        $rated = SupportConversation::query()->updateOrCreate(
+            ['customer_id' => $member->id, 'topic' => 'Sign-in help', 'status' => 'resolved'],
+            [
+                'user_id' => $memberUser->id,
+                'channel' => 'web_chat',
                 'needs_human' => false,
-                'status' => 'replied',
-                'topic' => 'Membership',
-                'last_message_at' => now()->subHour(),
-            ]);
-            $read->messages()->update(['read_at' => now()]);
+                'assigned_to' => $agent->id,
+                'rating' => 5,
+                'rated_at' => now()->subDay(),
+                'resolution_category' => 'technical_fixed',
+                'last_message_at' => now()->subDays(2),
+            ]
+        );
+        if ($rated->messages()->count() === 0) {
+            $conversations->appendMessage($rated, 'customer', 'Siwezi kuingia kwenye akaunti.', $memberUser->id);
+            $conversations->appendMessage($rated, 'staff', 'Tumerekebisha. Tafadhali jaribu kuingia tena.', $agent->id, true);
+            $conversations->appendMessage($rated, 'staff', 'Habari Maclean, suala lako limekamilishwa. Tunatumaini tumekusaidia. Tafadhali tathmini huduma yetu kwa kuchagua nyota 1–5.', $agent->id, true);
         }
 
-        // Open case linked to waiting conversation + application
-        $openCase = SupportTicket::query()->where('ticket_number', 'SUP-2026-UAT001')->first();
-        if (! $openCase) {
-            $openCase = $tickets->create([
-                'ticket_number' => 'SUP-2026-UAT001',
+        // Ticket approaching SLA (urgent, due soon)
+        $slaTicket = SupportTicket::query()->where('subject', 'Failing to progress application')->latest('id')->first();
+        if (! $slaTicket) {
+            $slaTicket = $tickets->create([
                 'customer_id' => $member->id,
                 'support_conversation_id' => $waiting->id,
                 'related_type' => $application ? 'application' : 'account',
                 'related_id' => $application?->id ?? $member->id,
                 'subject' => 'Failing to progress application',
                 'category' => 'application',
-                'priority' => 'normal',
-                'description' => 'Member stuck after guarantor step.',
+                'priority' => 'urgent',
+                'description' => 'Member stuck after guarantor step — needs investigation ticket.',
                 'source' => 'chatbot',
                 'assigned_to' => $agent->id,
                 'status' => 'open',
                 'actor' => $agent,
             ]);
         }
+        $slaTicket->update([
+            'sla_due_at' => now()->addMinutes(38),
+            'assigned_at' => now()->subHour(),
+            'priority' => 'urgent',
+            'status' => 'open',
+            'support_conversation_id' => $waiting->id,
+        ]);
 
-        // Escalated case
-        $escalated = SupportTicket::query()->where('ticket_number', 'SUP-2026-UAT002')->first();
+        // Escalated ticket
+        $escalated = SupportTicket::query()->where('subject', 'Payment not reflecting')->latest('id')->first();
         if (! $escalated) {
             $escalated = $tickets->create([
-                'ticket_number' => 'SUP-2026-UAT002',
                 'customer_id' => $loanMember->id,
                 'support_conversation_id' => $mine->id,
                 'related_type' => $loan ? 'loan' : 'account',
@@ -271,25 +290,12 @@ class SupportStagingUatSeeder extends Seeder
             );
         }
 
-        // Resolved case
-        $resolved = SupportTicket::query()->where('ticket_number', 'SUP-2026-UAT003')->first();
+        // Resolved + rated ticket
+        $resolved = SupportTicket::query()->where('subject', 'Failing to sign in')->latest('id')->first();
         if (! $resolved) {
-            $resolvedConv = SupportConversation::query()->create([
-                'customer_id' => $member->id,
-                'user_id' => $memberUser->id,
-                'channel' => 'web_chat',
-                'status' => 'resolved',
-                'needs_human' => false,
-                'topic' => 'Sign-in help',
-                'assigned_to' => $agent->id,
-                'last_message_at' => now()->subDays(2),
-            ]);
-            $conversations->appendMessage($resolvedConv, 'customer', 'Siwezi kuingia kwenye akaunti.', $memberUser->id);
-            $conversations->appendMessage($resolvedConv, 'staff', 'Tumerekebisha. Tafadhali jaribu kuingia tena.', $agent->id, true);
             $resolved = $tickets->create([
-                'ticket_number' => 'SUP-2026-UAT003',
                 'customer_id' => $member->id,
-                'support_conversation_id' => $resolvedConv->id,
+                'support_conversation_id' => $rated->id,
                 'related_type' => 'account',
                 'related_id' => $member->id,
                 'subject' => 'Failing to sign in',
@@ -306,6 +312,7 @@ class SupportStagingUatSeeder extends Seeder
                 'resolution_notes' => 'Password/PIN reset guidance provided.',
                 'invite_rating' => false,
             ], $agent);
+            $tickets->recordRating($resolved->fresh(), 5, 'Huduma nzuri sana');
         }
 
         Setting::set('support.uat_credentials', [
@@ -313,13 +320,27 @@ class SupportStagingUatSeeder extends Seeder
             'member_phone' => '255700000022',
             'member_pin' => '1234',
             'member_password' => 'StagingUat!2026',
+            'loan_member_email' => 'uat.support.loan@staging.kopafasta.com',
+            'loan_member_phone' => '255700000023',
+            'loan_member_pin' => '1234',
             'agent_email' => 'uat.support.agent@staging.kopafasta.com',
+            'agent_name' => 'Rogathe Nyela',
             'agent_pin' => '1234',
             'agent_password' => 'StagingUat!2026',
             'admin_email' => 'uat.admin@staging.kopafasta.com',
-            'notes' => 'Login as Maclean member → Support → Speak to Support. Admin Account/Role → Support → Inbox.',
+            'waiting_conversation_id' => $waiting->id,
+            'active_conversation_id' => $mine->id,
+            'sla_ticket' => $slaTicket->fresh()->ticket_number,
+            'escalated_ticket' => $escalated->fresh()->ticket_number,
+            'resolved_rated_ticket' => $resolved->fresh()->ticket_number,
+            'resolved_rated_conversation_id' => $rated->id,
+            'notes' => 'Help Center first. Waiting → Accept only. Create ticket only for follow-up.',
         ]);
 
-        $this->command?->info('Support UAT seeded. Member: uat.support.member@staging.kopafasta.com / StagingUat!2026 (PIN 1234)');
+        $this->command?->info('Support Pass 3 UAT seeded.');
+        $this->command?->info('Member: uat.support.member@staging.kopafasta.com / StagingUat!2026 (PIN 1234)');
+        $this->command?->info('Waiting #'.$waiting->id.' · Active #'.$mine->id);
+        $this->command?->info('SLA ticket '.$slaTicket->fresh()->ticket_number.' · Escalated '.$escalated->fresh()->ticket_number);
+        $this->command?->info('Resolved/rated '.$resolved->fresh()->ticket_number.' · Conv #'.$rated->id);
     }
 }

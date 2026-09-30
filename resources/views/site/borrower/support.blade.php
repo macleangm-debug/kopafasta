@@ -30,7 +30,7 @@
             <section class="relative overflow-hidden rounded-3xl kf-premium-panel">
                 <div class="absolute inset-0 opacity-[0.14]" style="background-image: radial-gradient(circle at 18% 20%, #fff 0, transparent 42%), radial-gradient(circle at 88% 0%, #fbbf24 0, transparent 38%);"></div>
                 <div class="relative px-5 sm:px-8 py-7 sm:py-9">
-                    <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">Kopafasta Support</p>
+                    <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">{{ $isSw ? 'Kituo cha Usaidizi' : 'Help Center' }}</p>
                     <h1 class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight">{{ $isSw ? 'Unahitaji msaada gani?' : 'How can we help?' }}</h1>
                     <form method="GET" action="{{ route('site.borrower.support') }}" class="mt-5 max-w-xl">
                         <input type="search" name="q" value="{{ $helpQuery }}"
@@ -127,19 +127,27 @@
             @endif
 
             <div class="grid sm:grid-cols-2 gap-3">
-                <a href="{{ route('site.borrower.support', ['chat' => 1]) }}"
-                   class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center hover:brightness-95">
-                    {{ $isSw ? 'Ongea na Timu ya Usaidizi' : 'Talk to Support' }}
-                </a>
-                <a href="{{ route('site.feedback', ['open' => 1, 'from' => 'borrower']) }}"
-                   class="rounded-2xl ring-1 ring-brand/20 text-brand font-bold text-sm px-5 py-4 text-center hover:bg-brand-muted/30">
+                @if ($supportConversation)
+                    <a href="{{ route('site.borrower.support', ['chat' => 1]) }}"
+                       class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center hover:brightness-95">
+                        {{ $isSw ? 'Endelea mazungumzo' : 'Continue conversation' }}
+                    </a>
+                @else
+                    <a href="{{ route('site.borrower.support', ['chat' => 1]) }}"
+                       class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center hover:brightness-95">
+                        {{ $isSw ? 'Ongea na Timu ya Usaidizi' : 'Talk to Support' }}
+                    </a>
+                @endif
+                <button type="button"
+                        @click="$dispatch('open-feedback')"
+                        class="rounded-2xl ring-1 ring-brand/20 text-brand font-bold text-sm px-5 py-4 text-center hover:bg-brand-muted/30">
                     {{ $isSw ? 'Tuma maoni' : 'Send feedback' }}
-                </a>
+                </button>
             </div>
 
             @if ($primaryPhone || $whatsapp !== '')
                 <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 text-sm space-y-2">
-                    <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $isSw ? 'Mawasiliano' : 'Contact' }}</p>
+                    <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $isSw ? 'Piga simu Kopafasta' : 'Call Kopafasta' }}</p>
                     @if ($primaryPhone)
                         <a href="tel:{{ preg_replace('/\s+/', '', $primaryPhone) }}" class="block font-semibold text-gray-900 hover:text-brand">{{ $primaryPhone }}</a>
                     @endif
@@ -157,7 +165,7 @@
              class="scroll-mt-24 mb-8 max-w-2xl"
              @support-back-to-faqs.window="human = false; window.location = @js(route('site.borrower.support'))">
             <div class="mb-3">
-                <a href="{{ route('site.borrower.support') }}" class="text-sm font-semibold text-brand hover:underline">← {{ $isSw ? 'Rudi Support Home' : 'Back to Support Home' }}</a>
+                <a href="{{ route('site.borrower.support') }}" class="text-sm font-semibold text-brand hover:underline">← {{ $isSw ? 'Rudi Kituo cha Usaidizi' : 'Back to Help Center' }}</a>
             </div>
             <x-site.ai-support-chat
                 class="mb-4"
@@ -165,8 +173,19 @@
                 :force-human="true"
                 :conversation="$supportConversation"
                 :existing-messages="$supportConversation?->messages"
+                :rating-url="$supportConversation && in_array($supportConversation->status, ['resolved', 'closed'], true) && ! $supportConversation->rating
+                    ? route('site.borrower.support.conversation.rate', $supportConversation)
+                    : null"
+                :show-rating="$supportConversation && in_array($supportConversation->status, ['resolved', 'closed'], true) && ! $supportConversation->rating"
             />
         </div>
     </div>
+
+    <x-site.feedback-form-panel
+        :show-trigger="false"
+        :show-faq-link="false"
+        :open-on-load="request()->boolean('feedback') || filled(session('status'))"
+        from="borrower"
+    />
 
 </x-site.borrower-layout>

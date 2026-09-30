@@ -41,12 +41,13 @@ class SupportWorkspaceController extends Controller
     public function inbox(Request $request): View
     {
         $agent = $this->workspace->actingAgent();
-        $filter = (string) $request->query('filter', 'all');
+        $filter = (string) $request->query('filter', 'waiting');
         $q = trim((string) $request->query('q', ''));
 
         $conversations = SupportConversation::query()
             ->with(['customer', 'user', 'assignedTo'])
-            ->whereNotIn('status', ['closed', 'resolved'])
+            ->when($filter === 'resolved', fn ($query) => $query->whereIn('status', ['closed', 'resolved']))
+            ->when($filter !== 'resolved', fn ($query) => $query->whereNotIn('status', ['closed', 'resolved']))
             ->when($filter === 'waiting', function ($query) {
                 $query->where(function ($q) {
                     $q->where('status', 'waiting')
@@ -59,9 +60,10 @@ class SupportWorkspaceController extends Controller
             ->when($filter === 'unread', function ($query) {
                 $query->whereHas('messages', fn ($m) => $m->whereNull('read_at')->whereIn('sender_type', ['customer', 'guest']));
             })
-            ->when($filter === 'cases', function ($query) {
-                $query->whereHas('tickets');
+            ->when($filter === 'active', function ($query) {
+                $query->whereNotNull('assigned_to')->whereIn('status', ['assigned', 'active']);
             })
+            ->when($filter === 'tickets', fn ($query) => $query->whereHas('tickets', fn ($t) => $t->whereNotIn('status', ['resolved', 'closed'])))
             ->when($q !== '', function ($query) use ($q) {
                 $like = '%'.$q.'%';
                 $query->where(function ($inner) use ($like, $q) {
@@ -80,8 +82,11 @@ class SupportWorkspaceController extends Controller
                     }
                 });
             })
-            ->orderByRaw("CASE WHEN needs_human = 1 AND assigned_to IS NULL THEN 0 WHEN needs_human = 1 THEN 1 ELSE 2 END")
-            ->latest('last_message_at')
+            ->when($filter === 'waiting', fn ($query) => $query->orderByRaw('COALESCE(waiting_since, created_at) asc'))
+            ->when($filter !== 'waiting', function ($query) {
+                $query->orderByRaw("CASE WHEN needs_human = 1 AND assigned_to IS NULL THEN 0 WHEN needs_human = 1 THEN 1 ELSE 2 END")
+                    ->latest('last_message_at');
+            })
             ->limit(80)
             ->get();
 
@@ -96,6 +101,9 @@ class SupportWorkspaceController extends Controller
             'filter' => $filter,
             'q' => $q,
             'agent' => $agent,
+            'queueKpis' => $this->workspace->queueKpis(),
+            'assignableAgents' => $this->workspace->assignableAgentsWithWorkload(),
+            'canPickAgent' => ! ($agent && $this->workspace->isAssignableSupportAgent($agent)),
             'quickReplies' => $this->quickReplies->all(),
             'quickReplyBodies' => collect($this->quickReplies->all())->mapWithKeys(
                 fn ($row) => [$row['key'] => $this->quickReplies->compose($row['key'], str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw', [], false)]
@@ -168,6 +176,9 @@ class SupportWorkspaceController extends Controller
             'filter' => $filter,
             'q' => $q,
             'agent' => $agent,
+            'queueKpis' => $this->workspace->queueKpis(),
+            'assignableAgents' => $this->workspace->assignableAgentsWithWorkload(),
+            'canPickAgent' => ! ($agent && $this->workspace->isAssignableSupportAgent($agent)),
             'quickReplies' => $this->quickReplies->all(),
             'quickReplyBodies' => collect($this->quickReplies->all())->mapWithKeys(function ($row) use ($locale, $supportConversation, $agent) {
                 $vars = [];
@@ -307,16 +318,35 @@ class SupportWorkspaceController extends Controller
 
     public function accept(Request $request, SupportConversation $supportConversation): RedirectResponse|\Illuminate\Http\JsonResponse
     {
+        $data = $request->validate([
+            'agent_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
         $agent = $this->workspace->actingAgent();
+        if (! empty($data['agent_id'])) {
+            $picked = \App\Models\User::query()->find((int) $data['agent_id']);
+            if ($picked && $this->workspace->isAssignableSupportAgent($picked)) {
+                $agent = $picked;
+            }
+        }
+
         if (! $agent || ! $this->workspace->isAssignableSupportAgent($agent)) {
-            $message = 'Select a Support staff member before Accept. Do not Accept while viewing All Support as Admin without a staff filter.';
+            // Admin in All Support: return assignable staff list instead of a dead-end error.
+            $options = $this->workspace->assignableAgentsWithWorkload();
+            $message = 'Choose a Support staff member to Accept this conversation.';
             if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                return response()->json(['ok' => false, 'error' => $message], 422);
+                return response()->json([
+                    'ok' => false,
+                    'error' => $message,
+                    'needs_agent' => true,
+                    'agents' => $options,
+                ], 422);
             }
 
             return redirect()
                 ->route('admin.support.inbox.show', $supportConversation)
-                ->with('error', $message);
+                ->with('error', $message)
+                ->with('assignableAgents', $options);
         }
 
         $this->conversations->accept($supportConversation, $agent);
@@ -337,6 +367,7 @@ class SupportWorkspaceController extends Controller
                 'assigned_to' => $agent->id,
                 'assigned_name' => $agent->name,
                 'messages' => $this->conversations->serializeMessages($supportConversation),
+                'redirect' => route('admin.support.inbox.show', $supportConversation),
             ]);
         }
 

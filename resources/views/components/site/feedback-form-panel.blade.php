@@ -3,20 +3,35 @@
     $openOnLoad = (bool) ($openOnLoad ?? false);
     $successMessage = session('status');
     $categoryOptions = collect($categories)->mapWithKeys(fn ($cat, $key) => [$key => $cat['label']])->all();
+    $authUser = auth()->user();
+    $authenticated = (bool) $authUser;
+    $customer = $authUser?->customer;
+    $authName = $authenticated
+        ? (trim((string) ($customer?->first_name.' '.$customer?->last_name)) ?: (string) $authUser->name)
+        : null;
+    $from = (string) ($from ?? request('from', ''));
+    $helpCenterUrl = match (true) {
+        $from === 'partner' || ($authUser && ! $customer && method_exists($authUser, 'vendor') && $authUser->vendor) => \Illuminate\Support\Facades\Route::has('site.partner.support')
+            ? route('site.partner.support')
+            : route('site.vendor.support'),
+        $authenticated && $customer => route('site.borrower.support'),
+        default => route('site.feedback'),
+    };
     $old = [
         'category' => old('category', ''),
-        'name' => old('name', auth()->user()?->name),
-        'email' => old('email', auth()->user()?->email),
-        'phone' => old('phone'),
+        'name' => old('name', $authName),
+        'email' => old('email', $authUser?->email),
+        'phone' => old('phone', $customer?->phone),
         'subject' => old('subject'),
         'message' => old('message'),
     ];
+    $isSuccess = filled($successMessage);
 @endphp
 
 <div
     x-data="{
-        open: {{ ($openOnLoad || $errors->any() || filled($successMessage)) ? 'true' : 'false' }},
-        phase: @js(filled($successMessage) ? 'done' : ($errors->any() ? 'form' : 'form')),
+        open: {{ ($openOnLoad || $errors->any() || $isSuccess) ? 'true' : 'false' }},
+        phase: @js($isSuccess ? 'done' : ($errors->any() ? 'form' : 'form')),
         category: @js($old['category']),
         typeOpen: false,
         categoryOptions: @js($categoryOptions),
@@ -25,7 +40,7 @@
         },
         openPanel() {
             this.open = true;
-            if (this.phase === 'done' && ! @js(filled($successMessage))) this.phase = 'form';
+            if (this.phase === 'done' && ! @js($isSuccess)) this.phase = 'form';
         },
         closePanel() { this.open = false; this.typeOpen = false; },
         goReview() {
@@ -46,6 +61,7 @@
         document.body.classList.toggle('overflow-hidden', open);
     "
     @keydown.escape.window="if (open) closePanel()"
+    @open-feedback.window="openPanel()"
 >
     @if ($showTrigger ?? true)
         <div class="text-center space-y-4">
@@ -89,9 +105,14 @@
                 </div>
 
                 <div class="flex-1 overflow-y-auto overscroll-contain px-5 py-4">
-                    <div x-show="phase === 'done'" class="space-y-4 text-center py-4">
+                    <div x-show="phase === 'done'" class="space-y-4 text-center py-6">
+                        <div class="mx-auto size-14 rounded-full bg-emerald-50 ring-1 ring-emerald-200 grid place-items-center text-2xl text-emerald-700">✓</div>
+                        <p class="text-base font-bold text-gray-900">{{ str_starts_with(app()->getLocale(), 'sw') ? 'Asante' : 'Thank you' }}</p>
                         <p class="text-sm text-emerald-800 font-semibold">{{ $successMessage ?: __('site.feedback.success') }}</p>
-                        <button type="button" class="rounded-xl bg-brand text-white px-5 py-2.5 text-sm font-bold" @click="goForm()">{{ __('site.feedback.submit') }}</button>
+                        <a href="{{ $helpCenterUrl }}"
+                           class="inline-flex rounded-xl bg-brand text-white px-5 py-2.5 text-sm font-bold">
+                            {{ str_starts_with(app()->getLocale(), 'sw') ? 'Rudi Kituo cha Usaidizi' : 'Back to Help Center' }}
+                        </a>
                     </div>
 
                     <div x-show="phase === 'form'">
@@ -101,10 +122,20 @@
                             </div>
                         @endif
 
-                        <form method="POST" action="{{ route('site.feedback.post') }}" class="space-y-4" x-ref="feedbackForm"
+                        <form method="POST" action="{{ route('site.feedback.post') }}" class="space-y-4" x-ref="feedbackForm" data-no-draft
                               @submit.prevent="goReview()">
                             @csrf
                             <input type="hidden" name="category" :value="category">
+                            @if ($from !== '')
+                                <input type="hidden" name="from" value="{{ $from }}">
+                            @endif
+                            @if ($authenticated)
+                                <input type="hidden" name="name" value="{{ $authName }}">
+                                <p class="text-xs text-slate-500">
+                                    {{ str_starts_with(app()->getLocale(), 'sw') ? 'Unawasilisha kama' : 'Submitting as' }}
+                                    <span class="font-semibold text-slate-700">{{ $authName }}</span>
+                                </p>
+                            @endif
 
                             <div class="relative">
                                 <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('site.feedback.choose_type') }}</label>
@@ -133,27 +164,29 @@
                                 </div>
                             </div>
 
-                            <div class="grid sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('site.feedback.name') }}</label>
-                                    <input name="name" value="{{ $old['name'] }}" required
-                                           class="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
+                            @unless ($authenticated)
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('site.feedback.name') }}</label>
+                                        <input name="name" value="{{ $old['name'] }}" required
+                                               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('site.feedback.email') }}</label>
+                                        <input type="email" name="email" value="{{ $old['email'] }}"
+                                               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('site.feedback.email') }}</label>
-                                    <input type="email" name="email" value="{{ $old['email'] }}"
-                                           class="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
-                                </div>
-                            </div>
 
-                            <x-site.phone-input
-                                name="phone"
-                                :label="__('site.feedback.phone')"
-                                :value="$old['phone']"
-                                variant="rounded"
-                                :allow-country-change="true"
-                                :help="false"
-                            />
+                                <x-site.phone-input
+                                    name="phone"
+                                    :label="__('site.feedback.phone')"
+                                    :value="$old['phone']"
+                                    variant="rounded"
+                                    :allow-country-change="true"
+                                    :help="false"
+                                />
+                            @endunless
 
                             <div>
                                 <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('site.feedback.subject') }}</label>

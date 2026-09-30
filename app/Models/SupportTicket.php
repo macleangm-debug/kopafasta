@@ -10,7 +10,14 @@ class SupportTicket extends Model
 {
     protected function casts(): array
     {
-        return ['resolved_at' => 'datetime'];
+        return [
+            'resolved_at' => 'datetime',
+            'first_response_at' => 'datetime',
+            'assigned_at' => 'datetime',
+            'escalated_at' => 'datetime',
+            'sla_due_at' => 'datetime',
+            'sla_warned_at' => 'datetime',
+        ];
     }
 
     public function customer(): BelongsTo

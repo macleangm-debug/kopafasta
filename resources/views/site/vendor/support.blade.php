@@ -18,7 +18,7 @@
         <div x-show="!human" x-cloak class="space-y-6">
             <section class="relative overflow-hidden rounded-3xl kf-premium-panel">
                 <div class="relative px-5 sm:px-8 py-7 sm:py-9">
-                    <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">Kopafasta Support</p>
+                    <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">{{ $isSw ? 'Kituo cha Usaidizi' : 'Help Center' }}</p>
                     <h1 class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-white">{{ $isSw ? 'Unahitaji msaada gani?' : 'How can we help?' }}</h1>
                     <form method="GET" action="{{ $homeUrl }}" class="mt-5 max-w-xl">
                         <input type="search" name="q" value="{{ $helpQuery }}"
@@ -92,8 +92,12 @@
             @endif
 
             <div class="grid sm:grid-cols-2 gap-3">
-                <a href="{{ $chatUrl }}" class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Ongea na Timu ya Usaidizi' : 'Talk to Support' }}</a>
-                <a href="{{ $feedbackUrl }}" class="rounded-2xl ring-1 ring-brand/20 text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</a>
+                @if ($supportConversation)
+                    <a href="{{ $chatUrl }}" class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Endelea mazungumzo' : 'Continue conversation' }}</a>
+                @else
+                    <a href="{{ $chatUrl }}" class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Ongea na Timu ya Usaidizi' : 'Talk to Support' }}</a>
+                @endif
+                <button type="button" @click="$dispatch('open-feedback')" class="rounded-2xl ring-1 ring-brand/20 text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</button>
             </div>
 
             <div class="grid sm:grid-cols-3 gap-3 text-sm">
@@ -109,7 +113,7 @@
 
         <div x-show="human" x-cloak class="max-w-2xl">
             <div class="mb-3">
-                <a href="{{ $homeUrl }}" class="text-sm font-semibold text-brand hover:underline">← {{ $isSw ? 'Rudi Support Home' : 'Back to Support Home' }}</a>
+                <a href="{{ $homeUrl }}" class="text-sm font-semibold text-brand hover:underline">← {{ $isSw ? 'Rudi Kituo cha Usaidizi' : 'Back to Help Center' }}</a>
             </div>
             <x-site.ai-support-chat
                 class="mb-4"
@@ -122,4 +126,11 @@
             />
         </div>
     </div>
+
+    <x-site.feedback-form-panel
+        :show-trigger="false"
+        :show-faq-link="false"
+        :open-on-load="request()->boolean('feedback') || filled(session('status'))"
+        from="partner"
+    />
 </x-site.vendor-layout>

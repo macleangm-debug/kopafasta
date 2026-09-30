@@ -1,14 +1,18 @@
 @php
     $filters = [
-        'all' => 'All',
-        'unread' => 'Unread',
         'waiting' => 'Waiting',
+        'active' => 'Active',
         'mine' => 'Mine',
-        'cases' => 'Cases',
+        'tickets' => 'Tickets',
+        'resolved' => 'Resolved',
     ];
     $locale = str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw';
     $quickReplyBodies = $quickReplyBodies ?? [];
     $specialistFollowUps = $specialistFollowUps ?? 0;
+    $queueKpis = $queueKpis ?? ['waiting_now' => 0, 'longest_waiting_seconds' => 0, 'accepted_today' => 0, 'active_now' => 0];
+    $assignableAgents = $assignableAgents ?? [];
+    $canPickAgent = $canPickAgent ?? false;
+    $isWaitingDesk = $conversation && ! $conversation->assigned_to;
     $seedMessages = [];
     if ($conversation) {
         foreach ($conversation->messages as $message) {
@@ -20,12 +24,17 @@
             ];
         }
     }
+    $longest = (int) ($queueKpis['longest_waiting_seconds'] ?? 0);
+    $longestLabel = sprintf('%02d:%02d', intdiv($longest, 60) % 60, $longest % 60);
+    if ($longest >= 3600) {
+        $longestLabel = sprintf('%02d:%02d:%02d', intdiv($longest, 3600), intdiv($longest, 60) % 60, $longest % 60);
+    }
 @endphp
 <x-admin.layout title="Inbox" heading="" subheading="">
     <x-admin.letterhead
         kicker="Customer Support"
         title="Support Inbox"
-        subtitle="Conversations · live chat · customer journey — one operational desk"
+        subtitle="Waiting queue · active chats · tickets — one operational desk"
     >
         <x-slot:actions>
             <a href="{{ route('admin.support.interactions.new') }}"
@@ -42,11 +51,24 @@
         <div class="mb-3 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-950">{{ session('status') }}</div>
     @endif
 
-    @if ($specialistFollowUps > 0)
-        <div class="mb-3 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
-            <span class="font-semibold">{{ $specialistFollowUps }}</span> specialist response(s) awaiting Support follow-up on open cases.
+    <div class="mb-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5">
+            <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Waiting now</p>
+            <p class="text-xl font-bold text-amber-950">{{ (int) $queueKpis['waiting_now'] }}</p>
         </div>
-    @endif
+        <div class="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2.5">
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Longest waiting</p>
+            <p class="text-xl font-bold text-slate-900 font-mono">{{ $longestLabel }}</p>
+        </div>
+        <div class="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2.5">
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Accepted today</p>
+            <p class="text-xl font-bold text-slate-900">{{ (int) $queueKpis['accepted_today'] }}</p>
+        </div>
+        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-3 py-2.5">
+            <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Active now</p>
+            <p class="text-xl font-bold text-emerald-950">{{ (int) $queueKpis['active_now'] }}</p>
+        </div>
+    </div>
 
     <div class="w-full rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden"
          x-data="supportInboxDesk(@js([
@@ -61,6 +83,10 @@
              'pollMs' => 2000,
              'deskState' => $serialized['desk_state'] ?? ($conversation ? ucfirst($conversation->status) : ''),
              'activePreview' => $serialized['preview'] ?? '',
+             'isWaiting' => (bool) $isWaitingDesk,
+             'canPickAgent' => (bool) $canPickAgent,
+             'agents' => $assignableAgents,
+             'selectedAgentId' => $canPickAgent ? '' : ($agent?->id ?? ''),
          ]))">
         {{-- Full Admin width · ~25% / 47% / 28% --}}
         <div class="grid lg:grid-cols-[minmax(14rem,0.95fr)_minmax(0,1.75fr)_minmax(14rem,1.05fr)] min-h-[36rem]">
@@ -97,10 +123,10 @@
                                 </div>
                                 <p class="text-sm text-slate-600 mt-0.5 truncate"
                                    @if (($activeId ?? null) === $item['id']) x-text="activePreview || @js($item['preview'] ?: 'No messages yet')" @endif>{{ $item['preview'] ?: 'No messages yet' }}</p>
-                                <p class="text-xs text-slate-500 mt-0.5">
+                                <p class="text-xs {{ ($item['waiting_label'] ?? null) ? 'text-amber-800 font-semibold' : 'text-slate-500' }} mt-0.5">
                                     <span @if (($activeId ?? null) === $item['id']) x-text="deskState || @js($item['desk_state'] ?? ucfirst($item['status']))" @endif>{{ $item['desk_state'] ?? ucfirst($item['status']) }}</span>
                                     @if ($item['waiting_label'] ?? null) · {{ $item['waiting_label'] }} @endif
-                                    <span class="text-slate-400"> · #{{ $item['id'] }}</span>
+                                    <span class="text-slate-400 font-normal"> · #{{ $item['id'] }}</span>
                                 </p>
                             </a>
                         </li>
@@ -126,87 +152,95 @@
                             <p class="text-xs text-red-700 mt-1" x-show="error" x-text="error" x-cloak></p>
                         </div>
                         <div class="flex flex-wrap gap-1.5 shrink-0">
-                            @if (! $conversation->assigned_to)
-                                <button type="button" @click="acceptConversation()" :disabled="sending"
-                                        class="rounded-lg ring-1 ring-brand/20 text-brand text-xs font-semibold px-3 py-1.5 hover:bg-brand-muted/40 disabled:opacity-60">Accept</button>
+                            @if ($isWaitingDesk)
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @if ($canPickAgent)
+                                        <select x-model="selectedAgentId" class="rounded-lg border-slate-200 text-xs max-w-[14rem]">
+                                            <option value="">Assign to…</option>
+                                            @foreach ($assignableAgents as $opt)
+                                                <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    @endif
+                                    <button type="button" @click="acceptConversation()" :disabled="sending"
+                                            class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95 disabled:opacity-60">Accept</button>
+                                </div>
+                            @else
+                                <div x-data="{ resolveOpen: false }" class="relative">
+                                    <button type="button" @click="resolveOpen = !resolveOpen"
+                                            class="rounded-lg ring-1 ring-emerald-200 text-emerald-800 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-50">Resolve</button>
+                                    <div x-show="resolveOpen" x-cloak @click.outside="resolveOpen = false"
+                                         class="absolute right-0 top-full mt-2 z-20 w-72 rounded-xl bg-white ring-1 ring-emerald-200 shadow-lg p-3 space-y-2">
+                                        <form method="POST" action="{{ route('admin.support.inbox.resolve', $conversation) }}"
+                                              onsubmit="event.preventDefault(); confirmForm(this, { title: 'Resolve conversation?', message: 'Member receives a resolution message and rating request. Next Talk to Support starts a new thread.' })">
+                                            @csrf
+                                            <label class="block text-[11px] font-semibold text-gray-700">Resolution category
+                                                <select name="resolution_category" required class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                    <option value="answered">Answered directly</option>
+                                                    <option value="guidance_provided">Guidance provided</option>
+                                                    <option value="technical_fixed">Technical fixed</option>
+                                                    <option value="payment_clarified">Payment clarified</option>
+                                                    <option value="application_clarified">Application clarified</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700 mt-2">Note (optional)
+                                                <textarea name="note" rows="2" maxlength="2000" class="mt-1 w-full rounded-lg border-gray-200 text-xs"></textarea>
+                                            </label>
+                                            <input type="hidden" name="ask_rating" value="1">
+                                            <button class="mt-2 w-full rounded-lg bg-emerald-700 text-white text-xs font-semibold px-3 py-2">Confirm resolve</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div x-data="{ caseOpen: false }" class="relative">
+                                    <button type="button" @click="caseOpen = !caseOpen"
+                                            class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95">Create ticket</button>
+                                    <div x-show="caseOpen" x-cloak @click.outside="caseOpen = false"
+                                         class="absolute right-0 top-full mt-2 z-20 w-80 rounded-xl bg-white ring-1 ring-brand/20 shadow-lg p-3 space-y-2">
+                                        <form method="POST" action="{{ route('admin.support.inbox.create-case', $conversation) }}" class="space-y-2"
+                                              onsubmit="event.preventDefault(); confirmForm(this, { title: 'Create follow-up ticket?', message: 'Use a ticket only when investigation or another department must own follow-up. Ordinary answers stay as conversation only.' })">
+                                            @csrf
+                                            <label class="block text-[11px] font-semibold text-gray-700">Subject
+                                                <input type="text" name="subject" value="{{ $conversation->topic }}" maxlength="180" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700">Category
+                                                <select name="category" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                    <option value="general">General</option>
+                                                    <option value="complaint">Complaint</option>
+                                                    <option value="technical">Technical</option>
+                                                    <option value="payment">Payment</option>
+                                                    <option value="loan">Loan</option>
+                                                    <option value="partner">Partner</option>
+                                                </select>
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700">Related record
+                                                <select name="related_type" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                    <option value="">None</option>
+                                                    <option value="application">Application</option>
+                                                    <option value="loan">Loan</option>
+                                                    <option value="payment">Payment</option>
+                                                    <option value="account">Profile / account</option>
+                                                </select>
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700">Related ID (optional)
+                                                <input type="number" name="related_id" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700">Priority
+                                                <select name="priority" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="low">Low</option>
+                                                    <option value="high">High</option>
+                                                    <option value="urgent">Urgent</option>
+                                                </select>
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700">Summary
+                                                <textarea name="body" rows="3" maxlength="5000" class="mt-1 w-full rounded-lg border-gray-200 text-xs"></textarea>
+                                            </label>
+                                            <button class="w-full rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2">Create ticket</button>
+                                        </form>
+                                    </div>
+                                </div>
                             @endif
-                            <div x-data="{ resolveOpen: false }" class="relative">
-                                <button type="button" @click="resolveOpen = !resolveOpen"
-                                        class="rounded-lg ring-1 ring-emerald-200 text-emerald-800 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-50">Resolve</button>
-                                <div x-show="resolveOpen" x-cloak @click.outside="resolveOpen = false"
-                                     class="absolute right-0 top-full mt-2 z-20 w-72 rounded-xl bg-white ring-1 ring-emerald-200 shadow-lg p-3 space-y-2">
-                                    <form method="POST" action="{{ route('admin.support.inbox.resolve', $conversation) }}"
-                                          onsubmit="event.preventDefault(); confirmForm(this, { title: 'Resolve conversation?', message: 'Member receives a resolution message and optional rating. Next Talk to Support starts a new thread. History is preserved.' })">
-                                        @csrf
-                                        <label class="block text-[11px] font-semibold text-gray-700">Resolution category
-                                            <select name="resolution_category" required class="mt-1 w-full rounded-lg border-gray-200 text-xs">
-                                                <option value="answered">Answered directly</option>
-                                                <option value="guidance_provided">Guidance provided</option>
-                                                <option value="technical_fixed">Technical fixed</option>
-                                                <option value="payment_clarified">Payment clarified</option>
-                                                <option value="application_clarified">Application clarified</option>
-                                                <option value="other">Other</option>
-                                            </select>
-                                        </label>
-                                        <label class="block text-[11px] font-semibold text-gray-700 mt-2">Note (optional)
-                                            <textarea name="note" rows="2" maxlength="2000" class="mt-1 w-full rounded-lg border-gray-200 text-xs"></textarea>
-                                        </label>
-                                        <label class="inline-flex items-center gap-2 text-[11px] text-gray-700 mt-2">
-                                            <input type="checkbox" name="ask_rating" value="1" checked class="rounded border-gray-300 text-brand">
-                                            Ask 1–5 rating
-                                        </label>
-                                        <button class="mt-2 w-full rounded-lg bg-emerald-700 text-white text-xs font-semibold px-3 py-2">Confirm resolve</button>
-                                    </form>
-                                </div>
-                            </div>
-                            <div x-data="{ caseOpen: false }" class="relative">
-                                <button type="button" @click="caseOpen = !caseOpen"
-                                        class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95">Create case</button>
-                                <div x-show="caseOpen" x-cloak @click.outside="caseOpen = false"
-                                     class="absolute right-0 top-full mt-2 z-20 w-80 rounded-xl bg-white ring-1 ring-brand/20 shadow-lg p-3 space-y-2">
-                                    <form method="POST" action="{{ route('admin.support.inbox.create-case', $conversation) }}" class="space-y-2"
-                                          onsubmit="event.preventDefault(); confirmForm(this, { title: 'Create follow-up case?', message: 'Use a case only when investigation or another department must own follow-up. Ordinary answers should stay as conversation only.' })">
-                                        @csrf
-                                        <label class="block text-[11px] font-semibold text-gray-700">Subject
-                                            <input type="text" name="subject" value="{{ $conversation->topic }}" maxlength="180" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
-                                        </label>
-                                        <label class="block text-[11px] font-semibold text-gray-700">Category
-                                            <select name="category" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
-                                                <option value="general">General</option>
-                                                <option value="complaint">Complaint</option>
-                                                <option value="technical">Technical</option>
-                                                <option value="payment">Payment</option>
-                                                <option value="loan">Loan</option>
-                                                <option value="partner">Partner</option>
-                                            </select>
-                                        </label>
-                                        <label class="block text-[11px] font-semibold text-gray-700">Related record
-                                            <select name="related_type" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
-                                                <option value="">None</option>
-                                                <option value="application">Application</option>
-                                                <option value="loan">Loan</option>
-                                                <option value="payment">Payment</option>
-                                                <option value="account">Profile / account</option>
-                                            </select>
-                                        </label>
-                                        <label class="block text-[11px] font-semibold text-gray-700">Related ID (optional)
-                                            <input type="number" name="related_id" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
-                                        </label>
-                                        <label class="block text-[11px] font-semibold text-gray-700">Priority
-                                            <select name="priority" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
-                                                <option value="normal">Normal</option>
-                                                <option value="low">Low</option>
-                                                <option value="high">High</option>
-                                                <option value="urgent">Urgent</option>
-                                            </select>
-                                        </label>
-                                        <label class="block text-[11px] font-semibold text-gray-700">Summary
-                                            <textarea name="body" rows="3" maxlength="5000" class="mt-1 w-full rounded-lg border-gray-200 text-xs" placeholder="Prefill from conversation if blank"></textarea>
-                                        </label>
-                                        <button class="w-full rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2">Create case</button>
-                                    </form>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -222,32 +256,39 @@
                         <p class="text-sm text-slate-500 text-center py-10" x-show="!messages.length">No messages yet.</p>
                     </div>
 
-                    <div class="border-t border-slate-200/80 p-4 space-y-3 bg-white">
-                        @if (! empty($quickReplies))
-                            <div x-data="{ tq: '', replies: @js(collect($quickReplies)->map(fn ($qr) => [
-                                'key' => $qr['key'],
-                                'group' => $qr['group'] ?? '',
-                                'label' => $qr['label_'.$locale] ?? $qr['label_sw'],
-                            ])->values()) }" class="space-y-2">
-                                <input type="search" x-model="tq" placeholder="Search templates (SW/EN)…"
-                                       class="w-full rounded-lg border-slate-200 text-xs">
-                                <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                                    <template x-for="qr in replies.filter(r => !tq || (r.label + ' ' + r.group + ' ' + r.key).toLowerCase().includes(tq.toLowerCase()))" :key="qr.key">
-                                        <button type="button" @click="insertQuick(qr.key)"
-                                                class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-muted"
-                                                x-text="qr.label"></button>
-                                    </template>
+                    @if ($isWaitingDesk)
+                        <div class="border-t border-amber-200/80 p-4 bg-amber-50/80">
+                            <p class="text-sm font-semibold text-amber-950">Waiting queue</p>
+                            <p class="text-xs text-amber-900/80 mt-1">Accept this conversation before reply, templates, or resolution tools appear. Customer sees staged waiting messages only — not an agent yet.</p>
+                        </div>
+                    @else
+                        <div class="border-t border-slate-200/80 p-4 space-y-3 bg-white">
+                            @if (! empty($quickReplies))
+                                <div x-data="{ tq: '', replies: @js(collect($quickReplies)->map(fn ($qr) => [
+                                    'key' => $qr['key'],
+                                    'group' => $qr['group'] ?? '',
+                                    'label' => $qr['label_'.$locale] ?? $qr['label_sw'],
+                                ])->values()) }" class="space-y-2">
+                                    <input type="search" x-model="tq" placeholder="Search templates (SW/EN)…"
+                                           class="w-full rounded-lg border-slate-200 text-xs">
+                                    <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                        <template x-for="qr in replies.filter(r => !tq || (r.label + ' ' + r.group + ' ' + r.key).toLowerCase().includes(tq.toLowerCase()))" :key="qr.key">
+                                            <button type="button" @click="insertQuick(qr.key)"
+                                                    class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-muted"
+                                                    x-text="qr.label"></button>
+                                        </template>
+                                    </div>
                                 </div>
-                            </div>
-                        @endif
-                        <form @submit.prevent="sendReply()" class="flex gap-3 items-end">
-                            <textarea name="body" x-model="draft" x-ref="composer" rows="3" required maxlength="5000"
-                                      placeholder="Write a reply… quick replies insert here for edit before send"
-                                      class="flex-1 min-h-[4.5rem] rounded-xl border-slate-200 text-base focus:ring-brand/30"></textarea>
-                            <button type="submit" :disabled="sending || !draft.trim()"
-                                    class="shrink-0 rounded-xl bg-brand-gold text-brand font-semibold text-sm px-5 py-3 hover:brightness-95 disabled:opacity-60">Send</button>
-                        </form>
-                    </div>
+                            @endif
+                            <form @submit.prevent="sendReply()" class="flex gap-3 items-end">
+                                <textarea name="body" x-model="draft" x-ref="composer" rows="3" required maxlength="5000"
+                                          placeholder="Write a reply… templates insert here for edit before send"
+                                          class="flex-1 min-h-[4.5rem] rounded-xl border-slate-200 text-base focus:ring-brand/30"></textarea>
+                                <button type="submit" :disabled="sending || !draft.trim()"
+                                        class="shrink-0 rounded-xl bg-brand-gold text-brand font-semibold text-sm px-5 py-3 hover:brightness-95 disabled:opacity-60">Send</button>
+                            </form>
+                        </div>
+                    @endif
                 @else
                     <div class="flex-1 grid place-items-center px-6 py-16 text-center bg-[#f7f8fa]">
                         <div>
@@ -307,13 +348,13 @@
                     @endif
 
                     <div class="text-sm space-y-1.5">
-                        <p class="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">Open cases ({{ count($context['open_cases'] ?? []) }})</p>
+                        <p class="text-[11px] uppercase tracking-widest text-slate-500 font-semibold">Open tickets ({{ count($context['open_cases'] ?? []) }})</p>
                         @forelse ($context['open_cases'] ?? [] as $case)
                             <a href="{{ $case['url'] }}" class="block font-semibold text-brand hover:underline">{{ $case['number'] }} · {{ $case['subject'] }}</a>
                         @empty
                             <p class="text-slate-400">None</p>
                         @endforelse
-                        <p class="text-[11px] uppercase tracking-widest text-slate-500 font-semibold pt-2">Previous cases ({{ count($context['previous_cases'] ?? []) }})</p>
+                        <p class="text-[11px] uppercase tracking-widest text-slate-500 font-semibold pt-2">Previous tickets ({{ count($context['previous_cases'] ?? []) }})</p>
                         @forelse ($context['previous_cases'] ?? [] as $case)
                             <a href="{{ $case['url'] }}" class="block text-slate-600 hover:underline">{{ $case['number'] }} · {{ $case['subject'] }}</a>
                         @empty
@@ -345,6 +386,10 @@
                         error: '',
                         deskState: config.deskState || '',
                         activePreview: config.activePreview || '',
+                        isWaiting: !!config.isWaiting,
+                        canPickAgent: !!config.canPickAgent,
+                        agents: Array.isArray(config.agents) ? config.agents : [],
+                        selectedAgentId: config.selectedAgentId || '',
                         unreadBadge: 0,
                         _timer: null,
                         csrfToken() {
@@ -411,9 +456,15 @@
                         },
                         async acceptConversation() {
                             if (!this.acceptUrl || this.sending) return;
+                            if (this.canPickAgent && !this.selectedAgentId) {
+                                this.error = 'Select a Support staff member before Accept.';
+                                return;
+                            }
                             this.sending = true;
                             this.error = '';
                             try {
+                                var payload = {};
+                                if (this.selectedAgentId) payload.agent_id = Number(this.selectedAgentId);
                                 var res = await fetch(this.acceptUrl, {
                                     method: 'POST',
                                     headers: {
@@ -423,16 +474,22 @@
                                         'X-Requested-With': 'XMLHttpRequest',
                                     },
                                     credentials: 'same-origin',
-                                    body: JSON.stringify({}),
+                                    body: JSON.stringify(payload),
                                 });
                                 var data = await res.json().catch(function () { return {}; });
                                 if (!res.ok || !data.ok) {
                                     this.error = data.error || 'Accept failed. Select a Support staff member first.';
                                     return;
                                 }
+                                if (data.redirect) {
+                                    window.location = data.redirect;
+                                    return;
+                                }
                                 this.messages = this.mapMessages(data.messages || []);
                                 this.deskState = 'Assigned';
+                                this.isWaiting = false;
                                 this.scrollBottom();
+                                window.location.reload();
                             } catch (e) {
                                 this.error = 'Accept failed. Try again.';
                             } finally {

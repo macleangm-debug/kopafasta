@@ -62,7 +62,7 @@ class SupportOpsUxFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('site.borrower.support'))
             ->assertOk()
-            ->assertSee('Kopafasta Support', false)
+            ->assertSee('Kituo cha Usaidizi', false)
             ->assertSee('Ongea na Timu ya Usaidizi', false)
             ->assertSee('HOW TO', false);
     }
@@ -280,7 +280,7 @@ class SupportOpsUxFeatureTest extends TestCase
         $this->assertNull($presence['agent_first_name']);
         $this->assertSame('online', $presence['presence']);
         $this->assertStringContainsString('Waiting', $presence['desk_label']);
-        $this->assertTrue($second->messages()->where('body', 'like', 'Ujumbe wako umepokelewa%')->exists());
+        $this->assertTrue($second->messages()->where('body', 'like', 'Tumepokea ujumbe wako%')->exists());
     }
 
     public function test_member_chat_presence_shows_assigned_agent_first_name(): void
@@ -492,5 +492,107 @@ class SupportOpsUxFeatureTest extends TestCase
 
         $this->get(route('admin.support.notifications'))
             ->assertRedirect(route('admin.support.inbox'));
+    }
+
+    public function test_waiting_conversation_exposes_accept_only(): void
+    {
+        $admin = $this->admin();
+        $agent = $this->agent();
+        [$user, $customer] = $this->member();
+        $conversation = app(SupportConversationService::class)->requestHuman($customer, $user, 'Queue me');
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+
+        $waiting = $this->get(route('admin.support.inbox.show', $conversation))
+            ->assertOk()
+            ->assertSee('Accept', false)
+            ->assertSee('Waiting now', false)
+            ->assertSee('Assign to…', false)
+            ->getContent();
+
+        $this->assertStringContainsString('Waiting queue', $waiting);
+        $this->assertStringNotContainsString('>Create ticket</button>', $waiting);
+        $this->assertStringNotContainsString('Write a reply… templates insert here', $waiting);
+
+        $this->postJson(route('admin.support.inbox.accept', $conversation), [
+            'agent_id' => $agent->id,
+        ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('assigned_to', $agent->id);
+
+        $this->assertSame($agent->id, (int) $conversation->fresh()->assigned_to);
+
+        $active = $this->get(route('admin.support.inbox.show', $conversation->fresh()))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('>Create ticket</button>', $active);
+        $this->assertStringContainsString('Resolve</button>', $active);
+        $this->assertStringContainsString('Write a reply… templates insert here', $active);
+        $this->assertStringContainsString('Search templates', $active);
+    }
+
+    public function test_create_ticket_uses_kpf_tkt_number_and_sla(): void
+    {
+        $admin = $this->admin();
+        $agent = $this->agent();
+        [$user, $customer] = $this->member();
+        $conversation = app(SupportConversationService::class)->requestHuman($customer, $user, 'Long issue');
+        app(SupportConversationService::class)->accept($conversation, $agent);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+        $this->post(route('admin.role-view.select-staff'), ['staff_id' => $agent->id]);
+
+        $this->post(route('admin.support.inbox.create-case', $conversation), [
+            'subject' => 'Needs investigation',
+            'priority' => 'urgent',
+            'category' => 'payment',
+        ])->assertRedirect();
+
+        $ticket = SupportTicket::query()->where('support_conversation_id', $conversation->id)->latest('id')->first();
+        $this->assertNotNull($ticket);
+        $this->assertMatchesRegularExpression('/^KPF-TKT-\d{6}$/', (string) $ticket->ticket_number);
+        $this->assertNotNull($ticket->sla_due_at);
+
+        $sla = app(SupportTicketService::class)->slaStatus($ticket);
+        $this->assertContains($sla['state'], ['on_track', 'warning']);
+
+        $this->get(route('admin.support-tickets.show', $ticket))
+            ->assertOk()
+            ->assertSee($ticket->ticket_number, false)
+            ->assertSee('Ticket', false)
+            ->assertSee('Conversation', false)
+            ->assertSee('Activity', false)
+            ->assertDontSee('>Reply</button>', false);
+    }
+
+    public function test_resolve_always_requests_rating_and_stores_stars(): void
+    {
+        $admin = $this->admin();
+        $agent = $this->agent();
+        [$user, $customer] = $this->member();
+        $svc = app(SupportConversationService::class);
+        $conversation = $svc->requestHuman($customer, $user, 'Done soon');
+        $svc->accept($conversation, $agent);
+        $svc->resolve($conversation, $agent, null, 'answered', true);
+
+        $conversation->refresh();
+        $this->assertSame('resolved', $conversation->status);
+        $this->assertTrue(
+            $conversation->messages()->where('body', 'like', '%nyota 1–5%')->exists()
+            || $conversation->messages()->where('body', 'like', '%nyota 1-5%')->exists()
+        );
+
+        $this->actingAs($user)
+            ->postJson(route('site.borrower.support.conversation.rate', $conversation), [
+                'rating' => 5,
+                'comment' => 'Vizuri sana',
+            ])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $this->assertSame(5, (int) $conversation->fresh()->rating);
     }
 }

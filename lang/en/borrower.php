@@ -164,7 +164,7 @@ return [
         'refunds' => 'Refunds',
         'notifications' => 'Notifications',
         'guarantor_notifications' => 'Guarantor inbox',
-        'support' => 'Support',
+        'support' => 'Help Center',
         'profile' => 'Profile',
         'settings' => 'Settings',
     ],
@@ -3589,7 +3589,7 @@ return [
             'collaterals' => 'My collaterals',
             'referral' => 'Referrals',
             'statements' => 'Loan statements',
-            'support' => 'Support',
+            'support' => 'Help Center',
         ],
         'quick_actions_title' => 'Quick actions',
         'snapshot' => [

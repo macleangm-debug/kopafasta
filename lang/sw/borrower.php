@@ -159,7 +159,7 @@ return [
         'payments' => 'Malipo',
         'notifications' => 'Arifa',
         'guarantor_notifications' => 'Arifa za mdhamini',
-        'support' => 'Msaada',
+        'support' => 'Kituo cha Usaidizi',
         'profile' => 'Wasifu',
         'settings' => 'Mipangilio',
         'refunds' => 'Rudisho',
@@ -3231,7 +3231,7 @@ return [
             'collaterals' => 'Dhamana',
             'referral' => 'Rufaa',
             'statements' => 'Taarifa',
-            'support' => 'Msaada',
+            'support' => 'Kituo cha Usaidizi',
         ],
         'quick_actions_title' => 'Hatua za haraka',
         'snapshot' => [

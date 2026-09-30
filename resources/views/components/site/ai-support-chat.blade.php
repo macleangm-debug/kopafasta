@@ -9,6 +9,8 @@
     'conversation' => null,
     'showBackToFaqs' => false,
     'backToFaqsLabel' => null,
+    'showRating' => false,
+    'ratingUrl' => null,
 ])
 
 @php
@@ -26,7 +28,7 @@
                 'id' => (int) ($m->id ?? 0) ?: null,
                 'role' => in_array($m->sender_type ?? '', ['staff', 'bot'], true) ? 'bot' : 'user',
                 'text' => (string) ($m->body ?? ''),
-                'time' => $m->created_at?->format('H:i'),
+                'time' => $m->created_at ? format_app_datetime($m->created_at, 'H:i') : null,
             ];
         }
     }
@@ -36,6 +38,7 @@
     $shellClass = $forceHuman
         ? 'overflow-hidden rounded-2xl ring-1 ring-brand/15 shadow-sm bg-white max-w-2xl'
         : 'glass-card p-5 sm:p-6 max-w-2xl';
+    $isSw = str_starts_with(app()->getLocale(), 'sw');
 @endphp
 
 <div {{ $attributes->merge(['class' => $shellClass]) }}
@@ -68,6 +71,12 @@
          'brandTitle' => 'Kopafasta Support',
          'assignedSuffix' => 'Customer Support',
          'deskLabel' => $presence['desk_label'] ?? 'Waiting for support',
+         'showRating' => (bool) $showRating,
+         'ratingUrl' => $ratingUrl,
+         'ratingThanks' => $isSw ? 'Asante kwa tathmini yako.' : 'Thank you for your rating.',
+         'ratingPrompt' => $isSw ? 'Tathmini huduma yetu' : 'Rate our support',
+         'ratingCommentPh' => $isSw ? 'Maoni (si lazima)' : 'Comment (optional)',
+         'ratingSend' => $isSw ? 'Tuma tathmini' : 'Submit rating',
      ]))">
     @if ($forceHuman)
         {{-- Premium live-support header — compact; no phone/website --}}
@@ -129,7 +138,28 @@
         <p class="text-sm text-red-700" x-show="sendError" x-text="sendError" x-cloak></p>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips">
+    <div x-show="showRating && !ratingDone" x-cloak class="mb-4 rounded-2xl bg-gradient-to-br from-amber-50 to-white ring-1 ring-amber-200/80 p-4 space-y-3">
+        <p class="text-sm font-bold text-amber-950" x-text="config.ratingPrompt"></p>
+        <div class="flex items-center justify-center gap-1.5" role="radiogroup" aria-label="Rating">
+            <template x-for="n in [1,2,3,4,5]" :key="'star-'+n">
+                <button type="button" @click="rating = n" @mouseenter="hoverStar = n" @mouseleave="hoverStar = 0"
+                        class="text-3xl leading-none transition transform hover:scale-110 focus:outline-none"
+                        :class="(hoverStar || rating) >= n ? 'text-amber-400' : 'text-slate-300'"
+                        :aria-checked="rating === n" role="radio">★</button>
+            </template>
+        </div>
+        <textarea x-model="ratingComment" rows="2" maxlength="500" :placeholder="config.ratingCommentPh"
+                  class="w-full rounded-xl border-amber-200/80 text-sm focus:ring-amber-300/40"></textarea>
+        <button type="button" @click="submitRating()" :disabled="!rating || ratingSending"
+                class="w-full rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
+                x-text="config.ratingSend"></button>
+    </div>
+    <div x-show="ratingDone" x-cloak class="mb-4 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-5 text-center space-y-1">
+        <p class="text-2xl text-amber-400 tracking-widest" x-text="'★'.repeat(rating || 5)"></p>
+        <p class="text-sm font-bold text-emerald-950" x-text="config.ratingThanks"></p>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips && !showRating">
         <template x-for="suggestion in config.suggestions" :key="suggestion">
             <button type="button" @click="askSuggestion(suggestion)" :disabled="typing"
                     class="text-sm px-3 py-1.5 rounded-full bg-brand-muted/80 text-brand hover:bg-brand/10 transition disabled:opacity-50"
@@ -148,7 +178,7 @@
         </div>
     </div>
 
-    <form @submit.prevent="ask" class="flex gap-2">
+    <form @submit.prevent="ask" class="flex gap-2" x-show="!(showRating && !ratingDone)">
         <input type="text" x-model="input" :disabled="typing"
                placeholder="{{ __('site.support.chat_placeholder') }}"
                class="flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-base focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60">
@@ -187,6 +217,13 @@
                         conversationId: config.conversationId || null,
                         agentFirstName: config.agentFirstName || null,
                         presence: config.presence || 'online',
+                        showRating: !!config.showRating,
+                        ratingUrl: config.ratingUrl || null,
+                        rating: 0,
+                        hoverStar: 0,
+                        ratingComment: '',
+                        ratingSending: false,
+                        ratingDone: false,
                         _timer: null,
                         csrfToken() {
                             var meta = document.querySelector('meta[name="csrf-token"]');
@@ -249,6 +286,37 @@
                                     this.scrollBottom();
                                 }
                             } catch (e) { /* keep polling */ }
+                        },
+                        async submitRating() {
+                            if (!this.ratingUrl || !this.rating || this.ratingSending) return;
+                            this.ratingSending = true;
+                            this.sendError = '';
+                            var self = this;
+                            try {
+                                var res = await fetch(this.ratingUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': this.csrfToken(),
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify({ rating: this.rating, comment: this.ratingComment || null }),
+                                });
+                                var data = {};
+                                try { data = await res.json(); } catch (e) { data = {}; }
+                                if (!res.ok || data.ok === false) {
+                                    self.sendError = data.message || data.error || 'Rating failed.';
+                                    return;
+                                }
+                                self.ratingDone = true;
+                                self.showRating = false;
+                            } catch (e) {
+                                self.sendError = 'Rating failed. Try again.';
+                            } finally {
+                                self.ratingSending = false;
+                            }
                         },
                         matchReply(q) {
                             var lower = q.toLowerCase();

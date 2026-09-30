@@ -43,14 +43,14 @@ class SupportTicketService
 
     public const TICKET_PREFIX_KEY = 'support.ticket_number_prefix';
 
-    public const TICKET_PREFIX_DEFAULT = 'SUP';
+    public const TICKET_PREFIX_DEFAULT = 'KPF-TKT';
 
     public function __construct(
         private readonly AuditService $audit,
     ) {}
 
     /**
-     * Settings-backed readable ticket number, e.g. SUP-2026-000001.
+     * Settings-backed readable ticket number, e.g. KPF-TKT-000001.
      * Optional explicit override kept for internal callers (rewards, migrations).
      */
     public function nextTicketNumber(?string $explicit = null): string
@@ -61,18 +61,15 @@ class SupportTicketService
         }
 
         $prefix = strtoupper(trim((string) Setting::get(self::TICKET_PREFIX_KEY, self::TICKET_PREFIX_DEFAULT)));
-        if ($prefix === '') {
+        if ($prefix === '' || $prefix === 'SUP') {
             $prefix = self::TICKET_PREFIX_DEFAULT;
         }
 
-        $year = now()->format('Y');
-        $stem = $prefix.'-'.$year.'-';
-        $seqKey = 'support.ticket_number_seq.'.$year;
-
+        $seqKey = 'support.ticket_number_seq.kpf';
         $seq = (int) Setting::get($seqKey, 0);
         do {
             $seq++;
-            $candidate = $stem.str_pad((string) $seq, 6, '0', STR_PAD_LEFT);
+            $candidate = $prefix.'-'.str_pad((string) $seq, 6, '0', STR_PAD_LEFT);
         } while (SupportTicket::query()->where('ticket_number', $candidate)->exists());
 
         Setting::set($seqKey, $seq);
@@ -127,6 +124,7 @@ class SupportTicketService
                 'source' => $payload['source'] ?? 'admin',
                 'contact_kind' => $contactKind,
                 'assigned_to' => $payload['assigned_to'] ?? null,
+                'assigned_at' => ! empty($payload['assigned_to']) ? now() : null,
                 'escalated_to_role' => $payload['escalated_to_role'] ?? null,
                 'subject' => $subject,
                 'description' => (string) ($payload['description'] ?? ''),
@@ -136,6 +134,7 @@ class SupportTicketService
                 'resolved_at' => $payload['resolved_at'] ?? null,
                 'resolution_notes' => $payload['resolution_notes'] ?? null,
                 'resolution_type' => $payload['resolution_type'] ?? null,
+                'sla_due_at' => $payload['sla_due_at'] ?? $this->slaDueAtForPriority($priority),
             ]);
 
             $actor = ($payload['actor'] ?? null) instanceof User ? $payload['actor'] : null;
@@ -308,6 +307,7 @@ class SupportTicketService
     ): SupportTicket {
         $ticket->update([
             'escalated_to_role' => $role,
+            'escalated_at' => now(),
             'status' => in_array($ticket->status, ['resolved', 'closed'], true) ? 'in_progress' : $ticket->status,
             'priority' => $ticket->priority === 'low' ? 'high' : $ticket->priority,
         ]);
@@ -443,6 +443,81 @@ class SupportTicketService
             'technical',
             'manager',
             'admin',
+        ];
+    }
+
+    /**
+     * Settings-backed SLA due time from priority.
+     * Keys: support.sla.minutes.{priority} — defaults urgent 120, high 240, normal 480, low 1440.
+     */
+    public function slaDueAtForPriority(string $priority): \Carbon\CarbonInterface
+    {
+        $defaults = [
+            'urgent' => 120,
+            'high' => 240,
+            'normal' => 480,
+            'low' => 1440,
+        ];
+        $minutes = (int) Setting::get(
+            'support.sla.minutes.'.$priority,
+            $defaults[$priority] ?? $defaults['normal']
+        );
+
+        return now()->addMinutes(max(15, $minutes));
+    }
+
+    /**
+     * @return array{label: string, state: string, due_in: ?string, overdue_by: ?string}
+     */
+    public function slaStatus(SupportTicket $ticket): array
+    {
+        if (in_array($ticket->status, ['resolved', 'closed'], true)) {
+            $elapsed = $ticket->resolved_at && $ticket->created_at
+                ? $ticket->created_at->diff($ticket->resolved_at)->format('%H:%I')
+                : null;
+
+            return [
+                'label' => 'Resolved'.($elapsed ? ' · '.$elapsed : ''),
+                'state' => 'resolved',
+                'due_in' => null,
+                'overdue_by' => null,
+            ];
+        }
+
+        $due = $ticket->sla_due_at;
+        if (! $due) {
+            return ['label' => 'On track', 'state' => 'on_track', 'due_in' => null, 'overdue_by' => null];
+        }
+
+        $now = now();
+        if ($due->isPast()) {
+            $over = $due->diff($now);
+
+            return [
+                'label' => 'Overdue by '.$over->format('%H:%I'),
+                'state' => 'overdue',
+                'due_in' => null,
+                'overdue_by' => $over->format('%H:%I'),
+            ];
+        }
+
+        $remaining = $now->diffInMinutes($due);
+        $total = max(1, $ticket->created_at?->diffInMinutes($due) ?: 480);
+        $warningPct = (float) Setting::get('support.sla.warning_percent', 80);
+        if (($remaining / $total) * 100 <= (100 - $warningPct) || $remaining <= 60) {
+            return [
+                'label' => 'Warning · Due in '.$now->diff($due)->format('%H:%I'),
+                'state' => 'warning',
+                'due_in' => $now->diff($due)->format('%H:%I'),
+                'overdue_by' => null,
+            ];
+        }
+
+        return [
+            'label' => 'On track · Due in '.$now->diff($due)->format('%H:%I'),
+            'state' => 'on_track',
+            'due_in' => $now->diff($due)->format('%H:%I'),
+            'overdue_by' => null,
         ];
     }
 

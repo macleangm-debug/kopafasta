@@ -128,6 +128,62 @@ class CustomerSupportWorkspaceService
         return $this->roleView->workspaceStaffOptions();
     }
 
+    /** @return list<array{id: int, name: string, subtitle: string, active_count: int, label: string}> */
+    public function assignableAgentsWithWorkload(): array
+    {
+        $agents = $this->roleView->workspaceStaffOptions();
+        $rows = [];
+        foreach ($agents as $opt) {
+            $id = (int) ($opt['id'] ?? 0);
+            if ($id < 1) {
+                continue;
+            }
+            $active = SupportConversation::query()
+                ->where('assigned_to', $id)
+                ->whereIn('status', ['assigned', 'active'])
+                ->count();
+            $name = (string) ($opt['name'] ?? 'Agent');
+            $rows[] = [
+                'id' => $id,
+                'name' => $name,
+                'subtitle' => (string) ($opt['subtitle'] ?? ''),
+                'active_count' => $active,
+                'label' => $name.' · '.$active.' active',
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array{waiting_now: int, longest_waiting_seconds: int, accepted_today: int, active_now: int}
+     */
+    public function queueKpis(): array
+    {
+        $waiting = SupportConversation::query()
+            ->where('status', 'waiting')
+            ->whereNull('assigned_to')
+            ->get(['id', 'waiting_since', 'created_at', 'last_message_at']);
+
+        $longest = 0;
+        foreach ($waiting as $row) {
+            $since = $row->waiting_since ?? $row->created_at ?? now();
+            $longest = max($longest, $since->diffInSeconds(now()));
+        }
+
+        return [
+            'waiting_now' => $waiting->count(),
+            'longest_waiting_seconds' => $longest,
+            'accepted_today' => SupportConversation::query()
+                ->whereDate('accepted_at', now()->toDateString())
+                ->count(),
+            'active_now' => SupportConversation::query()
+                ->whereIn('status', ['assigned', 'active'])
+                ->whereNotNull('assigned_to')
+                ->count(),
+        ];
+    }
+
     public function availability(?User $agent = null): string
     {
         $agent ??= $this->actingAgent();
@@ -418,7 +474,10 @@ class CustomerSupportWorkspaceService
             $name = $isMember ? 'Member' : 'Guest / Non-member';
         }
 
-        $waitingSince = $conversation->last_message_at ?? $conversation->updated_at ?? $conversation->created_at;
+        $waitingSince = $conversation->waiting_since
+            ?? $conversation->last_message_at
+            ?? $conversation->updated_at
+            ?? $conversation->created_at;
         $unread = $conversation->messages()
             ->whereNull('read_at')
             ->whereIn('sender_type', ['customer', 'guest'])
@@ -426,6 +485,7 @@ class CustomerSupportWorkspaceService
 
         $preview = preg_replace('/\s+/', ' ', (string) ($last?->body ?? '')) ?? '';
         $desk = app(SupportConversationService::class)->deskState($conversation);
+        $isWaiting = $desk === 'Waiting' && ! $conversation->assigned_to;
 
         return [
             'id' => $conversation->id,
@@ -440,9 +500,11 @@ class CustomerSupportWorkspaceService
             'needs_human' => (bool) $conversation->needs_human,
             'unread' => $unread,
             'assigned_to' => $conversation->assigned_to,
-            'waiting_label' => ($desk === 'Waiting' && $waitingSince)
-                ? $waitingSince->diffForHumans(null, true).' waiting'
+            'is_waiting' => $isWaiting,
+            'waiting_label' => $isWaiting
+                ? 'Waiting '.app(SupportConversationService::class)->waitingDurationLabel($conversation)
                 : null,
+            'waiting_since' => $waitingSince?->toIso8601String(),
             'url' => route('admin.support.inbox.show', $conversation),
             'member_url' => $conversation->customer_id
                 ? route('admin.customers.show', $conversation->customer_id)

@@ -142,12 +142,14 @@ class SupportTicketController extends ResourceController
 
         $quickReplies = app(\App\Services\Support\SupportQuickReplyService::class)->all();
         $escalationRoles = $this->tickets->escalationRoles();
+        $sla = $this->tickets->slaStatus($record);
 
         return view("admin.{$this->viewFolder}.show", [
             'record' => $record,
             'context' => $context,
             'quickReplies' => $quickReplies,
             'escalationRoles' => $escalationRoles,
+            'sla' => $sla,
             'supportShell' => true,
         ]);
     }
@@ -181,7 +183,7 @@ class SupportTicketController extends ResourceController
             $request->boolean('notify_member', true),
         );
 
-        return back()->with('status', 'Case escalated to '.$data['escalated_to_role'].'. Support remains customer contact.');
+        return back()->with('status', 'Ticket escalated to '.$data['escalated_to_role'].'. Support remains customer contact.');
     }
 
     public function resolve(Request $request, SupportTicket $support_ticket)
@@ -198,7 +200,7 @@ class SupportTicketController extends ResourceController
             'invite_rating' => $request->boolean('invite_rating', true),
         ], $request->user('admin'));
 
-        return back()->with('status', 'Case resolved. Member notified via conversation.');
+        return back()->with('status', 'Ticket resolved. Member notified via conversation.');
     }
 
     public function specialistResponse(Request $request, SupportTicket $support_ticket)
@@ -235,6 +237,10 @@ class SupportTicketController extends ResourceController
         );
 
         $this->tickets->addEvent($support_ticket, 'response', $request->user('admin'), trim($data['body']));
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
 
         return back()->with('status', 'Reply sent.');
     }

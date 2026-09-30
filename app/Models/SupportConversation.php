@@ -16,6 +16,8 @@ class SupportConversation extends Model
             'needs_human'     => 'boolean',
             'last_message_at' => 'datetime',
             'rated_at'        => 'datetime',
+            'waiting_since'   => 'datetime',
+            'accepted_at'     => 'datetime',
         ];
     }
 
