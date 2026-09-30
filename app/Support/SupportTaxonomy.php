@@ -193,7 +193,12 @@ class SupportTaxonomy
     /** Flag Issue when this many tickets share a category inside the window. */
     public static function recurringIssueCount(): int
     {
-        return max(2, (int) Setting::get('support.recurring.issue_count', 5));
+        $value = Setting::get('support.recurring.issue_count');
+        if ($value === null) {
+            $value = Setting::get('support.recurring.threshold_count', 5);
+        }
+
+        return max(2, (int) $value);
     }
 
     public static function recurringWindowHours(): int

@@ -321,21 +321,22 @@ class CustomerSupportWorkspaceService
      */
     public function recurringIssues(): array
     {
-        $threshold = max(2, (int) Setting::get('support.recurring.issue_count', Setting::get('support.recurring.threshold_count', 5)));
-        $windowHours = max(1, (int) Setting::get('support.recurring.window_hours', 24));
+        $threshold = SupportTaxonomy::recurringIssueCount();
+        $windowHours = SupportTaxonomy::recurringWindowHours();
         $from = now()->subHours($windowHours);
 
         $rows = SupportTicket::query()
             ->selectRaw('category, COUNT(*) as total')
             ->where('created_at', '>=', $from)
             ->whereNotNull('category')
+            ->where('category', '!=', '')
             ->groupBy('category')
             ->havingRaw('COUNT(*) >= ?', [$threshold])
             ->orderByDesc('total')
             ->limit(6)
             ->get();
 
-        $labels = SupportTaxonomy::all()['categories'] ?? [];
+        $labels = SupportTaxonomy::categories();
 
         return $rows->map(function ($row) use ($labels, $windowHours) {
             $key = (string) $row->category;
