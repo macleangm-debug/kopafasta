@@ -82,7 +82,8 @@ return Application::configure(basePath: dirname(__DIR__))
                 return route('staff.dashboard');
             }
 
-            if ($request->is('admin', 'admin/*')) {
+            // /ladmin/login is an Admin auth alias — same destination as /admin/login.
+            if ($request->is('admin', 'admin/*', 'ladmin', 'ladmin/*')) {
                 return route('admin.dashboard');
             }
 

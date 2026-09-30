@@ -733,6 +733,15 @@ $registerResource = function (string $slug, string $param, string $controller): 
     Route::delete("{$slug}/{{$param}}", [$controller, 'destroy'])->name("{$slug}.destroy");
 };
 
+// Legacy / typo Staff Console entry: same Admin auth as /admin/login (no separate auth stack).
+Route::prefix('ladmin')->middleware(SetLocale::class)->group(function () {
+    Route::redirect('/', '/admin/login');
+    Route::middleware('guest:admin')->group(function () {
+        Route::get('login', [AuthController::class, 'showLogin'])->name('ladmin.login');
+        Route::post('login', [AuthController::class, 'login']);
+    });
+});
+
 Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(function () use ($registerResource) {
 
     // Guest
