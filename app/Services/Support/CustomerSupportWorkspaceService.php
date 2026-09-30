@@ -321,7 +321,7 @@ class CustomerSupportWorkspaceService
      */
     public function recurringIssues(): array
     {
-        $threshold = max(2, (int) Setting::get('support.recurring.threshold_count', Setting::get('support.recurring.issue_count', 5)));
+        $threshold = max(2, (int) Setting::get('support.recurring.issue_count', Setting::get('support.recurring.threshold_count', 5)));
         $windowHours = max(1, (int) Setting::get('support.recurring.window_hours', 24));
         $from = now()->subHours($windowHours);
 

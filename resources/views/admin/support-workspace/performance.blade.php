@@ -24,20 +24,35 @@
         :title="$title"
         subtitle="Canonical Support metrics from accepted_at, sla_due_at, resolved_at and ratings. Empty ranges show — not invented numbers.">
         <x-slot:actions>
-            <div class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/20 p-1 text-sm font-semibold">
-                @foreach (['today' => 'Today', '7d' => '7 days', '30d' => '30 days'] as $key => $label)
-                    <a href="{{ route('admin.support.performance', ['range' => $key]) }}"
-                       class="px-3 py-1.5 rounded-lg {{ $range === $key ? 'bg-white text-brand' : 'text-white/80 hover:text-white' }}">
-                        {{ $label }}
-                    </a>
-                @endforeach
+            <div class="flex flex-col items-end gap-2">
+                <div class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/20 p-1 text-sm font-semibold">
+                    @foreach (['today' => 'Today', '7d' => '7 days', '30d' => '30 days', 'custom' => 'Custom'] as $key => $label)
+                        <a href="{{ $key === 'custom'
+                            ? route('admin.support.performance', ['range' => 'custom', 'from' => $performance['from'] ?? now()->subDays(7)->toDateString(), 'to' => $performance['to'] ?? now()->toDateString()])
+                            : route('admin.support.performance', ['range' => $key]) }}"
+                           class="px-3 py-1.5 rounded-lg {{ $range === $key ? 'bg-white text-brand' : 'text-white/80 hover:text-white' }}">
+                            {{ $label }}
+                        </a>
+                    @endforeach
+                </div>
+                @if ($range === 'custom')
+                    <form method="GET" action="{{ route('admin.support.performance') }}" class="flex flex-wrap items-center gap-2 text-sm">
+                        <input type="hidden" name="range" value="custom">
+                        <input type="date" name="from" value="{{ $performance['from'] ?? now()->subDays(7)->toDateString() }}"
+                               class="rounded-lg border-0 bg-white/95 text-gray-900 text-xs px-2 py-1.5">
+                        <span class="text-white/70 text-xs">to</span>
+                        <input type="date" name="to" value="{{ $performance['to'] ?? now()->toDateString() }}"
+                               class="rounded-lg border-0 bg-white/95 text-gray-900 text-xs px-2 py-1.5">
+                        <button type="submit" class="rounded-lg bg-brand-gold text-brand text-xs font-bold px-3 py-1.5">Apply</button>
+                    </form>
+                @endif
             </div>
         </x-slot:actions>
     </x-admin.letterhead>
 
     <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         @foreach ([
-            ['Resolved today', $performance['resolved'] ?? 0, 'Conversations + tickets closed in this range.'],
+            ['Resolved', $performance['resolved'] ?? 0, 'Conversations + tickets closed in this range.'],
             ['Avg first response', $fmtMinutes($performance['avg_first_response_minutes'] ?? null), 'accepted_at minus waiting_since / created_at.'],
             ['First-contact resolution', isset($performance['first_contact_resolution']) ? $performance['first_contact_resolution'].'%' : '—', 'Closed conversations with no linked ticket.'],
             ['SLA met', isset($performance['sla_met']) ? $performance['sla_met'].'%' : '—', 'Resolved before snapshotted sla_due_at.'],

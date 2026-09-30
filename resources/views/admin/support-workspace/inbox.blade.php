@@ -170,7 +170,7 @@
                                                 </span>
                                                 <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                             </button>
-                                            {{-- Desktop popover --}}
+                                            {{-- Desktop dropdown --}}
                                             <div x-show="agentMenuOpen" x-cloak @click.outside="agentMenuOpen = false"
                                                  class="hidden md:block absolute right-0 mt-2 w-64 rounded-2xl bg-white ring-1 ring-slate-200 shadow-lg overflow-hidden z-30 max-h-64 overflow-y-auto">
                                                 <template x-for="a in agents" :key="'d-'+a.id">
@@ -186,15 +186,10 @@
                                                     </button>
                                                 </template>
                                             </div>
-                                            {{-- Mobile bottom sheet --}}
-                                            <div x-show="agentMenuOpen" x-cloak class="md:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
-                                                <div class="absolute inset-0 bg-black/40" @click="agentMenuOpen = false"></div>
-                                                <div class="absolute inset-x-0 bottom-0 rounded-t-3xl bg-white shadow-2xl max-h-[70vh] overflow-y-auto pb-safe">
-                                                    <div class="sticky top-0 bg-white px-4 pt-3 pb-2 border-b border-slate-100">
-                                                        <div class="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200"></div>
-                                                        <p class="text-sm font-bold text-slate-900">Assign to…</p>
-                                                    </div>
-                                                    <div class="p-2">
+                                            {{-- Mobile: canonical action-panel (bottom sheet) --}}
+                                            <div class="md:hidden">
+                                                <x-site.action-panel title="Assign to…" open="agentMenuOpen">
+                                                    <div class="space-y-1">
                                                         <template x-for="a in agents" :key="'m-'+a.id">
                                                             <button type="button"
                                                                     @click="selectedAgentId = String(a.id); agentMenuOpen = false; error = ''"
@@ -208,7 +203,7 @@
                                                             </button>
                                                         </template>
                                                     </div>
-                                                </div>
+                                                </x-site.action-panel>
                                             </div>
                                         </div>
                                     @endif

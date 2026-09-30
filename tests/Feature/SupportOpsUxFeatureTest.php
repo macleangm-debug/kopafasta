@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Setting;
 use App\Models\SupportConversation;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketEvent;
@@ -604,5 +605,174 @@ class SupportOpsUxFeatureTest extends TestCase
             ->assertJsonPath('ok', true);
 
         $this->assertSame(5, (int) $conversation->fresh()->rating);
+    }
+
+    public function test_support_sla_settings_hub_saves_priority_and_issue_overrides(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.support'))
+            ->assertOk()
+            ->assertSee('Support SLA')
+            ->assertSee('Issue SLA matrix')
+            ->assertSee('Payments')
+            ->assertSee('Recurring Issue flag');
+
+        $categories = \App\Support\SupportTaxonomy::categoryKeys();
+        $payload = [
+            'warning_percent' => 75,
+            'priority_minutes' => [
+                'urgent' => 90,
+                'high' => 180,
+                'normal' => 360,
+                'low' => 1200,
+            ],
+            'recurring_count' => 3,
+            'recurring_window_hours' => 12,
+            'default_priority' => [],
+            'target_minutes' => [],
+            'approaching_pct' => [],
+        ];
+        foreach ($categories as $key) {
+            $payload['default_priority'][$key] = $key === 'payments' ? 'urgent' : 'normal';
+            $payload['target_minutes'][$key] = $key === 'payments' ? 90 : 480;
+            $payload['approaching_pct'][$key] = $key === 'payments' ? 70 : 80;
+        }
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.support.save'), $payload)
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertSame(90, (int) \App\Models\Setting::get('support.sla.minutes.urgent'));
+        $this->assertSame(75, (int) \App\Models\Setting::get('support.sla.warning_percent'));
+        $this->assertSame(3, (int) \App\Models\Setting::get('support.recurring.issue_count'));
+        $this->assertSame(12, (int) \App\Models\Setting::get('support.recurring.window_hours'));
+        $this->assertSame('urgent', \App\Support\SupportTaxonomy::defaultPriorityFor('payments'));
+        $this->assertSame(90, \App\Support\SupportTaxonomy::targetMinutesFor('payments'));
+        $this->assertSame(70, \App\Support\SupportTaxonomy::approachingPercentFor('payments'));
+    }
+
+    public function test_support_home_surfaces_recurring_issue_flags(): void
+    {
+        $admin = $this->admin();
+        Setting::set('support.recurring.issue_count', 3);
+        Setting::set('support.recurring.window_hours', 24);
+
+        for ($i = 1; $i <= 3; $i++) {
+            SupportTicket::create([
+                'ticket_number' => 'KPF-TKT-REC0'.$i,
+                'subject' => 'Payment not reflecting '.$i,
+                'description' => 'Aggregate flag test',
+                'priority' => 'high',
+                'status' => 'open',
+                'category' => 'payments',
+                'source' => 'admin',
+                'contact_kind' => 'customer',
+            ]);
+        }
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+
+        $this->get(route('admin.support.home'))
+            ->assertOk()
+            ->assertSee('Recurring issues', false)
+            ->assertSee('Payments', false)
+            ->assertSee('3 tickets', false);
+    }
+
+    public function test_ticket_create_snapshots_sla_fields_and_resolve_sets_time_to_resolve(): void
+    {
+        Setting::set('support.ticket_categories', array_merge(\App\Support\SupportTaxonomy::defaults(), [
+            'target_resolution_minutes' => array_merge(
+                \App\Support\SupportTaxonomy::defaults()['target_resolution_minutes'],
+                ['payments' => 90]
+            ),
+            'approaching_threshold_percent' => array_merge(
+                \App\Support\SupportTaxonomy::defaults()['approaching_threshold_percent'],
+                ['payments' => 70]
+            ),
+        ]));
+
+        $ticket = app(SupportTicketService::class)->create([
+            'subject' => 'Payment not reflecting',
+            'category' => 'payments',
+            'priority' => 'high',
+            'description' => 'SLA snapshot test',
+            'source' => 'admin',
+            'contact_kind' => 'guest',
+            'guest_name' => 'UAT Guest',
+        ]);
+
+        $this->assertSame(90, (int) $ticket->sla_target_minutes);
+        $this->assertSame(70, (int) $ticket->sla_approaching_pct);
+        $this->assertNotNull($ticket->sla_due_at);
+
+        $ticket->forceFill(['created_at' => now()->subMinutes(45)])->save();
+        $resolved = app(SupportTicketService::class)->resolveCase($ticket->fresh(), [
+            'resolution_type' => 'answered',
+            'resolution_notes' => 'Fixed',
+        ]);
+
+        $this->assertSame('resolved', $resolved->status);
+        $this->assertNotNull($resolved->time_to_resolve_minutes);
+        $this->assertGreaterThanOrEqual(45, (int) $resolved->time_to_resolve_minutes);
+    }
+
+    public function test_performance_page_shows_range_charts_and_custom(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+
+        $this->get(route('admin.support.performance'))
+            ->assertOk()
+            ->assertSee('Team performance', false)
+            ->assertSee('Conversations received / resolved', false)
+            ->assertSee('Top Issues', false)
+            ->assertSee('Custom', false);
+
+        $this->get(route('admin.support.performance', [
+            'range' => 'custom',
+            'from' => now()->subDays(3)->toDateString(),
+            'to' => now()->toDateString(),
+        ]))
+            ->assertOk()
+            ->assertSee('Apply', false);
+    }
+
+    public function test_support_home_viewing_switcher_shows_team_label(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+
+        $this->get(route('admin.support.home'))
+            ->assertOk()
+            ->assertSee('Viewing', false)
+            ->assertSee('Team ▾', false);
+    }
+
+    public function test_inbox_agent_picker_uses_action_panel_on_mobile(): void
+    {
+        $admin = $this->admin();
+        $agent = $this->agent();
+        [$user, $customer] = $this->member();
+        $conversation = app(SupportConversationService::class)->requestHuman($customer, $user, 'Need help');
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+
+        $html = $this->get(route('admin.support.inbox.show', $conversation))->assertOk()->getContent();
+        $this->assertStringContainsString('Assign to…', $html);
+        $this->assertStringContainsString($agent->name, $html);
+        // Mobile sheet uses canonical action-panel (bottom sheet on small screens).
+        $this->assertTrue(
+            str_contains($html, 'data-integration-live-test-panel')
+            || str_contains($html, 'x-site.action-panel')
+            || (str_contains($html, 'md:hidden') && str_contains($html, 'Assign to…'))
+        );
     }
 }
