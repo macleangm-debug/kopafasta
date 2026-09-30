@@ -60,6 +60,66 @@ class AdminRoleViewService
     }
 
     /**
+     * Internal staff role directory for Account / Role.
+     * Every configured staff role appears even when nobody is assigned.
+     *
+     * @return list<array{
+     *   key: string,
+     *   label: string,
+     *   staff_count: int,
+     *   staff: list<array{id: int, name: string, subtitle: string, profile_url: string}>
+     * }>
+     */
+    public function staffRoleDirectory(): array
+    {
+        $roleCodes = $this->roles->staffRoles();
+        $byRole = array_fill_keys($roleCodes, []);
+
+        $staffUsers = User::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (User $user) => $this->roles->isStaffUser($user));
+
+        foreach ($staffUsers as $user) {
+            foreach ($user->roleCodes() as $code) {
+                if (! array_key_exists($code, $byRole)) {
+                    continue;
+                }
+                if (! ($this->roles->definition($code)['staff'] ?? false)) {
+                    continue;
+                }
+                $byRole[$code][$user->id] = [
+                    'id' => (int) $user->id,
+                    'name' => (string) $user->name,
+                    'subtitle' => (string) ($user->email ?: $user->phone ?: ''),
+                    'profile_url' => route('admin.users.show', $user),
+                ];
+            }
+        }
+
+        $rows = [];
+        foreach ($roleCodes as $code) {
+            $staff = array_values($byRole[$code]);
+            $rows[] = [
+                'key' => $code,
+                'label' => $this->staffRoleLabel($code),
+                'staff_count' => count($staff),
+                'staff' => $staff,
+            ];
+        }
+
+        return $rows;
+    }
+
+    public function staffRoleLabel(string $roleKey): string
+    {
+        return $roleKey === 'agent' ? 'Customer Support' : $this->roles->label($roleKey);
+    }
+
+    /**
+     * Legacy person search kept for API compatibility; Account / Role UI uses staffRoleDirectory().
+     *
      * @return list<array{
      *   subject_type: string,
      *   subject_id: int,
@@ -79,24 +139,6 @@ class AdminRoleViewService
         $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $q).'%';
         $out = [];
 
-        $partners = Partner::query()
-            ->where(function ($w) use ($like, $q) {
-                $w->where('name', 'like', $like)
-                    ->orWhere('email', 'like', $like)
-                    ->orWhere('phone', 'like', $like)
-                    ->orWhere('vendor_number', 'like', $like);
-                if (ctype_digit($q)) {
-                    $w->orWhere('id', (int) $q);
-                }
-            })
-            ->orderBy('name')
-            ->limit($limit)
-            ->get();
-
-        foreach ($partners as $partner) {
-            $out[] = $this->serializePartner($partner);
-        }
-
         $staff = User::query()
             ->where(function ($w) use ($like, $q) {
                 $w->where('name', 'like', $like)
@@ -109,35 +151,10 @@ class AdminRoleViewService
             ->orderBy('name')
             ->limit($limit)
             ->get()
-            ->filter(fn (User $u) => $this->roles->isStaffUser($u) && $this->roles->hasConsoleAccess($u));
+            ->filter(fn (User $u) => $this->roles->isStaffUser($u));
 
         foreach ($staff as $user) {
-            if (count($out) >= $limit) {
-                break;
-            }
             $out[] = $this->serializeStaff($user);
-        }
-
-        $customers = Customer::query()
-            ->where(function ($w) use ($like, $q) {
-                $w->where('first_name', 'like', $like)
-                    ->orWhere('last_name', 'like', $like)
-                    ->orWhere('email', 'like', $like)
-                    ->orWhere('phone', 'like', $like)
-                    ->orWhere('customer_number', 'like', $like);
-                if (ctype_digit($q)) {
-                    $w->orWhere('id', (int) $q);
-                }
-            })
-            ->orderBy('first_name')
-            ->limit($limit)
-            ->get();
-
-        foreach ($customers as $customer) {
-            if (count($out) >= $limit) {
-                break;
-            }
-            $out[] = $this->serializeBorrower($customer);
         }
 
         return array_slice($out, 0, $limit);
@@ -285,7 +302,7 @@ class AdminRoleViewService
             'subject_id' => $staff->id,
             'subject_name' => (string) $staff->name,
             'role_key' => $roleKey,
-            'role_label' => $roleKey === 'agent' ? 'Customer Support' : $this->roles->label($roleKey),
+            'role_label' => $this->staffRoleLabel($roleKey),
             'workspace_key' => $this->roles->deskCode($roleKey),
             'entered_at' => now()->toIso8601String(),
         ]);
@@ -354,7 +371,7 @@ class AdminRoleViewService
             }
             $roles[] = [
                 'key' => $code,
-                'label' => $code === 'agent' ? 'Customer Support' : $this->roles->label($code),
+                'label' => $this->staffRoleLabel($code),
                 'enterable' => true,
             ];
         }

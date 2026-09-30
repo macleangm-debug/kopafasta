@@ -1,33 +1,30 @@
-{{-- Admin User/Role switcher — View profile vs Enter workspace --}}
+{{-- Admin Account / Role — internal staff workspace directory --}}
+@php
+    $staffRoleDirectory = app(\App\Services\AdminRoleViewService::class)->staffRoleDirectory();
+@endphp
 <div class="relative"
      x-data="{
         open: false,
-        q: '',
-        loading: false,
-        results: [],
-        searchUrl: @js(route('admin.role-view.search')),
+        filter: '',
+        roles: @js($staffRoleDirectory),
+        selected: {},
         profileUrl: @js(route('admin.role-view.profile')),
         enterUrl: @js(route('admin.role-view.enter')),
         csrf: @js(csrf_token()),
-        enterLabel(role) {
-            return @js(__('admin.role_view.enter_as')).replace(':role', role.label);
+        init() {
+            this.roles.forEach((role) => {
+                this.selected[role.key] = role.staff.length === 1 ? role.staff[0].id : (role.staff[0]?.id || null);
+            });
         },
-        async run() {
-            const q = this.q.trim();
-            if (q.length < 2) { this.results = []; return; }
-            this.loading = true;
-            try {
-                const res = await fetch(this.searchUrl + '?q=' + encodeURIComponent(q), {
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    credentials: 'same-origin',
-                });
-                const data = await res.json();
-                this.results = data.results || [];
-            } catch (e) {
-                this.results = [];
-            } finally {
-                this.loading = false;
+        filteredRoles() {
+            if (! this.filter) {
+                return this.roles;
             }
+            return this.roles.filter((role) => role.key === this.filter);
+        },
+        selectedStaff(role) {
+            const id = this.selected[role.key];
+            return role.staff.find((person) => person.id === id) || null;
         }
      }">
     <button type="button"
@@ -43,53 +40,63 @@
 
     <x-site.action-panel :title="__('admin.role_view.title')" open="open" size="lg">
         <p class="text-xs text-gray-500 mb-3">{{ __('admin.role_view.hint') }}</p>
-        <input type="search"
-               x-model="q"
-               @input.debounce.250ms="run()"
-               placeholder="{{ __('admin.role_view.search_placeholder') }}"
-               class="w-full rounded-xl border-0 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand/40 mb-3">
 
-        <p class="px-1 py-4 text-sm text-gray-500" x-show="loading">{{ __('admin.role_view.searching') }}</p>
-        <p class="px-1 py-4 text-sm text-gray-500" x-show="!loading && q.trim().length >= 2 && results.length === 0">{{ __('admin.role_view.empty') }}</p>
-        <p class="px-1 py-4 text-sm text-gray-500" x-show="!loading && q.trim().length < 2">{{ __('admin.role_view.type_more') }}</p>
+        <label class="block mb-4">
+            <span class="sr-only">{{ __('admin.role_view.filter_label') }}</span>
+            <select x-model="filter"
+                    class="w-full rounded-xl border-0 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand/40 bg-white">
+                <option value="">{{ __('admin.role_view.filter_all') }}</option>
+                <template x-for="role in roles" :key="'filter-' + role.key">
+                    <option :value="role.key" x-text="role.label"></option>
+                </template>
+            </select>
+        </label>
 
-        <ul class="space-y-3" x-show="!loading && results.length > 0">
-            <template x-for="person in results" :key="person.subject_type + '-' + person.subject_id">
-                <li class="rounded-2xl ring-1 ring-gray-200 p-3 space-y-2">
+        <ul class="space-y-3 max-h-[60vh] overflow-y-auto pr-0.5">
+            <template x-for="role in filteredRoles()" :key="role.key">
+                <li class="rounded-2xl ring-1 ring-gray-200 p-3 space-y-2.5">
                     <div>
-                        <p class="text-sm font-bold text-gray-900" x-text="person.name"></p>
-                        <p class="text-xs text-gray-500" x-text="person.subtitle"></p>
-                        <p class="mt-1 text-[11px] font-semibold text-brand" x-show="person.roles.length"
-                           x-text="person.roles.map(r => r.label).join(' · ')"></p>
+                        <p class="text-sm font-bold text-gray-900" x-text="role.label"></p>
+                        <p class="text-xs text-gray-500" x-show="role.staff_count === 0">
+                            {{ __('admin.role_view.no_staff') }}
+                        </p>
+                        <p class="text-xs text-gray-500" x-show="role.staff_count === 1"
+                           x-text="role.staff[0]?.name + (role.staff[0]?.subtitle ? ' · ' + role.staff[0].subtitle : '')"></p>
                     </div>
-                    <div class="flex flex-wrap gap-2">
+
+                    <div x-show="role.staff_count > 1">
+                        <label class="block">
+                            <span class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{{ __('admin.role_view.assigned_staff') }}</span>
+                            <select class="mt-1 w-full rounded-xl border-0 ring-1 ring-gray-200 px-3 py-2 text-sm focus:ring-brand/40 bg-white"
+                                    x-model.number="selected[role.key]">
+                                <template x-for="person in role.staff" :key="person.id">
+                                    <option :value="person.id" x-text="person.name + (person.subtitle ? ' · ' + person.subtitle : '')"></option>
+                                </template>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2" x-show="role.staff_count > 0 && selectedStaff(role)">
                         <form method="POST" :action="profileUrl">
                             <input type="hidden" name="_token" :value="csrf">
-                            <input type="hidden" name="subject_type" :value="person.subject_type">
-                            <input type="hidden" name="subject_id" :value="person.subject_id">
+                            <input type="hidden" name="subject_type" value="staff">
+                            <input type="hidden" name="subject_id" :value="selectedStaff(role).id">
                             <button type="submit"
                                     class="inline-flex rounded-xl px-3 py-2 text-xs font-semibold ring-1 ring-gray-200 text-gray-800 hover:bg-gray-50">
                                 {{ __('admin.role_view.view_profile') }}
                             </button>
                         </form>
-                        <template x-for="role in person.roles.filter(r => r.enterable)" :key="role.key">
-                            <form method="POST" :action="enterUrl">
-                                <input type="hidden" name="_token" :value="csrf">
-                                <input type="hidden" name="subject_type" :value="person.subject_type">
-                                <input type="hidden" name="subject_id" :value="person.subject_id">
-                                <input type="hidden" name="role_key" :value="role.key">
-                                <button type="submit"
-                                        class="inline-flex rounded-xl px-3 py-2 text-xs font-semibold bg-brand text-white hover:brightness-95"
-                                        x-text="enterLabel(role)"></button>
-                            </form>
-                        </template>
+                        <form method="POST" :action="enterUrl">
+                            <input type="hidden" name="_token" :value="csrf">
+                            <input type="hidden" name="subject_type" value="staff">
+                            <input type="hidden" name="subject_id" :value="selectedStaff(role).id">
+                            <input type="hidden" name="role_key" :value="role.key">
+                            <button type="submit"
+                                    class="inline-flex rounded-xl px-3 py-2 text-xs font-semibold bg-brand text-white hover:brightness-95">
+                                {{ __('admin.role_view.enter_workspace') }}
+                            </button>
+                        </form>
                     </div>
-                    <p class="text-[11px] text-amber-700" x-show="person.subject_type === 'partner' && person.roles.length && !person.roles.some(r => r.enterable)">
-                        {{ __('admin.role_view.partner_no_login') }}
-                    </p>
-                    <p class="text-[11px] text-gray-500" x-show="person.subject_type === 'borrower'">
-                        {{ __('admin.role_view.borrower_profile_only') }}
-                    </p>
                 </li>
             </template>
         </ul>
