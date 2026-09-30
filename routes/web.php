@@ -408,6 +408,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::get('/borrower/applications/{application}', [BorrowerController::class, 'application'])->name('borrower.application');
             Route::post('/borrower/applications/{application}/withdraw', [BorrowerController::class, 'withdrawApplication'])->name('borrower.application.withdraw');
             Route::post('/borrower/applications/{application}/change-guarantor', [BorrowerController::class, 'changeGuarantorWhileHeld'])->name('borrower.application.change-guarantor');
+            Route::post('/borrower/applications/{application}/edit-guarantor', [BorrowerController::class, 'editGuarantorInvitation'])->name('borrower.application.edit-guarantor');
             Route::post('/borrower/loan-profile/draft/{draft}/discard', [BorrowerController::class, 'discardDraft'])->name('borrower.draft.discard');
             Route::get('/borrower/applications/{application}/offer', [BorrowerController::class, 'applicationOffer'])->name('borrower.application.offer');
             Route::post('/borrower/applications/{application}/offer', [BorrowerController::class, 'respondToOffer'])->name('borrower.application.offer.respond');
@@ -1207,6 +1208,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
                 ->name('support-tickets.specialist-response');
             Route::post('support-tickets/{support_ticket}/reply', [SupportTicketController::class, 'replyConversation'])
                 ->name('support-tickets.reply');
+            Route::post('support-tickets/{support_ticket}/start-conversation', [SupportTicketController::class, 'startConversation'])
+                ->name('support-tickets.start-conversation');
             Route::get('broken-pages', [BrokenPageController::class, 'index'])->name('broken-pages.index');
             Route::post('broken-pages/classify-open', [BrokenPageController::class, 'classifyOpen'])->name('broken-pages.classify-open');
             Route::post('broken-pages/reset-baseline', [BrokenPageController::class, 'resetBaseline'])->name('broken-pages.reset-baseline');

@@ -1100,6 +1100,7 @@ class ApplyController extends Controller
         }
 
         // Do not overwrite a missing draft form during supplement — terms live on the application.
+        // Banner clears once a current nomination exists (hasCurrentActionableNomination); Finish marks satisfied.
         if (! $supplementApplication) {
             $drafts->save($borrower, [
                 'phase' => $draft?->phase ?? 'application',
@@ -2774,10 +2775,12 @@ class ApplyController extends Controller
             ->findOrFail((int) $request->input('supplement_application_id'));
 
         $supplements = app(GuarantorSupplementService::class);
-        if (! $supplements->hasOpenRequest($application)) {
+        $openRequest = $supplements->hasOpenRequest($application);
+        // Allow Finish after prepare already attached the invitation — still notify + clear open request.
+        if (! $openRequest && ! $supplements->hasCurrentActionableNomination($application)) {
             return redirect()
                 ->route('site.borrower.application', $application)
-                ->with('error', __('borrower.guarantor_supplement.submitted'));
+                ->with('status', __('borrower.guarantor_supplement.submitted'));
         }
 
         $returnUrl = $supplements->borrowerWizardUrl($application);

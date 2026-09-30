@@ -136,11 +136,11 @@
             && ($showChangeGuarantor || $canChangeWhileHeld);
         $showPrimaryChoose = in_array($uiState, ['needs_replacement', 'required_empty'], true)
             && ($showChangeGuarantor || $canChangeWhileHeld || ($isDraft && $editGuarantorUrl));
-        // Additional UW banner only when kind=additional. Change uses change banner only when open.
+        // UW instruction only while borrower still must nominate — never after a replacement is invited.
         $supplementBanner = null;
-        if ($isAdditionalSupplement) {
+        if ($isAdditionalSupplement && $uiState !== 'pending' && $uiState !== 'accepted_incomplete') {
             $supplementBanner = $supplementSvc->borrowerBanner($application);
-        } elseif ($isChangeSupplement && $uiState !== 'needs_replacement') {
+        } elseif ($isChangeSupplement && $uiState === 'needs_replacement') {
             $supplementBanner = $supplementSvc->borrowerBanner($application);
         }
         $primaryCtaLabel = $isAdditionalSupplement
@@ -271,20 +271,20 @@
                                class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
                                 {{ $isAdditionalSupplement
                                     ? __('borrower.guarantor_supplement.cta')
-                                    : __('borrower.loan_profile.actions.edit_guarantor') }}
+                                    : __('borrower.guarantor_supplement.change_cta') }}
                             </a>
                         @elseif ($canChangeWhileHeld && $application)
                             <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
                                   @submit.prevent="window.confirmForm($el, {
                                       title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
                                       message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
-                                      confirmLabel: @js(__('borrower.loan_profile.actions.edit_guarantor')),
+                                      confirmLabel: @js(__('borrower.guarantor_supplement.change_cta')),
                                       confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
                                   })">
                                 @csrf
                                 <button type="submit"
                                         class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
-                                    {{ __('borrower.loan_profile.actions.edit_guarantor') }}
+                                    {{ __('borrower.guarantor_supplement.change_cta') }}
                                 </button>
                             </form>
                         @endif
@@ -302,10 +302,10 @@
                     />
                 @endif
 
-                {{-- Additional-only banner. Replacement never uses “Underwriting needs another…”. --}}
+                {{-- Additional-only banner. Replacement never uses “Underwriting needs another…” once nominated. --}}
                 @if ($isAdditionalSupplement && $supplementBanner)
                     <p class="text-xs text-amber-800">{{ $supplementBanner }}</p>
-                @elseif ($isChangeSupplement && $supplementBanner && $uiState !== 'needs_replacement')
+                @elseif ($isChangeSupplement && $supplementBanner && $uiState === 'needs_replacement')
                     <p class="text-xs text-amber-800">{{ $supplementBanner }}</p>
                 @elseif ($canChangeWhileHeld && $uiState === 'pending')
                     <p class="text-xs text-gray-500">{{ __('borrower.guarantor_supplement.borrower_change_hint') }}</p>
@@ -325,6 +325,46 @@
                                     class="inline-flex items-center gap-2 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
                                 <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.loan_profile.guarantor_nudge_copy'))"></span>
                             </button>
+                        @endif
+                        @if ($application && $primary?->invite && in_array((string) ($primary->invite->status ?? ''), ['pending', 'accepted'], true)
+                            && ($primary->invite->type ?? '') === 'external')
+                            <div class="w-full" x-data="{ editOpen: false }">
+                                <button type="button" @click="editOpen = true"
+                                        class="inline-flex items-center gap-2 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                    {{ __('borrower.loan_profile.actions.edit_guarantor') }}
+                                </button>
+                                <x-site.action-panel :title="__('borrower.loan_profile.actions.edit_guarantor')" open="editOpen">
+                                    <p class="text-xs text-gray-500 mb-3">{{ __('borrower.loan_profile.actions.edit_guarantor_hint') }}</p>
+                                    <form method="POST" action="{{ route('site.borrower.application.edit-guarantor', $application) }}" class="space-y-3"
+                                          @submit.prevent="window.confirmForm($el, {
+                                              title: @js(__('borrower.loan_profile.actions.edit_guarantor')),
+                                              message: @js(__('borrower.loan_profile.actions.edit_guarantor_confirm')),
+                                              confirmLabel: @js(__('borrower.loan_profile.actions.edit_guarantor_save')),
+                                              confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
+                                          })">
+                                        @csrf
+                                        <input type="hidden" name="invitation_id" value="{{ $primary->invite->id }}">
+                                        @php
+                                            $nameParts = preg_split('/\s+/', trim((string) ($primary->invite->invitee_name ?? '')), 2) ?: ['', ''];
+                                        @endphp
+                                        <label class="block text-xs font-semibold text-gray-700">{{ __('borrower.apply.guarantor_fields.first_name') }}
+                                            <input name="first_name" required maxlength="60" value="{{ old('first_name', $nameParts[0] ?? '') }}"
+                                                   class="mt-1 w-full rounded-xl border-gray-200 text-sm">
+                                        </label>
+                                        <label class="block text-xs font-semibold text-gray-700">{{ __('borrower.apply.guarantor_fields.last_name') }}
+                                            <input name="last_name" required maxlength="60" value="{{ old('last_name', $nameParts[1] ?? '') }}"
+                                                   class="mt-1 w-full rounded-xl border-gray-200 text-sm">
+                                        </label>
+                                        <label class="block text-xs font-semibold text-gray-700">{{ __('borrower.apply.guarantor_fields.phone') }}
+                                            <input name="phone" required maxlength="20" value="{{ old('phone', $primary->invite->contact) }}"
+                                                   class="mt-1 w-full rounded-xl border-gray-200 text-sm" inputmode="tel">
+                                        </label>
+                                        <button type="submit" class="w-full inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
+                                            {{ __('borrower.loan_profile.actions.edit_guarantor_save') }}
+                                        </button>
+                                    </form>
+                                </x-site.action-panel>
+                            </div>
                         @endif
                     </div>
                 @endif

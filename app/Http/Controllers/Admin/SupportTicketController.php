@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Customer;
+use App\Models\SupportConversation;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Services\Support\SupportTicketService;
 use App\Support\SupportTaxonomy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class SupportTicketController extends ResourceController
@@ -122,8 +124,8 @@ class SupportTicketController extends ResourceController
         $this->auditAdminCreated($record);
 
         return redirect()
-            ->route("{$this->routePrefix}.show", $record)
-            ->with('status', ucfirst($this->singular).' created.');
+            ->route("{$this->routePrefix}.index")
+            ->with('status', ucfirst($this->singular).' '.$record->ticket_number.' created.');
     }
 
     public function show($id)
@@ -245,6 +247,94 @@ class SupportTicketController extends ResourceController
         }
 
         return back()->with('status', 'Reply sent.');
+    }
+
+    /**
+     * Manual tickets may have no conversation yet. Start exactly one linked thread for a Member/Partner.
+     */
+    public function startConversation(Request $request, SupportTicket $support_ticket)
+    {
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $support_ticket->loadMissing('customer.user');
+        $customer = $support_ticket->customer;
+        if (! $customer) {
+            return back()->with('error', 'This guest ticket has no in-app messaging destination. Contact them outside the app.');
+        }
+
+        $actor = $request->user('admin');
+        $conversations = app(\App\Services\Support\SupportConversationService::class);
+        $started = false;
+
+        $result = DB::transaction(function () use (
+            $support_ticket,
+            $customer,
+            $conversations,
+            $actor,
+            $data,
+            &$started,
+        ) {
+            $locked = SupportTicket::query()->whereKey($support_ticket->id)->lockForUpdate()->first();
+            if ($locked?->support_conversation_id) {
+                return [
+                    'conversation' => SupportConversation::query()->find($locked->support_conversation_id),
+                    'already_linked' => true,
+                ];
+            }
+
+            $conversation = $conversations->openConversationFor(
+                $customer,
+                $customer->user,
+                null,
+                null,
+                'support_ticket',
+            );
+
+            $locked->update(['support_conversation_id' => $conversation->id]);
+            $conversations->appendMessage(
+                $conversation,
+                'staff',
+                trim($data['body']),
+                $actor?->id,
+            );
+            $this->tickets->addEvent($locked, 'conversation_started', $actor, trim($data['body']), [
+                'conversation_id' => $conversation->id,
+            ]);
+            $started = true;
+
+            return [
+                'conversation' => $conversation,
+                'already_linked' => false,
+            ];
+        });
+
+        if (! empty($result['already_linked'])) {
+            return redirect()
+                ->route('admin.support-tickets.show', $support_ticket->fresh())
+                ->with('status', 'Conversation already linked.');
+        }
+
+        if ($started) {
+            try {
+                app(\App\Services\NotificationService::class)->notifyInApp(
+                    $customer,
+                    trim($data['body']),
+                    'support',
+                    'support_replied',
+                    $support_ticket->ticket_number ?: 'Support',
+                    route('site.borrower.support', ['chat' => 1]),
+                    __('borrower.notifications.support_replied_cta'),
+                );
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return redirect()
+            ->route('admin.support-tickets.show', $support_ticket->fresh())
+            ->with('status', 'Conversation started and first message sent.');
     }
 
     public function update(Request $request, $id)

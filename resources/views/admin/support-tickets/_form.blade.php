@@ -112,7 +112,7 @@
             @error('customer_id')
                 <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
-            <p class="mt-1 text-xs text-amber-700" x-show="customerSearched && customerResults.length === 0 && customerQuery.length >= 2">
+            <p class="mt-1 text-xs text-amber-700" x-show="!customerId && customerSearched && customerResults.length === 0 && customerQuery.length >= 2">
                 No matching members. Switch to Guest if they are not registered yet.
             </p>
         </div>
@@ -366,6 +366,11 @@
                 },
                 async searchCustomers() {
                     const q = (this.customerQuery || '').trim();
+                    if (this.customerId && q === (this.customerLabel || '').trim()) {
+                        this.customerResults = [];
+                        this.customerSearched = false;
+                        return;
+                    }
                     if (q.length < 2) {
                         this.customerResults = [];
                         this.customerSearched = false;
@@ -388,6 +393,14 @@
                     this.customerLabel = row.label;
                     this.customerQuery = row.label;
                     this.customerResults = [];
+                    this.customerSearched = false;
+                },
+                clearCustomerSelection() {
+                    if (this.customerId) {
+                        // Keep the selected member ID as source of truth; ignore fuzzy re-search noise.
+                        this.customerSearched = false;
+                        this.customerResults = [];
+                    }
                 },
             };
         }

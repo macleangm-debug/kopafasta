@@ -50,7 +50,7 @@
                     <form method="GET" action="{{ route('site.borrower.support') }}" class="mt-5 max-w-xl">
                         <input type="hidden" name="section" value="help">
                         <input type="search" name="q" value="{{ $helpQuery }}"
-                               placeholder="{{ $isSw ? 'Tafuta FAQ na HOW TO…' : 'Search FAQs and HOW TO…' }}"
+                               placeholder="{{ __('site.help_hub.search_faq_placeholder') }}"
                                class="w-full rounded-2xl border-0 bg-white/95 text-gray-900 text-sm px-4 py-3 shadow-sm focus:ring-2 focus:ring-brand-gold/50">
                     </form>
                 </div>
@@ -98,7 +98,7 @@
                     </section>
                 @else
                     <section class="space-y-4">
-                        <h2 class="font-semibold text-lg">{{ $isSw ? 'FAQ na HOW TO' : 'FAQs & HOW TO' }}</h2>
+                        <h2 class="font-semibold text-lg">{{ __('site.help_hub.faq_howto') }}</h2>
                         @foreach ($helpGroups as $group)
                             @php
                                 $gLabel = $isSw ? ($group['label_sw'] ?? $group['label_en']) : ($group['label_en'] ?? $group['label_sw']);

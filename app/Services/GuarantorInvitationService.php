@@ -1902,53 +1902,20 @@ class GuarantorInvitationService
      */
     public function rejectInvitation(GuarantorInvitation $invitation, ?string $notes = null): void
     {
-        $invitation->loadMissing('customerGuarantor');
-        if ($link = $invitation->customerGuarantor) {
-            $this->reject($link, $notes);
-
-            return;
-        }
+        $invitation->loadMissing(['customerGuarantor.guarantor', 'customerGuarantor.customer', 'borrower']);
 
         DB::transaction(function () use ($invitation, $notes): void {
-            $invitation->update([
-                'status' => 'rejected',
-                'responded_at' => now(),
-                'response_notes' => $notes,
-                'confirmation_status' => null,
-            ]);
-
-            if ($invitation->customer_guarantor_id) {
-                CustomerGuarantor::query()
-                    ->whereKey($invitation->customer_guarantor_id)
-                    ->whereIn('status', ['pending', 'approved'])
-                    ->update(['status' => 'rejected']);
+            $link = $invitation->customerGuarantor;
+            if ($link && in_array((string) $link->status, ['pending', 'approved'], true)) {
+                $link->update(['status' => 'rejected']);
             }
-        });
-    }
 
-    public function reject(CustomerGuarantor $link, ?string $notes = null): void
-    {
-        DB::transaction(function () use ($link, $notes): void {
-            $link->update(['status' => 'rejected']);
-
-            $invitation = GuarantorInvitation::query()
-                ->where('customer_guarantor_id', $link->id)
-                ->whereIn('status', ['pending', 'accepted'])
-                ->latest('id')
-                ->first();
-
-            // Reject every open invitation for this link — never leave a pending twin.
+            // Reject this invitation and any open twin on the same link — never leave half-pending.
             GuarantorInvitation::query()
-                ->where(function ($q) use ($link, $invitation) {
-                    $q->where('customer_guarantor_id', $link->id);
-                    if ($invitation) {
-                        $q->orWhereKey($invitation->id);
-                    }
-                    if ($link->loan_application_id) {
-                        $q->orWhere(function ($inner) use ($link) {
-                            $inner->where('loan_application_id', $link->loan_application_id)
-                                ->where('customer_guarantor_id', $link->id);
-                        });
+                ->where(function ($q) use ($invitation) {
+                    $q->whereKey($invitation->id);
+                    if ($invitation->customer_guarantor_id) {
+                        $q->orWhere('customer_guarantor_id', $invitation->customer_guarantor_id);
                     }
                 })
                 ->whereIn('status', ['pending', 'accepted'])
@@ -1958,44 +1925,83 @@ class GuarantorInvitationService
                     'response_notes' => $notes,
                     'confirmation_status' => null,
                 ]);
+        });
 
-            $borrower = $link->customer;
-            $guarantorName = trim((string) ($invitation?->invitee_name ?: $link->guarantor?->first_name.' '.$link->guarantor?->last_name));
-            if ($borrower) {
-                $applicationId = $link->loan_application_id ?? $invitation?->loan_application_id;
+        $invitation->refresh();
+        $link = $invitation->customerGuarantor
+            ?? ($invitation->customer_guarantor_id
+                ? CustomerGuarantor::query()->find($invitation->customer_guarantor_id)
+                : null);
+
+        try {
+            $borrower = $link?->customer ?? $invitation->borrower;
+            $guarantorName = trim((string) (
+                $invitation->invitee_name
+                ?: trim(($link?->guarantor?->first_name ?? '').' '.($link?->guarantor?->last_name ?? ''))
+            ));
+            if ($borrower && $guarantorName !== '') {
+                $applicationId = $link?->loan_application_id ?? $invitation->loan_application_id;
                 $actionUrl = $applicationId
                     ? route('site.borrower.application', $applicationId)
-                    : null;
-
-                if (! $actionUrl && $invitation?->loan_product_id) {
-                    $draft = app(LoanApplicationDraftService::class)
-                        ->find($borrower, (int) $invitation->loan_product_id);
-                    $actionUrl = $draft
-                        ? route('site.borrower.loan-profile.draft', $draft)
-                        : route('site.borrower.apply', [
-                            'product' => $invitation->loan_product_id,
-                            'resume' => 1,
-                        ]);
-                }
+                    : route('site.borrower.loans', ['tab' => 'applications']);
 
                 app(NotificationService::class)->notifyInApp(
                     $borrower,
-                    __('borrower.guarantor_invite.borrower_declined', ['guarantor' => trim($guarantorName)]),
+                    __('borrower.guarantor_invite.borrower_declined', ['guarantor' => $guarantorName]),
                     'guarantor',
                     'guarantor_declined',
                     __('borrower.guarantor_invite.notify_declined_title'),
-                    $actionUrl ?: route('site.borrower.loans', ['tab' => 'applications']),
+                    $actionUrl,
                     __('borrower.notifications.view_application'),
                     [
                         'title_key' => 'borrower.guarantor_invite.notify_declined_title',
                         'body_key' => 'borrower.guarantor_invite.borrower_declined',
-                        'params' => ['guarantor' => trim($guarantorName)],
+                        'params' => ['guarantor' => $guarantorName],
                     ],
                 );
             }
+            if ($link) {
+                app(NotificationCtaService::class)->consumeGuarantorRequestCtas($link);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    public function reject(CustomerGuarantor $link, ?string $notes = null): void
+    {
+        $link->loadMissing(['invitation', 'guarantor', 'customer']);
+        $invitation = GuarantorInvitation::query()
+            ->where('customer_guarantor_id', $link->id)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->latest('id')
+            ->first()
+            ?? $link->invitation;
+
+        if ($invitation) {
+            $this->rejectInvitation($invitation, $notes);
+
+            return;
+        }
+
+        DB::transaction(function () use ($link, $notes): void {
+            $link->update(['status' => 'rejected']);
+            GuarantorInvitation::query()
+                ->where('customer_guarantor_id', $link->id)
+                ->whereIn('status', ['pending', 'accepted'])
+                ->update([
+                    'status' => 'rejected',
+                    'responded_at' => now(),
+                    'response_notes' => $notes,
+                    'confirmation_status' => null,
+                ]);
         });
 
-        app(NotificationCtaService::class)->consumeGuarantorRequestCtas($link);
+        try {
+            app(NotificationCtaService::class)->consumeGuarantorRequestCtas($link);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -2016,6 +2022,105 @@ class GuarantorInvitationService
                     'responded_at' => now(),
                     'response_notes' => $notes ?: 'Declined by underwriting for this application',
                 ]);
+        });
+    }
+
+    /**
+     * Edit the current guarantor nomination in place (same person).
+     * Regenerates the invitation token when contact identity changes so the old link dies.
+     *
+     * @return array{invitation_id: int, invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, status: string, borrower_status_code: string, borrower_status_label: string, profile_percent: int|null, accepted: bool, ready: bool, steps: list<array{key: string, label: string, complete: bool, current: bool}>}
+     */
+    public function updateCurrentExternalInvitationDetails(
+        Customer $borrower,
+        LoanApplication $application,
+        int $invitationId,
+        string $firstName,
+        ?string $middleName,
+        string $lastName,
+        string $phone,
+        ?string $email,
+        ?string $relationship = null,
+    ): array {
+        if ((int) $application->customer_id !== (int) $borrower->id) {
+            throw new \InvalidArgumentException('Application does not belong to this borrower.');
+        }
+
+        $invitation = GuarantorInvitation::query()
+            ->where('id', $invitationId)
+            ->where('customer_id', $borrower->id)
+            ->where('loan_application_id', $application->id)
+            ->where('type', 'external')
+            ->whereIn('status', ['pending', 'accepted'])
+            ->first();
+
+        if (! $invitation) {
+            throw new \InvalidArgumentException(__('borrower.guarantor_invite.no_longer_active'));
+        }
+
+        $phone = $this->normalizePhone($phone);
+        if ($member = $this->findMemberCustomerByPhone($phone)) {
+            throw new \InvalidArgumentException(__('borrower.apply.alerts.guarantor_phone_is_member', [
+                'name' => trim(($member->first_name ?? '').' '.($member->last_name ?? '')),
+            ]));
+        }
+
+        $displayName = trim(collect([$firstName, $middleName, $lastName])->filter()->implode(' '));
+        $identityChanged = $invitation->contact !== $phone
+            || $invitation->invitee_name !== $displayName;
+
+        return DB::transaction(function () use (
+            $invitation,
+            $borrower,
+            $application,
+            $firstName,
+            $middleName,
+            $lastName,
+            $phone,
+            $email,
+            $relationship,
+            $displayName,
+            $identityChanged,
+        ): array {
+            $link = CustomerGuarantor::query()->find($invitation->customer_guarantor_id);
+            if ($link?->guarantor_id) {
+                $guarantorUpdates = [
+                    'first_name' => trim($firstName.' '.($middleName ?: '')),
+                    'last_name' => $lastName,
+                    'phone' => $phone,
+                    'email' => $email,
+                ];
+                if ($relationship !== null && $relationship !== '') {
+                    $guarantorUpdates['relationship'] = $relationship;
+                }
+                Guarantor::query()->where('id', $link->guarantor_id)->update($guarantorUpdates);
+            }
+
+            $updates = [
+                'contact' => $phone,
+                'invitee_name' => $displayName,
+                'requested_amount' => (int) $application->requested_amount,
+                'requested_tenure_months' => (int) $application->requested_tenure_months,
+                'loan_product_id' => $application->loan_product_id,
+                'expires_at' => now()->addDays($this->invitationExpiryDays()),
+                'status' => 'pending',
+                'responded_at' => null,
+                'response_notes' => null,
+                'confirmation_status' => null,
+            ];
+            if ($identityChanged) {
+                // Invalidate the previous share link — same nomination, new token.
+                $updates['token'] = Str::random(48);
+                $updates['short_code'] = $this->generateShortCode();
+            }
+
+            $invitation->update($updates);
+            $this->ensureShortCode($invitation->fresh());
+
+            return $this->sharePayload(
+                $invitation->fresh(['application.product', 'product', 'borrower', 'customerGuarantor.guarantor']),
+                $borrower,
+            );
         });
     }
 

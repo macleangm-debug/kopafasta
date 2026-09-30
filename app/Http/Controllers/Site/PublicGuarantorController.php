@@ -221,13 +221,27 @@ class PublicGuarantorController extends Controller
         $notes = $request->validate(['notes' => ['nullable', 'string', 'max:500']])['notes'] ?? null;
 
         // Always reject via invitation so borrower Application View cannot stay pending.
-        $service->rejectInvitation($invitation, $notes);
+        try {
+            $service->rejectInvitation($invitation, $notes);
+        } catch (\Throwable $e) {
+            report($e);
 
-        app(GuarantorOnboardingService::class)->forgetInvitation($request);
+            return back()->with('error', __('borrower.guarantor_invite.no_longer_active'));
+        }
 
-        $this->auditBorrower('guarantor_invitation.rejected', $invitation, [
-            'application_id' => $invitation->loan_application_id,
-        ]);
+        try {
+            app(GuarantorOnboardingService::class)->forgetInvitation($request);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        try {
+            $this->auditBorrower('guarantor_invitation.rejected', $invitation->fresh() ?? $invitation, [
+                'application_id' => $invitation->loan_application_id,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return redirect()->route('site.guarantor.declined', $token);
     }

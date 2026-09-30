@@ -1060,6 +1060,12 @@ return [
         'title' => 'Help & feedback',
         'ask_question' => 'Get instant answers',
         'send_feedback' => 'Share your thoughts',
+        'from_account' => 'Help from your account',
+        'search_help' => 'Search help',
+        'faq_howto' => 'FAQ & HOW TO',
+        'continue_chat' => 'Continue support conversation',
+        'talk_to_support' => 'Talk to Support',
+        'search_faq_placeholder' => 'Search FAQs and HOW TO…',
     ],
 
     'support' => [

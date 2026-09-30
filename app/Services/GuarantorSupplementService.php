@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -101,13 +102,40 @@ class GuarantorSupplementService
     public function borrowerBanner(LoanApplication $application): ?string
     {
         if ($this->hasOpenAdditionalRequest($application)) {
+            // Still need another guarantor only when none is currently nominated.
+            if ($this->hasCurrentActionableNomination($application)) {
+                return null;
+            }
+
             return __('borrower.guarantor_supplement.borrower_banner');
         }
         if ($this->hasOpenChangeRequest($application)) {
+            // Replacement already invited → waiting copy lives on Guarantor Details, not UW instruction.
+            if ($this->hasCurrentActionableNomination($application)) {
+                return null;
+            }
+
             return __('borrower.guarantor_supplement.change_borrower_banner');
         }
 
         return null;
+    }
+
+    /** True when a pending/accepted invitation or pending link is already the current nomination. */
+    public function hasCurrentActionableNomination(LoanApplication $application): bool
+    {
+        $hasInvite = GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', ['pending', 'accepted', 'opened', 'sent'])
+            ->exists();
+        if ($hasInvite) {
+            return true;
+        }
+
+        return \App\Models\CustomerGuarantor::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->exists();
     }
 
     /** @return array{requested_at?: string, requested_by?: int, notes?: string|null, satisfied_at?: string|null, kind?: string}|null */

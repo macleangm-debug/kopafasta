@@ -209,6 +209,16 @@ class LoanApplicationNextActionService
 
             if ($supplements->hasOpenRequest($application)) {
                 $isAdditional = $supplements->hasOpenAdditionalRequest($application);
+                // Replacement/additional already nominated → wait on guarantor, don't re-prompt UW copy.
+                if ($supplements->hasCurrentActionableNomination($application)) {
+                    return $this->action(
+                        'awaiting_guarantor',
+                        __('borrower.loan_profile.next_actions.awaiting_guarantor'),
+                        __('borrower.applications_list.view'),
+                        $profileUrl.'#guarantor-progress',
+                        tone: 'secondary',
+                    );
+                }
 
                 return $this->action(
                     $isAdditional ? 'add_guarantor' : 'change_guarantor',

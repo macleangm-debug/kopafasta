@@ -1055,6 +1055,12 @@ return [
         'title' => 'Msaada na maoni',
         'ask_question' => 'Pata majibu papo hapo',
         'send_feedback' => 'Shiriki mawazo yako',
+        'from_account' => 'Msaada kutoka akaunti yako',
+        'search_help' => 'Tafuta msaada',
+        'faq_howto' => 'Maswali',
+        'continue_chat' => 'Endelea mazungumzo',
+        'talk_to_support' => 'Ongea na Timu ya Usaidizi',
+        'search_faq_placeholder' => 'Tafuta Maswali…',
     ],
 
     'support' => [

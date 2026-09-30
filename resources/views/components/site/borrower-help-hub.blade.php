@@ -12,30 +12,30 @@
          x-transition class="absolute bottom-16 right-0 w-72 rounded-2xl glass-card overflow-hidden shadow-xl">
         <div class="px-4 py-3 border-b border-gray-100/80 bg-brand text-white">
             <p class="text-sm font-bold">Kopafasta Support</p>
-            <p class="text-xs text-white/80 mt-0.5">{{ $isSw ? 'Msaada kutoka akaunti yako' : 'Help from your account' }}</p>
+            <p class="text-xs text-white/80 mt-0.5">{{ __('site.help_hub.from_account') }}</p>
         </div>
         <div class="p-2 bg-white/95">
             <a href="{{ route('site.borrower.support') }}"
                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">
                 <span class="size-8 rounded-lg bg-brand-muted text-brand grid place-items-center shrink-0">⌕</span>
-                {{ $isSw ? 'Tafuta msaada' : 'Search help' }}
+                {{ __('site.help_hub.search_help') }}
             </a>
             <a href="{{ route('site.borrower.support') }}"
                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">
                 <span class="size-8 rounded-lg bg-brand-muted text-brand grid place-items-center shrink-0">?</span>
-                {{ $isSw ? 'FAQ na HOW TO' : 'FAQs & HOW TO' }}
+                {{ __('site.help_hub.faq_howto') }}
             </a>
             @if ($hasActive)
                 <a href="{{ route('site.borrower.support', ['chat' => 1]) }}"
                    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand-muted">
                     <span class="size-8 rounded-lg bg-brand text-white grid place-items-center shrink-0">💬</span>
-                    {{ $isSw ? 'Endelea mazungumzo' : 'Continue support conversation' }}
+                    {{ __('site.help_hub.continue_chat') }}
                 </a>
             @endif
             <a href="{{ route('site.borrower.support', ['chat' => 1]) }}"
                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">
                 <span class="size-8 rounded-lg bg-brand-muted text-brand grid place-items-center shrink-0">☎</span>
-                {{ $isSw ? 'Ongea na Timu ya Usaidizi' : 'Talk to Support' }}
+                {{ __('site.help_hub.talk_to_support') }}
             </a>
             <a href="{{ route('site.feedback', ['open' => 1, 'from' => 'borrower']) }}"
                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">

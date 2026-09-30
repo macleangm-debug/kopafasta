@@ -4703,10 +4703,8 @@ export function applyWizard(config) {
 
                         await this.persistDraft(true);
                         if (this.supplementMode && this.stepKey === 'guarantor') {
-                            // Already-submitted application: Finish attaches the replacement and returns —
-                            // do not walk the normal Submit/resubmit path.
-                            this.gotoKey('submit');
-                            this.$nextTick(() => this.submitApplication());
+                            // Finish from guarantor step — submit without walking Submit/resubmit UI.
+                            this.onSubmit({ target: this.formRoot(), preventDefault() {} });
                             return;
                         }
                         if (this.step >= this.steps.length - 1) {
@@ -4916,10 +4914,10 @@ export function applyWizard(config) {
 
                 onSubmit(e) {
                     e.preventDefault();
-                    if (this.stepKey !== 'submit') {
+                    if (this.stepKey !== 'submit' && ! (this.supplementMode && this.stepKey === 'guarantor')) {
                         return;
                     }
-                    if (! this.canApply) {
+                    if (! this.supplementMode && ! this.canApply) {
                         this.showProfileGateModal = true;
                         return;
                     }
@@ -4944,16 +4942,33 @@ export function applyWizard(config) {
                         this.resigningOnSubmit = true;
                         return;
                     }
+                    if (this.externalGuarantor?.invitation_id) {
+                        this.form.external_invitation_id = this.externalGuarantor.invitation_id;
+                    }
                     this.syncSubmitPayload(e.target);
-                    if (this.supplementMode && this.supplementApplicationId) {
-                        let input = e.target.querySelector('input[name="supplement_application_id"]');
+                    const ensureHidden = (name, value) => {
+                        if (value === undefined || value === null || value === '') return;
+                        let input = e.target.querySelector(`input[name="${name}"]`);
                         if (! input) {
                             input = document.createElement('input');
                             input.type = 'hidden';
-                            input.name = 'supplement_application_id';
+                            input.name = name;
                             e.target.appendChild(input);
                         }
-                        input.value = String(this.supplementApplicationId);
+                        input.value = String(value);
+                    };
+                    if (this.supplementMode && this.supplementApplicationId) {
+                        ensureHidden('supplement_application_id', this.supplementApplicationId);
+                        ensureHidden('guarantor_mode', this.form.guarantor_mode || 'external');
+                        ensureHidden('external_invitation_id', this.externalGuarantor?.invitation_id || this.form.external_invitation_id);
+                        ensureHidden('loan_product_id', this.form.loan_product_id);
+                        ensureHidden('requested_amount', this.form.requested_amount);
+                        ensureHidden('requested_tenure_months', this.form.requested_tenure_months);
+                        // Finish: attach replacement and leave — never confirm-as-resubmit.
+                        this.submitting = true;
+                        this.advancing = true;
+                        e.target.submit();
+                        return;
                     }
                     this.submitting = true;
                     window.confirmForm(e.target, {

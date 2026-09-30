@@ -10,12 +10,6 @@
     $selectedStaffId = $dashboard['selected_staff_id'] ?? null;
     $agentsOnline = (int) ($dashboard['agents_online'] ?? 0);
     $recurringIssues = $dashboard['recurring_issues'] ?? [];
-    $dot = match ($availability) {
-        'online' => 'bg-emerald-400',
-        'away' => 'bg-amber-400',
-        'offline' => 'bg-gray-400',
-        default => 'bg-gray-300',
-    };
     $heroSubtitle = $teamView
         ? 'Help members, partners and guests — answer conversations and resolve tickets.'
         : 'Help members, answer conversations and resolve tickets.';
@@ -73,30 +67,20 @@
                 </x-site.action-panel>
             </div>
             @if ($agent)
-                <div class="relative" x-data="{ availOpen: false }">
-                    <button type="button" @click="availOpen = true"
-                            class="inline-flex items-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-3.5 py-2 text-sm shadow-sm ring-1 ring-white/30"
-                            title="Online = can Accept. Offline = keep assigned chats; no new Accept."
-                            aria-haspopup="dialog"
-                            aria-expanded="false">
-                        <span class="inline-flex size-2.5 rounded-full {{ $dot }} ring-2 ring-brand/20" aria-hidden="true"></span>
-                        <span>● {{ $availability === 'offline' ? 'Offline' : ($availability === 'away' ? 'Away' : 'Online') }} ▾</span>
+                @php
+                    $isOnline = $availability === 'online';
+                    $nextAvailability = $isOnline ? 'offline' : 'online';
+                    $availLabel = $isOnline ? '● Online ▾' : '○ Offline ▾';
+                @endphp
+                <form method="POST" action="{{ route('admin.support.availability') }}" class="inline">
+                    @csrf
+                    <input type="hidden" name="availability" value="{{ $nextAvailability }}">
+                    <button type="submit"
+                            class="inline-flex items-center rounded-xl bg-brand-gold text-brand font-bold px-3.5 py-2 text-sm shadow-sm ring-1 ring-white/30"
+                            title="{{ $isOnline ? 'Click to go Offline. Assigned chats stay yours; you cannot Accept new waiting chats.' : 'Click to go Online and Accept waiting chats.' }}">
+                        {{ $availLabel }}
                     </button>
-                    <x-site.action-panel title="Availability" open="availOpen">
-                        <p class="text-xs text-gray-500 mb-3">Offline keeps your assigned conversations. You cannot Accept new waiting chats until you are Online.</p>
-                        <form method="POST" action="{{ route('admin.support.availability') }}" class="space-y-1">
-                            @csrf
-                            <button type="submit" name="availability" value="online"
-                                    class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ $availability === 'online' ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
-                                ● Online
-                            </button>
-                            <button type="submit" name="availability" value="offline"
-                                    class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ $availability === 'offline' ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
-                                ○ Offline
-                            </button>
-                        </form>
-                    </x-site.action-panel>
-                </div>
+                </form>
             @else
                 <span class="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white">
                     <span class="size-2.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
@@ -122,12 +106,12 @@
             @endphp
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                 @foreach ($kpiStrip as [$label, $value, $url, $hint])
-                    <a href="{{ $url }}" class="rounded-xl bg-white ring-1 ring-brand/15 shadow-sm px-3 py-3 hover:ring-brand/40 hover:shadow transition" title="{{ $hint }}">
+                    <a href="{{ $url }}" class="rounded-2xl bg-gradient-to-br from-white to-brand-muted/30 ring-1 ring-brand/15 shadow-sm px-3.5 py-3.5 hover:ring-brand/35 hover:shadow-md transition" title="{{ $hint }}">
                         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold flex items-center gap-1">
                             <span>{{ $label }}</span>
                             <span class="inline-flex size-3.5 items-center justify-center rounded-full bg-brand-muted text-[9px] font-bold text-brand" aria-label="{{ $hint }}">ⓘ</span>
                         </p>
-                        <p class="text-xl font-bold text-gray-900 mt-1.5 tabular-nums {{ $label === 'Longest waiting' ? 'font-mono text-lg' : '' }}">
+                        <p class="text-2xl font-extrabold text-gray-900 mt-2 tabular-nums tracking-tight {{ $label === 'Longest waiting' ? 'font-mono text-xl' : '' }}">
                             {{ $label === 'Longest waiting' ? $value : format_number((int) $value) }}
                         </p>
                     </a>
@@ -136,15 +120,18 @@
         </x-slot:stats>
     </x-admin.letterhead>
 
-    <div class="grid lg:grid-cols-3 gap-6">
-        <section class="lg:col-span-2 space-y-6">
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-2">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Support queue' : 'My queue' }}</p>
-                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Waiting & open conversations</h2>
+    <div class="grid lg:grid-cols-3 gap-5">
+        <section class="lg:col-span-2 space-y-5">
+            <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-white">
+                <div class="relative overflow-hidden kf-premium-panel px-5 py-4 text-white">
+                    <div class="absolute -right-10 -top-10 size-28 rounded-full bg-white/10 pointer-events-none" aria-hidden="true"></div>
+                    <div class="relative flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ $teamView ? 'Support queue' : 'My queue' }}</p>
+                            <h2 class="text-base font-bold tracking-tight mt-0.5">Waiting & open conversations</h2>
+                        </div>
+                        <a href="{{ route('admin.support.inbox') }}" class="text-xs font-bold text-brand-gold hover:underline shrink-0">Inbox →</a>
                     </div>
-                    <a href="{{ route('admin.support.inbox') }}" class="text-xs font-semibold text-brand hover:underline">Inbox →</a>
                 </div>
                 <ul class="divide-y divide-gray-100">
                     @forelse ($queue as $item)
@@ -170,13 +157,16 @@
                 </ul>
             </div>
 
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
-                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-2">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Open tickets' : 'Tickets assigned to me' }}</p>
-                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Tickets needing attention</h2>
+            <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-white">
+                <div class="relative overflow-hidden kf-premium-panel px-5 py-4 text-white">
+                    <div class="absolute -right-10 -top-10 size-28 rounded-full bg-white/10 pointer-events-none" aria-hidden="true"></div>
+                    <div class="relative flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ $teamView ? 'Open tickets' : 'Tickets assigned to me' }}</p>
+                            <h2 class="text-base font-bold tracking-tight mt-0.5">Tickets needing attention</h2>
+                        </div>
+                        <a href="{{ route('admin.support.cases') }}" class="text-xs font-bold text-brand-gold hover:underline shrink-0">All tickets →</a>
                     </div>
-                    <a href="{{ route('admin.support.cases') }}" class="text-xs font-semibold text-brand hover:underline">All tickets →</a>
                 </div>
                 <ul class="divide-y divide-gray-100">
                     @forelse ($tickets as $ticket)
@@ -218,10 +208,16 @@
             @endif
         </section>
 
-        <aside class="space-y-6">
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Team performance' : 'My performance' }}</p>
-                <h2 class="text-sm font-semibold text-gray-900 mt-0.5">{{ $performance['range_label'] ?? 'Today' }}</h2>
+        <aside class="space-y-5">
+            <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-white">
+                <div class="relative overflow-hidden kf-premium-panel px-5 py-4 text-white">
+                    <div class="absolute -right-8 -top-8 size-24 rounded-full bg-white/10 pointer-events-none" aria-hidden="true"></div>
+                    <div class="relative">
+                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ $teamView ? 'Team performance' : 'My performance' }}</p>
+                        <h2 class="text-base font-bold tracking-tight mt-0.5">{{ $performance['range_label'] ?? 'Today' }}</h2>
+                    </div>
+                </div>
+                <div class="p-5">
                 @php
                     $fmtMin = function (?int $m): string {
                         if ($m === null) {
@@ -234,7 +230,7 @@
                         return intdiv($m, 60).'h '.($m % 60).'m';
                     };
                 @endphp
-                <dl class="mt-4 space-y-3 text-sm">
+                <dl class="space-y-3 text-sm">
                     <div class="flex justify-between gap-3"><dt class="text-gray-500">Resolved today</dt><dd class="font-semibold tabular-nums">{{ format_number($performance['resolved'] ?? 0) }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-gray-500">Avg first response</dt><dd class="font-semibold tabular-nums">{{ $fmtMin($performance['avg_first_response_minutes'] ?? null) }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-gray-500">First-contact resolution</dt><dd class="font-semibold tabular-nums">{{ isset($performance['first_contact_resolution']) ? $performance['first_contact_resolution'].'%' : '—' }}</dd></div>
@@ -242,6 +238,7 @@
                     <div class="flex justify-between gap-3"><dt class="text-gray-500">Customer rating</dt><dd class="font-semibold tabular-nums">{{ $performance['customer_rating'] ?? '—' }}</dd></div>
                 </dl>
                 <a href="{{ route('admin.support.performance') }}" class="mt-4 inline-flex text-xs font-semibold text-brand hover:underline">View performance charts →</a>
+                </div>
             </div>
         </aside>
     </div>

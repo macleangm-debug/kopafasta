@@ -439,6 +439,55 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.guarantor_supplement.borrower_change_started'));
     }
 
+    public function editGuarantorInvitation(Request $request, LoanApplication $application): RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_if($application->customer_id !== $customer->id, 404);
+
+        $data = $request->validate([
+            'invitation_id' => ['required', 'integer'],
+            'first_name' => ['required', 'string', 'max:60'],
+            'last_name' => ['required', 'string', 'max:60'],
+            'phone' => ['required', 'string', 'max:20'],
+            'middle_name' => ['nullable', 'string', 'max:60'],
+            'email' => ['nullable', 'email', 'max:120'],
+            'relationship' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        try {
+            $share = app(\App\Services\GuarantorInvitationService::class)
+                ->updateCurrentExternalInvitationDetails(
+                    $customer,
+                    $application,
+                    (int) $data['invitation_id'],
+                    trim($data['first_name']),
+                    trim($data['middle_name'] ?? '') ?: null,
+                    trim($data['last_name']),
+                    $data['phone'],
+                    $data['email'] ?? null,
+                    $data['relationship'] ?? null,
+                );
+        } catch (\InvalidArgumentException $e) {
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('error', __('borrower.apply.alerts.guarantor_invite_failed'));
+        }
+
+        $this->auditBorrower('loan_application.guarantor_invitation_edited', $application, [
+            'invitation_id' => $share['invitation_id'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('site.borrower.application', $application)
+            ->with('status', __('borrower.loan_profile.actions.edit_guarantor_saved'));
+    }
+
     public function discardDraft(Request $request, LoanApplicationDraft $draft): RedirectResponse
     {
         $customer = $this->customer();

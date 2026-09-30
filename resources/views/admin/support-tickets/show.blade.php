@@ -177,10 +177,33 @@
                     </div>
                 </template>
                 <p class="text-sm text-slate-500 text-center py-10" x-show="!messages.length">
-                    {{ $conversation ? 'No messages yet.' : 'No linked conversation. Create from Inbox with Create ticket.' }}
+                    @if ($conversation)
+                        No messages yet.
+                    @elseif ($customer && $isOpen)
+                        No conversation yet. Start one below to message this member in-app.
+                    @else
+                        No linked conversation. Guest tickets cannot start an in-app chat.
+                    @endif
                 </p>
             </div>
-            @if ($conversation && $isOpen)
+            @if (! $conversation && $customer && $isOpen)
+                <div class="border-t border-slate-200/80 p-4 space-y-3 bg-white">
+                    <p class="text-xs font-semibold text-brand uppercase tracking-widest">Start conversation</p>
+                    <p class="text-xs text-slate-500">Creates one Support conversation linked to this ticket and notifies the member.</p>
+                    <form method="POST" action="{{ route('admin.support-tickets.start-conversation', $record) }}" class="space-y-3"
+                          x-data="{ sending: false }"
+                          @submit="if (sending) { $event.preventDefault(); return } sending = true">
+                        @csrf
+                        <textarea name="body" rows="3" required maxlength="5000"
+                                  class="w-full rounded-xl border-gray-200 text-sm"
+                                  placeholder="First message to the member…"></textarea>
+                        <button type="submit" :disabled="sending"
+                                class="rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5 disabled:opacity-60">
+                            <span x-text="sending ? 'Starting…' : 'Start conversation'"></span>
+                        </button>
+                    </form>
+                </div>
+            @elseif ($conversation && $isOpen)
                 <div class="border-t border-slate-200/80 p-4 space-y-3 bg-white">
                     @if (! empty($quickReplies))
                         <div x-data="{ tq: '', replies: @js(collect($quickReplies)->map(fn ($qr) => [
