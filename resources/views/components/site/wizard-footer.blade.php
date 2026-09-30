@@ -26,11 +26,13 @@
                 ? @js(__('borrower.apply.loading'))
                 : ((guarantorInvitePreparing && stepKey === 'guarantor')
                 ? @js(__('borrower.apply.application_fee.processing'))
-                : (isEditHop()
+                : (supplementMode
+                    ? @js(__('borrower.apply.finish'))
+                    : (isEditHop()
                     ? @js(__('borrower.apply.complete_editing'))
                     : (stepKey === 'review' && reviewPage < reviewPageCount
                         ? @js(__('borrower.apply.review_step.next_page'))
-                        : @js(__('borrower.apply.continue')))))"></span>
+                        : @js(__('borrower.apply.continue'))))))"></span>
             <svg x-show="!(advancing || feeNavigating)" class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M8 4l6 6-6 6"/></svg>
             <svg x-show="advancing || feeNavigating" x-cloak class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" class="opacity-25"/><path d="M21 12a9 9 0 00-9-9" class="opacity-90"/></svg>
         </button>
@@ -47,7 +49,7 @@
                 :disabled="submitting || advancing || !canApply"
                 x-show="stepKey === 'submit' && canApply"
                 class="inline-flex items-center gap-2 bg-brand hover:bg-brand-light disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
-            <span x-text="submitting ? @js(__('borrower.apply.submitting')) : @js(__('borrower.apply.submit'))"></span>
+            <span x-text="submitting ? @js(__('borrower.apply.submitting')) : (supplementMode ? @js(__('borrower.apply.finish')) : @js(__('borrower.apply.submit')))"></span>
             <svg class="w-4 h-4" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="2"><path d="M8 4l6 6-6 6"/></svg>
         </button>
     </div>

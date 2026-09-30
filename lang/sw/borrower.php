@@ -294,6 +294,7 @@ return [
         'requirements_hint' => 'Bado unaweza kukagua bidhaa za mkopo hapa chini — alama yako ya utayari itaonyesha kinachokosekana kabla ya kuomba.',
         'asset_reservation' => 'Ombi la mkopo wa mali kwa :asset. Malengo ya malipo ya awali: TZS :amount.',
         'continue' => 'Endelea',
+        'finish' => 'Maliza',
         'next' => 'Endelea',
         'continuing' => 'Inaendelea…',
         'loading' => 'Inapakia…',
@@ -4395,13 +4396,13 @@ return [
         'register_welcome_hint' => 'Thibitisha jina na simu, ongeza tarehe ya kuzaliwa, na unda nenosiri. Unakuwa mwanachama — unaweza pia kuomba mikopo baadaye.',
         'continue_guarantee' => 'Endelea na mchakato wa dhamana',
         'declined_thanks_title' => 'Asante',
-        'declined_thanks_message' => 'Jibu lako limeandikwa. Mkopaji amearifiwa.',
+        'declined_thanks_message' => 'Uamuzi wako umehifadhiwa.',
         'declined_result_title' => 'Mwaliko umekataliwa',
-        'declined_result_body' => 'Hutaorodheshwa kama mdhamini wa mkopo huu. Hakuna hatua nyingine unayohitajika.',
-        'declined_cta_title' => 'Jibu limerekodiwa',
-        'declined_cta_home' => 'Rudi Kopafasta',
-        'declined_upsell_lede' => 'Jiunge na KopaFasta kwa mikopo ya haraka, zawadi, na faida za uanachama.',
-        'declined_upsell_body' => 'Unda akaunti bure na fungua faida za uanachama unapokuwa tayari.',
+        'declined_result_body' => 'Hutaorodheshwa kama mdhamini wa mkopo huu, na mkopaji amearifiwa.',
+        'declined_cta_title' => 'Na wewe unaweza kuwa mwanachama wa KopaFasta',
+        'declined_cta_home' => 'Rudi KopaFasta',
+        'declined_upsell_lede' => 'Na wewe unaweza kuwa mwanachama wa KopaFasta',
+        'declined_upsell_body' => 'Fungua akaunti yako ili uweze kupata huduma za KopaFasta, kufuatilia fursa zinazokufaa na kuomba huduma zako mwenyewe unapozihitaji.',
         'declined_benefits' => 'Faida:',
         'declined_benefit_fast' => 'Maombi ya haraka',
         'declined_benefit_fast_hint' => 'Omba kutoka simu yako kwa dakika chache',
@@ -4411,9 +4412,9 @@ return [
         'declined_benefit_rewards_hint' => 'Pointi kwa malipo kwa wakati na maendeleo ya wasifu',
         'declined_benefit_referrals' => 'Alika marafiki na upate',
         'declined_benefit_referrals_hint' => 'Shiriki kiungo chako cha rufaa baada ya kujiunga',
-        'declined_cta_member' => 'Kuwa mwanachama',
+        'declined_cta_member' => 'Jiunge na KopaFasta',
         'declined_cta_apply' => 'Omba mkopo',
-        'declined_cta_not_now' => 'Si sasa',
+        'declined_cta_not_now' => 'Sio sasa / Rudi KopaFasta',
         'accepted_result_title' => 'Umekubali dhamana hii',
         'shell_footer' => 'Mialiko salama ya mdhamini kutoka kwa wanachama wa KopaFasta.',
         'shell_step_review' => 'Kagua ombi',
@@ -4462,19 +4463,7 @@ return [
         'status_awaiting_response' => 'Inasubiri jibu',
         'status_kyc_in_progress' => 'Wasifu unaendelea',
         'view_request' => 'Angalia ombi',
-        'message' => 'Habari :guarantor_name,
-
-:borrower_name anaomba msaada wako kama mdhamini kwa ombi la mkopo la :product.
-
-Kiasi cha Mkopo: :amount
-
-Muda wa Mkopo: :duration
-
-Tafadhali bofya kiungo hapa chini ili kukagua na kujibu ombi hili.
-
-:link
-
-Asante.',
+        'message' => "Habari :guarantor_name,\n\n:borrower_name anaomba msaada wako kama mdhamini kwa :product.\n\nKiasi cha mkopo: :amount\nMuda: :duration\nMalipo: :frequency\nKiasi cha awamu: :installment\n\nKagua ombi na uamue kama uko tayari kudhamini masharti haya:\n\n:link\n\nAsante.",
     ],
     'notifications' => [
         'page_title' => 'Arifa',

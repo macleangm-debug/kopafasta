@@ -39,7 +39,7 @@
                     <label class="text-[10px] uppercase tracking-widest text-white/70 font-semibold shrink-0">{{ __('admin.role_view.viewing') }}:</label>
                     <select name="staff_id"
                             onchange="this.form.submit()"
-                            class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold px-3 py-2 focus:ring-2 focus:ring-white/40 min-w-[10rem]"
+                            class="rounded-xl border-0 bg-brand-gold text-brand text-sm font-bold px-3 py-2 focus:ring-2 focus:ring-white/40 min-w-[10rem] shadow-sm"
                             title="Filters Support workload and performance. Does not impersonate — actions still record as you."
                             aria-label="{{ __('admin.role_view.viewing') }}: Team">
                         <option value="0" @selected($teamView) class="text-gray-900">Team ▾</option>
@@ -51,7 +51,7 @@
                     </select>
                 </form>
                 <button type="button" @click="staffSheet = true"
-                        class="sm:hidden inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white"
+                        class="sm:hidden inline-flex items-center gap-1.5 rounded-xl bg-brand-gold text-brand font-bold px-3 py-2 text-sm shadow-sm"
                         aria-label="{{ __('admin.role_view.viewing') }}: {{ $viewingLabel }}">
                     <span>{{ __('admin.role_view.viewing') }}: {{ $viewingLabel }} ▾</span>
                 </button>
@@ -74,23 +74,13 @@
             </div>
             @if ($agent)
                 <div class="relative" x-data="{ availOpen: false }">
-                    <form method="POST" action="{{ route('admin.support.availability') }}" class="hidden sm:inline-flex items-center gap-2">
-                        @csrf
-                        <span class="inline-flex size-2.5 rounded-full {{ $dot }} ring-2 ring-white/40" aria-hidden="true"></span>
-                        <label class="sr-only" for="support-availability">Availability</label>
-                        <select id="support-availability" name="availability"
-                                onchange="this.form.submit()"
-                                class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold pl-2 pr-8 py-2 focus:ring-2 focus:ring-white/40"
-                                title="Online = can Accept. Offline = keep assigned chats; no new Accept.">
-                            <option value="online" @selected($availability === 'online') class="text-gray-900">● Online</option>
-                            <option value="offline" @selected($availability === 'offline') class="text-gray-900">○ Offline</option>
-                            <option value="away" @selected($availability === 'away') class="text-gray-900">Away</option>
-                        </select>
-                    </form>
                     <button type="button" @click="availOpen = true"
-                            class="sm:hidden inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white">
-                        <span class="inline-flex size-2.5 rounded-full {{ $dot }}" aria-hidden="true"></span>
-                        <span>{{ $availability === 'offline' ? 'Offline' : ($availability === 'away' ? 'Away' : 'Online') }} ▾</span>
+                            class="inline-flex items-center gap-2 rounded-xl bg-brand-gold text-brand font-bold px-3.5 py-2 text-sm shadow-sm ring-1 ring-white/30"
+                            title="Online = can Accept. Offline = keep assigned chats; no new Accept."
+                            aria-haspopup="dialog"
+                            aria-expanded="false">
+                        <span class="inline-flex size-2.5 rounded-full {{ $dot }} ring-2 ring-brand/20" aria-hidden="true"></span>
+                        <span>● {{ $availability === 'offline' ? 'Offline' : ($availability === 'away' ? 'Away' : 'Online') }} ▾</span>
                     </button>
                     <x-site.action-panel title="Availability" open="availOpen">
                         <p class="text-xs text-gray-500 mb-3">Offline keeps your assigned conversations. You cannot Accept new waiting chats until you are Online.</p>
@@ -132,12 +122,12 @@
             @endphp
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                 @foreach ($kpiStrip as [$label, $value, $url, $hint])
-                    <a href="{{ $url }}" class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-2.5 hover:ring-brand/30 transition" title="{{ $hint }}">
+                    <a href="{{ $url }}" class="rounded-xl bg-white ring-1 ring-brand/15 shadow-sm px-3 py-3 hover:ring-brand/40 hover:shadow transition" title="{{ $hint }}">
                         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold flex items-center gap-1">
                             <span>{{ $label }}</span>
-                            <span class="inline-flex size-3.5 items-center justify-center rounded-full bg-white/80 text-[9px] font-bold text-brand" aria-label="{{ $hint }}">ⓘ</span>
+                            <span class="inline-flex size-3.5 items-center justify-center rounded-full bg-brand-muted text-[9px] font-bold text-brand" aria-label="{{ $hint }}">ⓘ</span>
                         </p>
-                        <p class="text-xl font-bold text-gray-900 mt-1 tabular-nums {{ $label === 'Longest waiting' ? 'font-mono text-lg' : '' }}">
+                        <p class="text-xl font-bold text-gray-900 mt-1.5 tabular-nums {{ $label === 'Longest waiting' ? 'font-mono text-lg' : '' }}">
                             {{ $label === 'Longest waiting' ? $value : format_number((int) $value) }}
                         </p>
                     </a>

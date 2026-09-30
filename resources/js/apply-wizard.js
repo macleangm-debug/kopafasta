@@ -4112,6 +4112,9 @@ export function applyWizard(config) {
                         external_region: this.readFormField('external_region') || this.form.external_region,
                         external_district: this.readFormField('external_district') || this.form.external_district,
                         external_invitation_id: this.externalGuarantor?.invitation_id || null,
+                        supplement_application_id: this.supplementApplicationId || null,
+                        requested_amount: this.form.requested_amount || null,
+                        requested_tenure_months: this.form.requested_tenure_months || null,
                     };
                 },
 
@@ -4699,6 +4702,13 @@ export function applyWizard(config) {
                         if (! await this.validateStep()) return;
 
                         await this.persistDraft(true);
+                        if (this.supplementMode && this.stepKey === 'guarantor') {
+                            // Already-submitted application: Finish attaches the replacement and returns —
+                            // do not walk the normal Submit/resubmit path.
+                            this.gotoKey('submit');
+                            this.$nextTick(() => this.submitApplication());
+                            return;
+                        }
                         if (this.step >= this.steps.length - 1) {
                             return;
                         }

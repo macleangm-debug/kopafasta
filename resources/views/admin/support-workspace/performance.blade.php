@@ -115,16 +115,16 @@
             <p class="text-sm text-slate-600 mt-1 tabular-nums">{{ $performance['customer_rating'] ?? '—' }} / 5</p>
         </section>
 
-        <section class="lg:col-span-2 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+        <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100">
                 <h2 class="text-sm font-semibold text-gray-900">Top Issues</h2>
                 <p class="text-xs text-slate-500">Canonical Issue taxonomy counts for this range</p>
             </div>
-            <ul class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+            <ul class="divide-y divide-gray-100 max-h-56 overflow-y-auto">
                 @forelse (($performance['top_issues'] ?? []) as $row)
                     <li class="px-5 py-3 flex items-center justify-between gap-3 text-sm">
-                        <span class="font-semibold text-gray-800">{{ str_replace('_', ' ', ucfirst($row['issue'])) }}</span>
-                        <span class="tabular-nums font-bold text-brand">{{ format_number($row['count']) }}</span>
+                        <span class="font-semibold text-gray-800 truncate">{{ str_replace('_', ' ', ucfirst($row['issue'])) }}</span>
+                        <span class="tabular-nums font-bold text-brand shrink-0">{{ format_number($row['count']) }}</span>
                     </li>
                 @empty
                     <li class="px-5 py-8 text-center text-sm text-gray-500">No tickets in this range yet.</li>

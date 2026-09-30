@@ -1026,16 +1026,46 @@ class ApplyController extends Controller
             'external_district' => ['required', 'string', 'max:100'],
             'external_channel' => ['nullable', 'in:whatsapp,sms,email'],
             'external_invitation_id' => ['nullable', 'integer'],
+            'supplement_application_id' => ['nullable', 'integer', 'exists:loan_applications,id'],
+            'requested_amount' => ['nullable', 'numeric', 'min:0'],
+            'requested_tenure_months' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $this->abortUnlessApplicationFeeAllowsProgress($borrower, (int) $data['loan_product_id']);
+
+        $supplementApplication = null;
+        if (! empty($data['supplement_application_id'])) {
+            $supplementApplication = LoanApplication::query()
+                ->where('customer_id', $borrower->id)
+                ->find((int) $data['supplement_application_id']);
+            if ($supplementApplication && ! app(GuarantorSupplementService::class)->hasOpenRequest($supplementApplication)) {
+                $supplementApplication = null;
+            }
+        }
 
         $draft = $drafts->find($borrower, (int) $data['loan_product_id']);
         $existingId = $data['external_invitation_id']
             ?? ($draft?->payload['external_guarantor']['invitation_id'] ?? null);
         $draftForm = $draft?->payload['form'] ?? [];
-        $requestedAmount = isset($draftForm['requested_amount']) ? (int) $draftForm['requested_amount'] : null;
-        $requestedTenure = isset($draftForm['requested_tenure_months']) ? (int) $draftForm['requested_tenure_months'] : null;
+
+        // Authoritative order: submitted supplement application → request → draft form.
+        $requestedAmount = null;
+        $requestedTenure = null;
+        if ($supplementApplication) {
+            $requestedAmount = (int) $supplementApplication->requested_amount;
+            $requestedTenure = (int) $supplementApplication->requested_tenure_months;
+        } else {
+            if (isset($data['requested_amount']) && (float) $data['requested_amount'] > 0) {
+                $requestedAmount = (int) $data['requested_amount'];
+            } elseif (isset($draftForm['requested_amount'])) {
+                $requestedAmount = (int) $draftForm['requested_amount'];
+            }
+            if (isset($data['requested_tenure_months']) && (int) $data['requested_tenure_months'] > 0) {
+                $requestedTenure = (int) $data['requested_tenure_months'];
+            } elseif (isset($draftForm['requested_tenure_months'])) {
+                $requestedTenure = (int) $draftForm['requested_tenure_months'];
+            }
+        }
 
         try {
             $share = $guarantors->prepareWizardExternalInvitation(
@@ -1052,7 +1082,8 @@ class ApplyController extends Controller
                 $existingId ? (int) $existingId : null,
                 $requestedAmount,
                 $requestedTenure,
-                (int) $data['loan_product_id'],
+                (int) ($supplementApplication?->loan_product_id ?: $data['loan_product_id']),
+                $supplementApplication,
             );
         } catch (\InvalidArgumentException $e) {
             return response()->json([
@@ -1068,14 +1099,17 @@ class ApplyController extends Controller
             ], 500);
         }
 
-        $drafts->save($borrower, [
-            'phase' => $draft?->phase ?? 'application',
-            'step' => $draft?->step ?? 0,
-            'loan_product_id' => (int) $data['loan_product_id'],
-            'form' => $draft?->payload['form'] ?? [],
-            'inputs' => $draft?->payload['inputs'] ?? [],
-            'external_guarantor' => $share,
-        ]);
+        // Do not overwrite a missing draft form during supplement — terms live on the application.
+        if (! $supplementApplication) {
+            $drafts->save($borrower, [
+                'phase' => $draft?->phase ?? 'application',
+                'step' => $draft?->step ?? 0,
+                'loan_product_id' => (int) $data['loan_product_id'],
+                'form' => $draft?->payload['form'] ?? [],
+                'inputs' => $draft?->payload['inputs'] ?? [],
+                'external_guarantor' => $share,
+            ]);
+        }
 
         return response()->json(['ok' => true, 'share' => $share]);
     }
@@ -2768,6 +2802,7 @@ class ApplyController extends Controller
 
         $data = $request->all();
         $mode = $data['guarantor_mode'] ?? 'none';
+        $attachedInvitation = null;
 
         try {
             if ($mode === 'internal' || $mode === 'previous') {
@@ -2785,14 +2820,14 @@ class ApplyController extends Controller
             } elseif ($mode === 'external') {
                 $inviteId = (int) ($data['external_invitation_id'] ?? 0);
                 if ($inviteId > 0) {
-                    $guarantors->finalizeWizardExternalInvitation($customer, $application, $inviteId);
+                    $attachedInvitation = $guarantors->finalizeWizardExternalInvitation($customer, $application, $inviteId);
                 } else {
                     $first = trim($data['external_first_name'] ?? '');
                     $last = trim($data['external_last_name'] ?? '');
                     if ($first === '' || $last === '' || blank($data['external_phone'] ?? null)) {
                         throw new \InvalidArgumentException(__('borrower.apply.alerts.select_guarantor'));
                     }
-                    $guarantors->attachExternal(
+                    [, $attachedInvitation] = $guarantors->attachExternal(
                         $customer,
                         $application,
                         $first,
@@ -2817,10 +2852,17 @@ class ApplyController extends Controller
             return redirect()->to($returnUrl)->withInput()->with('error', __('borrower.apply.alerts.guarantor_lookup_failed'));
         }
 
+        if ($attachedInvitation && $attachedInvitation->type === 'external') {
+            $invitee = (string) ($attachedInvitation->invitee_name ?: 'Guarantor');
+            $guarantors->notifyExternalInvitation($customer, $attachedInvitation->fresh(['application.product', 'borrower', 'customerGuarantor.guarantor']), $invitee);
+            $guarantors->notifyBorrowerInvitationSent($customer, $attachedInvitation, $invitee);
+        }
+
         $supplements->markSatisfied($application);
 
         $this->auditBorrower('application.guarantor_supplement_submitted', $application, [
             'mode' => $mode,
+            'invitation_id' => $attachedInvitation?->id,
         ]);
 
         return redirect()
