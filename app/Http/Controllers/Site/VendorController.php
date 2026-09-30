@@ -1095,13 +1095,13 @@ class VendorController extends Controller
             : 'site.partner.support';
 
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-            return response()->json([
+            return response()->json(array_merge([
                 'ok' => true,
                 'conversation_id' => $conversation->id,
                 'status' => $conversation->status,
                 'ack' => $ack,
                 'messages' => $service->serializeMessages($conversation),
-            ]);
+            ], $service->memberChatPresence($conversation)));
         }
 
         return redirect()
@@ -1123,18 +1123,22 @@ class VendorController extends Controller
             ->first();
 
         if (! $conversation) {
-            return response()->json(['ok' => true, 'conversation_id' => null, 'messages' => []]);
+            return response()->json(array_merge([
+                'ok' => true,
+                'conversation_id' => null,
+                'messages' => [],
+            ], $service->memberChatPresence(null)));
         }
 
         $service->normalizeLegacyStatus($conversation);
 
-        return response()->json([
+        return response()->json(array_merge([
             'ok' => true,
             'conversation_id' => $conversation->id,
             'status' => $conversation->status,
             'needs_human' => $conversation->needs_human,
             'messages' => $service->serializeMessages($conversation),
-        ]);
+        ], $service->memberChatPresence($conversation)));
     }
 
     public function terms()

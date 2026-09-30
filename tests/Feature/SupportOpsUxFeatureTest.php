@@ -220,8 +220,10 @@ class SupportOpsUxFeatureTest extends TestCase
         $this->post(route('admin.role-view.select-staff'), ['staff_id' => $agent->id]);
 
         $this->post(route('admin.support.interactions.store'), [
+            'party' => 'registered',
             'channel' => 'phone',
             'customer_id' => $customer->id,
+            'subject_key' => 'guarantor',
             'body' => 'Called about guarantor status. Advised waiting.',
         ])->assertRedirect();
 
@@ -229,22 +231,43 @@ class SupportOpsUxFeatureTest extends TestCase
             'customer_id' => $customer->id,
             'channel' => 'phone',
         ]);
+        $this->assertDatabaseMissing('support_tickets', [
+            'customer_id' => $customer->id,
+            'subject' => 'Guarantor',
+        ]);
 
         $this->post(route('admin.support.interactions.store'), [
+            'party' => 'non_member',
             'channel' => 'phone',
-            'guest_name' => 'Guest Juma',
+            'guest_first_name' => 'Juma',
+            'guest_last_name' => 'Guest',
             'guest_phone' => '255711000088',
+            'subject_key' => 'how_to_join',
             'body' => 'Asked how to register.',
-            'create_case' => 1,
         ])->assertRedirect();
 
         $this->assertDatabaseHas('support_conversations', [
             'guest_phone' => '255711000088',
             'channel' => 'phone',
+            'guest_name' => 'Juma Guest',
         ]);
-        $this->assertDatabaseHas('support_tickets', [
-            'guest_name' => 'Guest Juma',
+        $this->assertDatabaseMissing('support_tickets', [
+            'guest_phone' => '255711000088',
         ]);
+    }
+
+    public function test_member_chat_presence_shows_assigned_agent_first_name(): void
+    {
+        [$user, $customer] = $this->member();
+        $agent = $this->agent('Rogathe Mushi');
+        $svc = app(SupportConversationService::class);
+        $conversation = $svc->requestHuman($customer, $user, 'Need help');
+        $svc->accept($conversation, $agent);
+
+        $presence = $svc->memberChatPresence($conversation->fresh('assignedTo'));
+        $this->assertSame('assigned', $presence['presence']);
+        $this->assertSame('Rogathe', $presence['agent_first_name']);
+        $this->assertSame((int) $agent->id, (int) $presence['assigned_to']);
     }
 
     public function test_quick_replies_signature_only_on_introduction(): void
@@ -353,7 +376,44 @@ class SupportOpsUxFeatureTest extends TestCase
         $finalTexts = collect($final['messages'])->pluck('text')->all();
         $this->assertContains('P0-D', $finalTexts);
         $this->assertSame($conversation->id, (int) $final['conversation_id']);
+        $this->assertSame('Rogathe', $final['agent_first_name'] ?? null);
+        $this->assertSame('assigned', $final['presence'] ?? null);
         $this->assertSame(1, SupportConversation::query()->where('customer_id', $customer->id)->whereNotIn('status', ['resolved', 'closed'])->count());
+
+        $this->postJson(route('site.borrower.support.speak'), ['body' => 'Kaka-2'])
+            ->assertOk();
+
+        $kakaThread = $this->actingAs($admin, 'admin')
+            ->getJson(route('admin.support.inbox.thread', $conversation))
+            ->assertOk()
+            ->json();
+        $this->assertContains('Kaka-2', collect($kakaThread['messages'])->pluck('text')->all());
+        $this->assertSame($conversation->id, (int) $kakaThread['conversation_id']);
+    }
+
+    public function test_admin_can_reset_staff_password_without_exposing_current(): void
+    {
+        $admin = $this->admin();
+        $staff = $this->agent('Asha Support');
+        $oldHash = $staff->password;
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.users.edit', $staff))
+            ->assertOk()
+            ->assertSee('Reset password', false)
+            ->assertSee('never shown', false)
+            ->assertDontSee('name="current_password"', false);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.users.reset-password', $staff), [
+                'password' => 'TempPass9!',
+                'password_confirmation' => 'TempPass9!',
+            ])
+            ->assertRedirect(route('admin.users.edit', $staff))
+            ->assertSessionHas('temporary_password', 'TempPass9!');
+
+        $this->assertNotSame($oldHash, $staff->fresh()->password);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('TempPass9!', $staff->fresh()->password));
     }
 
     public function test_notifications_route_redirects_to_inbox(): void

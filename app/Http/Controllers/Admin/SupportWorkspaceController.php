@@ -13,6 +13,7 @@ use App\Services\Support\SupportQuickReplyService;
 use App\Services\Support\SupportTicketService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SupportWorkspaceController extends Controller
@@ -386,11 +387,17 @@ class SupportWorkspaceController extends Controller
         $customer = $customerId
             ? \App\Models\Customer::query()->find($customerId)
             : null;
+        $partnerId = $request->query('partner_id');
+        $partner = ($partnerId && class_exists(\App\Models\Vendor::class))
+            ? \App\Models\Vendor::query()->find($partnerId)
+            : null;
 
         return view('admin.support-workspace.interaction', [
             'customer' => $customer,
+            'partner' => $partner,
             'context' => $customer ? $this->context->forCustomer($customer) : null,
             'channel' => (string) $request->query('channel', 'phone'),
+            'party' => ($customer || $partner) ? 'registered' : (string) $request->query('party', 'registered'),
             'supportShell' => true,
         ]);
     }
@@ -404,6 +411,7 @@ class SupportWorkspaceController extends Controller
 
         $like = '%'.$q.'%';
         $digits = preg_replace('/\D+/', '', $q) ?: '';
+        $rows = [];
 
         $customers = \App\Models\Customer::query()
             ->where(function ($query) use ($like, $digits, $q) {
@@ -427,46 +435,139 @@ class SupportWorkspaceController extends Controller
                 }
             })
             ->orderBy('first_name')
-            ->limit(20)
+            ->limit(12)
             ->get();
 
-        return response()->json([
-            'data' => $customers->map(fn (\App\Models\Customer $c) => [
+        foreach ($customers as $c) {
+            $rows[] = [
                 'id' => $c->id,
+                'kind' => 'member',
+                'kind_label' => 'Member',
                 'label' => trim($c->first_name.' '.$c->last_name)
                     .' · '.($c->phone ?: '—')
                     .' · '.($c->customer_number ?: ('#'.$c->id)),
                 'url' => route('admin.support.interactions.new', [
                     'customer_id' => $c->id,
+                    'party' => 'registered',
                     'channel' => request('channel', 'phone'),
                 ]),
-            ]),
-        ]);
+            ];
+        }
+
+        if (class_exists(\App\Models\Vendor::class)) {
+            $partners = \App\Models\Vendor::query()
+                ->where(function ($query) use ($like, $digits) {
+                    $query->where('name', 'like', $like);
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('vendors', 'phone')) {
+                        $query->orWhere('phone', 'like', $like);
+                        if ($digits !== '') {
+                            $query->orWhere('phone', 'like', '%'.$digits.'%');
+                        }
+                    }
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('vendors', 'vendor_number')) {
+                        $query->orWhere('vendor_number', 'like', $like);
+                    }
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('vendors', 'affiliate_code')) {
+                        $query->orWhere('affiliate_code', 'like', $like);
+                    }
+                })
+                ->orderBy('name')
+                ->limit(8)
+                ->get();
+
+            foreach ($partners as $p) {
+                $rows[] = [
+                    'id' => 'p-'.$p->id,
+                    'kind' => 'partner',
+                    'kind_label' => 'Partner',
+                    'label' => (string) ($p->name ?: 'Partner')
+                        .' · '.((string) ($p->phone ?? '—'))
+                        .' · '.((string) ($p->vendor_number ?? $p->affiliate_code ?? ('#'.$p->id))),
+                    'url' => route('admin.support.interactions.new', [
+                        'partner_id' => $p->id,
+                        'party' => 'registered',
+                        'channel' => request('channel', 'phone'),
+                    ]),
+                ];
+            }
+        }
+
+        return response()->json(['data' => $rows]);
     }
 
     public function storeInteraction(Request $request): RedirectResponse
     {
+        $subjects = [
+            'how_to_join' => 'How to join / registration',
+            'loan_application' => 'Loan application inquiry',
+            'existing_loan' => 'Existing loan',
+            'payment' => 'Payment',
+            'guarantor' => 'Guarantor',
+            'marketplace' => 'Marketplace / asset',
+            'account_profile' => 'Account / profile',
+            'technical' => 'Technical problem',
+            'complaint' => 'Complaint',
+            'partner_inquiry' => 'Partner inquiry',
+            'other' => 'Other',
+        ];
+
         $data = $request->validate([
+            'party' => ['required', 'in:registered,non_member'],
             'channel' => ['required', 'in:phone,walk_in,other'],
             'customer_id' => ['nullable', 'exists:customers,id'],
-            'guest_name' => ['nullable', 'string', 'max:120'],
+            'partner_id' => ['nullable', 'integer'],
+            'guest_first_name' => ['nullable', 'string', 'max:80'],
+            'guest_middle_name' => ['nullable', 'string', 'max:80'],
+            'guest_last_name' => ['nullable', 'string', 'max:80'],
             'guest_phone' => ['nullable', 'string', 'max:32'],
-            'subject' => ['nullable', 'string', 'max:180'],
+            'subject_key' => ['required', 'string', Rule::in(array_keys($subjects))],
+            'subject_other' => ['nullable', 'string', 'max:180'],
             'body' => ['required', 'string', 'max:5000'],
-            'create_case' => ['nullable', 'boolean'],
         ]);
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
-        $agent = $this->workspace->actingAgent() ?? $actor;
-        $customer = ! empty($data['customer_id'])
-            ? \App\Models\Customer::query()->find($data['customer_id'])
-            : null;
+        $agent = $this->workspace->actingAgent();
+        if (! $agent || ! $this->workspace->isAssignableSupportAgent($agent)) {
+            $agent = $actor && $this->workspace->isAssignableSupportAgent($actor) ? $actor : null;
+        }
 
-        if (! $customer) {
+        $customer = null;
+        $partnerUser = null;
+        $guestName = null;
+        $guestPhone = null;
+
+        if ($data['party'] === 'registered') {
+            if (! empty($data['customer_id'])) {
+                $customer = \App\Models\Customer::query()->find($data['customer_id']);
+            } elseif (! empty($data['partner_id']) && class_exists(\App\Models\Vendor::class)) {
+                $partner = \App\Models\Vendor::query()->find($data['partner_id']);
+                $partnerUser = $partner?->user;
+                $guestName = $partner?->name ?: $partnerUser?->name;
+                $guestPhone = \App\Support\PhoneNumber::digits((string) ($partner?->phone ?? $partnerUser?->phone ?? ''));
+            }
+            if (! $customer && ! $partnerUser && ! $guestName) {
+                return back()->withInput()->with('error', 'Select a Member or Partner before recording the interaction.');
+            }
+        } else {
             $request->validate([
-                'guest_name' => ['required', 'string', 'max:120'],
+                'guest_first_name' => ['required', 'string', 'max:80'],
+                'guest_last_name' => ['required', 'string', 'max:80'],
                 'guest_phone' => ['required', 'string', 'max:32'],
             ]);
+            if (($data['subject_key'] ?? '') === 'other') {
+                $request->validate(['subject_other' => ['required', 'string', 'max:180']]);
+            }
+            $guestName = trim(collect([
+                $data['guest_first_name'] ?? '',
+                $data['guest_middle_name'] ?? '',
+                $data['guest_last_name'] ?? '',
+            ])->filter()->implode(' '));
+            $guestPhone = \App\Support\PhoneNumber::digits($data['guest_phone']);
+        }
+
+        $subject = $subjects[$data['subject_key']] ?? 'Other';
+        if ($data['subject_key'] === 'other' && filled($data['subject_other'] ?? null)) {
+            $subject = trim((string) $data['subject_other']);
         }
 
         $channel = match ($data['channel']) {
@@ -477,14 +578,14 @@ class SupportWorkspaceController extends Controller
 
         $conversation = $this->conversations->openConversationFor(
             $customer,
-            $customer?->user,
-            $customer ? null : $data['guest_name'],
-            $customer ? null : \App\Support\PhoneNumber::digits($data['guest_phone']),
+            $customer?->user ?: $partnerUser,
+            $customer ? null : $guestName,
+            $customer ? null : $guestPhone,
             $channel,
         );
 
         $conversation->update([
-            'topic' => $data['subject'] ?? $conversation->topic ?? ucfirst(str_replace('_', ' ', $channel)).' interaction',
+            'topic' => $subject,
             'needs_human' => false,
             'status' => 'active',
             'assigned_to' => $agent?->id ?: $conversation->assigned_to,
@@ -500,36 +601,17 @@ class SupportWorkspaceController extends Controller
             true,
         );
 
-        if ($request->boolean('create_case')) {
-            $ctx = $this->context->forConversation($conversation);
-            $relatedType = ($ctx['application']['id'] ?? null) ? 'application' : (($ctx['loan']['id'] ?? null) ? 'loan' : ($customer ? 'account' : null));
-            $relatedId = $ctx['application']['id'] ?? $ctx['loan']['id'] ?? $customer?->id;
-
-            $ticket = $this->tickets->create([
-                'customer_id' => $customer?->id,
-                'guest_name' => $customer ? null : $data['guest_name'],
-                'guest_phone' => $customer ? null : \App\Support\PhoneNumber::digits($data['guest_phone']),
-                'subject' => $data['subject'] ?? ('Phone interaction #'.$conversation->id),
-                'category' => 'general',
-                'priority' => 'normal',
-                'description' => trim($data['body']),
-                'source' => 'admin',
-                'assigned_to' => $agent?->id,
-                'status' => 'open',
-                'support_conversation_id' => $conversation->id,
-                'related_type' => $relatedType,
-                'related_id' => $relatedId,
-                'actor' => $actor,
+        if ($actor) {
+            $this->audit->logAdminAction($actor, 'admin.support.interaction.record', $conversation, [
+                'channel' => $channel,
+                'subject' => $subject,
+                'party' => $data['party'],
             ]);
-
-            return redirect()
-                ->route('admin.support-tickets.show', $ticket)
-                ->with('status', 'Interaction recorded and case '.$ticket->ticket_number.' created.');
         }
 
         return redirect()
             ->route('admin.support.inbox.show', $conversation)
-            ->with('status', 'Interaction recorded.');
+            ->with('status', 'Interaction recorded. Create a follow-up case only if ownership is still needed.');
     }
 
     public function createCase(Request $request, SupportConversation $supportConversation): RedirectResponse

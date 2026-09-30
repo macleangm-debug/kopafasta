@@ -111,11 +111,13 @@ class SupportConversationService
                     ->latest('id')
                     ->first();
                 if ($existing) {
+                    $this->retireSiblingOpenConversations($existing, null, null, $guestPhone);
+
                     return $this->normalizeLegacyStatus($existing);
                 }
             }
 
-            return SupportConversation::query()->create([
+            $created = SupportConversation::query()->create([
                 'channel' => $channel ?: 'web_chat',
                 'status' => self::STATUS_WAITING,
                 'needs_human' => true,
@@ -123,14 +125,21 @@ class SupportConversationService
                 'guest_phone' => $guestPhone,
                 'last_message_at' => now(),
             ]);
+            if ($guestPhone) {
+                $this->retireSiblingOpenConversations($created, null, null, $guestPhone);
+            }
+
+            return $created;
         }
 
         $existing = $query->first();
         if ($existing) {
+            $this->retireSiblingOpenConversations($existing, $customer, $user, $guestPhone);
+
             return $this->normalizeLegacyStatus($existing);
         }
 
-        return SupportConversation::query()->create([
+        $created = SupportConversation::query()->create([
             'customer_id' => $customer?->id,
             'user_id' => $user?->id,
             'channel' => $channel ?: 'web_chat',
@@ -139,6 +148,40 @@ class SupportConversationService
             'guest_name' => $customer ? null : $guestName,
             'guest_phone' => $customer ? null : $guestPhone,
             'last_message_at' => now(),
+        ]);
+
+        $this->retireSiblingOpenConversations($created, $customer, $user, $guestPhone);
+
+        return $created;
+    }
+
+    /**
+     * Keep exactly one non-terminal conversation per requester.
+     * Older open threads are resolved (history preserved) so Member and Support cannot drift.
+     */
+    public function retireSiblingOpenConversations(
+        SupportConversation $keep,
+        ?Customer $customer = null,
+        ?User $user = null,
+        ?string $guestPhone = null,
+    ): void {
+        $q = SupportConversation::query()
+            ->where('id', '!=', $keep->id)
+            ->whereNotIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED]);
+
+        if ($customer) {
+            $q->where('customer_id', $customer->id);
+        } elseif ($user) {
+            $q->where('user_id', $user->id)->whereNull('customer_id');
+        } elseif ($guestPhone) {
+            $q->whereNull('customer_id')->whereNull('user_id')->where('guest_phone', $guestPhone);
+        } else {
+            return;
+        }
+
+        $q->update([
+            'status' => self::STATUS_RESOLVED,
+            'needs_human' => false,
         ]);
     }
 
@@ -336,6 +379,35 @@ class SupportConversationService
             'at' => $m->created_at?->toIso8601String(),
             'time' => $m->created_at?->format('H:i'),
         ])->all();
+    }
+
+    /**
+     * Member/Partner chat header presence (does not affect message delivery).
+     *
+     * @return array{assigned_to:?int, agent_first_name:?string, status:string, presence:string}
+     */
+    public function memberChatPresence(?SupportConversation $conversation): array
+    {
+        if (! $conversation) {
+            return [
+                'assigned_to' => null,
+                'agent_first_name' => null,
+                'status' => self::STATUS_WAITING,
+                'presence' => 'online',
+            ];
+        }
+
+        $conversation->loadMissing('assignedTo');
+        $agentFirst = $conversation->assigned_to
+            ? ($this->personFirstName((string) ($conversation->assignedTo?->name ?? '')) ?: null)
+            : null;
+
+        return [
+            'assigned_to' => $conversation->assigned_to ? (int) $conversation->assigned_to : null,
+            'agent_first_name' => $agentFirst,
+            'status' => (string) $conversation->status,
+            'presence' => $agentFirst ? 'assigned' : 'online',
+        ];
     }
 
     /** Human-readable desk state for staff UI. */

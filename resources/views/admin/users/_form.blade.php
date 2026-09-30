@@ -157,19 +157,63 @@
             <input type="text" name="fake_username" autocomplete="username" class="hidden" tabindex="-1" aria-hidden="true">
             <input type="password" name="fake_password" autocomplete="current-password" class="hidden" tabindex="-1" aria-hidden="true">
 
-            <x-admin.input
-                name="password"
-                :label="$creating ? 'Password for this person' : 'New password (leave blank to keep)'"
-                type="password"
-                :required="$creating"
-                autocomplete="new-password"
-                data-lpignore="true"
-                data-1p-ignore="true"
-                readonly
-                onfocus="this.removeAttribute('readonly')"
-                :value="''"
-                help="Type a new password here. Your browser may try to fill your own login — ignore that. Staff can change this later under Account security."
-            />
+            @if ($creating)
+                <x-admin.input
+                    name="password"
+                    label="Password for this person"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    data-lpignore="true"
+                    data-1p-ignore="true"
+                    readonly
+                    onfocus="this.removeAttribute('readonly')"
+                    :value="''"
+                    help="Type a new password here. Your browser may try to fill your own login — ignore that."
+                />
+            @else
+                <div class="rounded-xl bg-white ring-1 ring-brand/10 p-4 space-y-3">
+                    <p class="text-sm font-semibold text-gray-900">Password</p>
+                    <p class="text-xs text-gray-500">Current password is never shown. Use Reset password to issue a temporary password.</p>
+                    @if (session('temporary_password'))
+                        <p class="text-sm text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200 rounded-lg px-3 py-2">
+                            Temporary password (show once): <span class="font-mono font-bold">{{ session('temporary_password') }}</span>
+                        </p>
+                    @endif
+                    <form method="POST" action="{{ route('admin.users.reset-password', $r) }}" class="space-y-3"
+                          x-data
+                          @submit.prevent="window.confirmForm($el, {
+                              title: 'Reset staff password?',
+                              message: 'This replaces the current password with a temporary password you can share securely. The previous password is not revealed.',
+                              confirmLabel: 'Reset password',
+                              confirmClass: 'bg-brand hover:brightness-95 text-white',
+                          })">
+                        @csrf
+                        <x-admin.input
+                            name="password"
+                            label="Optional temporary password"
+                            type="password"
+                            autocomplete="new-password"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            :value="''"
+                            help="Leave blank to auto-generate a strong temporary password."
+                        />
+                        <x-admin.input
+                            name="password_confirmation"
+                            label="Confirm temporary password"
+                            type="password"
+                            autocomplete="new-password"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            :value="''"
+                        />
+                        <button type="submit" class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:brightness-95">
+                            Reset password
+                        </button>
+                    </form>
+                </div>
+            @endif
             <x-admin.select name="is_active" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" :value="(string) ($r?->is_active ?? '1')" required />
         </div>
     </x-admin.step>

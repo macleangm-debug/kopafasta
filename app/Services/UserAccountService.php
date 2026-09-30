@@ -66,6 +66,35 @@ class UserAccountService
         return $target->fresh();
     }
 
+    /**
+     * Admin-initiated password reset. Does not reveal the previous password.
+     * Returns the plaintext temporary password for one-time display to the Admin.
+     */
+    public function resetPassword(User $actor, User $target, ?string $temporaryPassword = null, ?Request $request = null): array
+    {
+        $temporaryPassword = $temporaryPassword ?: \Illuminate\Support\Str::password(12);
+        $target->forceFill([
+            'password' => \Illuminate\Support\Facades\Hash::make($temporaryPassword),
+            'password_changed_at' => null,
+        ])->save();
+
+        AuditLog::create([
+            'user_id'        => $actor->id,
+            'event'          => 'admin.user_password_reset',
+            'auditable_type' => User::class,
+            'auditable_id'   => $target->id,
+            'old_values'     => null,
+            'new_values'     => json_encode(['reset_by' => $actor->id]),
+            'ip_address'     => $request?->ip(),
+            'user_agent'     => substr((string) ($request?->userAgent() ?? ''), 0, 1000),
+        ]);
+
+        return [
+            'user' => $target->fresh(),
+            'temporary_password' => $temporaryPassword,
+        ];
+    }
+
     public function isLocked(User $user): bool
     {
         return $user->locked_until && $user->locked_until->isFuture();

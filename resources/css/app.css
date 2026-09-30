@@ -54,6 +54,29 @@ html.kf-auth-lock body {
         @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.15)];
     }
 
+    /* Shared Support chat bubble — content-sized, capped ~70% of chat column */
+    .kf-support-bubble {
+        @apply w-fit max-w-[70%] rounded-2xl px-3.5 py-2 text-[15px] leading-snug shadow-sm;
+        width: fit-content;
+        max-width: min(70%, 28rem);
+        min-height: 0;
+    }
+    .kf-support-bubble--outbound {
+        @apply bg-brand text-white rounded-br-md;
+    }
+    .kf-support-bubble--inbound {
+        @apply bg-white text-slate-900 rounded-bl-md ring-1 ring-slate-200/70;
+    }
+    .kf-support-bubble__time {
+        @apply text-xs mt-1 text-right;
+    }
+    .kf-support-bubble--outbound .kf-support-bubble__time {
+        @apply text-white/70;
+    }
+    .kf-support-bubble--inbound .kf-support-bubble__time {
+        @apply text-slate-400;
+    }
+
     .glass-nav {
         @apply bg-white/80 backdrop-blur-xl border-b border-white/40;
     }

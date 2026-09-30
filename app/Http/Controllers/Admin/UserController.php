@@ -264,4 +264,25 @@ class UserController extends ResourceController
             ->route("{$this->routePrefix}.show", $user)
             ->with('status', $active ? 'Account activated.' : 'Account deactivated.');
     }
+
+    public function resetPassword(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        $data = $request->validate([
+            'password' => ['nullable', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $result = $this->accounts->resetPassword(
+            auth()->user(),
+            $user,
+            $data['password'] ?? null,
+            $request,
+        );
+
+        return redirect()
+            ->route("{$this->routePrefix}.edit", $user)
+            ->with('status', 'Password reset. Temporary password: '.$result['temporary_password'])
+            ->with('temporary_password', $result['temporary_password']);
+    }
 }

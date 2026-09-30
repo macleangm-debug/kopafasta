@@ -6,6 +6,9 @@
     'speakUrl' => null,
     'threadUrl' => null,
     'existingMessages' => null,
+    'conversation' => null,
+    'showBackToFaqs' => false,
+    'backToFaqsLabel' => null,
 ])
 
 @php
@@ -23,13 +26,19 @@
                 'id' => (int) ($m->id ?? 0) ?: null,
                 'role' => in_array($m->sender_type ?? '', ['staff', 'bot'], true) ? 'bot' : 'user',
                 'text' => (string) ($m->body ?? ''),
+                'time' => $m->created_at?->format('H:i'),
             ];
         }
     }
     $startHuman = $forceHuman || count($seedMessages) > 0;
+    $presence = app(\App\Services\Support\SupportConversationService::class)
+        ->memberChatPresence($conversation instanceof \App\Models\SupportConversation ? $conversation : null);
+    $shellClass = $forceHuman
+        ? 'overflow-hidden rounded-2xl ring-1 ring-brand/15 shadow-sm bg-white max-w-2xl'
+        : 'glass-card p-5 sm:p-6 max-w-2xl';
 @endphp
 
-<div {{ $attributes->merge(['class' => 'glass-card p-5 sm:p-6 max-w-2xl']) }}
+<div {{ $attributes->merge(['class' => $shellClass]) }}
      x-data="aiSupportChat(@js([
          'greeting' => $forceHuman
              ? __('borrower.support_page.speak_to_support_hint')
@@ -47,34 +56,76 @@
          'speakUrl' => $speakUrl,
          'threadUrl' => $threadUrl,
          'csrf' => csrf_token(),
-         'speakHint' => __('borrower.support_page.speak_to_support_hint'),
-         'humanModeLabel' => __('borrower.support_page.human_mode_label'),
          'seedMessages' => $seedMessages,
          'startHuman' => $startHuman,
-         'pollMs' => 2500,
+         'pollMs' => 2000,
+         'conversationId' => $conversation?->id,
+         'agentFirstName' => $presence['agent_first_name'],
+         'presence' => $presence['presence'],
+         'brandTitle' => 'Kopafasta Support',
+         'assignedSuffix' => 'Customer Support',
+         'statusOnline' => 'Online',
+         'statusAssigned' => 'Agent assigned',
+         'tagline' => 'Kwa ajili yako · Here to help',
      ]))">
-    <div class="flex items-center gap-3 mb-4">
-        <div class="relative size-11 rounded-xl bg-brand text-white grid place-items-center font-bold text-sm shrink-0">
-            <span x-text="humanMode ? 'CS' : 'AI'"></span>
-            <span class="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-white"></span>
+    @if ($forceHuman)
+        {{-- Premium live-support header — compact; no phone/website --}}
+        <div class="relative overflow-hidden bg-gradient-to-br from-brand via-[#127A5F] to-[#0a4a3c] text-white px-3.5 sm:px-4 py-3 sm:py-3.5">
+            <div class="absolute inset-0 opacity-20 pointer-events-none"
+                 style="background-image: radial-gradient(circle at 12% 20%, #fff 0, transparent 42%), radial-gradient(circle at 92% 0%, #fbbf24 0, transparent 36%);"></div>
+            <div class="relative flex items-center gap-3">
+                <div class="relative size-10 sm:size-11 rounded-xl bg-white/15 ring-1 ring-white/25 grid place-items-center font-bold text-sm shrink-0">
+                    <span x-text="agentFirstName ? agentFirstName.charAt(0).toUpperCase() : 'CS'"></span>
+                    <span class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-300 ring-2 ring-[#0f5c4a]"
+                          :class="presence === 'assigned' ? 'bg-brand-gold' : 'bg-emerald-300'"></span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <p class="text-[15px] sm:text-base font-bold tracking-tight truncate"
+                           x-text="agentFirstName ? (agentFirstName + ' · ' + config.assignedSuffix) : config.brandTitle"></p>
+                        <span class="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide">
+                            <span class="size-1.5 rounded-full"
+                                  :class="presence === 'assigned' ? 'bg-brand-gold' : 'bg-emerald-300'"></span>
+                            <span x-text="presence === 'assigned' ? config.statusAssigned : config.statusOnline"></span>
+                        </span>
+                    </div>
+                    <p class="text-[11px] sm:text-xs text-white/75 mt-0.5 truncate" x-text="config.tagline"></p>
+                </div>
+                @if ($showBackToFaqs)
+                    <button type="button" @click="$dispatch('support-back-to-faqs')"
+                            class="shrink-0 text-[11px] sm:text-xs font-semibold text-white/85 hover:text-white underline-offset-2 hover:underline">
+                        {{ $backToFaqsLabel ?? __('borrower.support_page.back_to_faqs') }}
+                    </button>
+                @endif
+            </div>
         </div>
-        <div class="min-w-0 flex-1">
-            <p class="text-base font-semibold text-gray-900">{{ $agentLabel }}</p>
-            <p class="text-sm text-gray-500">{{ $agentSubtitle }}</p>
+        <div class="px-3.5 sm:px-4 pt-3 pb-4">
+    @else
+        <div class="flex items-center gap-3 mb-4">
+            <div class="relative size-11 rounded-xl bg-brand text-white grid place-items-center font-bold text-sm shrink-0">
+                <span x-text="humanMode ? 'CS' : 'AI'"></span>
+                <span class="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-white"></span>
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-base font-semibold text-gray-900">{{ $agentLabel }}</p>
+                <p class="text-sm text-gray-500">{{ $agentSubtitle }}</p>
+            </div>
         </div>
-    </div>
+    @endif
 
     <div class="rounded-xl bg-gradient-to-b from-brand-muted/30 to-white border border-gray-100/80 p-3.5 max-h-80 overflow-y-auto space-y-2.5 text-[15px] mb-3" x-ref="scroll">
-        <template x-for="(msg, i) in messages" :key="msg.id || i">
-            <div :class="msg.role === 'user' ? 'text-right' : ''">
-                <span class="inline-block w-fit max-w-[70%] px-3.5 py-2 rounded-2xl text-left whitespace-pre-wrap leading-snug"
-                      :class="msg.role === 'user' ? 'bg-brand text-white rounded-br-md' : 'bg-white ring-1 ring-gray-200/80 text-gray-800 rounded-bl-md'"
-                      x-text="msg.text"></span>
+        <template x-for="(msg, i) in messages" :key="msg.id || ('m-'+i)">
+            <div class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+                <div :class="msg.role === 'user' ? 'kf-support-bubble kf-support-bubble--outbound' : 'kf-support-bubble kf-support-bubble--inbound'">
+                    <div class="kf-support-bubble__body whitespace-pre-wrap" x-text="msg.text"></div>
+                    <p class="kf-support-bubble__time" x-show="msg.time" x-text="msg.time"></p>
+                </div>
             </div>
         </template>
         <div x-show="typing" x-cloak class="flex items-center gap-2 text-sm text-gray-500">
             <span x-text="config.typingLabel"></span>
         </div>
+        <p class="text-sm text-red-700" x-show="sendError" x-text="sendError" x-cloak></p>
     </div>
 
     <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips">
@@ -100,7 +151,7 @@
         <input type="text" x-model="input" :disabled="typing"
                placeholder="{{ __('site.support.chat_placeholder') }}"
                class="flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-base focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60">
-        <button type="submit" :disabled="typing"
+        <button type="submit" :disabled="typing || !input.trim()"
                 class="bg-brand hover:bg-brand-light disabled:opacity-60 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
             {{ __('site.support.chat_send') }}
         </button>
@@ -113,6 +164,10 @@
         </p>
     @endunless
 
+    @if ($forceHuman)
+        </div>
+    @endif
+
     @once
         <script>
             document.addEventListener('alpine:init', function () {
@@ -124,39 +179,71 @@
                         config: config,
                         input: '',
                         typing: false,
+                        sendError: '',
+                        messages: seeded,
                         humanMode: !!(config.startHuman || config.forceHuman),
                         showProductChips: false,
-                        messages: seeded,
+                        conversationId: config.conversationId || null,
+                        agentFirstName: config.agentFirstName || null,
+                        presence: config.presence || 'online',
                         _timer: null,
-                        askSuggestion(text) {
-                            this.input = text;
-                            this.ask();
+                        csrfToken() {
+                            var meta = document.querySelector('meta[name="csrf-token"]');
+                            if (meta && meta.content) return meta.content;
+                            var match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
+                            if (match) {
+                                try { return decodeURIComponent(match[1]); } catch (e) {}
+                            }
+                            return config.csrf;
                         },
                         scrollBottom() {
-                            var self = this;
-                            this.$nextTick(function () {
-                                if (self.$refs.scroll) self.$refs.scroll.scrollTop = self.$refs.scroll.scrollHeight;
-                            });
+                            var el = this.$refs.scroll;
+                            if (el) this.$nextTick(function () { el.scrollTop = el.scrollHeight; });
                         },
-                        mapThread(list) {
-                            return (list || []).map(function (m) {
-                                return { id: m.id, role: m.role, text: m.text };
+                        askSuggestion(suggestion) {
+                            this.input = suggestion;
+                            this.ask();
+                        },
+                        applyPresence(data) {
+                            if (!data) return;
+                            if (data.conversation_id) this.conversationId = data.conversation_id;
+                            if (data.agent_first_name) {
+                                this.agentFirstName = data.agent_first_name;
+                                this.presence = 'assigned';
+                            } else if (data.presence) {
+                                this.presence = data.presence;
+                                if (data.presence === 'online') this.agentFirstName = null;
+                            } else if (data.assigned_to && !this.agentFirstName) {
+                                this.presence = 'assigned';
+                            }
+                        },
+                        mapThread(rows) {
+                            return (rows || []).map(function (m) {
+                                return {
+                                    id: m.id,
+                                    role: m.role,
+                                    text: m.text,
+                                    time: m.time || (m.at ? String(m.at).slice(11, 16) : ''),
+                                };
                             });
                         },
                         async pollThread() {
-                            if (!this.humanMode || !config.threadUrl || this.typing) return;
+                            if (!this.humanMode || !config.threadUrl) return;
                             try {
                                 var res = await fetch(config.threadUrl, {
                                     headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                                     credentials: 'same-origin',
+                                    cache: 'no-store',
                                 });
                                 if (!res.ok) return;
                                 var data = await res.json();
-                                if (!data.ok || !data.messages || !data.messages.length) return;
+                                if (!data.ok) return;
+                                this.applyPresence(data);
+                                if (!data.messages || !data.messages.length) return;
                                 var next = this.mapThread(data.messages);
-                                var prevLast = this.messages.length ? (this.messages[this.messages.length - 1].id || this.messages[this.messages.length - 1].text) : null;
-                                var nextLast = next.length ? (next[next.length - 1].id || next[next.length - 1].text) : null;
-                                if (next.length !== this.messages.length || prevLast !== nextLast) {
+                                var prevSig = this.messages.map(function (m) { return String(m.id || '') + ':' + (m.text || ''); }).join('|');
+                                var nextSig = next.map(function (m) { return String(m.id || '') + ':' + (m.text || ''); }).join('|');
+                                if (prevSig !== nextSig) {
                                     this.messages = next;
                                     this.scrollBottom();
                                 }
@@ -193,7 +280,9 @@
                         ask() {
                             var q = this.input.trim();
                             if (!q || this.typing) return;
-                            this.messages.push({ role: 'user', text: q });
+                            this.sendError = '';
+                            var optimistic = { id: 'local-' + Date.now(), role: 'user', text: q, time: new Date().toTimeString().slice(0, 5) };
+                            this.messages.push(optimistic);
                             this.input = '';
                             this.typing = true;
                             this.scrollBottom();
@@ -205,11 +294,22 @@
                                     headers: {
                                         'Content-Type': 'application/json',
                                         'Accept': 'application/json',
-                                        'X-CSRF-TOKEN': config.csrf,
+                                        'X-CSRF-TOKEN': this.csrfToken(),
                                         'X-Requested-With': 'XMLHttpRequest',
                                     },
+                                    credentials: 'same-origin',
                                     body: JSON.stringify({ body: q }),
-                                }).then(function (r) { return r.json(); }).then(function (data) {
+                                }).then(async function (r) {
+                                    var data = {};
+                                    try { data = await r.json(); } catch (e) { data = {}; }
+                                    if (!r.ok || data.ok === false) {
+                                        self.messages = self.messages.filter(function (m) { return m.id !== optimistic.id; });
+                                        self.input = q;
+                                        self.sendError = data.message || data.error || 'Imeshindikana kutuma. Jaribu tena.';
+                                        self.typing = false;
+                                        return;
+                                    }
+                                    self.applyPresence(data);
                                     if (data.messages && data.messages.length) {
                                         self.messages = self.mapThread(data.messages);
                                     } else if (data.ack) {
@@ -218,7 +318,9 @@
                                     self.typing = false;
                                     self.scrollBottom();
                                 }).catch(function () {
-                                    self.messages.push({ role: 'bot', text: 'Imeshindikana kutuma. Jaribu tena.' });
+                                    self.messages = self.messages.filter(function (m) { return m.id !== optimistic.id; });
+                                    self.input = q;
+                                    self.sendError = 'Imeshindikana kutuma. Jaribu tena.';
                                     self.typing = false;
                                 });
                                 return;
@@ -241,7 +343,8 @@
                             this.scrollBottom();
                             if (this.humanMode && config.threadUrl) {
                                 var self = this;
-                                this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2500);
+                                this.pollThread();
+                                this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2000);
                             }
                         },
                         destroy() {

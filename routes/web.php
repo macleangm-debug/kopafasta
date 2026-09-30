@@ -1266,6 +1266,7 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
         Route::post('users/{user}/lock', [UserController::class, 'lock'])->name('users.lock');
         Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock');
         Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active');
+        Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
 
         // ========== FINANCE (extended) ==========
         Route::middleware('permission:finance.accounts')->group(function () use ($registerResource): void {
