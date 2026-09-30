@@ -26,7 +26,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Affiliate RC workspace+activation+360 roles (staging tip)** | `578ecac34ea1592e0ca2d87fe5909eebbc72745d` | Compact header workspace switcher; Activate vs Login track CTA; Fuatilia secondary button; Partner 360 multi-role chips. Staging only. Do not promote yet. |
 | **Affiliate release landing CTA (staging tip)** | `7421ba332dff2f5f1ff8abfd95081c4f1ae47bdc` | Anza Sasa + Ingia side-by-side on landing hero. Promoted with Affiliate release. |
 | **Admin User/Role switcher foundation (staging tip)** | `80a2179104eca1370e41a2a16937f33ab62f194c` | Admin header search → View profile or Enter role workspace; Viewing banner + Exit; audit stays Admin. Staging only. |
-| **Admin Account/Role switcher on Admin page (staging tip)** | `PENDING_DEPLOY` | Reuses `80a21791` in Admin header + EN/SW Account/Role labels. Includes Affiliate/ladmin hotfixes ancestry. Staging only — STOP for Owner UAT. |
+| **Admin Account/Role switcher on Admin page (staging tip)** | `45ef50894622ab4a11a902a29f103185a52c2f78` | Reuses `80a21791` in Admin header + EN/SW Account/Role labels. Includes Affiliate/ladmin hotfixes ancestry. Staging only — STOP for Owner UAT. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
