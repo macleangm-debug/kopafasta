@@ -9,6 +9,7 @@ use App\Models\SupportMessage;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Member/guest ↔ Support conversation engine (reuses support_conversations / support_messages).
@@ -83,6 +84,25 @@ class SupportConversationService
 
         return DB::transaction(function () use ($customer, $user, $body, $topic, $guestName, $guestPhone, $channel) {
             $conversation = $this->openConversationFor($customer, $user, $guestName, $guestPhone, $channel);
+
+            // Lightweight anti-spam: rapid duplicate / burst sends stay in the same
+            // conversation but do not append another customer message.
+            $throttleKey = 'support.wait.msg:'.$conversation->id;
+            if (RateLimiter::tooManyAttempts($throttleKey, 8)) {
+                return $conversation->fresh(['customer', 'user', 'messages', 'assignedTo']) ?? $conversation;
+            }
+            $lastCustomer = $conversation->messages()
+                ->whereIn('sender_type', ['customer', 'guest'])
+                ->latest('id')
+                ->first();
+            if ($lastCustomer
+                && trim((string) $lastCustomer->body) === $body
+                && $lastCustomer->created_at
+                && $lastCustomer->created_at->gt(now()->subSeconds(8))
+            ) {
+                return $conversation->fresh(['customer', 'user', 'messages', 'assignedTo']) ?? $conversation;
+            }
+            RateLimiter::hit($throttleKey, 60);
 
             $conversation->update([
                 'needs_human' => true,

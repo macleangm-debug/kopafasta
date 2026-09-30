@@ -14,16 +14,10 @@
 @endphp
 
 @php
+    // Section C: Wadhamini / _guarantor_progress is the sole awaiting-guarantor surface.
+    // Do not repeat “Waiting for your guarantor” here.
     $intake = app(\App\Services\ApplicationIntakeReadinessService::class)->resolve($application);
     $intakeState = $intake['state'] ?? '';
-    $supplementSvc = app(\App\Services\GuarantorSupplementService::class);
-    $nomination = $intake['guarantor'] ?? [];
-    $gProgress = (string) ($nomination['progress'] ?? '');
-    $awaitingQuoteReconfirm = $supplementSvc->awaitingQuoteReconfirm($application);
-    $nextAction = $profile['next_action'] ?? null;
-
-    // Section O: while awaiting guarantor, never announce initial-pass / YOUR PART IS SUBMITTED.
-    $showAwaitingGuarantorCard = $intakeState === 'awaiting_guarantor';
     $showOtherIntakeCard = in_array($intakeState, [
         'submitted_initial_check',
         'initial_decision_hold',
@@ -32,65 +26,7 @@
     ], true);
 @endphp
 
-@if ($showAwaitingGuarantorCard)
-    <div class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-white p-5 space-y-3">
-        <h2 class="text-lg font-bold text-gray-900">{{ __('borrower.intake.waiting_guarantor_title') }}</h2>
-        <p class="text-sm text-gray-600">{{ __('borrower.intake.waiting_guarantor_body') }}</p>
-
-        @if (! empty($nomination['nominated']) || filled($nomination['name'] ?? null))
-            <p class="text-sm font-semibold text-gray-900">
-                {{ $nomination['name'] ?? __('borrower.application.guarantor_role') }}
-                @if (! empty($nomination['phone']))
-                    · {{ $nomination['phone'] }}
-                @endif
-            </p>
-        @endif
-
-        @php
-            // One contextual next action only (pending / incomplete / declined / reconfirm / completed).
-            if ($awaitingQuoteReconfirm) {
-                $actionLabel = __('borrower.loan_profile.next_actions.awaiting_guarantor_reconfirm');
-                $actionUrl = null;
-                $actionCta = null;
-            } elseif ($supplementSvc->hasOpenAdditionalRequest($application)) {
-                $actionLabel = __('borrower.loan_profile.next_actions.add_guarantor');
-                $actionUrl = $supplementSvc->borrowerWizardUrl($application);
-                $actionCta = $supplementSvc->borrowerCtaLabel($application);
-            } elseif ($supplementSvc->hasOpenChangeRequest($application) || in_array($gProgress, ['declined', 'expired', 'not_nominated'], true)) {
-                $actionLabel = __('borrower.loan_profile.next_actions.change_guarantor');
-                $actionUrl = $supplementSvc->hasOpenRequest($application)
-                    ? $supplementSvc->borrowerWizardUrl($application)
-                    : (($nextAction['url'] ?? null) ?: '#guarantor-progress');
-                $actionCta = __('borrower.guarantor_supplement.change_cta');
-            } elseif ($gProgress === 'profile_incomplete') {
-                $actionLabel = __('borrower.loan_profile.next_actions.awaiting_guarantor_profile');
-                $actionUrl = null;
-                $actionCta = null;
-            } elseif ($gProgress === 'completed') {
-                $actionLabel = __('borrower.intake.ready_title');
-                $actionUrl = null;
-                $actionCta = null;
-            } else {
-                $actionLabel = __('borrower.loan_profile.next_actions.awaiting_guarantor');
-                $actionUrl = null;
-                $actionCta = null;
-            }
-        @endphp
-
-        <div class="pt-2 border-t border-gray-100">
-            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.next_action_title') }}</p>
-            <div class="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-                <p class="text-sm font-bold text-gray-900">{{ $actionLabel }}</p>
-                @if ($actionUrl && $actionCta)
-                    <a href="{{ $actionUrl }}"
-                       class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-                        {{ $actionCta }}
-                    </a>
-                @endif
-            </div>
-        </div>
-    </div>
-@elseif ($showOtherIntakeCard)
+@if ($showOtherIntakeCard)
     <div class="mb-6 rounded-2xl ring-1 ring-brand/15 bg-white p-5 space-y-2">
         @if (in_array($intakeState, ['submitted_initial_check', 'initial_decision_hold'], true))
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.intake.part_submitted') }}</p>

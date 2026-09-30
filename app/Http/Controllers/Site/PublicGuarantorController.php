@@ -62,6 +62,12 @@ class PublicGuarantorController extends Controller
         if ($invitation->type === 'internal' && auth()->user()?->customer) {
             $customer = auth()->user()->customer;
             if (app(PortalContextService::class)->canActAsGuarantorFor($invitation, $customer)) {
+                // Pending / reconfirm: take the guarantor to the decision surface immediately.
+                if ($invitation->customer_guarantor_id
+                    && ($invitation->isPending() || $invitation->needsQuoteReconfirmation())) {
+                    return redirect()->route('site.borrower.guarantor-requests.show', $invitation->customer_guarantor_id);
+                }
+
                 return redirect()->route('site.borrower.loans', ['tab' => 'guarantor'])
                     ->with('status', __('borrower.guarantor_invite.member_view_request'));
             }
@@ -214,16 +220,8 @@ class PublicGuarantorController extends Controller
 
         $notes = $request->validate(['notes' => ['nullable', 'string', 'max:500']])['notes'] ?? null;
 
-        if ($link = $invitation->customerGuarantor) {
-            $service->reject($link, $notes);
-        } else {
-            $invitation->update([
-                'status'         => 'rejected',
-                'responded_at'   => now(),
-                'response_notes' => $notes,
-                'confirmation_status' => null,
-            ]);
-        }
+        // Always reject via invitation so borrower Application View cannot stay pending.
+        $service->rejectInvitation($invitation, $notes);
 
         app(GuarantorOnboardingService::class)->forgetInvitation($request);
 

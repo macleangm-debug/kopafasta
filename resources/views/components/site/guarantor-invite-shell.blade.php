@@ -17,16 +17,17 @@
     ];
 @endphp
 
-<x-site.layout :title="$title">
-    <section class="min-h-[calc(100dvh-4rem)] md:min-h-[calc(100dvh-6.5rem)] grid lg:grid-cols-2 premium-gradient">
-        <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-12 flex-col justify-between">
+{{-- auth=true: full-viewport split like Login/Register — no site footer gap --}}
+<x-site.layout :title="$title" :auth="true">
+    <section class="h-full min-h-0 grid lg:grid-cols-2 premium-gradient overflow-hidden">
+        <aside class="hidden lg:flex relative overflow-hidden bg-brand text-white p-10 xl:p-12 flex-col justify-between">
             <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_bottom_left,_#f5c842,_transparent_50%)]"></div>
             <a href="{{ route('site.home') }}" class="relative"><x-site.brand-mark variant="light" /></a>
 
             <div class="relative">
                 <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ $eyebrow }}</p>
-                <h2 class="mt-2 text-4xl font-bold tracking-tight leading-tight">{{ $heading }}</h2>
-                <p class="mt-4 text-white/70 max-w-md">{{ $lede }}</p>
+                <h2 class="mt-2 text-3xl xl:text-4xl font-bold tracking-tight leading-tight">{{ $heading }}</h2>
+                <p class="mt-4 text-white/70 max-w-md text-sm leading-relaxed">{{ $lede }}</p>
 
                 <ol class="mt-10 space-y-4">
                     @foreach ($asideSteps as $i => [$label, $hint])
@@ -46,9 +47,9 @@
             </p>
         </aside>
 
-        <div class="flex items-center justify-center px-4 py-10 sm:px-8 lg:px-12">
+        <div class="h-full min-h-0 overflow-y-auto overscroll-y-contain flex items-start lg:items-center justify-center px-4 py-6 sm:px-10 sm:py-10">
             <div class="w-full max-w-md">
-                <div class="mb-6 flex items-center justify-between lg:hidden">
+                <div class="mb-4 flex items-center justify-between lg:hidden">
                     <a href="{{ route('site.home') }}"><x-site.brand-mark size="sm" /></a>
                     <span class="text-[10px] font-semibold uppercase tracking-widest text-amber-700">{{ $eyebrow }}</span>
                 </div>
@@ -60,7 +61,7 @@
                     <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
                 @endif
 
-                <div class="rounded-2xl bg-white/95 shadow-xl shadow-brand/5 ring-1 ring-gray-200/80 p-6 sm:p-8">
+                <div class="rounded-2xl bg-white/95 shadow-xl shadow-brand/5 ring-1 ring-gray-200/80 p-5 sm:p-7">
                     {{ $slot }}
                 </div>
             </div>

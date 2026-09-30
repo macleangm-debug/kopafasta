@@ -22,35 +22,35 @@
             : __('borrower.loan_profile.deadline_days_unit');
     @endphp
     <div {{ $attributes->class([
-        'inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 ring-1 shadow-sm max-w-full',
-        'bg-red-50 ring-red-300 text-red-900' => $urgent || $expired,
-        'bg-brand-gold/25 ring-brand-gold/60 text-brand' => ! $urgent && ! $expired,
+        'relative overflow-hidden rounded-2xl px-4 py-3.5 max-w-full text-white shadow-sm',
+        'bg-gradient-to-br from-red-700 via-red-600 to-red-500 ring-1 ring-red-400/40' => $urgent || $expired,
+        'bg-gradient-to-br from-brand via-brand to-brand-light ring-1 ring-brand/30' => ! $urgent && ! $expired,
     ]) }}>
-        <span class="text-lg leading-none shrink-0" aria-hidden="true">⏱</span>
-        <div class="min-w-0">
+        <div class="absolute -right-8 -top-8 size-24 rounded-full bg-brand-gold/15 pointer-events-none" aria-hidden="true"></div>
+        <div class="relative min-w-0">
             @if ($expired)
                 <p class="text-sm font-bold leading-snug">{{ $label ?: __('borrower.loan_profile.document_deadline_expired') }}</p>
                 @if (filled($byLine))
-                    <p class="text-[11px] font-semibold mt-0.5 opacity-80">{{ $byLine }}</p>
+                    <p class="text-[11px] font-semibold mt-0.5 text-white/80">{{ $byLine }}</p>
                 @endif
             @elseif ($dueToday)
                 <p class="text-sm font-black leading-none tracking-tight">{{ __('borrower.loan_profile.document_deadline_due_today') }}</p>
                 @if (filled($purpose))
-                    <p class="text-xs font-bold mt-1 leading-snug">{{ $purpose }}</p>
+                    <p class="text-xs font-semibold mt-1.5 leading-snug text-white/90">{{ $purpose }}</p>
                 @endif
                 @if (filled($byLine))
-                    <p class="text-[11px] font-semibold mt-0.5 opacity-80">{{ $byLine }}</p>
+                    <p class="text-[11px] font-semibold mt-0.5 text-white/75">{{ $byLine }}</p>
                 @endif
             @elseif ($days !== null)
                 <p class="text-xl font-black tabular-nums leading-none tracking-tight">
                     {{ $days }}
-                    <span class="text-xs font-bold tracking-normal">{{ $unit }}</span>
+                    <span class="text-xs font-bold tracking-normal text-brand-gold">{{ $unit }}</span>
                 </p>
                 @if (filled($purpose))
-                    <p class="text-xs font-bold mt-1 leading-snug">{{ $purpose }}</p>
+                    <p class="text-xs font-semibold mt-1.5 leading-snug text-white/90">{{ $purpose }}</p>
                 @endif
                 @if (filled($byLine))
-                    <p class="text-[11px] font-semibold mt-0.5 opacity-80">{{ $byLine }}</p>
+                    <p class="text-[11px] font-semibold mt-0.5 text-white/75">{{ $byLine }}</p>
                 @endif
             @else
                 <p class="text-sm font-bold leading-snug">{{ $label ?? $purpose ?? $byLine }}</p>

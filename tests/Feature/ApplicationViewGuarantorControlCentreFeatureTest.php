@@ -34,10 +34,10 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
         $this->assertStringNotContainsString(__('borrower.loan_profile.back_to_loan'), $html);
         // Duplicate status eyebrow from the old large status card must be gone.
         $this->assertStringNotContainsString(__('borrower.loan_profile.current_status'), $html);
-        // Section O: waiting copy, not initial-pass / YOUR PART IS SUBMITTED.
-        $this->assertStringContainsString(__('borrower.intake.waiting_guarantor_title'), $html);
+        // Section O/C: Wadhamini owns awaiting-guarantor copy — no duplicate waiting card.
         $this->assertStringNotContainsString(__('borrower.intake.passed_title'), $html);
         $this->assertStringNotContainsString(__('borrower.intake.part_submitted'), $html);
+        $this->assertStringContainsString(__('borrower.loan_profile.guarantor_pending_acceptance_title'), $html);
         // Section D: Mohamed-shaped pending is replacement-capable, not "Add another".
         $this->assertStringNotContainsString(__('borrower.guarantor_supplement.borrower_banner'), $html);
         $this->assertStringNotContainsString(__('borrower.apply.submit_step.supplement_title'), $html);
@@ -56,11 +56,14 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString(__('borrower.loan_profile.guarantor_required_title'), $html);
+        $this->assertStringContainsString(__('borrower.loan_profile.guarantor_declined_title'), $html);
         $this->assertStringContainsString(__('borrower.guarantor_supplement.change_cta'), $html);
         $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_nudge_whatsapp'), $html);
         $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_nudge_copy'), $html);
         $this->assertStringNotContainsString(__('borrower.guarantor_supplement.borrower_banner'), $html);
+        $this->assertStringNotContainsString(__('borrower.apply.guarantor_status.pending_acceptance'), $html);
+        // Duplicate bottom waiting card removed.
+        $this->assertEquals(1, substr_count($html, 'id="guarantor-progress"'));
     }
 
     public function test_incomplete_awaiting_guarantor_can_be_replaced_without_new_fee(): void

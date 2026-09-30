@@ -196,7 +196,7 @@
                         <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                             <h2 class="text-lg font-bold text-gray-900">
                                 @if ($uiState === 'needs_replacement')
-                                    {{ __('borrower.loan_profile.guarantor_required_title') }}
+                                    {{ __('borrower.loan_profile.guarantor_declined_title') }}
                                 @elseif ($uiState === 'required_empty')
                                     {{ __('borrower.loan_profile.guarantor_not_added') }}
                                 @elseif ($uiState === 'quote_reconfirm')
@@ -205,14 +205,21 @@
                                     {{ __('borrower.loan_profile.guarantor_completing_title') }}
                                 @elseif ($uiState === 'ready_before_submit')
                                     {{ $primary->name }}
+                                @elseif ($uiState === 'pending')
+                                    {{ __('borrower.loan_profile.guarantor_pending_acceptance_title') }}
                                 @else
                                     {{ __('borrower.loan_profile.guarantor_waiting_title') }}
                                 @endif
                             </h2>
-                            @if ($primary && in_array($uiState, ['pending', 'accepted_incomplete', 'quote_reconfirm'], true))
-                                <span class="text-sm font-semibold text-gray-500 truncate max-w-full">· {{ $primary->name }}</span>
-                            @endif
                         </div>
+                        @if ($primary && in_array($uiState, ['pending', 'accepted_incomplete', 'quote_reconfirm'], true))
+                            <p class="text-base font-bold text-gray-900 mt-2">
+                                {{ $primary->name }}
+                                @if (! empty($primary->phone))
+                                    <span class="font-semibold text-gray-600">· {{ $primary->phone }}</span>
+                                @endif
+                            </p>
+                        @endif
                         <p class="text-sm text-gray-600 mt-1">
                             @if ($uiState === 'needs_replacement')
                                 {{ __('borrower.loan_profile.guarantor_required_body') }}
@@ -224,13 +231,12 @@
                                 {{ __('borrower.loan_profile.guarantor_completing_body') }}
                             @elseif ($uiState === 'ready_before_submit')
                                 {{ $primary->type }}
+                            @elseif ($uiState === 'pending')
+                                {{ __('borrower.loan_profile.guarantor_pending_acceptance_body') }}
                             @else
                                 {{ __('borrower.loan_profile.guarantor_hold_body') }}
                             @endif
                         </p>
-                        @if ($primary && in_array($uiState, ['pending', 'accepted_incomplete'], true) && ! empty($primary->phone))
-                            <p class="text-sm font-semibold text-gray-800 mt-2">{{ $primary->name }} · {{ $primary->phone }}</p>
-                        @endif
                     </div>
 
                     @if ($showPrimaryChoose)
@@ -358,26 +364,26 @@
                                     </span>
                                 </div>
                                 @if (! empty($steps))
-                                    <ol class="grid sm:grid-cols-4 gap-2">
+                                    <ol class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                         @foreach ($steps as $step)
                                             <li @class([
-                                                'rounded-xl bg-white/80 ring-1 px-3 py-2',
-                                                'ring-emerald-200' => $step['complete'] ?? false,
-                                                'ring-amber-300' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
-                                                'ring-gray-200' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
+                                                'rounded-xl px-3 py-2.5 ring-1',
+                                                'bg-emerald-50 ring-emerald-200' => $step['complete'] ?? false,
+                                                'bg-brand-muted/60 ring-brand/30' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
+                                                'bg-white ring-gray-200' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
                                             ])>
                                                 <p @class([
-                                                    'text-[10px] uppercase tracking-widest font-semibold',
+                                                    'text-[10px] uppercase tracking-widest font-bold',
                                                     'text-emerald-700' => $step['complete'] ?? false,
-                                                    'text-amber-800' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
+                                                    'text-brand' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
                                                     'text-gray-400' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
                                                 ])>
-                                                    {{ ($step['complete'] ?? false) ? '✓' : (($step['current'] ?? false) ? '·' : '○') }}
+                                                    {{ ($step['complete'] ?? false) ? '✓' : (($step['current'] ?? false) ? '●' : '○') }}
                                                 </p>
                                                 <p @class([
-                                                    'text-xs font-semibold mt-0.5',
-                                                    'text-gray-900' => $step['current'] ?? false,
-                                                    'text-gray-600' => ! ($step['current'] ?? false),
+                                                    'text-xs font-semibold mt-0.5 leading-snug',
+                                                    'text-gray-900' => ($step['current'] ?? false) || ($step['complete'] ?? false),
+                                                    'text-gray-500' => ! ($step['current'] ?? false) && ! ($step['complete'] ?? false),
                                                 ])>{{ $step['label'] ?? '' }}</p>
                                             </li>
                                         @endforeach

@@ -1830,6 +1830,35 @@ class GuarantorInvitationService
             + $this->releaseHeldApplicationsForBorrower($customer);
     }
 
+    /**
+     * Public / authenticated decline entry — always flips invitation + linked CustomerGuarantor.
+     */
+    public function rejectInvitation(GuarantorInvitation $invitation, ?string $notes = null): void
+    {
+        $invitation->loadMissing('customerGuarantor');
+        if ($link = $invitation->customerGuarantor) {
+            $this->reject($link, $notes);
+
+            return;
+        }
+
+        DB::transaction(function () use ($invitation, $notes): void {
+            $invitation->update([
+                'status' => 'rejected',
+                'responded_at' => now(),
+                'response_notes' => $notes,
+                'confirmation_status' => null,
+            ]);
+
+            if ($invitation->customer_guarantor_id) {
+                CustomerGuarantor::query()
+                    ->whereKey($invitation->customer_guarantor_id)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->update(['status' => 'rejected']);
+            }
+        });
+    }
+
     public function reject(CustomerGuarantor $link, ?string $notes = null): void
     {
         DB::transaction(function () use ($link, $notes): void {
@@ -1838,10 +1867,23 @@ class GuarantorInvitationService
             $invitation = GuarantorInvitation::query()
                 ->where('customer_guarantor_id', $link->id)
                 ->whereIn('status', ['pending', 'accepted'])
+                ->latest('id')
                 ->first();
 
+            // Reject every open invitation for this link — never leave a pending twin.
             GuarantorInvitation::query()
-                ->where('customer_guarantor_id', $link->id)
+                ->where(function ($q) use ($link, $invitation) {
+                    $q->where('customer_guarantor_id', $link->id);
+                    if ($invitation) {
+                        $q->orWhereKey($invitation->id);
+                    }
+                    if ($link->loan_application_id) {
+                        $q->orWhere(function ($inner) use ($link) {
+                            $inner->where('loan_application_id', $link->loan_application_id)
+                                ->where('customer_guarantor_id', $link->id);
+                        });
+                    }
+                })
                 ->whereIn('status', ['pending', 'accepted'])
                 ->update([
                     'status' => 'rejected',

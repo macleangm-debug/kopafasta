@@ -73,17 +73,40 @@
                 </x-site.action-panel>
             </div>
             @if ($agent)
-                <form method="POST" action="{{ route('admin.support.availability') }}" class="inline-flex items-center gap-2">
-                    @csrf
-                    <span class="inline-flex size-2.5 rounded-full {{ $dot }} ring-2 ring-white/40" aria-hidden="true"></span>
-                    <select name="availability"
-                            onchange="this.form.submit()"
-                            class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold px-3 py-2 focus:ring-2 focus:ring-white/40">
-                        <option value="online" @selected($availability === 'online') class="text-gray-900">Online</option>
-                        <option value="away" @selected($availability === 'away') class="text-gray-900">Away</option>
-                        <option value="offline" @selected($availability === 'offline') class="text-gray-900">Offline</option>
-                    </select>
-                </form>
+                <div class="relative" x-data="{ availOpen: false }">
+                    <form method="POST" action="{{ route('admin.support.availability') }}" class="hidden sm:inline-flex items-center gap-2">
+                        @csrf
+                        <span class="inline-flex size-2.5 rounded-full {{ $dot }} ring-2 ring-white/40" aria-hidden="true"></span>
+                        <label class="sr-only" for="support-availability">Availability</label>
+                        <select id="support-availability" name="availability"
+                                onchange="this.form.submit()"
+                                class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold pl-2 pr-8 py-2 focus:ring-2 focus:ring-white/40"
+                                title="Online = can Accept. Offline = keep assigned chats; no new Accept.">
+                            <option value="online" @selected($availability === 'online') class="text-gray-900">● Online</option>
+                            <option value="offline" @selected($availability === 'offline') class="text-gray-900">○ Offline</option>
+                            <option value="away" @selected($availability === 'away') class="text-gray-900">Away</option>
+                        </select>
+                    </form>
+                    <button type="button" @click="availOpen = true"
+                            class="sm:hidden inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white">
+                        <span class="inline-flex size-2.5 rounded-full {{ $dot }}" aria-hidden="true"></span>
+                        <span>{{ $availability === 'offline' ? 'Offline' : ($availability === 'away' ? 'Away' : 'Online') }} ▾</span>
+                    </button>
+                    <x-site.action-panel title="Availability" open="availOpen">
+                        <p class="text-xs text-gray-500 mb-3">Offline keeps your assigned conversations. You cannot Accept new waiting chats until you are Online.</p>
+                        <form method="POST" action="{{ route('admin.support.availability') }}" class="space-y-1">
+                            @csrf
+                            <button type="submit" name="availability" value="online"
+                                    class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ $availability === 'online' ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
+                                ● Online
+                            </button>
+                            <button type="submit" name="availability" value="offline"
+                                    class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ $availability === 'offline' ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
+                                ○ Offline
+                            </button>
+                        </form>
+                    </x-site.action-panel>
+                </div>
             @else
                 <span class="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white">
                     <span class="size-2.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
@@ -99,16 +122,15 @@
                     $longestLabel = sprintf('%02d:%02d:%02d', intdiv($longestSeconds, 3600), intdiv($longestSeconds, 60) % 60, $longestSeconds % 60);
                 }
                 $kpiStrip = [
-                    ['Waiting now', $counters['waiting'] ?? 0, route('admin.support.inbox'), 'Conversations in the queue that no Support person has accepted yet.'],
+                    ['Waiting', $counters['waiting'] ?? 0, route('admin.support.inbox'), 'Conversations in the queue that no Support person has accepted yet.'],
                     ['Longest waiting', $longestLabel, route('admin.support.inbox', ['filter' => 'waiting']), 'Age of the oldest unassigned waiting conversation (Africa/Dar_es_Salaam clock).'],
-                    ['Active chats', $counters['active_chats'] ?? 0, route('admin.support.inbox'), 'Accepted conversations that are still open (assigned or active).'],
+                    ['Active', $counters['active_chats'] ?? 0, route('admin.support.inbox'), 'Accepted conversations that are still open (assigned or active).'],
                     ['Open tickets', $counters['open_tickets'] ?? 0, route('admin.support.cases'), 'Tickets still open or in progress.'],
                     ['SLA at risk', $counters['sla_at_risk'] ?? 0, route('admin.support.cases'), 'Open tickets approaching their snapshotted due time.'],
                     ['Overdue', $counters['overdue'] ?? 0, route('admin.support.cases'), 'Open tickets past their snapshotted SLA due time.'],
-                    ['Resolved today', $counters['resolved_today'] ?? 0, route('admin.support.performance'), 'Conversations and tickets closed today (Africa/Dar_es_Salaam calendar day).'],
                 ];
             @endphp
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                 @foreach ($kpiStrip as [$label, $value, $url, $hint])
                     <a href="{{ $url }}" class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-2.5 hover:ring-brand/30 transition" title="{{ $hint }}">
                         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold flex items-center gap-1">

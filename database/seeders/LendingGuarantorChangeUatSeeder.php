@@ -228,6 +228,44 @@ class LendingGuarantorChangeUatSeeder extends Seeder
         unset($payload['guarantor_supplement'], $payload['guarantor_quote_reconfirm']);
         $application->forceFill(['screening_payload' => $payload === [] ? null : $payload])->save();
 
+        $forceReset = filter_var(env('FORCE_UAT_GUARANTOR_RESET', false), FILTER_VALIDATE_BOOLEAN);
+        $liveInvite = GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->latest('id')
+            ->first();
+        $liveLink = CustomerGuarantor::query()
+            ->where('loan_application_id', $application->id)
+            ->latest('id')
+            ->first();
+
+        // Never wipe Owner UAT progress (declined / accepted / reconfirm) on redeploy.
+        if (! $forceReset && $liveInvite && in_array((string) $liveInvite->status, [
+            'rejected', 'accepted', 'expired', 'cancelled',
+        ], true)) {
+            $this->command?->info('MacLean Mohamed-scenario preserved (staging only) — invitation '.$liveInvite->status.'; set FORCE_UAT_GUARANTOR_RESET=1 to reseed pending.');
+            $this->command?->info('  Member phone: '.self::MACLEAN_PHONE.'  PIN: 1234');
+            $this->command?->info('  Application: '.self::APP_NUMBER.'  invite token: '.$liveInvite->token);
+            $this->command?->info('  Production APP-EM-MU8Q untouched.');
+
+            return;
+        }
+
+        if (! $forceReset && $liveInvite && (string) $liveInvite->status === 'pending' && $liveLink) {
+            // Keep existing pending invite stable across deploys (same token for Owner walkthrough).
+            $liveInvite->forceFill([
+                'guarantor_customer_id' => $oldGuarantorCustomer->id,
+                'contact' => $oldGuarantorCustomer->phone,
+                'invitee_name' => trim($oldGuarantorCustomer->first_name.' '.$oldGuarantorCustomer->last_name),
+                'expires_at' => $liveInvite->expires_at ?: now()->addDays(14),
+            ])->save();
+            $this->command?->info('MacLean Mohamed-scenario pending invite retained (staging only):');
+            $this->command?->info('  Member: '.trim($borrower->first_name.' '.$borrower->last_name).'  phone: '.self::MACLEAN_PHONE.'  PIN: 1234');
+            $this->command?->info('  Application: '.self::APP_NUMBER.'  token: '.$liveInvite->token);
+            $this->command?->info('  Pending guarantor phone: 255700000042  Replacement ready: 255700000043');
+
+            return;
+        }
+
         GuarantorInvitation::query()->where('loan_application_id', $application->id)->delete();
         CustomerGuarantor::query()->where('loan_application_id', $application->id)->delete();
 

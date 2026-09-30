@@ -77,7 +77,7 @@
         $firstResp = (int) ($performance['avg_first_response_minutes'] ?? 0);
     @endphp
 
-    <div class="grid lg:grid-cols-2 gap-4 mb-6">
+    <div class="grid lg:grid-cols-3 gap-4 mb-6">
         <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5">
             <h2 class="text-sm font-semibold text-gray-900">Conversations received / resolved</h2>
             <div class="mt-4 space-y-3">
@@ -114,24 +114,24 @@
             <p class="mt-4 text-3xl font-bold text-amber-500 tracking-widest">{{ $rating > 0 ? str_repeat('★', (int) round($rating)).str_repeat('☆', max(0, 5 - (int) round($rating))) : '—' }}</p>
             <p class="text-sm text-slate-600 mt-1 tabular-nums">{{ $performance['customer_rating'] ?? '—' }} / 5</p>
         </section>
-    </div>
 
-    <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden mb-6">
-        <div class="px-5 py-4 border-b border-gray-100">
-            <h2 class="text-sm font-semibold text-gray-900">Top Issues</h2>
-            <p class="text-xs text-slate-500">Canonical Issue taxonomy counts for this range</p>
-        </div>
-        <ul class="divide-y divide-gray-100">
-            @forelse (($performance['top_issues'] ?? []) as $row)
-                <li class="px-5 py-3 flex items-center justify-between gap-3 text-sm">
-                    <span class="font-semibold text-gray-800">{{ str_replace('_', ' ', ucfirst($row['issue'])) }}</span>
-                    <span class="tabular-nums font-bold text-brand">{{ format_number($row['count']) }}</span>
-                </li>
-            @empty
-                <li class="px-5 py-8 text-center text-sm text-gray-500">No tickets in this range yet.</li>
-            @endforelse
-        </ul>
-    </section>
+        <section class="lg:col-span-2 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h2 class="text-sm font-semibold text-gray-900">Top Issues</h2>
+                <p class="text-xs text-slate-500">Canonical Issue taxonomy counts for this range</p>
+            </div>
+            <ul class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                @forelse (($performance['top_issues'] ?? []) as $row)
+                    <li class="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                        <span class="font-semibold text-gray-800">{{ str_replace('_', ' ', ucfirst($row['issue'])) }}</span>
+                        <span class="tabular-nums font-bold text-brand">{{ format_number($row['count']) }}</span>
+                    </li>
+                @empty
+                    <li class="px-5 py-8 text-center text-sm text-gray-500">No tickets in this range yet.</li>
+                @endforelse
+            </ul>
+        </section>
+    </div>
 
     @if (! empty($performance['gaps']))
         <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-5 text-sm text-amber-950 space-y-2">
