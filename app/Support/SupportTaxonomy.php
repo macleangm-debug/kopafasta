@@ -9,44 +9,82 @@ class SupportTaxonomy
     public const SETTING_KEY = 'support.ticket_categories';
 
     /**
-     * @return array{categories: array<string, string>, subjects: array<string, list<string>>}
+     * @return array{
+     *     categories: array<string, string>,
+     *     subjects: array<string, list<string>>,
+     *     default_priority: array<string, string>
+     * }
      */
     public static function defaults(): array
     {
         return [
             'categories' => [
-                'complaint' => 'Complaint',
-                'suggestion' => 'Suggestion',
+                'account_access' => 'Account & access',
+                'loan_application' => 'Loan application',
+                'payments' => 'Payments',
+                'repayments' => 'Repayments',
+                'asset_marketplace' => 'Asset marketplace',
+                'partner_affiliate' => 'Partner/Affiliate',
                 'technical' => 'Technical',
-                'loan_inquiry' => 'Loan inquiry',
-                'general' => 'General',
-                'compliment' => 'Compliment',
-                'loan' => 'Loan',
-                'payment' => 'Payment',
-                'profile' => 'Profile / KYC',
-                'reward_fulfilment' => 'Reward fulfilment',
-                'broken_page' => 'Broken page',
                 'other' => 'Other',
             ],
             'subjects' => [
-                'complaint' => ['Service issue', 'Staff conduct', 'Fee dispute', 'Other'],
-                'suggestion' => ['Product idea', 'Process improvement', 'Other'],
-                'technical' => ['Login / access', 'App / website error', 'Notifications', 'Other'],
-                'loan_inquiry' => ['Application status', 'Eligibility', 'Offer / contract', 'Other'],
-                'general' => ['Account question', 'How to', 'Other'],
-                'compliment' => ['Staff appreciation', 'Service appreciation', 'Other'],
-                'loan' => ['Application status', 'Disbursement', 'Repayment schedule', 'Restructuring', 'Other'],
-                'payment' => ['Mobile money', 'Failed payment', 'Receipt / confirmation', 'Other'],
-                'profile' => ['Identity / NIDA', 'Documents', 'Contact details', 'Other'],
-                'reward_fulfilment' => ['Reward fulfilment', 'Other'],
-                'broken_page' => ['Page error', 'Missing content', 'Other'],
-                'other' => ['General inquiry', 'Other'],
+                'account_access' => ['PIN/Login', 'Profile/KYC', 'Activation'],
+                'loan_application' => [
+                    'Application progress',
+                    'Guarantor',
+                    'Underwriting',
+                    'Offer',
+                    'Documents',
+                    'Disbursement',
+                ],
+                'payments' => [
+                    'Payment not reflecting',
+                    'Failed payment',
+                    'Wrong amount',
+                    'Refund/reversal',
+                ],
+                'repayments' => [
+                    'Instalment',
+                    'Balance',
+                    'Late payment',
+                    'Payment allocation',
+                ],
+                'asset_marketplace' => ['Order/asset', 'Supplier', 'Deposit', 'Delivery'],
+                'partner_affiliate' => [
+                    'Account/access',
+                    'Application',
+                    'Commission',
+                    'Payment',
+                    'Workspace',
+                ],
+                'technical' => [
+                    'Page/error',
+                    'Unable to continue',
+                    'Notification/SMS',
+                    'Other technical issue',
+                ],
+                'other' => ['General follow-up'],
+            ],
+            'default_priority' => [
+                'account_access' => 'high',
+                'loan_application' => 'normal',
+                'payments' => 'high',
+                'repayments' => 'high',
+                'asset_marketplace' => 'normal',
+                'partner_affiliate' => 'normal',
+                'technical' => 'high',
+                'other' => 'normal',
             ],
         ];
     }
 
     /**
-     * @return array{categories: array<string, string>, subjects: array<string, list<string>>}
+     * @return array{
+     *     categories: array<string, string>,
+     *     subjects: array<string, list<string>>,
+     *     default_priority: array<string, string>
+     * }
      */
     public static function all(): array
     {
@@ -63,10 +101,14 @@ class SupportTaxonomy
         $subjects = is_array($stored['subjects'] ?? null) && $stored['subjects'] !== []
             ? $stored['subjects']
             : $defaults['subjects'];
+        $defaultPriority = is_array($stored['default_priority'] ?? null) && $stored['default_priority'] !== []
+            ? $stored['default_priority']
+            : ($defaults['default_priority'] ?? []);
 
         return [
             'categories' => $categories,
             'subjects' => $subjects,
+            'default_priority' => $defaultPriority,
         ];
     }
 
@@ -90,6 +132,16 @@ class SupportTaxonomy
         return array_values(array_filter($subjects, fn ($s) => is_string($s) && $s !== ''));
     }
 
+    /** Settings-backed default priority for a category key (normal/high/urgent). */
+    public static function defaultPriorityFor(?string $category): string
+    {
+        $key = self::categoryKeyForStored($category);
+        $map = self::all()['default_priority'] ?? [];
+        $priority = is_string($map[$key] ?? null) ? strtolower($map[$key]) : 'normal';
+
+        return in_array($priority, ['low', 'normal', 'high', 'urgent'], true) ? $priority : 'normal';
+    }
+
     public static function resolveSubject(?string $subject, ?string $subjectOther = null): string
     {
         $subject = trim((string) $subject);
@@ -99,7 +151,7 @@ class SupportTaxonomy
             return $other !== '' ? $other : 'Other';
         }
 
-        return $subject !== '' ? $subject : 'General inquiry';
+        return $subject !== '' ? $subject : 'General follow-up';
     }
 
     public static function resolveCategory(?string $category, ?string $categoryOther = null): string
@@ -108,7 +160,7 @@ class SupportTaxonomy
         if ($category === '' || strcasecmp($category, 'other') === 0) {
             $other = trim((string) $categoryOther);
 
-            return $other !== '' ? $other : ($category !== '' ? 'other' : 'general');
+            return $other !== '' ? $other : 'other';
         }
 
         return $category;

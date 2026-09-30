@@ -821,6 +821,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             ->name('loan-applications.document-requests.cancel');
         Route::post('loan-applications/{loan_application}/request-guarantor-supplement', [LoanApplicationController::class, 'requestGuarantorSupplement'])
             ->name('loan-applications.request-guarantor-supplement');
+        Route::post('loan-applications/{loan_application}/return-for-correction', [LoanApplicationController::class, 'returnForCorrection'])
+            ->name('loan-applications.return-for-correction');
         Route::post('loan-applications/{loan_application}/request-collateral-secure', [LoanApplicationController::class, 'requestCollateralSecure'])
             ->name('loan-applications.request-collateral-secure');
         Route::post('loan-applications/{loan_application}/request-valuation', [LoanApplicationController::class, 'requestValuation'])
@@ -1189,6 +1191,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             $registerResource('support-tickets', 'support_ticket', SupportTicketController::class);
             Route::get('support-tickets-customers', [SupportTicketController::class, 'searchCustomers'])
                 ->name('support-tickets.customers');
+            Route::get('support-tickets-similar', [SupportTicketController::class, 'similar'])
+                ->name('support-tickets.similar');
             Route::post('support-tickets/{support_ticket}/link-customer', [SupportTicketController::class, 'linkCustomer'])
                 ->name('support-tickets.link-customer');
             Route::post('support-tickets/{support_ticket}/note', [SupportTicketController::class, 'addNote'])

@@ -84,7 +84,10 @@ class GuarantorDeadlineFeatureTest extends TestCase
 
     public function test_borrower_can_change_guarantor_while_held(): void
     {
-        [$borrower, $guarantorCustomer, $application, $link] = $this->heldApplicationPair(deadline: now()->addDays(5));
+        [$borrower, $guarantorCustomer, $application, $link] = $this->heldApplicationPair(
+            deadline: now()->addDays(5),
+            incomplete: true,
+        );
 
         $url = app(GuarantorSupplementService::class)
             ->startBorrowerChangeWhileHeld($application, $borrower);
@@ -106,7 +109,7 @@ class GuarantorDeadlineFeatureTest extends TestCase
     /**
      * @return array{0: Customer, 1: Customer, 2: LoanApplication, 3: CustomerGuarantor}
      */
-    private function heldApplicationPair(\DateTimeInterface $deadline): array
+    private function heldApplicationPair(\DateTimeInterface $deadline, bool $incomplete = false): array
     {
         $seq = ++self::$heldPairSeq;
         $suffix = str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
@@ -174,7 +177,7 @@ class GuarantorDeadlineFeatureTest extends TestCase
             'customer_id' => $borrower->id,
             'guarantor_id' => $guarantorRecord->id,
             'loan_application_id' => $app->id,
-            'status' => 'approved',
+            'status' => $incomplete ? 'pending' : 'approved',
         ]);
 
         GuarantorInvitation::create([
@@ -188,7 +191,7 @@ class GuarantorDeadlineFeatureTest extends TestCase
             'token' => 'gd-token-'.random_int(1000, 9999),
             'short_code' => 'GD'.random_int(100, 999),
             'contact' => $guarantorCustomer->phone,
-            'status' => 'accepted',
+            'status' => $incomplete ? 'pending' : 'accepted',
             'expires_at' => now()->addDays(14),
         ]);
 

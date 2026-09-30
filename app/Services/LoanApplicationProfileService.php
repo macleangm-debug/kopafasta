@@ -238,8 +238,8 @@ class LoanApplicationProfileService
             'edit_guarantor_url' => app(GuarantorSupplementService::class)->hasOpenRequest($application)
                 ? app(GuarantorSupplementService::class)->borrowerWizardUrl($application)
                 : null,
-            'can_change_guarantor_while_held' => in_array((string) $application->status, ['awaiting_guarantor'], true)
-                || (string) $application->current_stage === 'awaiting_guarantor',
+            'can_change_guarantor_while_held' => app(GuarantorSupplementService::class)
+                ->borrowerMayReplaceIncompleteGuarantor($application),
             'document_requests' => $requestsForCustomer,
             'document_request_groups' => $this->borrowerStatus->groupedDocumentRequests(
                 $requestsForCustomer

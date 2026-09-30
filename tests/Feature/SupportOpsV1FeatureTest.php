@@ -39,7 +39,7 @@ class SupportOpsV1FeatureTest extends TestCase
         $this->assertSame($agent->id, $ticket->assigned_to);
         $this->assertSame('guest', $ticket->contact_kind);
         $this->assertSame('Amina Guest', $ticket->guest_name);
-        $this->assertMatchesRegularExpression('/^SUP-\d{4}-\d{6}$/', $ticket->ticket_number);
+        $this->assertMatchesRegularExpression('/^KPF-TKT-\d{6}$/', $ticket->ticket_number);
 
         $events = SupportTicketEvent::query()
             ->where('support_ticket_id', $ticket->id)
@@ -64,8 +64,8 @@ class SupportOpsV1FeatureTest extends TestCase
             'category' => 'general',
         ]);
 
-        $this->assertStringStartsWith('HELP-'.now()->format('Y').'-', $ticket->ticket_number);
-        $this->assertMatchesRegularExpression('/^HELP-\d{4}-\d{6}$/', $ticket->ticket_number);
+        $this->assertStringStartsWith('HELP-', $ticket->ticket_number);
+        $this->assertMatchesRegularExpression('/^HELP-\d{6}$/', $ticket->ticket_number);
     }
 
     public function test_roles_json_agent_is_included_in_round_robin(): void
@@ -223,7 +223,7 @@ class SupportOpsV1FeatureTest extends TestCase
         $this->assertSame('Billing dispute', $ticket->category);
         $this->assertSame('Wrong fee charged', $ticket->subject);
         $this->assertSame($agent->id, $ticket->assigned_to);
-        $this->assertMatchesRegularExpression('/^SUP-\d{4}-\d{6}$/', $ticket->ticket_number);
+        $this->assertMatchesRegularExpression('/^KPF-TKT-\d{6}$/', $ticket->ticket_number);
         $this->assertDatabaseMissing('customers', ['first_name' => 'Baraka Guest']);
     }
 

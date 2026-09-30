@@ -16,8 +16,8 @@
         default => 'bg-gray-300',
     };
     $heroSubtitle = $teamView
-        ? 'Help members, partners and guests — answer conversations and resolve cases.'
-        : 'Help members, answer conversations and resolve cases.';
+        ? 'Help members, partners and guests — answer conversations and resolve tickets.'
+        : 'Help members, answer conversations and resolve tickets.';
 @endphp
 <x-admin.layout title="Support" heading="" subheading="">
     <x-admin.letterhead
@@ -120,10 +120,10 @@
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-2">
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Open cases' : 'Tickets assigned to me' }}</p>
-                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Cases needing attention</h2>
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Open tickets' : 'Tickets assigned to me' }}</p>
+                        <h2 class="text-sm font-semibold text-gray-900 mt-0.5">Tickets needing attention</h2>
                     </div>
-                    <a href="{{ route('admin.support.cases') }}" class="text-xs font-semibold text-brand hover:underline">All cases →</a>
+                    <a href="{{ route('admin.support.cases') }}" class="text-xs font-semibold text-brand hover:underline">All tickets →</a>
                 </div>
                 <ul class="divide-y divide-gray-100">
                     @forelse ($tickets as $ticket)
@@ -138,7 +138,7 @@
                             </a>
                         </li>
                     @empty
-                        <li class="px-5 py-10 text-center text-sm text-gray-500">No open cases right now.</li>
+                        <li class="px-5 py-10 text-center text-sm text-gray-500">No open tickets right now.</li>
                     @endforelse
                 </ul>
             </div>

@@ -78,6 +78,8 @@ class SupportTicketController extends ResourceController
                     SupportTicketService::TICKET_PREFIX_KEY,
                     SupportTicketService::TICKET_PREFIX_DEFAULT
                 )).'-'.now()->format('Y').'-……'),
+            'similarSearchUrl' => route('admin.support-tickets.similar'),
+            'defaultPriorities' => $taxonomy['default_priority'] ?? [],
         ];
     }
 
@@ -355,6 +357,29 @@ class SupportTicketController extends ResourceController
                 'id' => $c->id,
                 'label' => $this->memberLabel($c),
             ]),
+        ]);
+    }
+
+    public function similar(Request $request)
+    {
+        $data = $request->validate([
+            'category' => ['nullable', 'string', 'max:80'],
+            'category_other' => ['nullable', 'string', 'max:80'],
+            'subject' => ['nullable', 'string', 'max:200'],
+            'subject_other' => ['nullable', 'string', 'max:200'],
+            'exclude_id' => ['nullable', 'integer'],
+        ]);
+
+        $rows = $this->tickets->similarTickets($data);
+
+        return response()->json([
+            'data' => $rows->map(fn ($row) => [
+                'ticket_number' => $row->ticket_number,
+                'subject' => $row->subject,
+                'category' => $row->category,
+                'status' => $row->status,
+                'resolution_summary' => $row->resolution_summary,
+            ])->all(),
         ]);
     }
 

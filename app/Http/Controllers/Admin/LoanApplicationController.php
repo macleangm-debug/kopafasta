@@ -435,6 +435,31 @@ class LoanApplicationController extends ResourceController
         return back()->with('status', __('borrower.guarantor_supplement.admin_success'));
     }
 
+    public function returnForCorrection(Request $request, LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.review')
+            || auth()->user()?->hasPermission('applications.request_documents'), 403);
+        $this->assertApplicationMutable($loan_application);
+
+        $data = $request->validate([
+            'section' => ['required', 'in:guarantor,identity_kyc,income_business,residence,other'],
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        try {
+            app(\App\Services\ApplicationEvidenceLockService::class)->returnForCorrection(
+                $loan_application,
+                $request->user(),
+                $data['section'],
+                $data['reason'],
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Return for correction sent. Only the selected section is unlocked.');
+    }
+
     public function requestCollateralSecure(Request $request, LoanApplication $loan_application): RedirectResponse
     {
         abort_unless(auth()->user()?->hasPermission('applications.request_documents')

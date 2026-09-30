@@ -190,6 +190,7 @@ class StagingUatSeeder extends Seeder
         ]);
 
         $this->call(SupportStagingUatSeeder::class);
+        $this->call(LendingGuarantorChangeUatSeeder::class);
     }
 
     /** @param array<string, mixed> $row */

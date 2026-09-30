@@ -12,6 +12,8 @@
     $agentCount = (int) ($agentCount ?? 0);
     $canOverrideAssignment = (bool) ($canOverrideAssignment ?? false);
     $ticketNumberPreview = $ticketNumberPreview ?? 'SUP-….';
+    $similarSearchUrl = $similarSearchUrl ?? route('admin.support-tickets.similar');
+    $defaultPriorities = $defaultPriorities ?? [];
     $storedCategory = old('category', $r?->category ?? '');
     $categoryKey = old('category', $storedCategory !== '' ? \App\Support\SupportTaxonomy::categoryKeyForStored($storedCategory) : '');
     $categoryOther = old('category_other', ($categoryKey === 'other' && $storedCategory && $storedCategory !== 'other') ? $storedCategory : '');
@@ -45,6 +47,8 @@
     } elseif ($selectedCustomerId && isset($customers[$selectedCustomerId])) {
         $selectedCustomerLabel = $customers[$selectedCustomerId];
     }
+    $isCreate = ! $r;
+    $createAnyway = (bool) old('create_anyway', false);
 @endphp
 
 <div class="space-y-6" x-data="supportTicketForm({
@@ -52,9 +56,14 @@
     category: @js($initialCategory),
     subject: @js($initialSubjectSelect),
     subjectsByCategory: @js($subjectsByCategory),
+    defaultPriorities: @js($defaultPriorities),
     customerSearchUrl: @js($customerSearchUrl),
+    similarSearchUrl: @js($similarSearchUrl),
     customerId: @js($selectedCustomerId ? (string) $selectedCustomerId : ''),
     customerLabel: @js($selectedCustomerLabel),
+    excludeId: @js($r?->id),
+    createAnyway: @js($createAnyway),
+    checkSimilarOnCreate: @js($isCreate),
 })">
 
     <x-admin.step title="Contact">
@@ -150,7 +159,7 @@
         </div>
         <div @error('subject') data-has-error="true" @enderror>
             <label class="block text-xs font-semibold text-gray-700 mb-1">Subject <span class="text-red-500">*</span></label>
-            <select name="subject" x-model="subject" required
+            <select name="subject" x-model="subject" @change="onSubjectChange()" required
                     @error('subject') aria-invalid="true" @enderror
                     @class([
                         'appearance-none w-full text-sm bg-white border rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700',
@@ -176,6 +185,30 @@
         <div class="md:col-span-2">
             <x-admin.textarea name="description" label="Description" :value="$r?->description" rows="4" />
         </div>
+
+        @if ($isCreate)
+            <div class="md:col-span-2" x-show="similarTickets.length > 0" x-cloak>
+                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950">
+                    <p class="font-semibold">Similar tickets found</p>
+                    <ul class="mt-2 space-y-1.5">
+                        <template x-for="row in similarTickets" :key="row.ticket_number">
+                            <li class="text-xs">
+                                <span class="font-mono font-semibold" x-text="row.ticket_number"></span>
+                                <span class="text-amber-800"> · </span>
+                                <span x-text="row.subject"></span>
+                                <span class="text-amber-700" x-text="' · ' + row.status"></span>
+                                <span class="block text-amber-700/80" x-show="row.resolution_summary" x-text="row.resolution_summary"></span>
+                            </li>
+                        </template>
+                    </ul>
+                    <label class="mt-3 inline-flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                        <input type="checkbox" name="create_anyway" value="1" x-model="createAnyway"
+                               class="rounded border-amber-300 text-brand focus:ring-brand/30">
+                        Create anyway
+                    </label>
+                </div>
+            </div>
+        @endif
     </x-admin.step>
 
     <x-admin.step title="Triage / Review">
@@ -218,7 +251,15 @@
             </div>
         @endif
 
-        <x-admin.select name="priority" label="Priority" :options="$priorities" :value="$r?->priority ?? 'normal'" required />
+        <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Priority <span class="text-red-500">*</span></label>
+            <select name="priority" x-ref="priority" required
+                    class="appearance-none w-full text-sm bg-white border border-brand/15 rounded-xl shadow-sm pl-3.5 pr-9 py-2.5 font-medium text-gray-700">
+                @foreach ($priorities as $key => $label)
+                    <option value="{{ $key }}" @selected(old('priority', $r?->priority ?? 'normal') === $key)>{{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
         <x-admin.select name="status" label="Status" :options="$statuses" :value="$r?->status ?? 'open'" required />
         @if ($r)
             <x-admin.input name="resolved_at" label="Resolved at" :value="optional($r?->resolved_at)->format('Y-m-d')" type="date" />
@@ -237,14 +278,36 @@
                 category: cfg.category || '',
                 subject: cfg.subject || '',
                 subjectsByCategory: cfg.subjectsByCategory || {},
+                defaultPriorities: cfg.defaultPriorities || {},
                 customerSearchUrl: cfg.customerSearchUrl,
+                similarSearchUrl: cfg.similarSearchUrl,
                 customerId: cfg.customerId || '',
                 customerLabel: cfg.customerLabel || '',
                 customerQuery: cfg.customerLabel || '',
                 customerResults: [],
                 customerSearched: false,
+                similarTickets: [],
+                createAnyway: !!cfg.createAnyway,
+                checkSimilarOnCreate: !!cfg.checkSimilarOnCreate,
+                excludeId: cfg.excludeId || null,
                 get subjectOptions() {
                     return this.subjectsByCategory[this.category] || [];
+                },
+                init() {
+                    this.$watch('subject', () => this.lookupSimilar());
+                    this.$watch('category', () => this.applyDefaultPriority());
+                    if (this.checkSimilarOnCreate && this.category && this.subject) {
+                        this.lookupSimilar();
+                    }
+                    const form = this.$el.closest('form');
+                    if (form && this.checkSimilarOnCreate) {
+                        form.addEventListener('submit', (e) => {
+                            if (this.similarTickets.length > 0 && ! this.createAnyway) {
+                                e.preventDefault();
+                                this.$el.querySelector('[name="create_anyway"][type="checkbox"]')?.focus();
+                            }
+                        });
+                    }
                 },
                 setKind(kind) {
                     this.kind = kind;
@@ -259,6 +322,46 @@
                     const opts = this.subjectOptions;
                     if (! opts.includes(this.subject)) {
                         this.subject = '';
+                    }
+                    this.createAnyway = false;
+                    this.applyDefaultPriority();
+                    this.lookupSimilar();
+                },
+                onSubjectChange() {
+                    this.createAnyway = false;
+                    this.lookupSimilar();
+                },
+                applyDefaultPriority() {
+                    if (! this.checkSimilarOnCreate) {
+                        return;
+                    }
+                    const priority = this.defaultPriorities[this.category];
+                    const el = this.$refs.priority;
+                    if (priority && el && ! el.dataset.userTouched) {
+                        el.value = priority;
+                    }
+                },
+                async lookupSimilar() {
+                    if (! this.checkSimilarOnCreate || ! this.category || ! this.subject) {
+                        this.similarTickets = [];
+                        return;
+                    }
+                    try {
+                        const params = new URLSearchParams({
+                            category: this.category,
+                            subject: this.subject,
+                        });
+                        if (this.excludeId) {
+                            params.set('exclude_id', String(this.excludeId));
+                        }
+                        const res = await fetch(this.similarSearchUrl + '?' + params.toString(), {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+                        const json = await res.json();
+                        this.similarTickets = json.data || [];
+                    } catch (e) {
+                        this.similarTickets = [];
                     }
                 },
                 async searchCustomers() {

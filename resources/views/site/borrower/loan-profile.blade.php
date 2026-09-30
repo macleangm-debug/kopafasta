@@ -40,7 +40,6 @@
         $showSchedule = false; // Repayment schedule lives on the active loan page only.
         $assetName = $profile['product_details']['asset']['name'] ?? null;
         $loansUrl = route('site.borrower.loans');
-        $nextActionLabel = $profile['next_action']['label'] ?? ($status['label'] ?? null);
     @endphp
 
     <section class="mb-4 rounded-2xl p-4 sm:p-5 relative overflow-hidden kf-premium-panel"
@@ -56,10 +55,12 @@
                     @endif
                     <p class="text-xs font-mono text-white/65 mt-1">{{ $summary['application_number'] }}</p>
                 </div>
-                <a href="{{ $loansUrl }}" data-kf-motion="pop"
-                   class="shrink-0 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand font-bold text-xs sm:text-sm px-3.5 py-2.5">
-                    {{ __('borrower.loan_profile.back_to_loan') }}
-                </a>
+                @if ($isDraft)
+                    <a href="{{ $loansUrl }}" data-kf-motion="pop"
+                       class="shrink-0 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:brightness-95 text-brand font-bold text-xs sm:text-sm px-3.5 py-2.5">
+                        {{ __('borrower.loan_profile.back_to_loan') }}
+                    </a>
+                @endif
             </div>
             <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 @if (! empty($summary['requested_amount']))
@@ -67,9 +68,6 @@
                 @endif
                 @if (! empty($status['label']))
                     <p class="text-xs font-semibold text-white/80">{{ $status['label'] }}</p>
-                @endif
-                @if (! empty($nextActionLabel) && $nextActionLabel !== ($status['label'] ?? null))
-                    <p class="text-xs text-white/70">{{ $nextActionLabel }}</p>
                 @endif
             </div>
         </div>
@@ -105,7 +103,12 @@
         </div>
     @endif
 
-    {{-- 1. Status + next action (always first after submit) --}}
+    {{-- Post-submit: Wadhamini is the first contextual action surface under the hero. --}}
+    @if ($showGuarantorBlock)
+        @include('site.borrower.loan-profile._guarantor_progress', ['profile' => $profile])
+    @endif
+
+    {{-- Status + next action (draft / correction / rejection / actionable reviews). Hero already owns wait status. --}}
     @include('site.borrower.loan-profile._action_panel', ['profile' => $profile])
 
     @if (! $isDraft && $application && ! request()->filled('doc'))
@@ -113,7 +116,7 @@
         @include('site.borrower.loan-profile._valuation_wait', ['profile' => $profile])
     @endif
 
-    {{-- 1b. Requested documents — single card, directly under status when open --}}
+    {{-- Requested documents — single card when open --}}
     @if (! $isDraft && $application)
         @include('site.borrower.loan-profile._document_requests', [
             'profile' => $profile,
@@ -121,7 +124,7 @@
         ])
     @endif
 
-    {{-- 2. Post-approval progress only (fees → contract → disbursement) --}}
+    {{-- Post-approval progress only (fees → contract → disbursement) --}}
     @if ($showTimeline)
         <div class="mb-6">
             <x-site.application-timeline
@@ -132,7 +135,7 @@
         </div>
     @endif
 
-    {{-- 3. Compact summary (collapsed after submission when under review) --}}
+    {{-- Compact summary (draft editable strip / read-only submitted terms) --}}
     @if ($isDraft)
         <div class="glass-card p-4 mb-4">
             <div class="mb-4">
@@ -156,7 +159,7 @@
             </div>
         </div>
     @elseif (! $isRejected)
-        <div class="glass-card mb-6 overflow-hidden ring-1 ring-brand/15">
+        <div id="loan-details" class="glass-card mb-6 overflow-hidden ring-1 ring-brand/15">
             <div class="relative overflow-hidden bg-gradient-to-br from-brand-muted/60 via-white to-white px-5 py-5">
                 <div class="absolute -right-8 -top-8 size-28 rounded-full bg-brand/5 pointer-events-none"></div>
                 <div class="relative">
@@ -197,10 +200,6 @@
 
     @if ($isDraft)
         @include('site.borrower.loan-profile._product_details', ['profile' => $profile])
-    @endif
-
-    @if ($showGuarantorBlock)
-        @include('site.borrower.loan-profile._guarantor_progress', ['profile' => $profile])
     @endif
 
     @if ($isDraft)

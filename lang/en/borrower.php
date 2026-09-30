@@ -2771,6 +2771,10 @@ return [
         ],
         'back' => '← Back to applications',
         'back_to_loan' => 'Back to loan',
+        'profile_locked_for_review' => 'Profile locked for review. Contact Support if a correction is needed.',
+        'return_for_correction_notify_title' => 'Correction needed on your application',
+        'return_for_correction_notify_body' => 'Please update :section for application :reference.',
+        'return_for_correction_cta' => 'Complete correction',
         'profile_incomplete_title' => 'Profile incomplete',
         'profile_incomplete_body' => 'Finish the remaining profile information before you can continue.',
         'summary_title' => 'Application summary',
@@ -4106,6 +4110,7 @@ return [
         'borrower_change_started' => 'Choose a new guarantor. Screening still waits until they accept and finish their profile.',
         'borrower_change_confirm_title' => 'Change guarantor?',
         'borrower_change_confirm_body' => 'The current guarantor request will be cancelled for this application. You will pick someone else. Your application stays waiting for guarantor profile — it will not enter screening yet.',
+        'change_locked_body' => 'This guarantor can no longer be changed here. Contact Support or wait for a Return for correction if underwriting needs a replacement.',
     ],
 
     'collateral_secure' => [

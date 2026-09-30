@@ -46,6 +46,20 @@ class SupportStagingUatSeeder extends Seeder
         );
         app(PinService::class)->setPin($agent, '1234');
 
+        $supervisor = User::query()->updateOrCreate(
+            ['email' => 'uat.support.supervisor@staging.kopafasta.com'],
+            [
+                'name' => 'Upendo Supervisor',
+                'phone' => '255700000024',
+                'role' => 'admin',
+                'roles' => ['admin', 'agent'],
+                'is_active' => true,
+                'password' => Hash::make('StagingUat!2026'),
+                'email_verified_at' => now(),
+            ]
+        );
+        app(PinService::class)->setPin($supervisor, '1234');
+
         $memberUser = User::query()->updateOrCreate(
             ['email' => 'uat.support.member@staging.kopafasta.com'],
             [
@@ -246,7 +260,7 @@ class SupportStagingUatSeeder extends Seeder
                 'related_type' => $application ? 'application' : 'account',
                 'related_id' => $application?->id ?? $member->id,
                 'subject' => 'Failing to progress application',
-                'category' => 'application',
+                'category' => 'loan_application',
                 'priority' => 'urgent',
                 'description' => 'Member stuck after guarantor step — needs investigation ticket.',
                 'source' => 'chatbot',
@@ -272,7 +286,7 @@ class SupportStagingUatSeeder extends Seeder
                 'related_type' => $loan ? 'loan' : 'account',
                 'related_id' => $loan?->id ?? $loanMember->id,
                 'subject' => 'Payment not reflecting',
-                'category' => 'payment',
+                'category' => 'payments',
                 'priority' => 'high',
                 'description' => 'Repayment SMS received but balance unchanged.',
                 'source' => 'chatbot',
@@ -299,7 +313,7 @@ class SupportStagingUatSeeder extends Seeder
                 'related_type' => 'account',
                 'related_id' => $member->id,
                 'subject' => 'Failing to sign in',
-                'category' => 'profile',
+                'category' => 'account_access',
                 'priority' => 'normal',
                 'description' => 'Login issue fixed.',
                 'source' => 'chatbot',
@@ -315,6 +329,77 @@ class SupportStagingUatSeeder extends Seeder
             $tickets->recordRating($resolved->fresh(), 5, 'Huduma nzuri sana');
         }
 
+        // Resolved but unrated (rating optional after close)
+        $unrated = SupportTicket::query()->where('subject', 'Guarantor acceptance not progressing')->latest('id')->first();
+        if (! $unrated) {
+            $unrated = $tickets->create([
+                'customer_id' => $member->id,
+                'related_type' => $application ? 'application' : 'account',
+                'related_id' => $application?->id ?? $member->id,
+                'subject' => 'Guarantor acceptance not progressing',
+                'category' => 'loan_application',
+                'priority' => 'normal',
+                'description' => 'Similar-ticket sample. Resolved without rating yet.',
+                'source' => 'chatbot',
+                'assigned_to' => $agent->id,
+                'status' => 'open',
+                'actor' => $agent,
+            ]);
+            $tickets->resolveCase($unrated, [
+                'resolution_type' => 'information_provided',
+                'resolution_notes' => 'Resent guarantor invitation; borrower replaced wrong phone.',
+                'invite_rating' => true,
+            ], $agent);
+        }
+
+        // Overdue ticket for dashboard red flags
+        $overdue = SupportTicket::query()->where('subject', 'PIN reset not arriving')->latest('id')->first();
+        if (! $overdue) {
+            $overdue = $tickets->create([
+                'customer_id' => $loanMember->id,
+                'related_type' => 'account',
+                'related_id' => $loanMember->id,
+                'subject' => 'PIN reset not arriving',
+                'category' => 'account_access',
+                'priority' => 'high',
+                'description' => 'Overdue sample for Support supervisor UAT.',
+                'source' => 'chatbot',
+                'assigned_to' => $agent->id,
+                'status' => 'open',
+                'actor' => $agent,
+            ]);
+        }
+        $overdue->update([
+            'sla_due_at' => now()->subHours(3),
+            'assigned_at' => now()->subHours(6),
+            'priority' => 'high',
+            'status' => 'in_progress',
+            'category' => 'account_access',
+        ]);
+
+        // Second similar payment ticket for Create Ticket assistance
+        $similarPay = SupportTicket::query()->where('subject', 'Payment pending after successful payment')->latest('id')->first();
+        if (! $similarPay) {
+            $similarPay = $tickets->create([
+                'customer_id' => $loanMember->id,
+                'related_type' => $loan ? 'loan' : 'account',
+                'related_id' => $loan?->id ?? $loanMember->id,
+                'subject' => 'Payment pending after successful payment',
+                'category' => 'payments',
+                'priority' => 'normal',
+                'description' => 'Similar-ticket counterpart for Payment not reflecting.',
+                'source' => 'chatbot',
+                'assigned_to' => $agent->id,
+                'status' => 'open',
+                'actor' => $agent,
+            ]);
+            $tickets->resolveCase($similarPay, [
+                'resolution_type' => 'technical_fixed',
+                'resolution_notes' => 'Ledger sync caught up; confirmed payment against PSP reference.',
+                'invite_rating' => false,
+            ], $agent);
+        }
+
         Setting::set('support.uat_credentials', [
             'member_email' => 'uat.support.member@staging.kopafasta.com',
             'member_phone' => '255700000022',
@@ -327,20 +412,26 @@ class SupportStagingUatSeeder extends Seeder
             'agent_name' => 'Rogathe Nyela',
             'agent_pin' => '1234',
             'agent_password' => 'StagingUat!2026',
+            'supervisor_email' => 'uat.support.supervisor@staging.kopafasta.com',
+            'supervisor_name' => 'Upendo Supervisor',
+            'supervisor_password' => 'StagingUat!2026',
             'admin_email' => 'uat.admin@staging.kopafasta.com',
             'waiting_conversation_id' => $waiting->id,
             'active_conversation_id' => $mine->id,
             'sla_ticket' => $slaTicket->fresh()->ticket_number,
+            'overdue_ticket' => $overdue->fresh()->ticket_number,
             'escalated_ticket' => $escalated->fresh()->ticket_number,
             'resolved_rated_ticket' => $resolved->fresh()->ticket_number,
+            'resolved_unrated_ticket' => $unrated->fresh()->ticket_number,
             'resolved_rated_conversation_id' => $rated->id,
-            'notes' => 'Help Center first. Waiting → Accept only. Create ticket only for follow-up.',
+            'notes' => 'Help Center first. Waiting → Accept only. Create ticket only for follow-up. Rating optional after resolve.',
         ]);
 
         $this->command?->info('Support Pass 3 UAT seeded.');
         $this->command?->info('Member: uat.support.member@staging.kopafasta.com / StagingUat!2026 (PIN 1234)');
+        $this->command?->info('Agent: uat.support.agent@staging.kopafasta.com · Supervisor: uat.support.supervisor@staging.kopafasta.com');
         $this->command?->info('Waiting #'.$waiting->id.' · Active #'.$mine->id);
-        $this->command?->info('SLA ticket '.$slaTicket->fresh()->ticket_number.' · Escalated '.$escalated->fresh()->ticket_number);
-        $this->command?->info('Resolved/rated '.$resolved->fresh()->ticket_number.' · Conv #'.$rated->id);
+        $this->command?->info('SLA '.$slaTicket->fresh()->ticket_number.' · Overdue '.$overdue->fresh()->ticket_number);
+        $this->command?->info('Resolved rated '.$resolved->fresh()->ticket_number.' · Unrated '.$unrated->fresh()->ticket_number);
     }
 }

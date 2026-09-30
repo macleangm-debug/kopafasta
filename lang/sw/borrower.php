@@ -3670,6 +3670,10 @@ return [
         ],
         'back' => '← Rudi kwenye maombi',
         'back_to_loan' => 'Rudi kwenye mkopo',
+        'profile_locked_for_review' => 'Wasifu umefungwa kwa ukaguzi. Wasiliana na Support ikiwa marekebisho yanahitajika.',
+        'return_for_correction_notify_title' => 'Marekebisho yanahitajika kwenye ombi lako',
+        'return_for_correction_notify_body' => 'Tafadhali sasisha :section kwa ombi :reference.',
+        'return_for_correction_cta' => 'Kamilisha marekebisho',
         'profile_incomplete_title' => 'Wasifu haujakamilika',
         'profile_incomplete_body' => 'Maliza taarifa za wasifu zilizobaki kabla ya kuendelea.',
         'summary_title' => 'Muhtasari wa ombi',
@@ -4129,6 +4133,7 @@ return [
         'borrower_change_started' => 'Chagua mdhamini mpya. Ukaguzi bado unasubiri hadi akubali na akamilishe wasifu.',
         'borrower_change_confirm_title' => 'Badilisha mdhamini?',
         'borrower_change_confirm_body' => 'Ombi la sasa la mdhamini litafutwa kwa ombi hili. Utachagua mtu mwingine. Ombi linabaki likisubiri wasifu wa mdhamini — haliendi kwenye ukaguzi bado.',
+        'change_locked_body' => 'Huwezi kubadilisha mdhamini huyu hapa. Wasiliana na Support au subiri Return for correction ikiwa ukaguzi utahitaji badilisho.',
     ],
     'collateral_secure' => [
         'eyebrow' => 'Dhamana',

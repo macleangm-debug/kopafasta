@@ -39,6 +39,13 @@
     if (! $isDraft && ! $guarantorSupplementOpen) {
         $editGuarantorUrl = null;
     }
+
+    // Hero already owns wait/status copy. Suppress duplicate status card when there is
+    // no discrete next action (valuation pay, document return, supplement CTA, etc.).
+    $suppressDuplicateStatusCard = ! $isDraft
+        && $underwritingActions->isEmpty()
+        && in_array(($next['code'] ?? ''), ['awaiting_guarantor', 'under_review', 'view_application', 'documents_resubmitted', ''], true)
+        && ! in_array(($next['code'] ?? ''), ['pay_valuation_fee', 'add_guarantor', 'collateral_shortfall'], true);
 @endphp
 
 @if ($isDraft)
@@ -250,6 +257,8 @@
             @endif
         </div>
     </div>
+@elseif ($suppressDuplicateStatusCard)
+    {{-- Intentionally empty: hero + Wadhamini/document surfaces carry the state. --}}
 @else
     <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/10">
         <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-5 sm:px-6 py-5 text-white">

@@ -35,6 +35,7 @@ use App\Services\ApplicationConversionFeePaymentService;
 use App\Services\ApplicationIntakeTransitionService;
 use App\Services\ApplicationDisbursementReadinessService;
 use App\Services\ApplicationDocumentRequestService;
+use App\Services\ApplicationEvidenceLockService;
 use App\Services\ApplicationFeeCreditService;
 use App\Services\ApplicationOfferService;
 use App\Services\ApplicationRequirementsService;
@@ -1834,6 +1835,23 @@ class BorrowerController extends Controller
     public function updateProfile(Request $request, string $section = 'personal'): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
+
+        try {
+            app(ApplicationEvidenceLockService::class)
+                ->assertProfileSectionWritable($customer, $section === 'kin' ? 'kin' : $section);
+        } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson() || $request->ajax() || $request->header('X-KF-Autosave')) {
+                return response()->json([
+                    'ok' => false,
+                    'saved' => false,
+                    'message' => $e->getMessage(),
+                ], 423);
+            }
+
+            return redirect()
+                ->route('site.borrower.profile', ['section' => $section])
+                ->with('error', $e->getMessage());
+        }
 
         if ($section === 'kin') {
             $data = $request->validate([

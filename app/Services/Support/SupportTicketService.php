@@ -11,6 +11,7 @@ use App\Models\SupportTicketRating;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Support\SupportTaxonomy;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class SupportTicketService
@@ -102,7 +103,9 @@ class SupportTicketService
                 $payload['category_other'] ?? null,
             );
 
-            $priority = (string) ($payload['priority'] ?? 'normal');
+            $priority = isset($payload['priority']) && trim((string) $payload['priority']) !== ''
+                ? (string) $payload['priority']
+                : SupportTaxonomy::defaultPriorityFor($category);
             if ($customerId && empty($payload['priority_locked'])) {
                 $customer = Customer::query()->find($customerId);
                 if ($customer && app(\App\Services\LoyaltyRedemptionService::class)->activePrioritySupport($customer)) {
@@ -130,7 +133,7 @@ class SupportTicketService
                 'description' => (string) ($payload['description'] ?? ''),
                 'priority' => $priority,
                 'status' => $payload['status'] ?? 'open',
-                'category' => $category !== '' ? $category : 'general',
+                'category' => $category !== '' ? $category : 'other',
                 'resolved_at' => $payload['resolved_at'] ?? null,
                 'resolution_notes' => $payload['resolution_notes'] ?? null,
                 'resolution_type' => $payload['resolution_type'] ?? null,
@@ -553,5 +556,98 @@ class SupportTicketService
         return $user->hasRole('admin')
             || $user->hasRole('super_admin')
             || $user->hasRole('manager');
+    }
+
+    /**
+     * Prior tickets sharing category/issue with overlapping subject keywords.
+     * Returns safe fields only — no customer/guest PII.
+     *
+     * @param  SupportTicket|array{category?: ?string, subject?: ?string, subject_other?: ?string, exclude_id?: ?int}  $criteria
+     * @return Collection<int, object{ticket_number: string, subject: string, category: ?string, status: string, resolution_summary: ?string}>
+     */
+    public function similarTickets(SupportTicket|array $criteria): Collection
+    {
+        if ($criteria instanceof SupportTicket) {
+            $category = trim((string) $criteria->category);
+            $subject = trim((string) $criteria->subject);
+            $excludeId = $criteria->id;
+        } else {
+            $category = SupportTaxonomy::resolveCategory(
+                $criteria['category'] ?? null,
+                $criteria['category_other'] ?? null,
+            );
+            $subject = SupportTaxonomy::resolveSubject(
+                $criteria['subject'] ?? null,
+                $criteria['subject_other'] ?? null,
+            );
+            $excludeId = isset($criteria['exclude_id']) ? (int) $criteria['exclude_id'] : null;
+        }
+
+        if ($category === '' && $subject === '') {
+            return collect();
+        }
+
+        $keywords = $this->subjectKeywords($subject);
+
+        $candidates = SupportTicket::query()
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->when($category !== '', fn ($q) => $q->where('category', $category))
+            ->orderByDesc('id')
+            ->limit(40)
+            ->get(['ticket_number', 'subject', 'category', 'status', 'resolution_notes', 'resolution_type']);
+
+        return $candidates
+            ->filter(function (SupportTicket $ticket) use ($subject, $keywords) {
+                if (strcasecmp((string) $ticket->subject, $subject) === 0) {
+                    return true;
+                }
+                if ($keywords === []) {
+                    return false;
+                }
+                $hay = strtolower((string) $ticket->subject);
+                foreach ($keywords as $keyword) {
+                    if (str_contains($hay, $keyword)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->take(5)
+            ->map(fn (SupportTicket $ticket) => (object) [
+                'ticket_number' => $ticket->ticket_number,
+                'subject' => $ticket->subject,
+                'category' => $ticket->category,
+                'status' => $ticket->status,
+                'resolution_summary' => $this->safeResolutionSummary($ticket),
+            ])
+            ->values();
+    }
+
+    /** @return list<string> */
+    private function subjectKeywords(string $subject): array
+    {
+        $parts = preg_split('/[^a-zA-Z0-9]+/', strtolower($subject)) ?: [];
+        $stop = ['a', 'an', 'the', 'and', 'or', 'of', 'to', 'for', 'in', 'on', 'at', 'by', 'other', 'issue'];
+
+        return array_values(array_filter(
+            $parts,
+            fn ($part) => is_string($part) && strlen($part) >= 3 && ! in_array($part, $stop, true)
+        ));
+    }
+
+    private function safeResolutionSummary(SupportTicket $ticket): ?string
+    {
+        $notes = trim((string) ($ticket->resolution_notes ?? ''));
+        if ($notes !== '') {
+            return mb_strlen($notes) > 120 ? mb_substr($notes, 0, 117).'…' : $notes;
+        }
+
+        $type = trim((string) ($ticket->resolution_type ?? ''));
+        if ($type === '') {
+            return null;
+        }
+
+        return ucfirst(str_replace('_', ' ', $type));
     }
 }

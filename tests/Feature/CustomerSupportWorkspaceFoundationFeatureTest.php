@@ -72,7 +72,7 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
         $html = $this->get(route('admin.support.home'))->assertOk()->getContent();
         $navChunk = Str::before(Str::after($html, 'aria-label="Main navigation"'), '</nav>');
 
-        foreach (['Home', 'Inbox', 'Cases', 'Members', 'Reports'] as $label) {
+        foreach (['Home', 'Inbox', 'Tickets', 'Members', 'Reports'] as $label) {
             $this->assertMatchesRegularExpression('/>\s*'.preg_quote($label, '/').'\s*</', $navChunk);
         }
         $this->assertDoesNotMatchRegularExpression('/>\s*Notifications\s*</', $navChunk);

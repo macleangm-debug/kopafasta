@@ -297,12 +297,33 @@
                     </div>
                 @endforeach
             </div>
-        @elseif ($isDraft && $editGuarantorUrl && $rows->isEmpty())
+        @elseif (($isDraft && $editGuarantorUrl && $rows->isEmpty()) || ((! $isDraft) && $rows->isEmpty() && ($showChangeGuarantor || $canChangeWhileHeld)))
             <div class="px-5 sm:px-6 py-4 border-t border-gray-100">
-                <a href="{{ $editGuarantorUrl }}"
-                   class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
-                    {{ __('borrower.loan_profile.actions.complete_guarantor') }}
-                </a>
+                @if ($isDraft && $editGuarantorUrl)
+                    <a href="{{ $editGuarantorUrl }}"
+                       class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                        {{ __('borrower.loan_profile.actions.complete_guarantor') }}
+                    </a>
+                @elseif ($showChangeGuarantor && $editGuarantorUrl)
+                    <a href="{{ $editGuarantorUrl }}"
+                       class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                        + {{ __('borrower.guarantor_supplement.cta') }}
+                    </a>
+                @elseif ($canChangeWhileHeld && $application)
+                    <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
+                          @submit.prevent="window.confirmForm($el, {
+                              title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
+                              message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
+                              confirmLabel: @js(__('borrower.apply.change_guarantor')),
+                              confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
+                          })">
+                        @csrf
+                        <button type="submit"
+                                class="inline-flex bg-brand hover:bg-brand-light text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                            + {{ __('borrower.guarantor_supplement.cta') }}
+                        </button>
+                    </form>
+                @endif
             </div>
         @endif
         @endif

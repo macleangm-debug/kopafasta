@@ -223,7 +223,7 @@ class CustomerSupportWorkspaceService
                 'active_prefixes' => ['admin.support.inbox', 'admin.support-chats.'],
             ],
             [
-                'label' => 'Cases',
+                'label' => 'Tickets',
                 'route' => 'admin.support.cases',
                 'active_prefixes' => ['admin.support.cases', 'admin.support-tickets.'],
             ],

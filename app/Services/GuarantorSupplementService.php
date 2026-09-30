@@ -164,9 +164,10 @@ class GuarantorSupplementService
             throw new \InvalidArgumentException('Application does not belong to this borrower.');
         }
 
-        if ((string) $application->status !== 'awaiting_guarantor'
-            && (string) $application->current_stage !== 'awaiting_guarantor') {
-            throw new \InvalidArgumentException('Guarantor can only be changed while the application is waiting for guarantor completion.');
+        if (! $this->borrowerMayReplaceIncompleteGuarantor($application)) {
+            throw new \InvalidArgumentException(
+                __('borrower.guarantor_supplement.change_locked_body')
+            );
         }
 
         if ($this->hasOpenRequest($application)) {
@@ -204,6 +205,58 @@ class GuarantorSupplementService
         });
 
         return $this->borrowerWizardUrl($application);
+    }
+
+    /**
+     * Submitted + awaiting guarantor: borrower may replace only while no guarantor has
+     * completed acceptance/profile requirements. Completed/under-review → locked.
+     */
+    public function borrowerMayReplaceIncompleteGuarantor(LoanApplication $application): bool
+    {
+        if ((string) $application->status !== 'awaiting_guarantor'
+            && (string) $application->current_stage !== 'awaiting_guarantor') {
+            return false;
+        }
+
+        if ($this->hasOpenRequest($application)) {
+            return true;
+        }
+
+        $application->loadMissing(['customerGuarantors']);
+        $inviteSvc = app(GuarantorInvitationService::class);
+
+        $invitations = \App\Models\GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->whereNotIn('status', ['declined', 'rejected', 'expired', 'cancelled'])
+            ->get();
+
+        foreach ($invitations as $invite) {
+            $status = $inviteSvc->borrowerInvitationStatus($invite);
+            $code = (string) ($status['code'] ?? '');
+            // Accepted or profile-complete locks ordinary Change. Pending invite stays replaceable.
+            if (($status['ready'] ?? false)
+                || ($status['accepted'] ?? false)
+                || in_array($code, ['ready', 'pending_profile', 'guarantee_pending', 'registration_in_progress'], true)
+            ) {
+                return false;
+            }
+        }
+
+        foreach ($application->customerGuarantors ?? [] as $link) {
+            if (! in_array((string) $link->status, ['pending', 'approved'], true)) {
+                continue;
+            }
+            if ((string) $link->status === 'approved') {
+                return false;
+            }
+            $status = $inviteSvc->workflowStatus($link);
+            if (in_array((string) ($status['code'] ?? ''), ['ready', 'pending_profile', 'guarantee_pending'], true)) {
+                return false;
+            }
+        }
+
+        // Empty required slot or only incomplete invites/links → replaceable.
+        return true;
     }
 
     public function markSatisfied(LoanApplication $application): void

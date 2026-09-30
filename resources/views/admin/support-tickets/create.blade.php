@@ -11,6 +11,8 @@
         'sources',
         'contactKinds',
         'ticketNumberPreview',
+        'similarSearchUrl',
+        'defaultPriorities',
     );
 @endphp
 <x-admin.create-page

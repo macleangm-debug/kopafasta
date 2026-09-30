@@ -27,4 +27,36 @@
             </button>
         </form>
     </details>
+
+    <details class="rounded-xl ring-1 ring-slate-200 bg-white overflow-hidden mt-3">
+        <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-900 flex items-center justify-between gap-2">
+            <span>Return for correction</span>
+            <span class="text-xs font-normal text-gray-500">Unlock one section only</span>
+        </summary>
+        <form method="POST"
+              action="{{ route('admin.loan-applications.return-for-correction', $record) }}"
+              class="px-4 pb-4 space-y-3 border-t border-slate-200"
+              @submit.prevent="window.confirmForm($el, {
+                  title: 'Return for correction?',
+                  message: 'Only the selected section unlocks for the borrower. Reason and actor are audited.',
+                  confirmLabel: 'Send return',
+                  confirmClass: 'bg-brand-gold hover:brightness-95 text-brand'
+              })">
+            @csrf
+            <p class="text-xs text-gray-500 pt-3">Select the section the borrower must correct. Other underwriting evidence stays locked. Application fee is never reset.</p>
+            <label class="block text-xs font-medium text-gray-600">Section</label>
+            <select name="section" required class="w-full rounded-lg border-gray-300 text-sm">
+                <option value="guarantor">Guarantor</option>
+                <option value="identity_kyc">Identity / KYC</option>
+                <option value="income_business">Income / business</option>
+                <option value="residence">Residence / address</option>
+                <option value="other">Other</option>
+            </select>
+            <label class="block text-xs font-medium text-gray-600">Reason (required)</label>
+            <textarea name="reason" rows="2" required class="w-full rounded-lg border-gray-300 text-sm" placeholder="What must the borrower correct?"></textarea>
+            <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-white ring-1 ring-brand/25 hover:bg-brand-muted/40 text-brand text-sm font-semibold px-4 py-2">
+                Return for correction
+            </button>
+        </form>
+    </details>
 @endif
