@@ -70,6 +70,7 @@ class SupportWorkspaceController extends Controller
                     $inner->where('guest_name', 'like', $like)
                         ->orWhere('guest_phone', 'like', $like)
                         ->orWhere('topic', 'like', $like)
+                        ->orWhere('conversation_number', 'like', $like)
                         ->orWhereHas('messages', fn ($m) => $m->where('body', 'like', $like)->whereIn('sender_type', ['customer', 'guest']))
                         ->orWhereHas('customer', function ($c) use ($like) {
                             $c->where('first_name', 'like', $like)
@@ -152,6 +153,7 @@ class SupportWorkspaceController extends Controller
                     $inner->where('guest_name', 'like', $like)
                         ->orWhere('guest_phone', 'like', $like)
                         ->orWhere('topic', 'like', $like)
+                        ->orWhere('conversation_number', 'like', $like)
                         ->orWhereHas('messages', fn ($m) => $m->where('body', 'like', $like)->whereIn('sender_type', ['customer', 'guest']))
                         ->orWhereHas('customer', function ($c) use ($like) {
                             $c->where('first_name', 'like', $like)

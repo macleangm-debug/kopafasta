@@ -8,6 +8,7 @@ use App\Models\CustomerPayment;
 use App\Models\Guarantor;
 use App\Models\GuarantorInvitation;
 use App\Models\LoanApplication;
+use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 use App\Models\User;
 use App\Services\PinService;
@@ -16,11 +17,17 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Synthetic Mohamed-shaped lending persona for Owner UAT.
- * Staging only — never production. Does not copy production PII.
+ * Mohamed-shaped application scenario under the Owner's MacLean staging borrower.
+ * Staging only — never production. Does not copy Mohamed production PII/identity.
  */
 class LendingGuarantorChangeUatSeeder extends Seeder
 {
+    public const MACLEAN_PHONE = '255715222132';
+
+    public const APP_NUMBER = 'APP-UAT-MOH-MACLEAN-01';
+
+    public const FEE_REF = 'PAY-UAT-MOH-MACLEAN-01';
+
     public function run(): void
     {
         if (app()->isProduction() && ! app()->environment('staging')) {
@@ -37,15 +44,12 @@ class LendingGuarantorChangeUatSeeder extends Seeder
                     ->orWhere('code', 'like', 'IL%');
             })
             ->orderBy('id')
-            ->first();
-
-        if (! $product) {
-            $product = LoanProduct::query()
+            ->first()
+            ?: LoanProduct::query()
                 ->where('is_active', true)
                 ->where('requires_guarantor', true)
                 ->orderBy('id')
                 ->first();
-        }
 
         if (! $product) {
             $this->command?->error('LendingGuarantorChangeUatSeeder: no guarantor-required product found.');
@@ -53,43 +57,49 @@ class LendingGuarantorChangeUatSeeder extends Seeder
             return;
         }
 
-        $borrowerUser = User::query()->updateOrCreate(
-            ['email' => 'uat.guarantor.change@staging.kopafasta.com'],
-            [
-                'name' => 'UAT Guarantor Change',
-                'phone' => '255700000041',
-                'role' => 'borrower',
-                'is_active' => true,
-                'password' => Hash::make('StagingUat!2026'),
-                'email_verified_at' => now(),
-            ]
-        );
+        $borrowerUser = User::query()
+            ->where('phone', self::MACLEAN_PHONE)
+            ->orWhere('phone', '0715222132')
+            ->orWhere('phone', '715222132')
+            ->orderBy('id')
+            ->first();
+
+        $borrower = Customer::query()
+            ->where('phone', self::MACLEAN_PHONE)
+            ->orWhere('phone', '0715222132')
+            ->orWhere('phone', '715222132')
+            ->when($borrowerUser, fn ($q) => $q->orWhere('user_id', $borrowerUser->id))
+            ->orderBy('id')
+            ->first();
+
+        if (! $borrowerUser && $borrower?->user_id) {
+            $borrowerUser = User::query()->find($borrower->user_id);
+        }
+
+        if (! $borrowerUser || ! $borrower) {
+            $this->command?->error(
+                'MacLean staging borrower not found for phone '.self::MACLEAN_PHONE
+                .'. Seed/migrate the Owner MacLean account first; do not invent a separate Mohamed persona.'
+            );
+
+            return;
+        }
+
+        // Normalize phone on existing MacLean account without changing identity/KYC.
+        if ((string) $borrowerUser->phone !== self::MACLEAN_PHONE) {
+            $borrowerUser->forceFill(['phone' => self::MACLEAN_PHONE])->save();
+        }
+        if ((string) $borrower->phone !== self::MACLEAN_PHONE) {
+            $borrower->forceFill(['phone' => self::MACLEAN_PHONE])->save();
+        }
+
+        // Ensure Owner can log in with known PIN without resetting unrelated profile data.
         app(PinService::class)->setPin($borrowerUser, '1234');
 
-        $borrower = Customer::query()->updateOrCreate(
-            ['customer_number' => 'CU-UAT-GCHG-01'],
-            [
-                'user_id' => $borrowerUser->id,
-                'type' => 'individual',
-                'status' => 'active',
-                'first_name' => 'UAT',
-                'last_name' => 'Guarantor Change',
-                'phone' => '255700000041',
-                'country_code' => 'TZ',
-                'membership_status' => 'active',
-                'membership_expires_at' => now()->addYear(),
-                'nida_verification_status' => 'verified',
-                'face_verification_status' => 'verified',
-                'date_of_birth' => now()->subYears(32)->toDateString(),
-                'region' => 'Dar es Salaam',
-                'district' => 'Kinondoni',
-            ]
-        );
-
         $oldGuarantorUser = User::query()->updateOrCreate(
-            ['email' => 'uat.guarantor.old@staging.kopafasta.com'],
+            ['email' => 'uat.guarantor.old.maclean@staging.kopafasta.com'],
             [
-                'name' => 'UAT Old Guarantor',
+                'name' => 'UAT Pending Guarantor',
                 'phone' => '255700000042',
                 'role' => 'borrower',
                 'is_active' => true,
@@ -100,13 +110,13 @@ class LendingGuarantorChangeUatSeeder extends Seeder
         app(PinService::class)->setPin($oldGuarantorUser, '1234');
 
         $oldGuarantorCustomer = Customer::query()->updateOrCreate(
-            ['customer_number' => 'CU-UAT-GCHG-OLD'],
+            ['customer_number' => 'CU-UAT-MOH-G-OLD'],
             [
                 'user_id' => $oldGuarantorUser->id,
                 'type' => 'individual',
                 'status' => 'active',
                 'first_name' => 'UAT',
-                'last_name' => 'Old Guarantor',
+                'last_name' => 'Pending Guarantor',
                 'phone' => '255700000042',
                 'country_code' => 'TZ',
                 'membership_status' => 'active',
@@ -114,8 +124,8 @@ class LendingGuarantorChangeUatSeeder extends Seeder
             ]
         );
 
-        $replacementUser = User::query()->updateOrCreate(
-            ['email' => 'uat.guarantor.replacement@staging.kopafasta.com'],
+        User::query()->updateOrCreate(
+            ['email' => 'uat.guarantor.replacement.maclean@staging.kopafasta.com'],
             [
                 'name' => 'UAT Replacement Guarantor',
                 'phone' => '255700000043',
@@ -125,29 +135,10 @@ class LendingGuarantorChangeUatSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
-        app(PinService::class)->setPin($replacementUser, '1234');
 
-        Customer::query()->updateOrCreate(
-            ['customer_number' => 'CU-UAT-GCHG-NEW'],
-            [
-                'user_id' => $replacementUser->id,
-                'type' => 'individual',
-                'status' => 'active',
-                'first_name' => 'UAT',
-                'last_name' => 'Replacement Guarantor',
-                'phone' => '255700000043',
-                'country_code' => 'TZ',
-                'membership_status' => 'active',
-                'membership_expires_at' => now()->addYear(),
-            ]
-        );
-
-        $appNumber = 'APP-UAT-GCHG-01';
-        $paymentRef = 'PAY-UAT-GCHG-01';
-
-        // Mohamed-shaped: paid fee on application; payment source_id deliberately null.
+        // Mohamed-shaped: paid fee; payment source_id deliberately null (ownership via application fields).
         $payment = CustomerPayment::query()->updateOrCreate(
-            ['reference' => $paymentRef],
+            ['reference' => self::FEE_REF],
             [
                 'customer_id' => $borrower->id,
                 'loan_product_id' => $product->id,
@@ -163,14 +154,15 @@ class LendingGuarantorChangeUatSeeder extends Seeder
                 'provider_meta' => [
                     'apply_context' => [
                         'loan_product_id' => $product->id,
-                        'draft_reference' => 'APP-UAT-STALE-DRAFT',
+                        'draft_reference' => 'APP-UAT-MOH-STALE-DRAFT',
+                        'scenario' => 'mohamed_awaiting_guarantor_under_maclean',
                     ],
                 ],
             ]
         );
 
         $application = LoanApplication::query()->updateOrCreate(
-            ['application_number' => $appNumber],
+            ['application_number' => self::APP_NUMBER],
             [
                 'customer_id' => $borrower->id,
                 'loan_product_id' => $product->id,
@@ -188,7 +180,6 @@ class LendingGuarantorChangeUatSeeder extends Seeder
             ]
         );
 
-        // Drop prior guarantor rows so re-seed is idempotent.
         GuarantorInvitation::query()->where('loan_application_id', $application->id)->delete();
         CustomerGuarantor::query()->where('loan_application_id', $application->id)->delete();
 
@@ -214,24 +205,24 @@ class LendingGuarantorChangeUatSeeder extends Seeder
             'guarantor_customer_id' => $oldGuarantorCustomer->id,
             'type' => 'internal',
             'channel' => 'whatsapp',
-            'token' => 'uat-gchg-'.Str::lower(Str::random(12)),
-            'short_code' => 'UG'.random_int(100, 999),
+            'token' => 'uat-moh-mac-'.Str::lower(Str::random(12)),
+            'short_code' => 'UM'.random_int(100, 999),
             'contact' => $oldGuarantorCustomer->phone,
             'invitee_name' => trim($oldGuarantorCustomer->first_name.' '.$oldGuarantorCustomer->last_name),
             'status' => 'pending',
             'expires_at' => now()->addDays(14),
         ]);
 
-        // Ensure no stale draft can poison fee entitlement checks.
-        \App\Models\LoanApplicationDraft::query()
+        LoanApplicationDraft::query()
             ->where('customer_id', $borrower->id)
             ->where('loan_product_id', $product->id)
             ->delete();
 
-        $this->command?->info('Lending guarantor-change UAT persona ready:');
-        $this->command?->info("  Member phone: {$borrower->phone}  PIN: 1234  Customer #: {$borrower->customer_number}");
-        $this->command?->info("  Application: {$application->application_number}  Fee: {$payment->reference} (paid, source_id null)");
-        $this->command?->info("  Old guarantor phone: {$oldGuarantorCustomer->phone}");
-        $this->command?->info('  Replacement guarantor phone: 255700000043');
+        $this->command?->info('MacLean Mohamed-scenario application ready (staging only):');
+        $this->command?->info('  Member: '.trim($borrower->first_name.' '.$borrower->last_name).'  phone: '.self::MACLEAN_PHONE.'  PIN: 1234');
+        $this->command?->info('  Application: '.self::APP_NUMBER.'  status: awaiting_guarantor');
+        $this->command?->info('  Fee: '.self::FEE_REF.' (paid, source_id null) — TZS 0 additional on guarantor change');
+        $this->command?->info('  Pending guarantor phone: 255700000042  Replacement ready: 255700000043');
+        $this->command?->info('  Production APP-EM-MU8Q untouched.');
     }
 }

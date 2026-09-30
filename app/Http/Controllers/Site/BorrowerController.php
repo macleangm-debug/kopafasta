@@ -3887,9 +3887,10 @@ class BorrowerController extends Controller
         $history = \App\Models\SupportConversation::query()
             ->where('customer_id', $customer->id)
             ->whereIn('status', ['closed', 'resolved'])
+            ->with('assignedTo:id,name')
             ->latest('last_message_at')
             ->limit(12)
-            ->get(['id', 'topic', 'status', 'rating', 'rating_requested_at', 'last_message_at', 'created_at', 'closed_at', 'resolved_at', 'resolution_category']);
+            ->get(['id', 'conversation_number', 'topic', 'status', 'rating', 'rating_requested_at', 'last_message_at', 'created_at', 'closed_at', 'resolved_at', 'resolution_category', 'assigned_to']);
 
         $openTickets = \App\Models\SupportTicket::query()
             ->where('customer_id', $customer->id)
@@ -4023,11 +4024,15 @@ class BorrowerController extends Controller
             ->recordConversationRating($supportConversation, (int) $data['rating'], $data['comment'] ?? null);
 
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-            return response()->json(['ok' => true]);
+            return response()->json([
+                'ok' => true,
+                'thanks' => 'Asante kwa tathmini yako.',
+                'redirect' => route('site.borrower.support', ['section' => 'history']),
+            ]);
         }
 
         return redirect()
-            ->route('site.borrower.support')
+            ->route('site.borrower.support', ['section' => 'history'])
             ->with('status', 'Asante kwa tathmini yako.');
     }
 

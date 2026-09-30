@@ -168,29 +168,45 @@
             {{-- ACTIVE --}}
             <div x-show="section === 'active'" x-cloak class="space-y-4">
                 @if ($supportConversation)
-                    <a href="{{ route('site.borrower.support', ['chat' => 1]) }}"
-                       class="block rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4 hover:bg-brand-muted/20 transition">
-                        <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $isSw ? 'Mazungumzo yanayoendelea' : 'Continue conversation' }}</p>
-                        <p class="text-sm font-bold text-gray-900 mt-1">Kopafasta Support · #{{ $supportConversation->id }}</p>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $isSw ? 'Gusa kuendelea.' : 'Tap to continue.' }}</p>
-                    </a>
+                    @php
+                        $agentName = app(\App\Services\Support\SupportConversationService::class)
+                            ->personFirstName((string) ($supportConversation->assignedTo?->name ?? '')) ?: null;
+                        $desk = app(\App\Services\Support\SupportConversationService::class)->deskState($supportConversation);
+                    @endphp
+                    <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $supportConversation->publicNumber() }}</p>
+                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $supportConversation->topic ?: ($isSw ? 'Suala la msaada' : 'Support issue') }}</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {{ $desk }}
+                                    @if ($agentName) · {{ $agentName }} @endif
+                                    · {{ format_app_datetime($supportConversation->last_message_at ?? $supportConversation->updated_at, 'd M Y · H:i') }}
+                                </p>
+                            </div>
+                            <a href="{{ route('site.borrower.support', ['chat' => 1]) }}"
+                               class="shrink-0 rounded-xl bg-brand-gold text-brand text-xs font-bold px-3.5 py-2 hover:brightness-95">
+                                {{ $isSw ? 'Endelea' : 'Continue' }}
+                            </a>
+                        </div>
+                    </div>
                 @endif
 
-                @if ($openTickets->isNotEmpty())
-                    <section class="rounded-2xl bg-white ring-1 ring-brand/10 p-5">
-                        <h2 class="font-semibold text-sm text-gray-900">{{ $isSw ? 'Tiketi zilizo wazi' : 'Open tickets' }}</h2>
-                        <ul class="mt-3 divide-y divide-gray-100">
-                            @foreach ($openTickets as $t)
-                                <li class="py-2.5 flex items-center justify-between gap-3 text-sm">
-                                    <div>
-                                        <p class="font-semibold text-gray-800">{{ $t->ticket_number }} · {{ $t->subject }}</p>
-                                        <p class="text-xs text-gray-500">{{ ucfirst($t->status) }} · {{ format_app_datetime($t->updated_at, 'd M Y · H:i') }}</p>
-                                    </div>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </section>
-                @endif
+                @foreach ($openTickets as $t)
+                    <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $t->ticket_number }}</p>
+                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $t->subject }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ ucfirst($t->status) }} · {{ format_app_datetime($t->updated_at, 'd M Y · H:i') }}</p>
+                            </div>
+                            <a href="{{ route('site.borrower.support', ['section' => 'active']) }}"
+                               class="shrink-0 rounded-xl ring-1 ring-brand/25 text-brand text-xs font-bold px-3.5 py-2 hover:bg-brand-muted/40">
+                                {{ $isSw ? 'Angalia tiketi' : 'View ticket' }}
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
 
                 @if (! $hasActive)
                     <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center space-y-3">
@@ -205,45 +221,52 @@
 
             {{-- HISTORY — resolved; Talk after closure starts a NEW conversation --}}
             <div x-show="section === 'history'" x-cloak class="space-y-4">
-                @if ($supportHistory->isNotEmpty())
-                    <section class="rounded-2xl bg-white ring-1 ring-brand/10 p-5">
-                        <h2 class="font-semibold text-sm text-gray-900">{{ $isSw ? 'Mazungumzo yaliyofungwa' : 'Closed conversations' }}</h2>
-                        <ul class="mt-3 divide-y divide-gray-100">
-                            @foreach ($supportHistory as $h)
-                                <li class="py-2.5 flex items-center justify-between gap-3 text-sm">
-                                    <div>
-                                        <p class="font-semibold text-gray-800">{{ $h->topic ?: ('#'.$h->id) }}</p>
-                                        <p class="text-xs text-gray-500">{{ format_app_datetime($h->last_message_at ?? $h->created_at, 'd M Y · H:i') }}
-                                            · {{ ucfirst($h->status) }}
-                                            @if ($h->rating) · ★ {{ $h->rating }} @endif
-                                        </p>
-                                    </div>
-                                    <div class="flex items-center gap-2 shrink-0">
-                                        @if ($h->awaitsRating())
-                                            <a href="{{ route('site.borrower.support', ['chat' => 1, 'section' => 'history']) }}"
-                                               class="text-xs font-bold text-amber-700 hover:underline">{{ $isSw ? 'Tathmini ★' : 'Rate ★' }}</a>
-                                        @endif
-                                        <a href="{{ route('site.borrower.support.history', $h) }}" class="text-xs font-semibold text-brand hover:underline">{{ $isSw ? 'Fungua' : 'Open' }}</a>
-                                    </div>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </section>
-                @endif
+                @foreach ($supportHistory as $h)
+                    @php
+                        $hAgent = app(\App\Services\Support\SupportConversationService::class)
+                            ->personFirstName((string) ($h->assignedTo?->name ?? '')) ?: null;
+                    @endphp
+                    <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $h->publicNumber() }}</p>
+                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $h->topic ?: ($isSw ? 'Suala la msaada' : 'Support issue') }}</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {{ $isSw ? 'Imekamilishwa' : 'Resolved' }}
+                                    · {{ format_app_datetime($h->closed_at ?? $h->resolved_at ?? $h->last_message_at ?? $h->created_at, 'd M Y · H:i') }}
+                                    @if ($hAgent) · {{ $hAgent }} @endif
+                                    @if ($h->rating) · ★{{ $h->rating }} @endif
+                                </p>
+                            </div>
+                            <div class="flex flex-col items-end gap-1.5 shrink-0">
+                                @if ($h->awaitsRating())
+                                    <a href="{{ route('site.borrower.support', ['chat' => 1, 'section' => 'history']) }}"
+                                       class="rounded-xl bg-amber-100 text-amber-900 text-xs font-bold px-3.5 py-2">{{ $isSw ? 'Tathmini ★' : 'Rate ★' }}</a>
+                                @endif
+                                <a href="{{ route('site.borrower.support.history', $h) }}"
+                                   class="rounded-xl ring-1 ring-brand/25 text-brand text-xs font-bold px-3.5 py-2 hover:bg-brand-muted/40">
+                                    {{ $isSw ? 'Angalia' : 'View' }}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
 
-                @if ($resolvedTickets->isNotEmpty())
-                    <section class="rounded-2xl bg-white ring-1 ring-brand/10 p-5">
-                        <h2 class="font-semibold text-sm text-gray-900">{{ $isSw ? 'Tiketi zilizofungwa' : 'Resolved tickets' }}</h2>
-                        <ul class="mt-3 divide-y divide-gray-100">
-                            @foreach ($resolvedTickets as $t)
-                                <li class="py-2.5 text-sm">
-                                    <p class="font-semibold text-gray-800">{{ $t->ticket_number }} · {{ $t->subject }}</p>
-                                    <p class="text-xs text-gray-500">{{ format_app_datetime($t->resolved_at ?? $t->updated_at, 'd M Y · H:i') }}</p>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </section>
-                @endif
+                @foreach ($resolvedTickets as $t)
+                    <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $t->ticket_number }}</p>
+                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $t->subject }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ $isSw ? 'Imekamilishwa' : 'Resolved' }} · {{ format_app_datetime($t->resolved_at ?? $t->updated_at, 'd M Y · H:i') }}</p>
+                            </div>
+                            <a href="{{ route('site.borrower.support', ['section' => 'history']) }}"
+                               class="shrink-0 rounded-xl ring-1 ring-brand/25 text-brand text-xs font-bold px-3.5 py-2 hover:bg-brand-muted/40">
+                                {{ $isSw ? 'Angalia' : 'View' }}
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
 
                 @if ($supportHistory->isEmpty() && $resolvedTickets->isEmpty())
                     <p class="text-sm text-gray-500 text-center py-8">{{ $isSw ? 'Hakuna historia bado.' : 'No history yet.' }}</p>

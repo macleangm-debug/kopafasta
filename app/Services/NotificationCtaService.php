@@ -74,15 +74,25 @@ class NotificationCtaService
 
         $storedLabel = filled($meta['action_label'] ?? null) ? (string) $meta['action_label'] : null;
 
-        $actionLabel = $storedLabel ?: match ($template) {
-            'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
-            'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
-            'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
-            'membership_issued', 'membership_renewed', 'membership_welcome' => __('borrower.membership.notification_cta'),
-            'registration_welcome' => __('borrower.membership.welcome_loans_cta'),
-            'document_request', 'document_requests', 'application_document_request', 'application_document_request_reminder_1', 'profile_revision_requested' => __('borrower.notifications.document_request_cta'),
-            default => __('borrower.notifications.view_application'),
+        $actionLabel = match ($template) {
+            'support_rating_request', 'support_resolved' => __('borrower.notifications.support_resolved_cta'),
+            'support_replied' => __('borrower.notifications.support_replied_cta'),
+            'support_ticket_created' => __('borrower.notifications.support_ticket_created_cta'),
+            'support_accepted', 'support_waiting' => __('borrower.notifications.support_open_cta'),
+            default => null,
         };
+
+        if ($actionLabel === null) {
+            $actionLabel = $storedLabel ?: match ($template) {
+                'guarantor_loan_arrears' => __('borrower.guarantor_notifications.view_loan'),
+                'guarantor_supplement_request' => __('borrower.guarantor_supplement.cta'),
+                'loyalty_points_earned' => __('borrower.rewards.points_earned_cta'),
+                'membership_issued', 'membership_renewed', 'membership_welcome' => __('borrower.membership.notification_cta'),
+                'registration_welcome' => __('borrower.membership.welcome_loans_cta'),
+                'document_request', 'document_requests', 'application_document_request', 'application_document_request_reminder_1', 'profile_revision_requested' => __('borrower.notifications.document_request_cta'),
+                default => __('borrower.notifications.view_application'),
+            };
+        }
 
         return [
             'accept_url'    => null,

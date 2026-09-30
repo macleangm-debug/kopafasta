@@ -3,6 +3,7 @@
 namespace App\Services\Support;
 
 use App\Models\Customer;
+use App\Models\Setting;
 use App\Models\SupportConversation;
 use App\Models\SupportMessage;
 use App\Models\User;
@@ -26,9 +27,41 @@ class SupportConversationService
 
     public const STATUS_CLOSED = 'closed';
 
+    public const CONVERSATION_PREFIX_KEY = 'support.conversation_number_prefix';
+
+    public const CONVERSATION_PREFIX_DEFAULT = 'KPF-CNV';
+
     public function __construct(
         private readonly AuditService $audit,
     ) {}
+
+    /**
+     * Settings-backed readable conversation number, e.g. KPF-CNV-000001.
+     * Mirrors SupportTicketService::nextTicketNumber.
+     */
+    public function nextConversationNumber(?string $explicit = null): string
+    {
+        $explicit = trim((string) $explicit);
+        if ($explicit !== '') {
+            return $explicit;
+        }
+
+        $prefix = strtoupper(trim((string) Setting::get(self::CONVERSATION_PREFIX_KEY, self::CONVERSATION_PREFIX_DEFAULT)));
+        if ($prefix === '') {
+            $prefix = self::CONVERSATION_PREFIX_DEFAULT;
+        }
+
+        $seqKey = 'support.conversation_number_seq.kpf';
+        $seq = (int) Setting::get($seqKey, 0);
+        do {
+            $seq++;
+            $candidate = $prefix.'-'.str_pad((string) $seq, 6, '0', STR_PAD_LEFT);
+        } while (SupportConversation::query()->where('conversation_number', $candidate)->exists());
+
+        Setting::set($seqKey, $seq);
+
+        return $candidate;
+    }
 
     /**
      * Speak to Support: create or resume open conversation and post the member message.
@@ -134,6 +167,7 @@ class SupportConversationService
             }
 
             $created = SupportConversation::query()->create([
+                'conversation_number' => $this->nextConversationNumber(),
                 'channel' => $channel ?: 'web_chat',
                 'status' => self::STATUS_WAITING,
                 'needs_human' => true,
@@ -156,6 +190,7 @@ class SupportConversationService
         }
 
         $created = SupportConversation::query()->create([
+            'conversation_number' => $this->nextConversationNumber(),
             'customer_id' => $customer?->id,
             'user_id' => $user?->id,
             'channel' => $channel ?: 'web_chat',
@@ -342,15 +377,20 @@ class SupportConversationService
             return;
         }
 
-        $url = route('site.borrower.support', ['chat' => 1, 'section' => 'history']);
+        $url = route('site.borrower.support', ['section' => 'history', 'chat' => 1]);
         app(\App\Services\NotificationService::class)->notifyInApp(
             $customer,
-            'Tafadhali tathmini huduma yetu ya usaidizi.',
+            __('borrower.notifications.support_resolved_body'),
             'support',
             'support_rating_request',
-            'Support resolved',
+            __('borrower.notifications.support_resolved_title'),
             $url,
-            'View & rate support',
+            null,
+            [
+                'title_key' => 'borrower.notifications.support_resolved_title',
+                'body_key' => 'borrower.notifications.support_resolved_body',
+                'params' => [],
+            ],
         );
     }
 

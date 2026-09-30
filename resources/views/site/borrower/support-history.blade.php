@@ -5,7 +5,8 @@
 
     <div class="max-w-2xl overflow-hidden rounded-2xl ring-1 ring-brand/15 bg-white shadow-sm">
         <div class="bg-gradient-to-br from-brand via-[#127A5F] to-[#0a4a3c] text-white px-4 py-3">
-            <p class="text-sm font-bold">{{ $conversation->topic ?: ('Conversation #'.$conversation->id) }}</p>
+            <p class="text-[11px] uppercase tracking-widest font-semibold text-white/70">{{ $conversation->publicNumber() }}</p>
+            <p class="text-sm font-bold mt-0.5">{{ $conversation->topic ?: 'Support conversation' }}</p>
             <p class="text-xs text-white/75 mt-0.5">
                 {{ ucfirst($conversation->status) }}
                 · {{ format_app_datetime($conversation->last_message_at ?? $conversation->created_at, 'd M Y · H:i') }}

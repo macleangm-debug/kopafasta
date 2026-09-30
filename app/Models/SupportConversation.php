@@ -36,6 +36,14 @@ class SupportConversation extends Model
             && ! $this->rating;
     }
 
+    /** Public reference e.g. KPF-CNV-000042 (routes still use DB id). */
+    public function publicNumber(): string
+    {
+        $n = trim((string) ($this->conversation_number ?? ''));
+
+        return $n !== '' ? $n : 'KPF-CNV-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);

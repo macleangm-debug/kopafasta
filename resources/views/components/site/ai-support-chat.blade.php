@@ -39,6 +39,8 @@
         ? 'overflow-hidden rounded-2xl ring-1 ring-brand/15 shadow-sm bg-white max-w-2xl'
         : 'glass-card p-5 sm:p-6 max-w-2xl';
     $isSw = str_starts_with(app()->getLocale(), 'sw');
+    $composerLocked = $conversation instanceof \App\Models\SupportConversation
+        && in_array((string) $conversation->status, ['closed', 'resolved'], true);
 @endphp
 
 <div {{ $attributes->merge(['class' => $shellClass]) }}
@@ -63,6 +65,7 @@
          'startHuman' => $startHuman,
          'pollMs' => 2000,
          'conversationId' => $conversation?->id,
+         'conversationNumber' => $conversation instanceof \App\Models\SupportConversation ? $conversation->publicNumber() : null,
          'agentFirstName' => $presence['agent_first_name'],
          'presence' => $presence['presence'],
          'statusOnline' => 'Waiting for support',
@@ -73,6 +76,7 @@
          'deskLabel' => $presence['desk_label'] ?? 'Waiting for support',
          'showRating' => (bool) $showRating,
          'ratingUrl' => $ratingUrl,
+         'composerLocked' => (bool) $composerLocked,
          'ratingThanks' => $isSw ? 'Asante kwa tathmini yako.' : 'Thank you for your rating.',
          'ratingPrompt' => $isSw ? 'Tathmini huduma yetu' : 'Rate our support',
          'ratingCommentPh' => $isSw ? 'Maoni (si lazima)' : 'Comment (optional)',
@@ -98,6 +102,7 @@
                                   :class="presence === 'assigned' ? 'bg-brand-gold' : 'bg-emerald-300'"></span>
                             <span x-text="presence === 'assigned' ? config.statusAssigned : (config.deskLabel || config.statusOnline)"></span>
                         </span>
+                        <span class="text-[10px] sm:text-[11px] text-white/70 font-semibold" x-show="config.conversationNumber" x-text="config.conversationNumber"></span>
                     </div>
                     <p class="text-[11px] sm:text-xs text-white/75 mt-0.5 truncate" x-text="config.tagline"></p>
                 </div>
@@ -178,12 +183,13 @@
         </div>
     </div>
 
-    <form @submit.prevent="ask" class="flex gap-2" x-show="!(showRating && !ratingDone)">
-        <input type="text" x-model="input" :disabled="typing"
+    <form @submit.prevent="ask" class="flex gap-2 items-end" x-show="!(showRating || ratingDone || composerLocked)">
+        <textarea x-model="input" :disabled="typing" x-ref="composer" rows="1"
+               @input="growComposer()"
                placeholder="{{ __('site.support.chat_placeholder') }}"
-               class="flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-base focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60">
+               class="kf-support-composer flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-base focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60"></textarea>
         <button type="submit" :disabled="typing || !input.trim()"
-                class="bg-brand hover:bg-brand-light disabled:opacity-60 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
+                class="bg-brand hover:bg-brand-light disabled:opacity-60 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shrink-0">
             {{ __('site.support.chat_send') }}
         </button>
     </form>
@@ -219,6 +225,7 @@
                         presence: config.presence || 'online',
                         showRating: !!config.showRating,
                         ratingUrl: config.ratingUrl || null,
+                        composerLocked: !!config.composerLocked,
                         rating: 0,
                         hoverStar: 0,
                         ratingComment: '',
@@ -234,6 +241,18 @@
                             }
                             return config.csrf;
                         },
+                        growComposer() {
+                            var el = this.$refs.composer;
+                            if (!el) return;
+                            el.style.height = 'auto';
+                            var line = parseFloat(getComputedStyle(el).lineHeight) || 22;
+                            var max = Math.round(line * 3 + 20); // ~3 lines + padding ≈ 4.5–5.5rem
+                            if (max < 72) max = 84;
+                            if (max > 96) max = 96;
+                            var next = Math.min(el.scrollHeight, max);
+                            el.style.height = Math.max(next, Math.round(line + 20)) + 'px';
+                            el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden';
+                        },
                         scrollBottom() {
                             var el = this.$refs.scroll;
                             if (el) this.$nextTick(function () { el.scrollTop = el.scrollHeight; });
@@ -245,6 +264,7 @@
                         applyPresence(data) {
                             if (!data) return;
                             if (data.conversation_id) this.conversationId = data.conversation_id;
+                            if (data.conversation_number) this.config.conversationNumber = data.conversation_number;
                             if (data.agent_first_name) {
                                 this.agentFirstName = data.agent_first_name;
                                 this.presence = 'assigned';
@@ -253,6 +273,9 @@
                                 if (data.presence === 'online') this.agentFirstName = null;
                             } else if (data.assigned_to && !this.agentFirstName) {
                                 this.presence = 'assigned';
+                            }
+                            if (data.status && ['closed', 'resolved'].indexOf(data.status) !== -1) {
+                                this.composerLocked = true;
                             }
                         },
                         mapThread(rows) {
@@ -312,6 +335,12 @@
                                 }
                                 self.ratingDone = true;
                                 self.showRating = false;
+                                self.composerLocked = true;
+                                if (data.thanks) self.config.ratingThanks = data.thanks;
+                                var go = data.redirect || null;
+                                if (go) {
+                                    setTimeout(function () { window.location = go; }, 1100);
+                                }
                             } catch (e) {
                                 self.sendError = 'Rating failed. Try again.';
                             } finally {
@@ -409,9 +438,10 @@
                             }, delay);
                         },
                         init() {
+                            var self = this;
                             this.scrollBottom();
+                            this.$nextTick(function () { self.growComposer(); });
                             if (this.humanMode && config.threadUrl) {
-                                var self = this;
                                 this.pollThread();
                                 this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2000);
                             }

@@ -139,15 +139,27 @@
 
                             <div class="relative">
                                 <label class="block text-sm font-semibold text-gray-800 mb-1.5">{{ __('site.feedback.choose_type') }}</label>
-                                <div class="lg:hidden space-y-1 max-h-48 overflow-y-auto rounded-xl ring-1 ring-gray-200 p-1.5">
-                                    @foreach ($categoryOptions as $key => $label)
-                                        <button type="button" @click="category = '{{ $key }}'"
-                                                class="w-full text-left px-3 py-2.5 rounded-lg text-sm"
-                                                :class="category === '{{ $key }}' ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-brand-muted/50'">
-                                            {{ $label }}
-                                        </button>
-                                    @endforeach
+                                {{-- Mobile: nested same-surface bottom-sheet selector (keeps one modal experience) --}}
+                                <div class="lg:hidden">
+                                    <button type="button" @click="typeOpen = true"
+                                            class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800">
+                                        <span class="flex-1 text-left truncate" x-text="labelFor(category)"></span>
+                                        <svg class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                    </button>
+                                    <x-site.bottom-sheet :title="__('site.feedback.choose_type')" open="typeOpen" layer="z-[10100]">
+                                        <div class="space-y-1 px-1 pb-2">
+                                            @foreach ($categoryOptions as $key => $label)
+                                                <button type="button"
+                                                        @click="category = '{{ $key }}'; typeOpen = false"
+                                                        class="w-full text-left px-3.5 py-3.5 rounded-xl text-base transition"
+                                                        :class="category === '{{ $key }}' ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'text-gray-800 hover:bg-brand-muted/50'">
+                                                    {{ $label }}
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    </x-site.bottom-sheet>
                                 </div>
+                                {{-- Desktop: premium dropdown/popover --}}
                                 <div class="hidden lg:block relative">
                                     <button type="button" @click="typeOpen = !typeOpen"
                                             class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800">

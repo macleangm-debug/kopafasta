@@ -1057,7 +1057,8 @@ class VendorController extends Controller
                 ->whereIn('status', ['closed', 'resolved'])
                 ->latest('last_message_at')
                 ->limit(8)
-                ->get(['id', 'topic', 'status', 'rating', 'rating_requested_at', 'last_message_at', 'created_at', 'resolution_category'])
+                ->with('assignedTo:id,name')
+                ->get(['id', 'conversation_number', 'topic', 'status', 'rating', 'rating_requested_at', 'last_message_at', 'created_at', 'closed_at', 'resolved_at', 'resolution_category', 'assigned_to'])
             : collect();
 
         $openTickets = $user
@@ -1212,13 +1213,18 @@ class VendorController extends Controller
         app(\App\Services\Support\SupportConversationService::class)
             ->recordConversationRating($supportConversation, (int) $data['rating'], $data['comment'] ?? null);
 
+        $page = $request->routeIs('site.vendor.*') ? 'site.vendor.support' : 'site.partner.support';
+        $thanks = 'Asante kwa tathmini yako.';
+
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-            return response()->json(['ok' => true]);
+            return response()->json([
+                'ok' => true,
+                'thanks' => $thanks,
+                'redirect' => route($page, ['section' => 'history']),
+            ]);
         }
 
-        $page = $request->routeIs('site.vendor.*') ? 'site.vendor.support' : 'site.partner.support';
-
-        return redirect()->route($page)->with('status', 'Asante kwa tathmini yako.');
+        return redirect()->route($page, ['section' => 'history'])->with('status', $thanks);
     }
 
     public function terms()

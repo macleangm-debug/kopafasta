@@ -129,7 +129,7 @@
                                 <p class="text-xs {{ ($item['waiting_label'] ?? null) ? 'text-amber-800 font-semibold' : 'text-slate-500' }} mt-0.5">
                                     <span @if (($activeId ?? null) === $item['id']) x-text="deskState || @js($item['desk_state'] ?? ucfirst($item['status']))" @endif>{{ $item['desk_state'] ?? ucfirst($item['status']) }}</span>
                                     @if ($item['waiting_label'] ?? null) · {{ $item['waiting_label'] }} @endif
-                                    <span class="text-slate-400 font-normal"> · #{{ $item['id'] }}</span>
+                                    <span class="text-slate-400 font-normal"> · {{ $item['conversation_number'] ?? ('#'.$item['id']) }}</span>
                                 </p>
                             </a>
                         </li>
@@ -145,12 +145,11 @@
                     <div class="px-4 py-3 border-b border-slate-200/80 flex items-start justify-between gap-3 bg-white">
                         <div class="min-w-0">
                             <a href="{{ route('admin.support.inbox', ['filter' => $filter, 'q' => $q]) }}" class="lg:hidden text-sm font-semibold text-brand">← Conversations</a>
-                            <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">Conversation</p>
+                            <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">{{ $conversation->publicNumber() }}</p>
                             <p class="text-base font-bold text-slate-900 truncate">{{ $serialized['name'] ?? 'Conversation' }}</p>
                             <p class="text-sm text-slate-500">
                                 <span x-text="deskState || @js($serialized['desk_state'] ?? ucfirst($conversation->status))"></span>
                                 @if (! empty($serialized['topic'])) · {{ $serialized['topic'] }} @endif
-                                · #<span x-text="conversationId || {{ (int) $conversation->id }}"></span>
                             </p>
                             <p class="text-xs text-red-700 mt-1" x-show="error" x-text="error" x-cloak></p>
                         </div>
@@ -162,9 +161,9 @@
                                             <button type="button" @click="agentMenuOpen = !agentMenuOpen"
                                                     class="inline-flex items-center gap-2 min-w-[12rem] max-w-[16rem] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-left hover:ring-brand/30">
                                                 <span class="min-w-0 flex-1">
-                                                    <span class="block text-xs font-bold text-slate-900 truncate"
+                                                    <span class="block text-sm font-semibold text-slate-900 truncate"
                                                           x-text="selectedAgentLabel() || 'Assign to…'"></span>
-                                                    <span class="block text-[10px] text-slate-500"
+                                                    <span class="block text-xs text-slate-500"
                                                           x-show="selectedAgentId"
                                                           x-text="selectedAgentActiveLabel()"></span>
                                                 </span>

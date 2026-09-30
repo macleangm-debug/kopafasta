@@ -91,6 +91,14 @@ class NotificationLog extends Model
                 'title' => 'borrower.membership.notification_title',
                 'body'  => 'borrower.membership.notification_body',
             ],
+            'support_rating_request' => [
+                'title' => 'borrower.notifications.support_resolved_title',
+                'body'  => 'borrower.notifications.support_resolved_body',
+            ],
+            'support_resolved' => [
+                'title' => 'borrower.notifications.support_resolved_title',
+                'body'  => 'borrower.notifications.support_resolved_body',
+            ],
         ];
         $template = (string) ($this->template ?? '');
         if (isset($templateMap[$template])) {

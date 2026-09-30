@@ -724,6 +724,8 @@ class CustomerSupportWorkspaceService
 
         return [
             'id' => $conversation->id,
+            'number' => $conversation->publicNumber(),
+            'conversation_number' => $conversation->publicNumber(),
             'name' => $name,
             'is_member' => $isMember,
             'guest_label' => $isMember ? null : 'Guest / Non-member',

@@ -247,7 +247,10 @@
                     <p class="text-xs text-gray-500">No linked application / loan / payment.</p>
                 @endif
                 @if ($conversation)
-                    <p class="text-xs text-slate-500 pt-1">Originating conversation #{{ $conversation->id }}</p>
+                    <p class="text-xs text-slate-500 pt-1">
+                        Originating conversation
+                        <a href="{{ route('admin.support.inbox.show', $conversation) }}" class="font-semibold text-brand hover:underline">{{ $conversation->publicNumber() }}</a>
+                    </p>
                 @endif
             </div>
 

@@ -4493,6 +4493,12 @@ return [
         'profile_revision_body' => 'Application :application: :label was requested to be updated in your profile.',
         'profile_revision_cta' => 'Update profile',
         'fallback_title' => 'Notification',
+        'support_resolved_title' => 'Your support matter has been resolved',
+        'support_resolved_body' => 'Please rate your support experience.',
+        'support_resolved_cta' => 'View & rate support',
+        'support_replied_cta' => 'View reply',
+        'support_ticket_created_cta' => 'View ticket',
+        'support_open_cta' => 'Open Help Center',
         'all_categories' => 'All',
         'groups' => [
             'today' => 'Today',
@@ -4512,8 +4518,10 @@ return [
             'loan' => 'Loan',
             'guarantor' => 'Guarantor',
             'general' => 'General',
+            'support' => 'Support',
             'system' => 'System',
         ],
+        'support_rating_thanks' => 'Thank you for your feedback.',
     ],
 
     'document_request_presets' => [
