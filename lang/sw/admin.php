@@ -114,6 +114,25 @@ return [
         'language' => 'Lugha',
     ],
 
+    'role_view' => [
+        'title' => 'Akaunti / Jukumu',
+        'short' => 'Akaunti / Jukumu',
+        'hint' => 'Tafuta mtu, angalia wasifu, au ingia kwenye jukumu alilopewa. Unabaki umeingia kama Admin.',
+        'search_placeholder' => 'Tafuta mshirika, wafanyakazi, au mkopaji…',
+        'searching' => 'Inatafuta…',
+        'empty' => 'Hakuna matokeo.',
+        'type_more' => 'Andika angalau herufi 2.',
+        'view_profile' => 'Angalia wasifu',
+        'enter_as' => 'Ingia kama :role',
+        'viewing' => 'Unaangalia',
+        'exit' => 'Toka',
+        'entered' => 'Sasa unaangalia nafasi iliyochaguliwa. Toka inarudisha Admin.',
+        'exited' => 'Umerudi Admin.',
+        'partner_no_login' => 'Login ya portal bado haijaamilishwa — Angalia wasifu tu.',
+        'borrower_profile_only' => 'Wakopaji: Angalia wasifu tu (hakuna kuunganisha na Mshirika).',
+        'credentials_blocked' => 'Huwezi kubadilisha PIN/neno la siri wakati Admin anaangalia nafasi.',
+    ],
+
     'application_360' => [
         'notify_replace_title' => 'Arifu mkopaji abadilishe mdhamini',
         'notify_replace_confirm' => 'Tuma taarifa iliyopo ya kubadilisha mdhamini kwa mkopaji huyu?',

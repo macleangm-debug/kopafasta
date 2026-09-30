@@ -244,9 +244,9 @@ return [
     ],
 
     'role_view' => [
-        'title' => 'User / Role switcher',
-        'short' => 'User / Role',
-        'hint' => 'View a profile, or enter an assigned role workspace. You stay signed in as Admin.',
+        'title' => 'Account / Role',
+        'short' => 'Account / Role',
+        'hint' => 'Search a person, view their profile, or enter an assigned role. You stay signed in as Admin.',
         'search_placeholder' => 'Search partner, staff, or borrower…',
         'searching' => 'Searching…',
         'empty' => 'No matches.',

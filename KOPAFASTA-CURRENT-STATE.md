@@ -6,7 +6,7 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 
 | State | SHA | Note |
 | --- | --- | --- |
-| **Live production (Affiliate release)** | `8e684fef8fe46398e74cf582af6dc7013eb2e651` | Affiliate scope + landing Anza Sasa/Ingia LIVE. Prior payment freeze ancestry retained. |
+| **Live production (Affiliate + ladmin hotfix)** | `965296be2dfc2333384acc93bd5f64be08f7b1cf` | Affiliate wizard Continue + `/ladmin/login` alias LIVE. Role switcher not on production. |
 | **Accepted production baseline (Release 2 freeze)** | `0b292c681f5c110d33bcc8fe324c9c618ea5b0ac` | Release 2 production-closed ancestry root. |
 | **Last locally observed production snapshot** | `91b9942a…` | Historical only (`parity/production-91b9942a`). Not a reason to roll staging backward. |
 | **Affiliate staging baseline (Owner UAT)** | `ee5148c5ecd34c4ec12c6b44dcc68f240776982b` | Prior Performance freeze tip. **Superseded for contracts re-acceptance — see tip below.** |
@@ -25,7 +25,8 @@ Short release memory for economical micropasses. Prefer this file + one relevant
 | **Owner UAT correction Partner roles+Affiliate 360+guarantor (staging tip)** | `3344e1a92b673fc31605e789cb319180fa9ebccc` | Workspace switcher visible; Affiliate 360 not application; false Asset supplier strip; track Vendor typing; profile signature reuse; guarantor View hero. Staging only. |
 | **Affiliate RC workspace+activation+360 roles (staging tip)** | `578ecac34ea1592e0ca2d87fe5909eebbc72745d` | Compact header workspace switcher; Activate vs Login track CTA; Fuatilia secondary button; Partner 360 multi-role chips. Staging only. Do not promote yet. |
 | **Affiliate release landing CTA (staging tip)** | `7421ba332dff2f5f1ff8abfd95081c4f1ae47bdc` | Anza Sasa + Ingia side-by-side on landing hero. Promoted with Affiliate release. |
-| **Admin User/Role switcher foundation (staging tip)** | `80a2179104eca1370e41a2a16937f33ab62f194c` | Admin header search → View profile or Enter role workspace; Viewing banner + Exit; audit stays Admin. Staging only. STOP for Owner UAT. |
+| **Admin User/Role switcher foundation (staging tip)** | `80a2179104eca1370e41a2a16937f33ab62f194c` | Admin header search → View profile or Enter role workspace; Viewing banner + Exit; audit stays Admin. Staging only. |
+| **Admin Account/Role switcher on Admin page (staging tip)** | `PENDING_DEPLOY` | Reuses `80a21791` in Admin header + EN/SW Account/Role labels. Includes Affiliate/ladmin hotfixes ancestry. Staging only — STOP for Owner UAT. |
 | **Clean production candidate** | `6cb7798c67cc5ccc4581c00c7339155f07a203ea` | Branch `release/production-candidate-accepted`: `4db04d90` + Activity dropdown teleport only. **Excludes Support V1 and latest Family/Kin work. STOP for owner approval before production.** |
 | **GitHub `origin/main`** | `bf292772…` (this machine) | Behind local staging tip. Do not force-catch-up with mixed WIP. |
 
