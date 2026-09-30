@@ -127,10 +127,101 @@ class SupportTicketController extends ResourceController
     public function show($id)
     {
         $record = SupportTicket::query()
-            ->with(['customer', 'assignee', 'events.actor'])
+            ->with([
+                'customer',
+                'assignee',
+                'events.actor',
+                'conversation.messages.senderUser',
+                'rating',
+            ])
             ->findOrFail($id);
 
-        return view("admin.{$this->viewFolder}.show", ['record' => $record]);
+        $context = $record->customer
+            ? app(\App\Services\Support\SupportContextPresenter::class)->forCustomer($record->customer)
+            : null;
+
+        $quickReplies = app(\App\Services\Support\SupportQuickReplyService::class)->all();
+        $escalationRoles = $this->tickets->escalationRoles();
+
+        return view("admin.{$this->viewFolder}.show", [
+            'record' => $record,
+            'context' => $context,
+            'quickReplies' => $quickReplies,
+            'escalationRoles' => $escalationRoles,
+            'supportShell' => true,
+        ]);
+    }
+
+    public function addNote(Request $request, SupportTicket $support_ticket)
+    {
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $this->tickets->addInternalNote($support_ticket, $data['body'], $request->user('admin'));
+
+        return back()->with('status', 'Internal note added.');
+    }
+
+    public function escalate(Request $request, SupportTicket $support_ticket)
+    {
+        $data = $request->validate([
+            'escalated_to_role' => ['required', 'string', 'in:'.implode(',', $this->tickets->escalationRoles())],
+            'reason' => ['required', 'string', 'max:1000'],
+            'internal_note' => ['nullable', 'string', 'max:5000'],
+            'notify_member' => ['nullable', 'boolean'],
+        ]);
+
+        $this->tickets->escalate(
+            $support_ticket,
+            $data['escalated_to_role'],
+            $data['reason'],
+            $request->user('admin'),
+            $data['internal_note'] ?? null,
+            $request->boolean('notify_member', true),
+        );
+
+        return back()->with('status', 'Case escalated to '.$data['escalated_to_role'].'. Support remains customer contact.');
+    }
+
+    public function resolve(Request $request, SupportTicket $support_ticket)
+    {
+        $data = $request->validate([
+            'resolution_type' => ['required', 'in:resolved,guidance_provided,technical_fixed,application_clarified,payment_clarified,other'],
+            'resolution_notes' => ['nullable', 'string', 'max:5000'],
+            'invite_rating' => ['nullable', 'boolean'],
+        ]);
+
+        $this->tickets->resolveCase($support_ticket, [
+            'resolution_type' => $data['resolution_type'],
+            'resolution_notes' => $data['resolution_notes'] ?? null,
+            'invite_rating' => $request->boolean('invite_rating', true),
+        ], $request->user('admin'));
+
+        return back()->with('status', 'Case resolved. Member notified via conversation.');
+    }
+
+    public function replyConversation(Request $request, SupportTicket $support_ticket)
+    {
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        abort_unless($support_ticket->support_conversation_id, 422, 'No linked conversation.');
+
+        $conversation = $support_ticket->conversation;
+        abort_unless($conversation, 404);
+
+        app(\App\Services\Support\SupportConversationService::class)->appendMessage(
+            $conversation,
+            'staff',
+            trim($data['body']),
+            $request->user('admin')?->id,
+        );
+
+        $this->tickets->addEvent($support_ticket, 'response', $request->user('admin'), trim($data['body']));
+
+        return back()->with('status', 'Reply sent.');
     }
 
     public function update(Request $request, $id)

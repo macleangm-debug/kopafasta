@@ -37,4 +37,9 @@ class SupportConversation extends Model
     {
         return $this->hasMany(SupportMessage::class);
     }
+
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class, 'support_conversation_id');
+    }
 }

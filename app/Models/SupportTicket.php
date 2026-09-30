@@ -23,9 +23,19 @@ class SupportTicket extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(SupportConversation::class, 'support_conversation_id');
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(SupportTicketEvent::class)->orderBy('created_at')->orderBy('id');
+    }
+
+    public function rating(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(SupportTicketRating::class);
     }
 
     public function contactLabel(): string

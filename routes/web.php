@@ -535,6 +535,9 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::put('/borrower/profile/notifications', [BorrowerController::class, 'updateNotificationPreferences'])->name('borrower.profile.notifications.update');
             Route::delete('/borrower/profile/security/devices/{trustedDevice}', [BorrowerController::class, 'revokeTrustedDevice'])->name('borrower.profile.devices.revoke');
             Route::get('/borrower/support', [BorrowerController::class, 'support'])->name('borrower.support');
+            Route::post('/borrower/support/speak', [BorrowerController::class, 'speakToSupport'])->name('borrower.support.speak');
+            Route::get('/borrower/support/thread', [BorrowerController::class, 'supportThread'])->name('borrower.support.thread');
+            Route::post('/borrower/support/rate/{support_ticket}', [BorrowerController::class, 'rateSupportTicket'])->name('borrower.support.rate');
             Route::get('/borrower/refunds', [BorrowerRefundController::class, 'index'])->name('borrower.refunds');
             Route::post('/borrower/refunds/{borrowerRefund}/details', [BorrowerRefundController::class, 'submitDetails'])->name('borrower.refunds.details');
         });
@@ -1186,6 +1189,14 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
                 ->name('support-tickets.customers');
             Route::post('support-tickets/{support_ticket}/link-customer', [SupportTicketController::class, 'linkCustomer'])
                 ->name('support-tickets.link-customer');
+            Route::post('support-tickets/{support_ticket}/note', [SupportTicketController::class, 'addNote'])
+                ->name('support-tickets.note');
+            Route::post('support-tickets/{support_ticket}/escalate', [SupportTicketController::class, 'escalate'])
+                ->name('support-tickets.escalate');
+            Route::post('support-tickets/{support_ticket}/resolve', [SupportTicketController::class, 'resolve'])
+                ->name('support-tickets.resolve');
+            Route::post('support-tickets/{support_ticket}/reply', [SupportTicketController::class, 'replyConversation'])
+                ->name('support-tickets.reply');
             Route::get('broken-pages', [BrokenPageController::class, 'index'])->name('broken-pages.index');
             Route::post('broken-pages/classify-open', [BrokenPageController::class, 'classifyOpen'])->name('broken-pages.classify-open');
             Route::post('broken-pages/reset-baseline', [BrokenPageController::class, 'resetBaseline'])->name('broken-pages.reset-baseline');

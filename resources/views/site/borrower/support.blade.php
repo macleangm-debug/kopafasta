@@ -77,6 +77,7 @@
             :member-mode="true"
             :agent-label="__('borrower.support_page.assistant_title')"
             :agent-subtitle="__('borrower.support_page.assistant_subtitle')"
+            :existing-messages="$supportConversation?->messages"
         />
     </div>
 

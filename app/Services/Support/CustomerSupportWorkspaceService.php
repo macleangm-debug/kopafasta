@@ -158,11 +158,6 @@ class CustomerSupportWorkspaceService
                 'active_prefixes' => ['admin.support.members', 'admin.customers.'],
             ],
             [
-                'label' => 'Notifications',
-                'route' => 'admin.support.notifications',
-                'active_prefixes' => ['admin.support.notifications'],
-            ],
-            [
                 'label' => 'Reports',
                 'route' => 'admin.support.performance',
                 'active_prefixes' => ['admin.support.performance', 'admin.support.reports'],
@@ -280,10 +275,8 @@ class CustomerSupportWorkspaceService
                 'avg_resolution' => 'Resolution duration not derived yet (only resolved_at exists).',
                 'first_contact_resolution' => 'FCR not recorded.',
                 'sla_met' => 'No SLA due clock on support_tickets.',
-                'customer_rating' => 'No CSAT/rating capture yet.',
+                'customer_rating' => 'CSAT stored on support_ticket_ratings when member rates after resolve.',
                 'overdue' => 'No due_at on support_tickets — Overdue counter withheld.',
-                'speak_to_person' => 'Chatbot escalate still goes to contact page; needs_human queue not wired from member UI.',
-                'support_unread_badge' => 'SupportMessage has no read_at; unread approximated from needs_human / last non-staff message.',
             ],
         ];
     }
@@ -292,9 +285,8 @@ class CustomerSupportWorkspaceService
     public function infrastructureGaps(): array
     {
         return [
-            'Speak to a person: member UI does not yet create SupportConversation with needs_human=true.',
-            'Unread: no read_at on support_messages — counters approximate waiting/unassigned human queue.',
-            'Overdue / SLA / CSAT / first-response timers: not stored — shown as gaps on Reports.',
+            'Department workspaces for escalated cases are not built in this pass (Support remains customer contact).',
+            'Overdue / SLA / first-response timers: not stored — shown as gaps on Reports.',
             'Agent availability: stored on user preferences only; round-robin does not yet filter Offline agents.',
         ];
     }
@@ -404,15 +396,22 @@ class CustomerSupportWorkspaceService
         }
 
         $waitingSince = $conversation->last_message_at ?? $conversation->updated_at ?? $conversation->created_at;
+        $unread = $conversation->messages()
+            ->whereNull('read_at')
+            ->whereIn('sender_type', ['customer', 'guest'])
+            ->count();
 
         return [
             'id' => $conversation->id,
-            'name' => $name,
+            'name' => $name ?: ($conversation->guest_name ?: ($isMember ? 'Member' : 'Guest / Non-member')),
             'is_member' => $isMember,
             'guest_label' => $isMember ? null : 'Guest / Non-member',
+            'topic' => $conversation->topic,
             'preview' => \Illuminate\Support\Str::limit((string) ($last?->body ?? ''), 80),
             'status' => (string) $conversation->status,
             'needs_human' => (bool) $conversation->needs_human,
+            'unread' => $unread,
+            'assigned_to' => $conversation->assigned_to,
             'waiting_label' => $waitingSince ? $waitingSince->diffForHumans(null, true).' waiting' : null,
             'url' => route('admin.support.inbox.show', $conversation),
             'member_url' => $conversation->customer_id

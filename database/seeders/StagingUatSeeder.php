@@ -188,6 +188,8 @@ class StagingUatSeeder extends Seeder
             'applicant_category' => 'company',
             'affiliate_premium' => false,
         ]);
+
+        $this->call(SupportStagingUatSeeder::class);
     }
 
     /** @param array<string, mixed> $row */

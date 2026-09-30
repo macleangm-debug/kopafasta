@@ -3858,7 +3858,116 @@ class BorrowerController extends Controller
 
     public function support(): View
     {
-        return view('site.borrower.support', ['customer' => $this->customer()]);
+        $customer = $this->customer();
+        $conversation = \App\Models\SupportConversation::query()
+            ->where('customer_id', $customer->id)
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->with(['messages' => fn ($q) => $q->orderBy('id')])
+            ->latest('id')
+            ->first();
+
+        return view('site.borrower.support', [
+            'customer' => $customer,
+            'supportConversation' => $conversation,
+        ]);
+    }
+
+    public function speakToSupport(Request $request): JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        $customer = $this->customer();
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+            'topic' => ['nullable', 'string', 'max:180'],
+            'context' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $service = app(\App\Services\Support\SupportConversationService::class);
+        $body = trim($data['body']);
+        if (! empty($data['context'])) {
+            $body = trim($data['context'])."\n\n---\n".$body;
+        }
+
+        $conversation = $service->requestHuman(
+            $customer,
+            $request->user(),
+            $body,
+            $data['topic'] ?? null,
+        );
+
+        $this->auditBorrower('support.speak_to_human', $customer, [
+            'conversation_id' => $conversation->id,
+        ]);
+
+        $ack = 'Tumepokea ombi lako. Wakala wa usaidizi atakujibu hivi karibuni. / We have received your request. A support agent will reply shortly.';
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'conversation_id' => $conversation->id,
+                'ack' => $ack,
+                'messages' => $conversation->messages()->orderBy('id')->get()->map(fn ($m) => [
+                    'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
+                    'sender_type' => $m->sender_type,
+                    'text' => $m->body,
+                    'at' => $m->created_at?->toIso8601String(),
+                ]),
+            ]);
+        }
+
+        return redirect()
+            ->route('site.borrower.support')
+            ->with('status', $ack);
+    }
+
+    public function supportThread(): JsonResponse
+    {
+        $customer = $this->customer();
+        $conversation = \App\Models\SupportConversation::query()
+            ->where('customer_id', $customer->id)
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->with(['messages' => fn ($q) => $q->orderBy('id')])
+            ->latest('id')
+            ->first();
+
+        if (! $conversation) {
+            return response()->json(['ok' => true, 'messages' => []]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'conversation_id' => $conversation->id,
+            'status' => $conversation->status,
+            'needs_human' => $conversation->needs_human,
+            'messages' => $conversation->messages->map(fn ($m) => [
+                'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
+                'sender_type' => $m->sender_type,
+                'text' => $m->body,
+                'at' => $m->created_at?->toIso8601String(),
+            ]),
+        ]);
+    }
+
+    public function rateSupportTicket(Request $request, \App\Models\SupportTicket $support_ticket): JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        $customer = $this->customer();
+        abort_unless((int) $support_ticket->customer_id === (int) $customer->id, 403);
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        app(\App\Services\Support\SupportTicketService::class)->recordRating(
+            $support_ticket,
+            (int) $data['rating'],
+            $data['comment'] ?? null,
+        );
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return back()->with('status', 'Asante kwa maoni yako.');
     }
 
     public function destroyProfileDocument(string $code): RedirectResponse

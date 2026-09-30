@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SupportConversation;
-use App\Models\SupportTicket;
 use App\Services\AdminRoleViewService;
 use App\Services\AuditService;
 use App\Services\Support\CustomerSupportWorkspaceService;
+use App\Services\Support\SupportContextPresenter;
+use App\Services\Support\SupportConversationService;
+use App\Services\Support\SupportQuickReplyService;
 use App\Services\Support\SupportTicketService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +20,9 @@ class SupportWorkspaceController extends Controller
     public function __construct(
         private readonly CustomerSupportWorkspaceService $workspace,
         private readonly SupportTicketService $tickets,
+        private readonly SupportConversationService $conversations,
+        private readonly SupportQuickReplyService $quickReplies,
+        private readonly SupportContextPresenter $context,
         private readonly AdminRoleViewService $roleView,
         private readonly AuditService $audit,
     ) {}
@@ -32,41 +37,108 @@ class SupportWorkspaceController extends Controller
         ]);
     }
 
-    public function inbox(): View
+    public function inbox(Request $request): View
     {
         $agent = $this->workspace->actingAgent();
-        $waiting = $this->workspace->waitingConversations();
-        $mine = $this->workspace->myConversations($agent?->id);
-        $conversations = $waiting->merge($mine)->unique('id')->sortByDesc(function ($row) {
-            return $row->last_message_at?->timestamp ?? 0;
-        })->values();
+        $filter = (string) $request->query('filter', 'all');
+        $q = trim((string) $request->query('q', ''));
+
+        $conversations = SupportConversation::query()
+            ->with(['customer', 'user', 'assignedTo'])
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->when($filter === 'waiting', fn ($query) => $query->where('needs_human', true))
+            ->when($filter === 'mine' && $agent, fn ($query) => $query->where('assigned_to', $agent->id))
+            ->when($filter === 'unread', function ($query) {
+                $query->whereHas('messages', fn ($m) => $m->whereNull('read_at')->whereIn('sender_type', ['customer', 'guest']));
+            })
+            ->when($filter === 'cases', function ($query) {
+                $query->whereHas('tickets');
+            })
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%'.$q.'%';
+                $query->where(function ($inner) use ($like) {
+                    $inner->where('guest_name', 'like', $like)
+                        ->orWhere('guest_phone', 'like', $like)
+                        ->orWhere('topic', 'like', $like)
+                        ->orWhereHas('customer', function ($c) use ($like) {
+                            $c->where('first_name', 'like', $like)
+                                ->orWhere('last_name', 'like', $like)
+                                ->orWhere('phone', 'like', $like)
+                                ->orWhere('customer_number', 'like', $like);
+                        });
+                });
+            })
+            ->latest('last_message_at')
+            ->limit(60)
+            ->get();
 
         return view('admin.support-workspace.inbox', [
             'conversations' => $conversations->map(fn ($c) => $this->workspace->serializeConversation($c))->all(),
+            'filter' => $filter,
+            'q' => $q,
             'agent' => $agent,
+            'quickReplies' => $this->quickReplies->all(),
+            'activeId' => null,
+            'conversation' => null,
+            'serialized' => null,
+            'context' => null,
             'supportShell' => true,
         ]);
     }
 
     public function showConversation(SupportConversation $supportConversation): View
     {
-        $supportConversation->load(['customer', 'user', 'assignedTo', 'messages.senderUser']);
+        $supportConversation->load(['customer', 'user', 'assignedTo', 'messages.senderUser', 'tickets']);
+        $this->conversations->markReadForStaff($supportConversation);
 
-        $openCases = $supportConversation->customer_id
-            ? SupportTicket::query()
-                ->where('customer_id', $supportConversation->customer_id)
-                ->whereIn('status', ['open', 'in_progress'])
-                ->latest()
-                ->limit(5)
-                ->get()
-            : collect();
+        $agent = $this->workspace->actingAgent();
+        $filter = (string) request()->query('filter', 'all');
+        $q = trim((string) request()->query('q', ''));
 
-        return view('admin.support-workspace.conversation', [
+        $list = SupportConversation::query()
+            ->with(['customer', 'user', 'assignedTo'])
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->when($filter === 'waiting', fn ($query) => $query->where('needs_human', true))
+            ->when($filter === 'mine' && $agent, fn ($query) => $query->where('assigned_to', $agent->id))
+            ->when($filter === 'unread', function ($query) {
+                $query->whereHas('messages', fn ($m) => $m->whereNull('read_at')->whereIn('sender_type', ['customer', 'guest']));
+            })
+            ->when($filter === 'cases', fn ($query) => $query->whereHas('tickets'))
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%'.$q.'%';
+                $query->where(function ($inner) use ($like) {
+                    $inner->where('guest_name', 'like', $like)
+                        ->orWhere('guest_phone', 'like', $like)
+                        ->orWhere('topic', 'like', $like)
+                        ->orWhereHas('customer', function ($c) use ($like) {
+                            $c->where('first_name', 'like', $like)
+                                ->orWhere('last_name', 'like', $like)
+                                ->orWhere('phone', 'like', $like)
+                                ->orWhere('customer_number', 'like', $like);
+                        });
+                });
+            })
+            ->latest('last_message_at')
+            ->limit(60)
+            ->get();
+
+        return view('admin.support-workspace.inbox', [
+            'conversations' => $list->map(fn ($c) => $this->workspace->serializeConversation($c))->all(),
+            'filter' => $filter,
+            'q' => $q,
+            'agent' => $agent,
+            'quickReplies' => $this->quickReplies->all(),
+            'activeId' => $supportConversation->id,
             'conversation' => $supportConversation,
             'serialized' => $this->workspace->serializeConversation($supportConversation),
-            'openCases' => $openCases,
+            'context' => $this->context->forConversation($supportConversation),
             'supportShell' => true,
         ]);
+    }
+
+    public function notifications(): RedirectResponse
+    {
+        return redirect()->route('admin.support.inbox');
     }
 
     public function cases(): RedirectResponse
@@ -77,16 +149,6 @@ class SupportWorkspaceController extends Controller
     public function members(): RedirectResponse
     {
         return redirect()->route('admin.customers.index');
-    }
-
-    public function notifications(): View
-    {
-        $dashboard = $this->workspace->dashboard();
-
-        return view('admin.support-workspace.notifications', [
-            'dashboard' => $dashboard,
-            'supportShell' => true,
-        ]);
     }
 
     public function performance(Request $request): View
@@ -137,19 +199,16 @@ class SupportWorkspaceController extends Controller
         $actor = $this->roleView->actorForAudit($request->user('admin'));
         $agent = $this->workspace->actingAgent() ?? $actor;
 
-        $supportConversation->messages()->create([
-            'sender_type' => 'staff',
-            'sender_user_id' => $agent?->id,
-            'body' => trim($data['body']),
-            'is_automated' => false,
-        ]);
+        $this->conversations->appendMessage(
+            $supportConversation,
+            'staff',
+            trim($data['body']),
+            $agent?->id,
+        );
 
-        $supportConversation->update([
-            'last_message_at' => now(),
-            'needs_human' => false,
-            'status' => 'replied',
-            'assigned_to' => $supportConversation->assigned_to ?: $agent?->id,
-        ]);
+        if (! $supportConversation->assigned_to && $agent) {
+            $supportConversation->update(['assigned_to' => $agent->id]);
+        }
 
         if ($actor) {
             $this->audit->logAdminAction($actor, 'admin.support.conversation.reply', $supportConversation, [
@@ -190,26 +249,45 @@ class SupportWorkspaceController extends Controller
             'category' => ['nullable', 'string', 'max:64'],
             'priority' => ['nullable', 'in:low,normal,high,urgent'],
             'body' => ['nullable', 'string', 'max:5000'],
+            'related_type' => ['nullable', 'in:application,loan,payment,account'],
+            'related_id' => ['nullable', 'integer'],
         ]);
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
         $agent = $this->workspace->actingAgent();
+        $ctx = $this->context->forConversation($supportConversation);
+
+        $relatedType = $data['related_type'] ?? null;
+        $relatedId = isset($data['related_id']) ? (int) $data['related_id'] : null;
+        if (! $relatedType && ($ctx['application']['id'] ?? null)) {
+            $relatedType = 'application';
+            $relatedId = (int) $ctx['application']['id'];
+        } elseif (! $relatedType && ($ctx['loan']['id'] ?? null)) {
+            $relatedType = 'loan';
+            $relatedId = (int) $ctx['loan']['id'];
+        }
 
         $last = $supportConversation->messages()->latest('id')->first();
         $ticket = $this->tickets->create([
             'customer_id' => $supportConversation->customer_id,
             'guest_name' => $supportConversation->customer_id
                 ? null
-                : ($supportConversation->user?->name ?: 'Guest'),
+                : ($supportConversation->guest_name ?: ($supportConversation->user?->name ?: 'Guest')),
             'guest_email' => $supportConversation->customer_id ? null : $supportConversation->user?->email,
-            'guest_phone' => $supportConversation->customer_id ? null : $supportConversation->user?->phone,
-            'subject' => ($data['subject'] ?? null) ?: 'Support conversation #'.$supportConversation->id,
+            'guest_phone' => $supportConversation->customer_id
+                ? null
+                : ($supportConversation->guest_phone ?: $supportConversation->user?->phone),
+            'subject' => ($data['subject'] ?? null)
+                ?: ($supportConversation->topic ?: 'Support conversation #'.$supportConversation->id),
             'category' => ($data['category'] ?? null) ?: 'general',
             'priority' => ($data['priority'] ?? null) ?: 'normal',
             'description' => ($data['body'] ?? null) ?: ($last?->body ?: 'Created from support conversation #'.$supportConversation->id),
             'source' => 'chatbot',
             'assigned_to' => $agent?->id,
             'status' => 'open',
+            'support_conversation_id' => $supportConversation->id,
+            'related_type' => $relatedType,
+            'related_id' => $relatedId,
             'actor' => $actor,
         ]);
 

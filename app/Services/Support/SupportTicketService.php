@@ -4,8 +4,10 @@ namespace App\Services\Support;
 
 use App\Models\Customer;
 use App\Models\Setting;
+use App\Models\SupportConversation;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketEvent;
+use App\Models\SupportTicketRating;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Support\SupportTaxonomy;
@@ -115,12 +117,16 @@ class SupportTicketService
                     isset($payload['ticket_number']) ? (string) $payload['ticket_number'] : null
                 ),
                 'customer_id' => $customerId,
+                'support_conversation_id' => $payload['support_conversation_id'] ?? null,
+                'related_type' => $payload['related_type'] ?? null,
+                'related_id' => $payload['related_id'] ?? null,
                 'guest_name' => $payload['guest_name'] ?? null,
                 'guest_email' => $payload['guest_email'] ?? null,
                 'guest_phone' => $payload['guest_phone'] ?? null,
                 'source' => $payload['source'] ?? 'admin',
                 'contact_kind' => $contactKind,
                 'assigned_to' => $payload['assigned_to'] ?? null,
+                'escalated_to_role' => $payload['escalated_to_role'] ?? null,
                 'subject' => $subject,
                 'description' => (string) ($payload['description'] ?? ''),
                 'priority' => $priority,
@@ -128,6 +134,7 @@ class SupportTicketService
                 'category' => $category !== '' ? $category : 'general',
                 'resolved_at' => $payload['resolved_at'] ?? null,
                 'resolution_notes' => $payload['resolution_notes'] ?? null,
+                'resolution_type' => $payload['resolution_type'] ?? null,
             ]);
 
             $actor = ($payload['actor'] ?? null) instanceof User ? $payload['actor'] : null;
@@ -280,6 +287,125 @@ class SupportTicketService
         ]);
 
         return $ticket->fresh();
+    }
+
+    public function addInternalNote(SupportTicket $ticket, string $body, ?User $actor = null): SupportTicketEvent
+    {
+        return $this->addEvent($ticket, 'internal_note', $actor, trim($body));
+    }
+
+    /**
+     * Escalate to an internal department/role. Support remains customer contact.
+     */
+    public function escalate(
+        SupportTicket $ticket,
+        string $role,
+        string $reason,
+        ?User $actor = null,
+        ?string $internalNote = null,
+        bool $notifyMember = true,
+    ): SupportTicket {
+        $ticket->update([
+            'escalated_to_role' => $role,
+            'status' => in_array($ticket->status, ['resolved', 'closed'], true) ? 'in_progress' : $ticket->status,
+            'priority' => $ticket->priority === 'low' ? 'high' : $ticket->priority,
+        ]);
+
+        $this->addEvent($ticket, 'escalated', $actor, $reason, [
+            'escalated_to_role' => $role,
+            'internal_note' => $internalNote,
+            'customer_contact_stays_with_support' => true,
+        ]);
+
+        if ($internalNote) {
+            $this->addInternalNote($ticket, $internalNote, $actor);
+        }
+
+        if ($notifyMember && $ticket->support_conversation_id) {
+            $conversation = SupportConversation::query()->find($ticket->support_conversation_id);
+            if ($conversation) {
+                $body = app(SupportQuickReplyService::class)->bodyFor('escalated', 'sw');
+                app(SupportConversationService::class)->appendMessage(
+                    $conversation,
+                    'staff',
+                    $body !== '' ? $body : 'Tumelifikisha suala lako kwa timu husika. Tutakujulisha tutakapopata mrejesho.',
+                    $actor?->id,
+                    true,
+                );
+            }
+        }
+
+        return $ticket->fresh(['assignee', 'customer', 'conversation', 'events']);
+    }
+
+    /**
+     * Resolve case, notify member via linked conversation, optionally invite CSAT.
+     *
+     * @param  array{resolution_type?: string, resolution_notes?: string, invite_rating?: bool}  $payload
+     */
+    public function resolveCase(SupportTicket $ticket, array $payload, ?User $actor = null): SupportTicket
+    {
+        if (in_array($ticket->status, ['resolved', 'closed'], true)) {
+            return $ticket;
+        }
+
+        $type = (string) ($payload['resolution_type'] ?? 'resolved');
+        $notes = isset($payload['resolution_notes']) ? trim((string) $payload['resolution_notes']) : null;
+
+        $ticket->update([
+            'status' => 'resolved',
+            'resolved_at' => now(),
+            'resolution_type' => $type,
+            'resolution_notes' => $notes,
+        ]);
+
+        $this->addEvent($ticket, 'resolved', $actor, $notes, [
+            'resolution_type' => $type,
+        ]);
+
+        if ($ticket->support_conversation_id) {
+            $conversation = SupportConversation::query()->find($ticket->support_conversation_id);
+            if ($conversation) {
+                $msg = 'Suala lako limetatuliwa'."\n"
+                    .'Tumekamilisha ombi lako '.$ticket->ticket_number.'.';
+                if ($notes) {
+                    $msg .= "\n".$notes;
+                }
+                if (($payload['invite_rating'] ?? true) === true && ! $ticket->rating) {
+                    $msg .= "\n\n".'Je, tumekusaidia? Jibu na alama 1–5 (⭐).';
+                }
+                app(SupportConversationService::class)->appendMessage(
+                    $conversation,
+                    'staff',
+                    $msg,
+                    $actor?->id,
+                    true,
+                );
+            }
+        }
+
+        return $ticket->fresh(['assignee', 'customer', 'conversation', 'events', 'rating']);
+    }
+
+    public function recordRating(SupportTicket $ticket, int $rating, ?string $comment = null): SupportTicketRating
+    {
+        if ($ticket->rating) {
+            return $ticket->rating;
+        }
+
+        $rating = max(1, min(5, $rating));
+
+        return SupportTicketRating::query()->create([
+            'support_ticket_id' => $ticket->id,
+            'rating' => $rating,
+            'comment' => $comment,
+        ]);
+    }
+
+    /** @return list<string> */
+    public function escalationRoles(): array
+    {
+        return ['credit', 'screening', 'manager', 'accounting', 'admin', 'partner_support'];
     }
 
     /** @return \Illuminate\Support\Collection<int, User> */

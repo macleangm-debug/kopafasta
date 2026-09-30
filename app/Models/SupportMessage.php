@@ -13,6 +13,7 @@ class SupportMessage extends Model
     {
         return [
             'is_automated' => 'boolean',
+            'read_at' => 'datetime',
         ];
     }
 
