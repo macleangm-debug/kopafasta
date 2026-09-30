@@ -36,6 +36,16 @@ class AdminAlertService
                 'category' => 'customers',
             ],
             [
+                'key'      => 'support_escalations_credit',
+                'label'    => 'Support escalations for Credit',
+                'count'    => \App\Models\SupportTicket::query()
+                    ->where('escalated_to_role', 'credit')
+                    ->whereNotIn('status', ['resolved', 'closed'])
+                    ->count(),
+                'url'      => route('admin.support-tickets.index', ['desk' => 'escalated']),
+                'category' => 'loans',
+            ],
+            [
                 'key'      => 'face_pending',
                 'label'    => 'Face verification pending',
                 'count'    => Customer::where('face_verification_status', 'pending')->count(),
@@ -109,6 +119,8 @@ class AdminAlertService
         return match ($user->role) {
             'partner_support' => $category === 'partners',
             'asset_manager' => in_array($category, ['marketplace', 'assets'], true),
+            'agent' => in_array($category, ['support', 'customers'], true)
+                || str_starts_with($key, 'support_'),
             'officer', 'credit_analyst' => in_array($category, ['loans', 'kyc', 'customers'], true),
             'credit_committee', 'manager' => in_array($category, ['loans', 'kyc', 'customers'], true),
             default => $category !== 'integrations' || $canManagePartners,

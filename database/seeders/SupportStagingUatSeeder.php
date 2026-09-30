@@ -170,7 +170,7 @@ class SupportStagingUatSeeder extends Seeder
         );
         $waiting->update([
             'needs_human' => true,
-            'status' => 'open',
+            'status' => 'waiting',
             'assigned_to' => null,
             'last_message_at' => now()->subMinutes(3),
         ]);

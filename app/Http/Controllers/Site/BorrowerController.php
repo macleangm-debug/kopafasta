@@ -3866,9 +3866,12 @@ class BorrowerController extends Controller
             ->latest('id')
             ->first();
 
+        $openChat = request()->boolean('chat') || ($conversation && $conversation->messages()->exists());
+
         return view('site.borrower.support', [
             'customer' => $customer,
             'supportConversation' => $conversation,
+            'openHumanChat' => $openChat,
         ]);
     }
 
@@ -3878,19 +3881,13 @@ class BorrowerController extends Controller
         $data = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
             'topic' => ['nullable', 'string', 'max:180'],
-            'context' => ['nullable', 'string', 'max:4000'],
         ]);
 
         $service = app(\App\Services\Support\SupportConversationService::class);
-        $body = trim($data['body']);
-        if (! empty($data['context'])) {
-            $body = trim($data['context'])."\n\n---\n".$body;
-        }
-
         $conversation = $service->requestHuman(
             $customer,
             $request->user(),
-            $body,
+            trim($data['body']),
             $data['topic'] ?? null,
         );
 
@@ -3898,12 +3895,13 @@ class BorrowerController extends Controller
             'conversation_id' => $conversation->id,
         ]);
 
-        $ack = 'Tumepokea ombi lako. Wakala wa usaidizi atakujibu hivi karibuni. / We have received your request. A support agent will reply shortly.';
+        $ack = $service->waitingAcknowledgement();
 
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'ok' => true,
                 'conversation_id' => $conversation->id,
+                'status' => $conversation->status,
                 'ack' => $ack,
                 'messages' => $conversation->messages()->orderBy('id')->get()->map(fn ($m) => [
                     'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
@@ -3915,7 +3913,7 @@ class BorrowerController extends Controller
         }
 
         return redirect()
-            ->route('site.borrower.support')
+            ->route('site.borrower.support', ['chat' => 1])
             ->with('status', $ack);
     }
 

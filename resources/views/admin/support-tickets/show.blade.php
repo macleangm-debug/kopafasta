@@ -261,6 +261,34 @@
                 </div>
             @endif
 
+            @if ($record->escalated_to_role && ! in_array($record->status, ['resolved', 'closed'], true))
+                <div class="rounded-2xl bg-white ring-1 ring-rose-200 shadow-sm p-5 space-y-3">
+                    <p class="text-[10px] uppercase tracking-widest text-rose-700 font-semibold">Specialist response</p>
+                    <p class="text-xs text-gray-600">For {{ ucfirst(str_replace('_', ' ', $record->escalated_to_role)) }}. Internal only — Support will tell the member.</p>
+                    <form method="POST" action="{{ route('admin.support-tickets.specialist-response', $record) }}" class="space-y-2">
+                        @csrf
+                        <textarea name="body" rows="3" required maxlength="5000" class="w-full rounded-xl border-gray-200 text-sm"
+                                  placeholder="e.g. Guarantor verification failed because ID image is unreadable. Ask member to resubmit."></textarea>
+                        <button class="w-full rounded-xl bg-rose-700 text-white text-sm font-semibold px-4 py-2.5">Send internal response</button>
+                    </form>
+                </div>
+            @endif
+
+            @php
+                $specialistEvents = $events->where('event', 'specialist_response');
+            @endphp
+            @if ($specialistEvents->isNotEmpty())
+                <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 shadow-sm p-5 space-y-2">
+                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Awaiting Support follow-up</p>
+                    @foreach ($specialistEvents as $ev)
+                        <div class="text-sm">
+                            <p class="text-gray-800 whitespace-pre-wrap">{{ $ev->body }}</p>
+                            <p class="text-[10px] text-gray-500 mt-1">{{ $ev->actor?->name }} · {{ $ev->created_at?->format('d M H:i') }} · not sent to member</p>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
             @if ($isGuest && ! $record->customer_id)
                 <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5">
                     <h2 class="text-sm font-semibold text-brand">Link to member</h2>

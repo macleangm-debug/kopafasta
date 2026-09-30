@@ -201,6 +201,21 @@ class SupportTicketController extends ResourceController
         return back()->with('status', 'Case resolved. Member notified via conversation.');
     }
 
+    public function specialistResponse(Request $request, SupportTicket $support_ticket)
+    {
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $this->tickets->addSpecialistResponse(
+            $support_ticket,
+            $data['body'],
+            $request->user('admin'),
+        );
+
+        return back()->with('status', 'Internal specialist response recorded. Support will communicate with the member.');
+    }
+
     public function replyConversation(Request $request, SupportTicket $support_ticket)
     {
         $data = $request->validate([

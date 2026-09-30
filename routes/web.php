@@ -1195,6 +1195,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
                 ->name('support-tickets.escalate');
             Route::post('support-tickets/{support_ticket}/resolve', [SupportTicketController::class, 'resolve'])
                 ->name('support-tickets.resolve');
+            Route::post('support-tickets/{support_ticket}/specialist-response', [SupportTicketController::class, 'specialistResponse'])
+                ->name('support-tickets.specialist-response');
             Route::post('support-tickets/{support_ticket}/reply', [SupportTicketController::class, 'replyConversation'])
                 ->name('support-tickets.reply');
             Route::get('broken-pages', [BrokenPageController::class, 'index'])->name('broken-pages.index');
@@ -1215,7 +1217,11 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             Route::get('inbox/{supportConversation}', [SupportWorkspaceController::class, 'showConversation'])->name('inbox.show');
             Route::post('inbox/{supportConversation}/reply', [SupportWorkspaceController::class, 'reply'])->name('inbox.reply');
             Route::post('inbox/{supportConversation}/accept', [SupportWorkspaceController::class, 'accept'])->name('inbox.accept');
+            Route::post('inbox/{supportConversation}/resolve', [SupportWorkspaceController::class, 'resolveConversation'])->name('inbox.resolve');
             Route::post('inbox/{supportConversation}/create-case', [SupportWorkspaceController::class, 'createCase'])->name('inbox.create-case');
+            Route::get('interactions/new', [SupportWorkspaceController::class, 'newInteraction'])->name('interactions.new');
+            Route::get('interactions/search', [SupportWorkspaceController::class, 'searchCustomers'])->name('interactions.search');
+            Route::post('interactions', [SupportWorkspaceController::class, 'storeInteraction'])->name('interactions.store');
             Route::get('cases', [SupportWorkspaceController::class, 'cases'])->name('cases');
             Route::get('members', [SupportWorkspaceController::class, 'members'])->name('members');
             Route::get('notifications', [SupportWorkspaceController::class, 'notifications'])->name('notifications');

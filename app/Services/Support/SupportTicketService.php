@@ -34,6 +34,7 @@ class SupportTicketService
         'reassigned',
         'status_changed',
         'escalated',
+        'specialist_response',
         'resolved',
         'reopened',
     ];
@@ -324,18 +325,46 @@ class SupportTicketService
         if ($notifyMember && $ticket->support_conversation_id) {
             $conversation = SupportConversation::query()->find($ticket->support_conversation_id);
             if ($conversation) {
-                $body = app(SupportQuickReplyService::class)->bodyFor('escalated', 'sw');
+                $body = app(SupportQuickReplyService::class)->compose('escalated', 'sw');
                 app(SupportConversationService::class)->appendMessage(
                     $conversation,
                     'staff',
-                    $body !== '' ? $body : 'Tumelifikisha suala lako kwa timu husika. Tutakujulisha tutakapopata mrejesho.',
+                    $body,
                     $actor?->id,
                     true,
+                    false,
                 );
             }
         }
 
         return $ticket->fresh(['assignee', 'customer', 'conversation', 'events']);
+    }
+
+    /**
+     * Specialist (Credit etc.) internal response — never auto-sent to the member.
+     * Support remains customer-facing and is flagged to follow up.
+     */
+    public function addSpecialistResponse(
+        SupportTicket $ticket,
+        string $body,
+        ?User $actor = null,
+    ): SupportTicketEvent {
+        return $this->addEvent($ticket, 'specialist_response', $actor, trim($body), [
+            'visible_to_customer' => false,
+            'notify_support' => true,
+            'awaiting_support_follow_up' => true,
+            'escalated_to_role' => $ticket->escalated_to_role,
+        ]);
+    }
+
+    /** Cases escalated to a role that Credit (etc.) can later consume as a queue. */
+    public function escalationsForRole(string $role)
+    {
+        return SupportTicket::query()
+            ->with(['customer', 'assignee'])
+            ->where('escalated_to_role', $role)
+            ->whereNotIn('status', ['resolved', 'closed'])
+            ->latest('updated_at');
     }
 
     /**

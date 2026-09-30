@@ -382,14 +382,18 @@ class CustomerSupportWorkspaceService
     /** @return array<string, mixed> */
     public function serializeConversation(SupportConversation $conversation): array
     {
-        $last = $conversation->relationLoaded('messages')
-            ? $conversation->messages->first()
-            : $conversation->messages()->latest('id')->first();
+        // Prefer last member/guest message for list preview so system acks don't hide "Habari".
+        $lastCustomer = $conversation->messages()
+            ->whereIn('sender_type', ['customer', 'guest'])
+            ->latest('id')
+            ->first();
+        $last = $lastCustomer
+            ?: $conversation->messages()->latest('id')->first();
 
         $isMember = (bool) $conversation->customer_id;
         $name = $isMember
             ? trim(($conversation->customer?->first_name.' '.$conversation->customer?->last_name) ?: '')
-            : (string) ($conversation->user?->name ?: '');
+            : (string) ($conversation->guest_name ?: ($conversation->user?->name ?: ''));
 
         if ($name === '') {
             $name = $isMember ? 'Member' : 'Guest / Non-member';
@@ -401,18 +405,25 @@ class CustomerSupportWorkspaceService
             ->whereIn('sender_type', ['customer', 'guest'])
             ->count();
 
+        $preview = preg_replace('/\s+/', ' ', (string) ($last?->body ?? '')) ?? '';
+        $desk = app(SupportConversationService::class)->deskState($conversation);
+
         return [
             'id' => $conversation->id,
-            'name' => $name ?: ($conversation->guest_name ?: ($isMember ? 'Member' : 'Guest / Non-member')),
+            'name' => $name,
             'is_member' => $isMember,
             'guest_label' => $isMember ? null : 'Guest / Non-member',
             'topic' => $conversation->topic,
-            'preview' => \Illuminate\Support\Str::limit((string) ($last?->body ?? ''), 80),
+            'channel' => $conversation->channel,
+            'preview' => \Illuminate\Support\Str::limit($preview, 72),
             'status' => (string) $conversation->status,
+            'desk_state' => $desk,
             'needs_human' => (bool) $conversation->needs_human,
             'unread' => $unread,
             'assigned_to' => $conversation->assigned_to,
-            'waiting_label' => $waitingSince ? $waitingSince->diffForHumans(null, true).' waiting' : null,
+            'waiting_label' => ($desk === 'Waiting' && $waitingSince)
+                ? $waitingSince->diffForHumans(null, true).' waiting'
+                : null,
             'url' => route('admin.support.inbox.show', $conversation),
             'member_url' => $conversation->customer_id
                 ? route('admin.customers.show', $conversation->customer_id)
