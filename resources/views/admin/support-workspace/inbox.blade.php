@@ -12,7 +12,10 @@
     $queueKpis = $queueKpis ?? ['waiting_now' => 0, 'longest_waiting_seconds' => 0, 'accepted_today' => 0, 'active_now' => 0];
     $assignableAgents = $assignableAgents ?? [];
     $canPickAgent = $canPickAgent ?? false;
-    $isWaitingDesk = $conversation && ! $conversation->assigned_to;
+    $ticketTaxonomy = $ticketTaxonomy ?? \App\Support\SupportTaxonomy::all();
+    $similarSearchUrl = $similarSearchUrl ?? route('admin.support-tickets.similar');
+    $isWaitingDesk = $conversation && ! $conversation->assigned_to
+        && ! in_array($conversation->status, ['closed', 'resolved'], true);
     $seedMessages = [];
     if ($conversation) {
         foreach ($conversation->messages as $message) {
@@ -155,12 +158,59 @@
                             @if ($isWaitingDesk)
                                 <div class="flex flex-wrap items-center gap-2">
                                     @if ($canPickAgent)
-                                        <select x-model="selectedAgentId" class="rounded-lg border-slate-200 text-xs max-w-[14rem]">
-                                            <option value="">Assign to…</option>
-                                            @foreach ($assignableAgents as $opt)
-                                                <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="relative" @keydown.escape.window="agentMenuOpen = false">
+                                            <button type="button" @click="agentMenuOpen = !agentMenuOpen"
+                                                    class="inline-flex items-center gap-2 min-w-[12rem] max-w-[16rem] rounded-xl bg-white ring-1 ring-slate-200 px-3 py-1.5 text-left hover:ring-brand/30">
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="block text-xs font-bold text-slate-900 truncate"
+                                                          x-text="selectedAgentLabel() || 'Assign to…'"></span>
+                                                    <span class="block text-[10px] text-slate-500"
+                                                          x-show="selectedAgentId"
+                                                          x-text="selectedAgentActiveLabel()"></span>
+                                                </span>
+                                                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
+                                            </button>
+                                            {{-- Desktop popover --}}
+                                            <div x-show="agentMenuOpen" x-cloak @click.outside="agentMenuOpen = false"
+                                                 class="hidden md:block absolute right-0 mt-2 w-64 rounded-2xl bg-white ring-1 ring-slate-200 shadow-lg overflow-hidden z-30 max-h-64 overflow-y-auto">
+                                                <template x-for="a in agents" :key="'d-'+a.id">
+                                                    <button type="button"
+                                                            @click="selectedAgentId = String(a.id); agentMenuOpen = false; error = ''"
+                                                            class="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left transition"
+                                                            :class="String(selectedAgentId) === String(a.id) ? 'bg-brand/5' : 'hover:bg-slate-50'">
+                                                        <span class="min-w-0">
+                                                            <span class="block text-sm font-semibold text-slate-900 truncate" x-text="a.name"></span>
+                                                            <span class="block text-[11px] text-slate-500" x-text="(a.active_count || 0) + ' active'"></span>
+                                                        </span>
+                                                        <svg x-show="String(selectedAgentId) === String(a.id)" class="w-4 h-4 text-brand shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                            {{-- Mobile bottom sheet --}}
+                                            <div x-show="agentMenuOpen" x-cloak class="md:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
+                                                <div class="absolute inset-0 bg-black/40" @click="agentMenuOpen = false"></div>
+                                                <div class="absolute inset-x-0 bottom-0 rounded-t-3xl bg-white shadow-2xl max-h-[70vh] overflow-y-auto pb-safe">
+                                                    <div class="sticky top-0 bg-white px-4 pt-3 pb-2 border-b border-slate-100">
+                                                        <div class="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200"></div>
+                                                        <p class="text-sm font-bold text-slate-900">Assign to…</p>
+                                                    </div>
+                                                    <div class="p-2">
+                                                        <template x-for="a in agents" :key="'m-'+a.id">
+                                                            <button type="button"
+                                                                    @click="selectedAgentId = String(a.id); agentMenuOpen = false; error = ''"
+                                                                    class="w-full flex items-center justify-between gap-3 px-3.5 py-3.5 text-left rounded-xl transition"
+                                                                    :class="String(selectedAgentId) === String(a.id) ? 'bg-brand/5' : 'hover:bg-slate-50'">
+                                                                <span class="min-w-0">
+                                                                    <span class="block text-base font-semibold text-slate-900 truncate" x-text="a.name"></span>
+                                                                    <span class="block text-xs text-slate-500 mt-0.5" x-text="(a.active_count || 0) + ' active'"></span>
+                                                                </span>
+                                                                <svg x-show="String(selectedAgentId) === String(a.id)" class="w-5 h-5 text-brand shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+                                                            </button>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     @endif
                                     <button type="button" @click="acceptConversation()" :disabled="sending"
                                             class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95 disabled:opacity-60">Accept</button>
@@ -171,8 +221,8 @@
                                             class="rounded-lg ring-1 ring-emerald-200 text-emerald-800 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-50">Resolve</button>
                                     <div x-show="resolveOpen" x-cloak @click.outside="resolveOpen = false"
                                          class="absolute right-0 top-full mt-2 z-20 w-72 rounded-xl bg-white ring-1 ring-emerald-200 shadow-lg p-3 space-y-2">
-                                        <form method="POST" action="{{ route('admin.support.inbox.resolve', $conversation) }}"
-                                              onsubmit="event.preventDefault(); confirmForm(this, { title: 'Resolve conversation?', message: 'Member receives a resolution message and rating request. Next Talk to Support starts a new thread.' })">
+                                        <p class="text-[11px] text-emerald-900/80">Closes this conversation. Member gets a short resolution message and can rate with stars. Next Talk to Support starts a new thread.</p>
+                                        <form method="POST" action="{{ route('admin.support.inbox.resolve', $conversation) }}">
                                             @csrf
                                             <label class="block text-[11px] font-semibold text-gray-700">Resolution category
                                                 <select name="resolution_category" required class="mt-1 w-full rounded-lg border-gray-200 text-xs">
@@ -188,30 +238,47 @@
                                                 <textarea name="note" rows="2" maxlength="2000" class="mt-1 w-full rounded-lg border-gray-200 text-xs"></textarea>
                                             </label>
                                             <input type="hidden" name="ask_rating" value="1">
-                                            <button class="mt-2 w-full rounded-lg bg-emerald-700 text-white text-xs font-semibold px-3 py-2">Confirm resolve</button>
+                                            <button type="submit" class="mt-2 w-full rounded-lg bg-emerald-700 text-white text-xs font-semibold px-3 py-2">Confirm resolve</button>
                                         </form>
                                     </div>
                                 </div>
-                                <div x-data="{ caseOpen: false }" class="relative">
+                                <div x-data="inboxCreateTicket({
+                                         subjectsByCategory: @js($ticketTaxonomy['subjects'] ?? []),
+                                         defaultPriorities: @js($ticketTaxonomy['default_priority'] ?? []),
+                                         similarSearchUrl: @js($similarSearchUrl),
+                                         topic: @js($conversation->topic),
+                                     })" class="relative">
                                     <button type="button" @click="caseOpen = !caseOpen"
                                             class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95">Create ticket</button>
                                     <div x-show="caseOpen" x-cloak @click.outside="caseOpen = false"
                                          class="absolute right-0 top-full mt-2 z-20 w-80 rounded-xl bg-white ring-1 ring-brand/20 shadow-lg p-3 space-y-2">
+                                        <p class="text-[11px] text-slate-600">Use a ticket only when investigation or another department must own follow-up.</p>
                                         <form method="POST" action="{{ route('admin.support.inbox.create-case', $conversation) }}" class="space-y-2"
-                                              onsubmit="event.preventDefault(); confirmForm(this, { title: 'Create follow-up ticket?', message: 'Use a ticket only when investigation or another department must own follow-up. Ordinary answers stay as conversation only.' })">
+                                              @submit="if (similarTickets.length && !createAnyway) { $event.preventDefault(); }">
                                             @csrf
-                                            <label class="block text-[11px] font-semibold text-gray-700">Subject
-                                                <input type="text" name="subject" value="{{ $conversation->topic }}" maxlength="180" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
-                                            </label>
                                             <label class="block text-[11px] font-semibold text-gray-700">Category
-                                                <select name="category" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
-                                                    <option value="general">General</option>
-                                                    <option value="complaint">Complaint</option>
-                                                    <option value="technical">Technical</option>
-                                                    <option value="payment">Payment</option>
-                                                    <option value="loan">Loan</option>
-                                                    <option value="partner">Partner</option>
+                                                <select name="category" x-model="category" @change="onCategoryChange()" required
+                                                        class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                    <option value="">— Select —</option>
+                                                    @foreach (($ticketTaxonomy['categories'] ?? []) as $key => $label)
+                                                        <option value="{{ $key }}">{{ $label }}</option>
+                                                    @endforeach
                                                 </select>
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700" x-show="category === 'other'" x-cloak>Custom category
+                                                <input type="text" name="category_other" x-model="categoryOther" maxlength="120" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700">Subject
+                                                <select name="subject" x-model="subject" @change="onSubjectChange(); checkSimilar()" required
+                                                        class="mt-1 w-full rounded-lg border-gray-200 text-xs" :disabled="!category">
+                                                    <option value="">— Select —</option>
+                                                    <template x-for="item in subjectOptions" :key="item">
+                                                        <option :value="item" x-text="item"></option>
+                                                    </template>
+                                                </select>
+                                            </label>
+                                            <label class="block text-[11px] font-semibold text-gray-700" x-show="subject === 'Other'" x-cloak>Custom subject
+                                                <input type="text" name="subject_other" x-model="subjectOther" maxlength="180" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
                                             </label>
                                             <label class="block text-[11px] font-semibold text-gray-700">Related record
                                                 <select name="related_type" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
@@ -226,7 +293,7 @@
                                                 <input type="number" name="related_id" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
                                             </label>
                                             <label class="block text-[11px] font-semibold text-gray-700">Priority
-                                                <select name="priority" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
+                                                <select name="priority" x-model="priority" class="mt-1 w-full rounded-lg border-gray-200 text-xs">
                                                     <option value="normal">Normal</option>
                                                     <option value="low">Low</option>
                                                     <option value="high">High</option>
@@ -236,7 +303,19 @@
                                             <label class="block text-[11px] font-semibold text-gray-700">Summary
                                                 <textarea name="body" rows="3" maxlength="5000" class="mt-1 w-full rounded-lg border-gray-200 text-xs"></textarea>
                                             </label>
-                                            <button class="w-full rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2">Create ticket</button>
+                                            <div x-show="similarTickets.length > 0" x-cloak class="rounded-lg bg-amber-50 ring-1 ring-amber-200 px-2.5 py-2 text-[11px] text-amber-950 space-y-1">
+                                                <p class="font-semibold">Similar tickets</p>
+                                                <template x-for="row in similarTickets" :key="row.ticket_number">
+                                                    <p><span class="font-mono font-semibold" x-text="row.ticket_number"></span>
+                                                        <span x-text="' · ' + (row.subject || '')"></span></p>
+                                                </template>
+                                                <label class="flex items-center gap-2 pt-1">
+                                                    <input type="checkbox" name="create_anyway" value="1" x-model="createAnyway" class="rounded border-amber-300">
+                                                    <span>Create anyway</span>
+                                                </label>
+                                            </div>
+                                            <button type="submit" class="w-full rounded-lg bg-brand text-white text-xs font-semibold px-3 py-2"
+                                                    :disabled="similarTickets.length > 0 && !createAnyway">Create ticket</button>
                                         </form>
                                     </div>
                                 </div>
@@ -390,8 +469,23 @@
                         canPickAgent: !!config.canPickAgent,
                         agents: Array.isArray(config.agents) ? config.agents : [],
                         selectedAgentId: config.selectedAgentId || '',
+                        agentMenuOpen: false,
                         unreadBadge: 0,
                         _timer: null,
+                        selectedAgent() {
+                            var id = String(this.selectedAgentId || '');
+                            if (!id) return null;
+                            return this.agents.find(function (a) { return String(a.id) === id; }) || null;
+                        },
+                        selectedAgentLabel() {
+                            var a = this.selectedAgent();
+                            return a ? (a.name || '') : '';
+                        },
+                        selectedAgentActiveLabel() {
+                            var a = this.selectedAgent();
+                            if (!a) return '';
+                            return (a.active_count || 0) + ' active';
+                        },
                         csrfToken() {
                             var meta = document.querySelector('meta[name="csrf-token"]');
                             if (meta && meta.content) return meta.content;

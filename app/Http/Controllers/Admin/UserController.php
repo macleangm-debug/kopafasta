@@ -169,6 +169,9 @@ class UserController extends ResourceController
             'record'   => $record,
             'isLocked' => $this->accounts->isLocked($record),
             'approvalAuthority' => $approvalAuthority,
+            'supportPerformance' => ($record->hasRole('agent') || $record->hasRole('partner_support'))
+                ? app(\App\Services\Support\CustomerSupportWorkspaceService::class)->performanceSnapshot($record->id, '30d')
+                : null,
         ]);
     }
 

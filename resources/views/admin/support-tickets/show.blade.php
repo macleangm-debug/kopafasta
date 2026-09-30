@@ -123,8 +123,9 @@
                             </form>
                         </div>
                         <div x-show="action === 'resolve'" class="mt-3 rounded-xl bg-emerald-50/50 p-4 space-y-3">
-                            <form method="POST" action="{{ route('admin.support-tickets.resolve', $record) }}" class="space-y-3"
-                                  onsubmit="event.preventDefault(); confirmForm(this, { title: 'Resolve this ticket?', message: 'The member receives a resolution message and rating request through the linked conversation.' })">
+                            {{-- Resolve panel IS confirmation — nested confirmForm can no-op when Alpine tears down the form. --}}
+                            <p class="text-xs text-emerald-900/80">Resolves this ticket and closes the linked conversation. Member receives a resolution message and can rate with stars.</p>
+                            <form method="POST" action="{{ route('admin.support-tickets.resolve', $record) }}" class="space-y-3">
                                 @csrf
                                 <label class="block text-xs font-semibold text-gray-700">Resolution type
                                     <select name="resolution_type" required class="mt-1 w-full rounded-xl border-gray-200 text-sm">

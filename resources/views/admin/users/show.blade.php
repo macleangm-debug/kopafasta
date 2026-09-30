@@ -87,4 +87,56 @@
 </div>
 @endperm
 
+@if (! empty($supportPerformance))
+@php
+    $sp = $supportPerformance;
+    $fmtMin = function (?int $m): string {
+        if ($m === null) {
+            return '—';
+        }
+        if ($m < 60) {
+            return $m.'m';
+        }
+
+        return intdiv($m, 60).'h '.($m % 60).'m';
+    };
+@endphp
+<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+    <div class="flex items-start justify-between gap-3 mb-4">
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Support performance</p>
+            <h3 class="text-sm font-semibold text-gray-900 mt-0.5">Last 30 days · same metrics as Support Reports</h3>
+        </div>
+        <a href="{{ route('admin.support.performance', ['range' => '30d']) }}" class="text-xs font-semibold text-brand hover:underline">Open charts →</a>
+    </div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        @foreach ([
+            ['Resolved', $sp['resolved'] ?? 0],
+            ['Avg first response', $fmtMin($sp['avg_first_response_minutes'] ?? null)],
+            ['SLA met', isset($sp['sla_met']) ? $sp['sla_met'].'%' : '—'],
+            ['Avg rating', $sp['customer_rating'] ?? '—'],
+            ['Open backlog', $sp['open_backlog'] ?? 0],
+        ] as [$label, $value])
+            <div class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-3 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $label }}</p>
+                <p class="text-xl font-bold text-gray-900 mt-1 tabular-nums">{{ $value }}</p>
+            </div>
+        @endforeach
+    </div>
+    @if (! empty($sp['top_issues']))
+        <div class="mt-4">
+            <p class="text-xs font-semibold text-gray-700 mb-2">Top Issues</p>
+            <ul class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-100 overflow-hidden">
+                @foreach ($sp['top_issues'] as $row)
+                    <li class="px-3 py-2 flex justify-between text-sm bg-white">
+                        <span>{{ str_replace('_', ' ', ucfirst($row['issue'])) }}</span>
+                        <span class="font-semibold tabular-nums text-brand">{{ $row['count'] }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+</div>
+@endif
+
 </x-admin.show-page>

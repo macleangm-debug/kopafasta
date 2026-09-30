@@ -114,6 +114,8 @@ class SupportWorkspaceController extends Controller
             'serialized' => null,
             'context' => null,
             'specialistFollowUps' => $specialistFollowUps,
+            'ticketTaxonomy' => \App\Support\SupportTaxonomy::all(),
+            'similarSearchUrl' => route('admin.support-tickets.similar'),
             'supportShell' => true,
         ]);
     }
@@ -205,6 +207,8 @@ class SupportWorkspaceController extends Controller
             'serialized' => $this->workspace->serializeConversation($supportConversation),
             'context' => $this->context->forConversation($supportConversation),
             'specialistFollowUps' => 0,
+            'ticketTaxonomy' => \App\Support\SupportTaxonomy::all(),
+            'similarSearchUrl' => route('admin.support-tickets.similar'),
             'supportShell' => true,
         ]);
     }
@@ -227,15 +231,28 @@ class SupportWorkspaceController extends Controller
     public function performance(Request $request): View
     {
         $range = (string) $request->query('range', 'today');
-        if (! in_array($range, ['today', '7d', '30d'], true)) {
+        if (! in_array($range, ['today', '7d', '30d', 'custom'], true)) {
             $range = 'today';
         }
 
-        $agent = $this->workspace->actingAgent();
-        $performance = $this->workspace->performanceSnapshot($agent?->id, $range);
+        $fromDate = $request->query('from');
+        $toDate = $request->query('to');
+        if ($range === 'custom' && ! filled($fromDate)) {
+            $range = 'today';
+        }
+
+        $teamView = $this->workspace->isTeamView();
+        $agent = $teamView ? null : $this->workspace->actingAgent();
+        $performance = $this->workspace->performanceSnapshot(
+            $teamView ? null : $agent?->id,
+            $range,
+            filled($fromDate) ? (string) $fromDate : null,
+            filled($toDate) ? (string) $toDate : null,
+        );
 
         return view('admin.support-workspace.performance', [
             'agent' => $agent,
+            'teamView' => $teamView,
             'performance' => $performance,
             'supportShell' => true,
         ]);
@@ -417,8 +434,8 @@ class SupportWorkspaceController extends Controller
         }
 
         return redirect()
-            ->route('admin.support.inbox')
-            ->with('status', 'Conversation resolved and moved to History. Member can start a fresh thread next time.');
+            ->route('admin.support.inbox', ['filter' => 'waiting'])
+            ->with('status', 'Conversation closed. Member can rate and start a fresh thread next time.');
     }
 
     public function newInteraction(Request $request): View
@@ -656,13 +673,19 @@ class SupportWorkspaceController extends Controller
 
     public function createCase(Request $request, SupportConversation $supportConversation): RedirectResponse
     {
+        $taxonomy = \App\Support\SupportTaxonomy::all();
+        $categoryKeys = array_keys($taxonomy['categories'] ?? []);
+
         $data = $request->validate([
             'subject' => ['nullable', 'string', 'max:180'],
-            'category' => ['nullable', 'string', 'max:64'],
+            'subject_other' => ['nullable', 'string', 'max:180'],
+            'category' => ['nullable', 'string', 'max:64', Rule::in([...$categoryKeys, 'other'])],
+            'category_other' => ['nullable', 'string', 'max:120'],
             'priority' => ['nullable', 'in:low,normal,high,urgent'],
             'body' => ['nullable', 'string', 'max:5000'],
             'related_type' => ['nullable', 'in:application,loan,payment,account'],
             'related_id' => ['nullable', 'integer'],
+            'create_anyway' => ['nullable', 'boolean'],
         ]);
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
@@ -685,6 +708,20 @@ class SupportWorkspaceController extends Controller
             ->first()
             ?: $supportConversation->messages()->latest('id')->first();
 
+        $category = \App\Support\SupportTaxonomy::resolveCategory(
+            $data['category'] ?? null,
+            $data['category_other'] ?? null,
+        );
+        $subject = \App\Support\SupportTaxonomy::resolveSubject(
+            $data['subject'] ?? null,
+            $data['subject_other'] ?? null,
+        );
+        if ($subject === 'General follow-up' && filled($supportConversation->topic)) {
+            $subject = (string) $supportConversation->topic;
+        }
+        $priority = $data['priority']
+            ?? \App\Support\SupportTaxonomy::defaultPriorityFor($category);
+
         $ticket = $this->tickets->create([
             'customer_id' => $supportConversation->customer_id,
             'guest_name' => $supportConversation->customer_id
@@ -694,10 +731,9 @@ class SupportWorkspaceController extends Controller
             'guest_phone' => $supportConversation->customer_id
                 ? null
                 : ($supportConversation->guest_phone ?: $supportConversation->user?->phone),
-            'subject' => ($data['subject'] ?? null)
-                ?: ($supportConversation->topic ?: 'Support conversation #'.$supportConversation->id),
-            'category' => ($data['category'] ?? null) ?: 'general',
-            'priority' => ($data['priority'] ?? null) ?: 'normal',
+            'subject' => $subject,
+            'category' => $category,
+            'priority' => $priority,
             'description' => ($data['body'] ?? null) ?: ($last?->body ?: 'Created from support conversation #'.$supportConversation->id),
             'source' => 'chatbot',
             'assigned_to' => $agent?->id,

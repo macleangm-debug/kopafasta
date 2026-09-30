@@ -113,6 +113,15 @@ class SupportTicketService
                 }
             }
 
+            // Snapshot Issue SLA at create — later Settings edits never rewrite these.
+            $targetMinutes = isset($payload['sla_target_minutes'])
+                ? max(15, (int) $payload['sla_target_minutes'])
+                : SupportTaxonomy::targetMinutesFor($category);
+            $approachingPct = isset($payload['sla_approaching_pct'])
+                ? max(50, min(95, (int) $payload['sla_approaching_pct']))
+                : SupportTaxonomy::approachingPercentFor($category);
+            $slaDueAt = $payload['sla_due_at'] ?? now()->addMinutes($targetMinutes);
+
             $ticket = SupportTicket::create([
                 'ticket_number' => $this->nextTicketNumber(
                     isset($payload['ticket_number']) ? (string) $payload['ticket_number'] : null
@@ -137,7 +146,9 @@ class SupportTicketService
                 'resolved_at' => $payload['resolved_at'] ?? null,
                 'resolution_notes' => $payload['resolution_notes'] ?? null,
                 'resolution_type' => $payload['resolution_type'] ?? null,
-                'sla_due_at' => $payload['sla_due_at'] ?? $this->slaDueAtForPriority($priority),
+                'sla_due_at' => $slaDueAt,
+                'sla_target_minutes' => $targetMinutes,
+                'sla_approaching_pct' => $approachingPct,
             ]);
 
             $actor = ($payload['actor'] ?? null) instanceof User ? $payload['actor'] : null;
@@ -146,6 +157,12 @@ class SupportTicketService
                 'source' => $ticket->source,
                 'contact_kind' => $ticket->contact_kind,
                 'category' => $ticket->category,
+                'sla_snapshot' => [
+                    'priority' => $priority,
+                    'target_minutes' => $targetMinutes,
+                    'approaching_pct' => $approachingPct,
+                    'due_at' => $ticket->sla_due_at?->toIso8601String(),
+                ],
             ]);
 
             if (empty($payload['assigned_to'])) {
@@ -262,10 +279,15 @@ class SupportTicketService
 
         $updates = ['status' => $status];
         if (in_array($status, ['resolved', 'closed'], true) && empty($ticket->resolved_at)) {
-            $updates['resolved_at'] = now();
+            $now = now();
+            $updates['resolved_at'] = $now;
+            if ($ticket->time_to_resolve_minutes === null && $ticket->created_at) {
+                $updates['time_to_resolve_minutes'] = max(0, (int) $ticket->created_at->diffInMinutes($now));
+            }
         }
         if ($status === 'open' && in_array($from, ['resolved', 'closed'], true)) {
             $updates['resolved_at'] = null;
+            $updates['time_to_resolve_minutes'] = null;
         }
         if (array_key_exists('resolution_notes', $extra ?? [])) {
             $updates['resolution_notes'] = $extra['resolution_notes'];
@@ -383,36 +405,40 @@ class SupportTicketService
 
         $type = (string) ($payload['resolution_type'] ?? 'resolved');
         $notes = isset($payload['resolution_notes']) ? trim((string) $payload['resolution_notes']) : null;
+        $now = now();
+        $timeToResolve = $ticket->created_at
+            ? max(0, (int) $ticket->created_at->diffInMinutes($now))
+            : null;
 
         $ticket->update([
             'status' => 'resolved',
-            'resolved_at' => now(),
+            'resolved_at' => $now,
             'resolution_type' => $type,
             'resolution_notes' => $notes,
+            'time_to_resolve_minutes' => $timeToResolve,
         ]);
 
         $this->addEvent($ticket, 'resolved', $actor, $notes, [
             'resolution_type' => $type,
+            'time_to_resolve_minutes' => $timeToResolve,
+            'sla_met' => $ticket->sla_due_at ? $now->lte($ticket->sla_due_at) : null,
         ]);
 
         if ($ticket->support_conversation_id) {
             $conversation = SupportConversation::query()->find($ticket->support_conversation_id);
-            if ($conversation) {
-                $msg = 'Suala lako limetatuliwa'."\n"
-                    .'Tumekamilisha ombi lako '.$ticket->ticket_number.'.';
-                if ($notes) {
-                    $msg .= "\n".$notes;
-                }
-                if (($payload['invite_rating'] ?? true) === true && ! $ticket->rating) {
-                    $msg .= "\n\n".'Je, tumekusaidia? Jibu na alama 1–5 (⭐).';
-                }
-                app(SupportConversationService::class)->appendMessage(
+            if ($conversation && ! in_array($conversation->status, ['resolved', 'closed'], true)) {
+                app(SupportConversationService::class)->resolve(
                     $conversation,
-                    'staff',
-                    $msg,
-                    $actor?->id,
-                    true,
+                    $actor,
+                    $notes,
+                    $type,
+                    ($payload['invite_rating'] ?? true) === true,
                 );
+            } elseif ($conversation && ($payload['invite_rating'] ?? true) === true && ! $conversation->rating_requested_at) {
+                $conversation->update(['rating_requested_at' => now()]);
+                if ($conversation->customer_id) {
+                    app(SupportConversationService::class)->notifyRatingRequest($conversation->fresh());
+                }
             }
         }
 
@@ -505,8 +531,14 @@ class SupportTicketService
         }
 
         $remaining = $now->diffInMinutes($due);
-        $total = max(1, $ticket->created_at?->diffInMinutes($due) ?: 480);
-        $warningPct = (float) Setting::get('support.sla.warning_percent', 80);
+        $total = max(
+            1,
+            (int) ($ticket->sla_target_minutes
+                ?: $ticket->created_at?->diffInMinutes($due)
+                ?: 480)
+        );
+        $warningPct = (float) ($ticket->sla_approaching_pct
+            ?: Setting::get('support.sla.warning_percent', 80));
         if (($remaining / $total) * 100 <= (100 - $warningPct) || $remaining <= 60) {
             return [
                 'label' => 'Warning · Due in '.$now->diff($due)->format('%H:%I'),

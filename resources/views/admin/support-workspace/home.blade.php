@@ -9,6 +9,7 @@
     $staffOptions = $dashboard['staff_options'] ?? [];
     $selectedStaffId = $dashboard['selected_staff_id'] ?? null;
     $agentsOnline = (int) ($dashboard['agents_online'] ?? 0);
+    $recurringIssues = $dashboard['recurring_issues'] ?? [];
     $dot = match ($availability) {
         'online' => 'bg-emerald-400',
         'away' => 'bg-amber-400',
@@ -27,20 +28,50 @@
     >
         <x-slot:meta>{{ $heroSubtitle }}</x-slot:meta>
         <x-slot:actions>
-            <form method="POST" action="{{ route('admin.role-view.select-staff') }}" class="inline-flex items-center gap-2">
-                @csrf
-                <label class="sr-only">{{ __('admin.role_view.staff_filter') }}</label>
-                <select name="staff_id"
-                        onchange="this.form.submit()"
-                        class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold px-3 py-2 focus:ring-2 focus:ring-white/40 min-w-[10rem]">
-                    <option value="0" @selected($teamView) class="text-gray-900">{{ __('admin.role_view.staff_all') }}</option>
-                    @foreach ($staffOptions as $person)
-                        <option value="{{ $person['id'] }}" @selected((int) $selectedStaffId === (int) $person['id']) class="text-gray-900">
-                            {{ $person['name'] }}
-                        </option>
-                    @endforeach
-                </select>
-            </form>
+            <div class="relative" x-data="{ staffSheet: false }">
+                @php
+                    $viewingLabel = $teamView
+                        ? 'Team'
+                        : (collect($staffOptions)->firstWhere('id', $selectedStaffId)['name'] ?? 'Staff');
+                @endphp
+                <form method="POST" action="{{ route('admin.role-view.select-staff') }}" class="hidden sm:inline-flex items-center gap-2">
+                    @csrf
+                    <label class="text-[10px] uppercase tracking-widest text-white/70 font-semibold shrink-0">{{ __('admin.role_view.viewing') }}:</label>
+                    <select name="staff_id"
+                            onchange="this.form.submit()"
+                            class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold px-3 py-2 focus:ring-2 focus:ring-white/40 min-w-[10rem]"
+                            title="Filters Support workload and performance. Does not impersonate — actions still record as you."
+                            aria-label="{{ __('admin.role_view.viewing') }}: Team">
+                        <option value="0" @selected($teamView) class="text-gray-900">Team ▾</option>
+                        @foreach ($staffOptions as $person)
+                            <option value="{{ $person['id'] }}" @selected((int) $selectedStaffId === (int) $person['id']) class="text-gray-900">
+                                {{ $person['name'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                </form>
+                <button type="button" @click="staffSheet = true"
+                        class="sm:hidden inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white"
+                        aria-label="{{ __('admin.role_view.viewing') }}: {{ $viewingLabel }}">
+                    <span>{{ __('admin.role_view.viewing') }}: {{ $viewingLabel }} ▾</span>
+                </button>
+                <x-site.action-panel :title="__('admin.role_view.viewing')" open="staffSheet">
+                    <p class="text-xs text-gray-500 mb-3">Filters Support workload and performance only. You stay signed in as Admin.</p>
+                    <form method="POST" action="{{ route('admin.role-view.select-staff') }}" class="space-y-1">
+                        @csrf
+                        <button type="submit" name="staff_id" value="0"
+                                class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ $teamView ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
+                            Team
+                        </button>
+                        @foreach ($staffOptions as $person)
+                            <button type="submit" name="staff_id" value="{{ $person['id'] }}"
+                                    class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ (int) $selectedStaffId === (int) $person['id'] ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
+                                {{ $person['name'] }}
+                            </button>
+                        @endforeach
+                    </form>
+                </x-site.action-panel>
+            </div>
             @if ($agent)
                 <form method="POST" action="{{ route('admin.support.availability') }}" class="inline-flex items-center gap-2">
                     @csrf
@@ -61,22 +92,26 @@
             @endif
         </x-slot:actions>
         <x-slot:stats>
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                @foreach ([
-                    ['Waiting', $counters['waiting'] ?? 0, route('admin.support.inbox')],
-                    [$teamView ? 'Open conversations' : 'Assigned to me', $counters['assigned_to_me'] ?? 0, route('admin.support.inbox')],
-                    ['Open tickets', $counters['open_tickets'] ?? 0, route('admin.support.cases')],
-                    [$teamView ? 'Agents online' : 'Unread', $teamView ? $agentsOnline : ($counters['unread'] ?? 0), route('admin.support.inbox')],
-                    ['Overdue', $counters['overdue'], route('admin.support.performance')],
-                ] as [$label, $value, $url])
-                    <a href="{{ $url }}" class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-3 hover:ring-brand/30 transition">
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $label }}</p>
-                        <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">
-                            {{ $value === null ? '—' : format_number($value) }}
+            @php
+                $kpiStrip = [
+                    ['Waiting now', $counters['waiting'] ?? 0, route('admin.support.inbox'), 'Conversations in the queue that no Support person has accepted yet.'],
+                    ['Active chats', $counters['active_chats'] ?? 0, route('admin.support.inbox'), 'Accepted conversations that are still open (assigned or active).'],
+                    ['Open tickets', $counters['open_tickets'] ?? 0, route('admin.support.cases'), 'Tickets still open or in progress.'],
+                    ['SLA at risk', $counters['sla_at_risk'] ?? 0, route('admin.support.cases'), 'Open tickets approaching their snapshotted due time.'],
+                    ['Overdue', $counters['overdue'] ?? 0, route('admin.support.cases'), 'Open tickets past their snapshotted SLA due time.'],
+                    ['Resolved today', $counters['resolved_today'] ?? 0, route('admin.support.performance'), 'Conversations and tickets closed today (Africa/Dar_es_Salaam calendar day).'],
+                ];
+            @endphp
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                @foreach ($kpiStrip as [$label, $value, $url, $hint])
+                    <a href="{{ $url }}" class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 px-3 py-2.5 hover:ring-brand/30 transition" title="{{ $hint }}">
+                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold flex items-center gap-1">
+                            <span>{{ $label }}</span>
+                            <span class="inline-flex size-3.5 items-center justify-center rounded-full bg-white/80 text-[9px] font-bold text-brand" aria-label="{{ $hint }}">ⓘ</span>
                         </p>
-                        @if ($label === 'Overdue' && $value === null)
-                            <p class="text-[11px] text-gray-500 mt-1">SLA clock not recorded yet</p>
-                        @endif
+                        <p class="text-xl font-bold text-gray-900 mt-1 tabular-nums">
+                            {{ format_number((int) $value) }}
+                        </p>
                     </a>
                 @endforeach
             </div>
@@ -142,21 +177,53 @@
                     @endforelse
                 </ul>
             </div>
+
+            @if (! empty($recurringIssues))
+                <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-amber-100">
+                        <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Needs attention</p>
+                        <h2 class="text-sm font-semibold text-amber-950 mt-0.5">Recurring issues</h2>
+                        <p class="text-xs text-amber-900/80 mt-1">Aggregate only — does not merge or alter customer tickets.</p>
+                    </div>
+                    <ul class="divide-y divide-amber-100">
+                        @foreach ($recurringIssues as $row)
+                            <li class="px-5 py-3 flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-amber-950">{{ $row['label'] }}</p>
+                                    <p class="text-[11px] text-amber-800/80">{{ $row['count'] }} tickets · last {{ $row['window_hours'] }}h</p>
+                                </div>
+                                <a href="{{ route('admin.support.cases') }}" class="shrink-0 text-xs font-semibold text-amber-900 hover:underline">Tickets →</a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
         </section>
 
         <aside class="space-y-6">
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5">
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $teamView ? 'Team performance' : 'My performance' }}</p>
                 <h2 class="text-sm font-semibold text-gray-900 mt-0.5">{{ $performance['range_label'] ?? 'Today' }}</h2>
+                @php
+                    $fmtMin = function (?int $m): string {
+                        if ($m === null) {
+                            return '—';
+                        }
+                        if ($m < 60) {
+                            return $m.'m';
+                        }
+
+                        return intdiv($m, 60).'h '.($m % 60).'m';
+                    };
+                @endphp
                 <dl class="mt-4 space-y-3 text-sm">
                     <div class="flex justify-between gap-3"><dt class="text-gray-500">Resolved today</dt><dd class="font-semibold tabular-nums">{{ format_number($performance['resolved'] ?? 0) }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Avg first response</dt><dd class="font-semibold text-gray-400">—</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-gray-500">First-contact resolution</dt><dd class="font-semibold text-gray-400">—</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-gray-500">SLA met</dt><dd class="font-semibold text-gray-400">—</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Customer rating</dt><dd class="font-semibold text-gray-400">—</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Avg first response</dt><dd class="font-semibold tabular-nums">{{ $fmtMin($performance['avg_first_response_minutes'] ?? null) }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">First-contact resolution</dt><dd class="font-semibold tabular-nums">{{ isset($performance['first_contact_resolution']) ? $performance['first_contact_resolution'].'%' : '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">SLA met</dt><dd class="font-semibold tabular-nums">{{ isset($performance['sla_met']) ? $performance['sla_met'].'%' : '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-gray-500">Customer rating</dt><dd class="font-semibold tabular-nums">{{ $performance['customer_rating'] ?? '—' }}</dd></div>
                 </dl>
-                <p class="text-[11px] text-gray-400 mt-3">Timers and CSAT show once those events are recorded.</p>
-                <a href="{{ route('admin.support.performance') }}" class="mt-4 inline-flex text-xs font-semibold text-brand hover:underline">View performance →</a>
+                <a href="{{ route('admin.support.performance') }}" class="mt-4 inline-flex text-xs font-semibold text-brand hover:underline">View performance charts →</a>
             </div>
         </aside>
     </div>

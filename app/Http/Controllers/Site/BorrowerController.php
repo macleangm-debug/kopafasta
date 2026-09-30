@@ -3888,23 +3888,43 @@ class BorrowerController extends Controller
             ->where('customer_id', $customer->id)
             ->whereIn('status', ['closed', 'resolved'])
             ->latest('last_message_at')
+            ->limit(12)
+            ->get(['id', 'topic', 'status', 'rating', 'rating_requested_at', 'last_message_at', 'created_at', 'closed_at', 'resolved_at', 'resolution_category']);
+
+        $openTickets = \App\Models\SupportTicket::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['open', 'in_progress', 'waiting'])
+            ->latest('updated_at')
             ->limit(8)
-            ->get(['id', 'topic', 'status', 'rating', 'last_message_at', 'created_at', 'resolution_category']);
+            ->get(['id', 'ticket_number', 'subject', 'status', 'updated_at', 'priority']);
+
+        $resolvedTickets = \App\Models\SupportTicket::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['resolved', 'closed'])
+            ->latest('resolved_at')
+            ->limit(8)
+            ->get(['id', 'ticket_number', 'subject', 'status', 'resolved_at', 'updated_at']);
 
         $help = app(\App\Services\Support\SupportHelpLibraryService::class);
         $q = trim((string) request('q', ''));
 
         // Support Home first — never auto-enter chat. ?chat=1 is Continue / Talk to Support only.
         $openChat = request()->boolean('chat');
+        $section = in_array(request('section'), ['help', 'active', 'history'], true)
+            ? (string) request('section')
+            : 'help';
 
         return view('site.borrower.support', [
             'customer' => $customer,
             'supportConversation' => $conversation,
             'supportHistory' => $history,
+            'openTickets' => $openTickets,
+            'resolvedTickets' => $resolvedTickets,
             'helpGroups' => $help->groups('member'),
             'helpResults' => $q !== '' ? $help->search($q, 'member') : [],
             'helpQuery' => $q,
             'openHumanChat' => $openChat,
+            'helpSection' => $section,
             'phones' => support_phones(),
             'primaryPhone' => support_phones()[0] ?? null,
         ]);

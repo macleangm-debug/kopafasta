@@ -2599,4 +2599,71 @@ class SettingsController extends Controller
 
         return back()->with('status', 'Chatbot content saved.');
     }
+
+    // ---------------- Support SLA & Priorities ----------------
+    public function support()
+    {
+        $taxonomy = \App\Support\SupportTaxonomy::all();
+        $priorityDefaults = [];
+        foreach (\App\Support\SupportTaxonomy::priorityMinutesDefaults() as $priority => $default) {
+            $priorityDefaults[$priority] = \App\Support\SupportTaxonomy::priorityMinutesFor($priority);
+        }
+
+        return view('admin.settings.support', [
+            'taxonomy' => $taxonomy,
+            'priorityDefaults' => $priorityDefaults,
+            'warningPercent' => \App\Support\SupportTaxonomy::warningPercent(),
+            'recurringCount' => \App\Support\SupportTaxonomy::recurringIssueCount(),
+            'recurringWindowHours' => \App\Support\SupportTaxonomy::recurringWindowHours(),
+        ]);
+    }
+
+    public function saveSupport(Request $request)
+    {
+        $categories = \App\Support\SupportTaxonomy::categoryKeys();
+        $rules = [
+            'warning_percent' => ['required', 'integer', 'min:50', 'max:95'],
+            'priority_minutes' => ['required', 'array'],
+            'priority_minutes.urgent' => ['required', 'integer', 'min:15', 'max:10080'],
+            'priority_minutes.high' => ['required', 'integer', 'min:15', 'max:10080'],
+            'priority_minutes.normal' => ['required', 'integer', 'min:15', 'max:10080'],
+            'priority_minutes.low' => ['required', 'integer', 'min:15', 'max:10080'],
+            'default_priority' => ['required', 'array'],
+            'target_minutes' => ['required', 'array'],
+            'approaching_pct' => ['required', 'array'],
+            'recurring_count' => ['required', 'integer', 'min:2', 'max:100'],
+            'recurring_window_hours' => ['required', 'integer', 'min:1', 'max:720'],
+        ];
+        foreach ($categories as $key) {
+            $rules["default_priority.{$key}"] = ['required', 'in:low,normal,high,urgent'];
+            $rules["target_minutes.{$key}"] = ['required', 'integer', 'min:15', 'max:10080'];
+            $rules["approaching_pct.{$key}"] = ['required', 'integer', 'min:50', 'max:95'];
+        }
+
+        $data = $request->validate($rules);
+
+        $stored = \App\Support\SupportTaxonomy::all();
+        $stored['default_priority'] = collect($data['default_priority'])
+            ->only($categories)
+            ->map(fn ($v) => strtolower((string) $v))
+            ->all();
+        $stored['target_resolution_minutes'] = collect($data['target_minutes'])
+            ->only($categories)
+            ->map(fn ($v) => (int) $v)
+            ->all();
+        $stored['approaching_threshold_percent'] = collect($data['approaching_pct'])
+            ->only($categories)
+            ->map(fn ($v) => (int) $v)
+            ->all();
+
+        Setting::set(\App\Support\SupportTaxonomy::SETTING_KEY, $stored);
+        Setting::set('support.sla.warning_percent', (int) $data['warning_percent']);
+        foreach (['urgent', 'high', 'normal', 'low'] as $priority) {
+            Setting::set('support.sla.minutes.'.$priority, (int) $data['priority_minutes'][$priority]);
+        }
+        Setting::set('support.recurring.issue_count', (int) $data['recurring_count']);
+        Setting::set('support.recurring.window_hours', (int) $data['recurring_window_hours']);
+
+        return back()->with('status', 'Support SLA & Priorities saved. New tickets use these targets; open tickets keep their snapshotted SLA.');
+    }
 }

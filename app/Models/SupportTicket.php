@@ -20,6 +20,12 @@ class SupportTicket extends Model
         ];
     }
 
+    /** Alias used by older ops copy — always the snapshotted SLA clock. */
+    public function getDueAtAttribute(): mixed
+    {
+        return $this->sla_due_at;
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);

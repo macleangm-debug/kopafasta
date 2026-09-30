@@ -300,26 +300,100 @@ class SupportConversationService
         }
 
         $first = $this->requesterFirstName($conversation) ?: 'mteja';
-        $body = "Habari {$first}, suala lako limekamilishwa. Tunatumaini tumekusaidia.";
-        if ($askRating) {
-            $body .= ' Tafadhali tathmini huduma yetu kwa kuchagua nyota 1–5.';
-        }
+        // Resolution copy — interactive ★ card is keyed off rating_requested_at (not plain-text stars).
+        $body = "Habari {$first}, suala lako limekamilishwa. Tunatumaini tumekusaidia. Tafadhali tathmini huduma yetu.";
         if ($note) {
             $body = trim($body)."\n\n".$note;
         }
 
         $this->appendMessage($conversation, 'staff', $body, $actor?->id, true, false);
 
+        $now = now();
         $conversation->update([
-            'status' => self::STATUS_RESOLVED,
+            'status' => self::STATUS_CLOSED,
             'needs_human' => false,
             'assigned_to' => $conversation->assigned_to,
             'resolution_category' => $category,
             'resolution_note' => $note,
-            'last_message_at' => now(),
+            'resolved_at' => $now,
+            'closed_at' => $now,
+            'resolved_by' => $actor?->id,
+            'rating_requested_at' => $askRating ? $now : $conversation->rating_requested_at,
+            'last_message_at' => $now,
         ]);
 
-        return $conversation->fresh();
+        $fresh = $conversation->fresh();
+        if ($askRating && $fresh) {
+            $this->notifyRatingRequest($fresh);
+        }
+
+        return $fresh;
+    }
+
+    /** In-app CTA so the member can open Help Center and rate with stars. */
+    public function notifyRatingRequest(SupportConversation $conversation): void
+    {
+        if (! $conversation->customer_id || ! $conversation->awaitsRating()) {
+            return;
+        }
+
+        $customer = Customer::query()->find($conversation->customer_id);
+        if (! $customer) {
+            return;
+        }
+
+        $url = route('site.borrower.support', ['chat' => 1, 'section' => 'history']);
+        app(\App\Services\NotificationService::class)->notifyInApp(
+            $customer,
+            'Tafadhali tathmini huduma yetu ya usaidizi.',
+            'support',
+            'support_rating_request',
+            'Support resolved',
+            $url,
+            'View & rate support',
+        );
+    }
+
+    /**
+     * Member/partner chat surface: open thread, else latest closed thread awaiting rating.
+     */
+    public function memberFacingConversation(?int $customerId = null, ?int $userId = null): ?SupportConversation
+    {
+        $open = SupportConversation::query()
+            ->whereNotIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED])
+            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->when(! $customerId && $userId, fn ($q) => $q->where('user_id', $userId)->whereNull('customer_id'))
+            ->with(['messages' => fn ($q) => $q->orderBy('id'), 'assignedTo'])
+            ->latest('id')
+            ->first();
+
+        if ($open) {
+            return $open;
+        }
+
+        return SupportConversation::query()
+            ->whereIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED])
+            ->whereNotNull('rating_requested_at')
+            ->whereNull('rating')
+            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->when(! $customerId && $userId, fn ($q) => $q->where('user_id', $userId)->whereNull('customer_id'))
+            ->with(['messages' => fn ($q) => $q->orderBy('id'), 'assignedTo'])
+            ->latest('id')
+            ->first();
+    }
+
+    /** @return array{show_rating: bool, rating_done: bool, rating: ?int, rating_url: ?string} */
+    public function ratingPayload(SupportConversation $conversation, ?string $ratingUrl = null): array
+    {
+        $done = (bool) $conversation->rating;
+        $show = $conversation->awaitsRating();
+
+        return [
+            'show_rating' => $show,
+            'rating_done' => $done,
+            'rating' => $conversation->rating ? (int) $conversation->rating : null,
+            'rating_url' => ($show || $done) ? $ratingUrl : null,
+        ];
     }
 
     public function recordConversationRating(SupportConversation $conversation, int $rating, ?string $comment = null): SupportConversation
@@ -516,7 +590,8 @@ class SupportConversationService
     public function deskState(SupportConversation $conversation): string
     {
         return match (true) {
-            in_array($conversation->status, [self::STATUS_RESOLVED, self::STATUS_CLOSED], true) => 'Resolved',
+            $conversation->status === self::STATUS_CLOSED => 'Closed',
+            $conversation->status === self::STATUS_RESOLVED => 'Resolved',
             $conversation->status === self::STATUS_ACTIVE => 'Active',
             (bool) $conversation->assigned_to => 'Assigned',
             default => 'Waiting',

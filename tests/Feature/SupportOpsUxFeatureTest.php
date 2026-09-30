@@ -154,10 +154,14 @@ class SupportOpsUxFeatureTest extends TestCase
             'resolution_category' => 'answered',
             'ask_rating' => 1,
         ])
-            ->assertRedirect(route('admin.support.inbox'));
+            ->assertRedirect(route('admin.support.inbox', ['filter' => 'waiting']));
 
-        $this->assertSame('resolved', $conversation->fresh()->status);
-        $this->assertSame('answered', $conversation->fresh()->resolution_category);
+        $fresh = $conversation->fresh();
+        $this->assertSame('closed', $fresh->status);
+        $this->assertNotNull($fresh->closed_at);
+        $this->assertNotNull($fresh->resolved_at);
+        $this->assertNotNull($fresh->rating_requested_at);
+        $this->assertSame('answered', $fresh->resolution_category);
         $this->assertSame(0, SupportTicket::query()->where('support_conversation_id', $conversation->id)->count());
     }
 
@@ -269,7 +273,7 @@ class SupportOpsUxFeatureTest extends TestCase
         $first = $svc->requestHuman($customer, $user, 'Old issue');
         $svc->accept($first, $agent);
         $svc->resolve($first, $agent, 'Done', 'answered', true);
-        $this->assertSame('resolved', $first->fresh()->status);
+        $this->assertSame('closed', $first->fresh()->status);
 
         $second = $svc->requestHuman($customer, $user, 'New issue');
         $this->assertNotSame($first->id, $second->id);
@@ -312,8 +316,12 @@ class SupportOpsUxFeatureTest extends TestCase
             ->assertOk()
             ->getContent();
         $this->assertTrue(
-            str_contains($html, 'Continue conversation') || str_contains($html, 'Mazungumzo yanayoendelea'),
-            'Support Home should show a continue card when an open thread exists'
+            str_contains($html, 'Continue conversation')
+            || str_contains($html, 'Mazungumzo yanayoendelea')
+            || str_contains($html, 'Endelea mazungumzo')
+            || str_contains($html, 'Active support')
+            || str_contains($html, 'Usaidizi hai'),
+            'Support Home should show continue / Active support when an open thread exists'
         );
         $this->assertStringContainsString('human: false', $html);
 
@@ -546,9 +554,9 @@ class SupportOpsUxFeatureTest extends TestCase
         $this->post(route('admin.role-view.select-staff'), ['staff_id' => $agent->id]);
 
         $this->post(route('admin.support.inbox.create-case', $conversation), [
-            'subject' => 'Needs investigation',
+            'subject' => 'Payment not reflecting',
             'priority' => 'urgent',
-            'category' => 'payment',
+            'category' => 'payments',
         ])->assertRedirect();
 
         $ticket = SupportTicket::query()->where('support_conversation_id', $conversation->id)->latest('id')->first();
@@ -579,9 +587,11 @@ class SupportOpsUxFeatureTest extends TestCase
         $svc->resolve($conversation, $agent, null, 'answered', true);
 
         $conversation->refresh();
-        $this->assertSame('resolved', $conversation->status);
+        $this->assertSame('closed', $conversation->status);
+        $this->assertNotNull($conversation->rating_requested_at);
         $this->assertTrue(
-            $conversation->messages()->where('body', 'like', '%nyota 1–5%')->exists()
+            $conversation->messages()->where('body', 'like', '%Tafadhali tathmini huduma yetu%')->exists()
+            || $conversation->messages()->where('body', 'like', '%nyota 1–5%')->exists()
             || $conversation->messages()->where('body', 'like', '%nyota 1-5%')->exists()
         );
 

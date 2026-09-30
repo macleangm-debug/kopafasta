@@ -1366,6 +1366,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
         Route::put('settings/notifications', [SettingsController::class, 'saveNotifications'])->name('settings.notifications.save');
         Route::get('settings/group-notifications', [SettingsController::class, 'groupNotifications'])->name('settings.group-notifications');
         Route::put('settings/group-notifications', [SettingsController::class, 'saveGroupNotifications'])->name('settings.group-notifications.save');
+        Route::get('settings/support', [SettingsController::class, 'support'])->name('settings.support');
+        Route::put('settings/support', [SettingsController::class, 'saveSupport'])->name('settings.support.save');
         Route::get('settings/kyc', [SettingsController::class, 'kyc'])->name('settings.kyc');
         Route::put('settings/kyc', [SettingsController::class, 'saveKyc'])->name('settings.kyc.save');
         Route::get('settings/crb', [SettingsController::class, 'crb'])->name('settings.crb');

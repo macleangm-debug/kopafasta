@@ -2,12 +2,14 @@
 
 namespace App\Services\Support;
 
+use App\Models\Setting;
 use App\Models\SupportConversation;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketEvent;
 use App\Models\User;
 use App\Services\AdminRoleViewService;
 use App\Services\RoleService;
+use App\Support\SupportTaxonomy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -262,6 +264,29 @@ class CustomerSupportWorkspaceService
             ? SupportTicket::query()->whereIn('status', ['open', 'in_progress'])->count()
             : $this->myOpenTickets($agentId)->count();
 
+        $slaAtRisk = $this->slaTicketCount($agentId, 'at_risk');
+        $overdue = $this->slaTicketCount($agentId, 'overdue');
+        $resolvedToday = SupportTicket::query()
+            ->whereIn('status', ['resolved', 'closed'])
+            ->whereDate('resolved_at', now()->toDateString())
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId))
+            ->count()
+            + SupportConversation::query()
+                ->whereIn('status', ['resolved', 'closed'])
+                ->whereDate('updated_at', now()->toDateString())
+                ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId))
+                ->count();
+
+        $activeChats = $team
+            ? SupportConversation::query()
+                ->whereIn('status', ['assigned', 'active'])
+                ->whereNotNull('assigned_to')
+                ->count()
+            : SupportConversation::query()
+                ->where('assigned_to', $agentId)
+                ->whereIn('status', ['assigned', 'active'])
+                ->count();
+
         return [
             'agent' => $agent,
             'team_view' => $team || $agentId === null,
@@ -270,17 +295,90 @@ class CustomerSupportWorkspaceService
             'availability' => $agent ? $this->availability($agent) : null,
             'agents_online' => $this->agentsOnlineCount(),
             'counters' => [
-                'unread' => $this->unreadCount($agentId),
                 'waiting' => $waiting->count(),
-                'assigned_to_me' => $mineOrOpen->count(),
+                'active_chats' => $activeChats,
                 'open_tickets' => $openTicketCount,
-                'overdue' => null, // gap: no due_at / SLA clock on support_tickets
+                'sla_at_risk' => $slaAtRisk,
+                'overdue' => $overdue,
+                'resolved_today' => $resolvedToday,
+                // Legacy keys kept for older blades/tests.
+                'unread' => $this->unreadCount($agentId),
+                'assigned_to_me' => $mineOrOpen->count(),
             ],
-            'queue' => $queue->map(fn (SupportConversation $c) => $this->serializeConversation($c))->all(),
+            'queue' => $queue->take(6)->map(fn (SupportConversation $c) => $this->serializeConversation($c))->all(),
             'tickets' => $ticketsNeedingAttention->map(fn (SupportTicket $t) => $this->serializeTicket($t))->all(),
+            'recurring_issues' => $this->recurringIssues(),
             'performance' => $this->performanceSnapshot($agentId, 'today'),
             'gaps' => $this->infrastructureGaps(),
         ];
+    }
+
+    /**
+     * Aggregate Issues that crossed the Settings threshold (count within window).
+     * Reporting only — never auto-merges or alters tickets.
+     *
+     * @return list<array{issue: string, label: string, count: int, window_hours: int}>
+     */
+    public function recurringIssues(): array
+    {
+        $threshold = max(2, (int) Setting::get('support.recurring.threshold_count', Setting::get('support.recurring.issue_count', 5)));
+        $windowHours = max(1, (int) Setting::get('support.recurring.window_hours', 24));
+        $from = now()->subHours($windowHours);
+
+        $rows = SupportTicket::query()
+            ->selectRaw('category, COUNT(*) as total')
+            ->where('created_at', '>=', $from)
+            ->whereNotNull('category')
+            ->groupBy('category')
+            ->havingRaw('COUNT(*) >= ?', [$threshold])
+            ->orderByDesc('total')
+            ->limit(6)
+            ->get();
+
+        $labels = SupportTaxonomy::all()['categories'] ?? [];
+
+        return $rows->map(function ($row) use ($labels, $windowHours) {
+            $key = (string) $row->category;
+
+            return [
+                'issue' => $key,
+                'label' => (string) ($labels[$key] ?? str_replace('_', ' ', ucfirst($key))),
+                'count' => (int) $row->total,
+                'window_hours' => $windowHours,
+            ];
+        })->all();
+    }
+
+    /**
+     * Count open tickets by SLA state.
+     * at_risk ≈ approaching due (within warning window); overdue = past due_at.
+     */
+    public function slaTicketCount(?int $agentId, string $state): int
+    {
+        $query = SupportTicket::query()
+            ->whereIn('status', ['open', 'in_progress'])
+            ->whereNotNull('sla_due_at');
+
+        if ($agentId) {
+            $query->where('assigned_to', $agentId);
+        }
+
+        if ($state === 'overdue') {
+            return (int) $query->where('sla_due_at', '<', now())->count();
+        }
+
+        if ($state === 'at_risk') {
+            $warningPct = (float) Setting::get('support.sla.warning_percent', 80);
+            // Approximate: due within the next remaining 20% of a typical normal SLA (480 min).
+            $windowMinutes = max(30, (int) round(480 * ((100 - $warningPct) / 100)));
+
+            return (int) $query
+                ->where('sla_due_at', '>=', now())
+                ->where('sla_due_at', '<=', now()->addMinutes($windowMinutes))
+                ->count();
+        }
+
+        return 0;
     }
 
     public function agentsOnlineCount(): int
@@ -310,49 +408,186 @@ class CustomerSupportWorkspaceService
     }
 
     /** @return array<string, mixed> */
-    public function performanceSnapshot(?int $agentId, string $range = 'today'): array
-    {
-        [$from, $label] = $this->rangeBounds($range);
+    public function performanceSnapshot(
+        ?int $agentId,
+        string $range = 'today',
+        ?string $fromDate = null,
+        ?string $toDate = null,
+    ): array {
+        [$from, $label, $to] = $this->rangeBounds($range, $fromDate, $toDate);
 
-        $resolvedQuery = SupportTicket::query()
+        $resolvedTickets = SupportTicket::query()
             ->whereIn('status', ['resolved', 'closed'])
-            ->where('resolved_at', '>=', $from);
-        $assignedQuery = SupportTicket::query()->where('created_at', '>=', $from);
-        $conversationsQuery = SupportConversation::query()->where('updated_at', '>=', $from);
-        $backlogQuery = SupportTicket::query()->whereIn('status', ['open', 'in_progress']);
+            ->where('resolved_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('resolved_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId));
+
+        $resolvedConversations = SupportConversation::query()
+            ->whereIn('status', ['resolved', 'closed'])
+            ->where(function ($q) use ($from, $to) {
+                $q->where(function ($inner) use ($from, $to) {
+                    $inner->where('resolved_at', '>=', $from)
+                        ->when($to, fn ($qq) => $qq->where('resolved_at', '<=', $to));
+                })->orWhere(function ($inner) use ($from, $to) {
+                    $inner->whereNull('resolved_at')->where('closed_at', '>=', $from)
+                        ->when($to, fn ($qq) => $qq->where('closed_at', '<=', $to));
+                })->orWhere(function ($inner) use ($from, $to) {
+                    $inner->whereNull('resolved_at')->whereNull('closed_at')->where('updated_at', '>=', $from)
+                        ->when($to, fn ($qq) => $qq->where('updated_at', '<=', $to));
+                });
+            })
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId));
+
+        $assignedQuery = SupportTicket::query()->where('created_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId));
+        $conversationsReceived = SupportConversation::query()->where('created_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to));
+        $conversationsQuery = SupportConversation::query()->where('updated_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('updated_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId));
+        $backlogQuery = SupportTicket::query()->whereIn('status', ['open', 'in_progress'])
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId));
         $escalationsQuery = SupportTicketEvent::query()
             ->where('event', 'escalated')
-            ->where('created_at', '>=', $from);
+            ->where('created_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->whereHas('ticket', fn ($tq) => $tq->where('assigned_to', $agentId)));
 
-        if ($agentId) {
-            $resolvedQuery->where('assigned_to', $agentId);
-            $assignedQuery->where('assigned_to', $agentId);
-            $conversationsQuery->where('assigned_to', $agentId);
-            $backlogQuery->where('assigned_to', $agentId);
-            $escalationsQuery->whereHas('ticket', fn ($q) => $q->where('assigned_to', $agentId));
-        }
+        $resolvedTicketCount = (clone $resolvedTickets)->count();
+        $resolvedConversationCount = (clone $resolvedConversations)->count();
+
+        // Avg first human response: accepted_at − waiting_since/created_at (minutes).
+        $firstResponseMinutes = SupportConversation::query()
+            ->whereNotNull('accepted_at')
+            ->where('accepted_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('accepted_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId))
+            ->get(['accepted_at', 'waiting_since', 'created_at'])
+            ->map(function (SupportConversation $c) {
+                $start = $c->waiting_since ?? $c->created_at;
+                if (! $start || ! $c->accepted_at) {
+                    return null;
+                }
+
+                return max(0, $start->diffInMinutes($c->accepted_at));
+            })
+            ->filter(fn ($v) => $v !== null);
+        $avgFirstResponse = $firstResponseMinutes->isNotEmpty()
+            ? (int) round($firstResponseMinutes->avg())
+            : null;
+
+        // Avg resolution: prefer time_to_resolve_minutes snapshot, else resolved_at − created_at.
+        $resolutionSamples = SupportTicket::query()
+            ->whereIn('status', ['resolved', 'closed'])
+            ->where('resolved_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('resolved_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId))
+            ->get(['time_to_resolve_minutes', 'resolved_at', 'created_at'])
+            ->map(function (SupportTicket $t) {
+                if ($t->time_to_resolve_minutes !== null) {
+                    return (int) $t->time_to_resolve_minutes;
+                }
+                if ($t->resolved_at && $t->created_at) {
+                    return max(0, $t->created_at->diffInMinutes($t->resolved_at));
+                }
+
+                return null;
+            })
+            ->filter(fn ($v) => $v !== null);
+        $avgResolution = $resolutionSamples->isNotEmpty()
+            ? (int) round($resolutionSamples->avg())
+            : null;
+
+        // SLA met: resolved before sla_due_at among tickets that had an SLA snapshot.
+        $slaEligible = SupportTicket::query()
+            ->whereIn('status', ['resolved', 'closed'])
+            ->whereNotNull('sla_due_at')
+            ->where('resolved_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('resolved_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId));
+        $slaTotal = (clone $slaEligible)->count();
+        $slaMet = $slaTotal > 0
+            ? (clone $slaEligible)->whereColumn('resolved_at', '<=', 'sla_due_at')->count()
+            : 0;
+        $slaMetPct = $slaTotal > 0 ? (int) round(($slaMet / $slaTotal) * 100) : null;
+
+        // First-contact resolution: conversations closed with no linked ticket in range.
+        $fcrBase = (clone $resolvedConversations)->count();
+        $fcrWithTicket = SupportConversation::query()
+            ->whereIn('status', ['resolved', 'closed'])
+            ->where(function ($q) use ($from, $to) {
+                $q->where(function ($inner) use ($from, $to) {
+                    $inner->where('resolved_at', '>=', $from)
+                        ->when($to, fn ($qq) => $qq->where('resolved_at', '<=', $to));
+                })->orWhere(function ($inner) use ($from, $to) {
+                    $inner->where('closed_at', '>=', $from)
+                        ->when($to, fn ($qq) => $qq->where('closed_at', '<=', $to));
+                });
+            })
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId))
+            ->whereHas('tickets')
+            ->count();
+        $fcrPct = $fcrBase > 0
+            ? (int) round((($fcrBase - $fcrWithTicket) / $fcrBase) * 100)
+            : null;
+
+        $ratings = SupportConversation::query()
+            ->whereNotNull('rating')
+            ->where('rated_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('rated_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId))
+            ->pluck('rating');
+        $avgRating = $ratings->isNotEmpty() ? round((float) $ratings->avg(), 1) : null;
+
+        $topIssues = SupportTicket::query()
+            ->selectRaw('category, COUNT(*) as total')
+            ->where('created_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to))
+            ->when($agentId, fn ($q) => $q->where('assigned_to', $agentId))
+            ->whereNotNull('category')
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->get()
+            ->map(fn ($row) => [
+                'issue' => (string) $row->category,
+                'count' => (int) $row->total,
+            ])
+            ->all();
 
         return [
             'range' => $range,
             'range_label' => $label,
-            'resolved' => $resolvedQuery->count(),
+            'from' => $from->toDateString(),
+            'to' => $to?->toDateString(),
+            'resolved' => $resolvedTicketCount + $resolvedConversationCount,
+            'resolved_tickets' => $resolvedTicketCount,
+            'resolved_conversations' => $resolvedConversationCount,
             'tickets_assigned' => $assignedQuery->count(),
+            'conversations_received' => $conversationsReceived->count(),
             'conversations_handled' => $conversationsQuery->count(),
             'open_backlog' => $backlogQuery->count(),
             'escalations' => $escalationsQuery->count(),
-            'avg_first_response_minutes' => null,
-            'avg_resolution_minutes' => null,
-            'first_contact_resolution' => null,
-            'sla_met' => null,
-            'customer_rating' => null,
-            'gaps' => [
-                'avg_first_response' => 'No first-response timer recorded on tickets/conversations.',
-                'avg_resolution' => 'Resolution duration not derived yet (only resolved_at exists).',
-                'first_contact_resolution' => 'FCR not recorded.',
-                'sla_met' => 'No SLA due clock on support_tickets.',
-                'customer_rating' => 'CSAT stored on support_ticket_ratings when member rates after resolve.',
-                'overdue' => 'No due_at on support_tickets — Overdue counter withheld.',
-            ],
+            'avg_first_response_minutes' => $avgFirstResponse,
+            'avg_resolution_minutes' => $avgResolution,
+            'first_contact_resolution' => $fcrPct,
+            'sla_met' => $slaMetPct,
+            'sla_met_count' => $slaMet,
+            'sla_eligible_count' => $slaTotal,
+            'customer_rating' => $avgRating,
+            'top_issues' => $topIssues,
+            'gaps' => array_filter([
+                'avg_first_response' => $avgFirstResponse === null
+                    ? 'No accepted_at timestamps in this range yet.'
+                    : null,
+                'sla_met' => $slaMetPct === null
+                    ? 'No tickets with SLA snapshots resolved in this range yet.'
+                    : null,
+                'customer_rating' => $avgRating === null
+                    ? 'No customer ratings in this range yet.'
+                    : null,
+            ]),
         ];
     }
 
@@ -361,7 +596,6 @@ class CustomerSupportWorkspaceService
     {
         return [
             'Department workspaces for escalated cases are not built in this pass (Support remains customer contact).',
-            'Overdue / SLA / first-response timers: not stored — shown as gaps on Reports.',
             'Agent availability: stored on user preferences only; round-robin does not yet filter Offline agents.',
         ];
     }
@@ -527,13 +761,31 @@ class CustomerSupportWorkspaceService
         ];
     }
 
-    /** @return array{0: Carbon, 1: string} */
-    private function rangeBounds(string $range): array
+    /** @return array{0: Carbon, 1: string, 2: ?Carbon} */
+    private function rangeBounds(string $range, ?string $fromDate = null, ?string $toDate = null): array
     {
+        if ($range === 'custom' && filled($fromDate)) {
+            try {
+                $from = Carbon::parse($fromDate)->startOfDay();
+            } catch (\Throwable) {
+                $from = now()->startOfDay();
+            }
+            try {
+                $to = filled($toDate) ? Carbon::parse($toDate)->endOfDay() : now();
+            } catch (\Throwable) {
+                $to = now();
+            }
+            if ($to->lt($from)) {
+                $to = (clone $from)->endOfDay();
+            }
+
+            return [$from, $from->toDateString().' – '.$to->toDateString(), $to];
+        }
+
         return match ($range) {
-            '7d' => [now()->subDays(7)->startOfDay(), '7 days'],
-            '30d' => [now()->subDays(30)->startOfDay(), '30 days'],
-            default => [now()->startOfDay(), 'Today'],
+            '7d' => [now()->subDays(7)->startOfDay(), '7 days', null],
+            '30d' => [now()->subDays(30)->startOfDay(), '30 days', null],
+            default => [now()->startOfDay(), 'Today', null],
         };
     }
 }

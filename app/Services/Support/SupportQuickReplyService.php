@@ -67,8 +67,8 @@ class SupportQuickReplyService
              'Samahani kwa kuchelewa. Tunashughulikia suala lako sasa na tutarudi kwako hapa haraka.',
              'Sorry for the delay. We are handling your issue now and will return here shortly.'],
             ['resolved', 'resolution', 'Limetatuliwa', 'Resolved',
-             'Habari {member_first_name}, suala lako limekamilishwa. Tunatumaini tumekusaidia. Tafadhali tathmini huduma kwa nyota 1–5.',
-             'Hello {member_first_name}, your issue is complete. We hope we helped. Please rate us 1–5 stars.'],
+             'Habari {member_first_name}, suala lako limekamilishwa. Tunatumaini tumekusaidia.',
+             'Hello {member_first_name}, your issue is complete. We hope we helped.'],
             ['follow_up', 'follow_up', 'Ufuatiliaji', 'Follow-up',
              'Tunakufuatilia kuhusu suala lako. Je, bado unahitaji msaada, au tunaweza kufunga mazungumzo?',
              'Following up on your issue. Do you still need help, or may we close this conversation?'],
@@ -76,8 +76,8 @@ class SupportQuickReplyService
              'Je, tumekusaidia? Thibitisha kama suala limetatuliwa, au niambie kama bado kuna kitu.',
              'Have we helped? Confirm if resolved, or tell us if something still needs attention.'],
             ['thanks', 'closing', 'Asante', 'Thank you',
-             'Asante kwa kuwasiliana na Kopafasta. Tuko hapa unapohitaji. Simu: {support_phone}',
-             'Thank you for contacting Kopafasta. We are here when you need us. Phone: {support_phone}'],
+             'Asante kwa kuwasiliana na Kopafasta. Tuko hapa unapohitaji. Simu: {support_phone}. Tovuti: {support_website}',
+             'Thank you for contacting Kopafasta. We are here when you need us. Phone: {support_phone}. Website: {support_website}'],
         ];
 
         return array_map(static fn (array $r) => [
@@ -147,6 +147,15 @@ class SupportQuickReplyService
      */
     public function compose(string $key, string $locale = 'sw', array $vars = [], bool $withSignature = false): string
     {
+        $phone = support_phones()[0] ?? support_contact('phone');
+        $website = (string) (Setting::get('company.website') ?: config('app.url') ?: 'https://www.kopafasta.com');
+        $website = preg_replace('#^https?://#', '', rtrim($website, '/')) ?: $website;
+
+        $vars = array_merge([
+            'support_phone' => filled($phone) ? (string) $phone : '',
+            'support_website' => filled($website) ? (string) $website : '',
+        ], $vars);
+
         $body = $this->bodyFor($key, $locale);
         foreach ($vars as $name => $value) {
             $body = str_replace('{'.$name.'}', (string) $value, $body);

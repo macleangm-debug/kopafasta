@@ -56,6 +56,7 @@ return function (string $prefix, string $namePrefix, bool $registerDashboard = t
         Route::get('/support', [VendorController::class, 'support'])->name('support');
         Route::post('/support/speak', [VendorController::class, 'speakToSupport'])->name('support.speak');
         Route::get('/support/thread', [VendorController::class, 'supportThread'])->name('support.thread');
+        Route::post('/support/conversations/{supportConversation}/rate', [VendorController::class, 'rateSupportConversation'])->name('support.conversation.rate');
         Route::get('/terms', [VendorController::class, 'terms'])->name('terms');
         Route::post('/terms', [VendorController::class, 'acceptTerms'])->name('terms.accept');
         Route::get('/verify', [CardVerificationController::class, 'partnerIndex'])->name('verify');

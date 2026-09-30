@@ -83,5 +83,6 @@ return [
         ['Notifications', 'admin.settings.notifications', 'notifications', 'digest operational assignment'],
         ['Transactional messaging', 'admin.settings.messaging', 'messaging'],
         ['Group notifications', 'admin.settings.group-notifications', 'group-notifications', 'group lending consent contract signature'],
+        ['Support SLA & Priorities', 'admin.settings.support', 'support-sla', 'sla priority issue taxonomy recurring ticket resolution'],
     ],
 ];

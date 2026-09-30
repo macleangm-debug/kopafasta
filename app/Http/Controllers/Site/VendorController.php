@@ -1057,11 +1057,42 @@ class VendorController extends Controller
                 ->whereIn('status', ['closed', 'resolved'])
                 ->latest('last_message_at')
                 ->limit(8)
-                ->get(['id', 'topic', 'status', 'rating', 'last_message_at', 'created_at', 'resolution_category'])
+                ->get(['id', 'topic', 'status', 'rating', 'rating_requested_at', 'last_message_at', 'created_at', 'resolution_category'])
+            : collect();
+
+        $openTickets = $user
+            ? \App\Models\SupportTicket::query()
+                ->where(function ($q) use ($user, $vendor) {
+                    $q->where('guest_phone', $vendor->phone ?: $user->phone)
+                        ->orWhere(function ($inner) use ($user) {
+                            $inner->whereNull('customer_id')->where('guest_email', $user->email);
+                        });
+                })
+                ->whereIn('status', ['open', 'in_progress', 'waiting'])
+                ->latest('updated_at')
+                ->limit(8)
+                ->get(['id', 'ticket_number', 'subject', 'status', 'updated_at'])
+            : collect();
+
+        $resolvedTickets = $user
+            ? \App\Models\SupportTicket::query()
+                ->where(function ($q) use ($user, $vendor) {
+                    $q->where('guest_phone', $vendor->phone ?: $user->phone)
+                        ->orWhere(function ($inner) use ($user) {
+                            $inner->whereNull('customer_id')->where('guest_email', $user->email);
+                        });
+                })
+                ->whereIn('status', ['resolved', 'closed'])
+                ->latest('resolved_at')
+                ->limit(8)
+                ->get(['id', 'ticket_number', 'subject', 'status', 'resolved_at', 'updated_at'])
             : collect();
 
         $help = app(\App\Services\Support\SupportHelpLibraryService::class);
         $q = trim((string) request('q', ''));
+        $section = in_array(request('section'), ['help', 'active', 'history'], true)
+            ? (string) request('section')
+            : 'help';
 
         return view('site.vendor.support', [
             'vendor' => $vendor,
@@ -1071,9 +1102,12 @@ class VendorController extends Controller
             'supportWhatsapp' => support_contact('whatsapp'),
             'supportConversation' => $conversation,
             'supportHistory' => $history,
+            'openTickets' => $openTickets,
+            'resolvedTickets' => $resolvedTickets,
             'helpGroups' => $help->groups('partner'),
             'helpResults' => $q !== '' ? $help->search($q, 'partner') : [],
             'helpQuery' => $q,
+            'helpSection' => $section,
             'openHumanChat' => request()->boolean('chat'),
             'speakUrl' => request()->routeIs('site.vendor.*')
                 ? route('site.vendor.support.speak')
@@ -1136,12 +1170,7 @@ class VendorController extends Controller
         abort_unless($user, 401);
 
         $service = app(\App\Services\Support\SupportConversationService::class);
-        $conversation = \App\Models\SupportConversation::query()
-            ->where('user_id', $user->id)
-            ->whereNull('customer_id')
-            ->whereNotIn('status', ['closed', 'resolved'])
-            ->latest('id')
-            ->first();
+        $conversation = $service->memberFacingConversation(null, $user->id);
 
         if (! $conversation) {
             return response()->json(array_merge([
@@ -1159,7 +1188,37 @@ class VendorController extends Controller
             'status' => $conversation->status,
             'needs_human' => $conversation->needs_human,
             'messages' => $service->serializeMessages($conversation),
-        ], $service->memberChatPresence($conversation)));
+        ], $service->memberChatPresence($conversation), $service->ratingPayload(
+            $conversation,
+            request()->routeIs('site.vendor.*')
+                ? route('site.vendor.support.conversation.rate', $conversation)
+                : route('site.partner.support.conversation.rate', $conversation),
+        )));
+    }
+
+    public function rateSupportConversation(
+        \Illuminate\Http\Request $request,
+        \App\Models\SupportConversation $supportConversation,
+    ): \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse {
+        $user = $request->user();
+        abort_unless($user && (int) $supportConversation->user_id === (int) $user->id && ! $supportConversation->customer_id, 403);
+        abort_unless(in_array($supportConversation->status, ['resolved', 'closed'], true), 422);
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        app(\App\Services\Support\SupportConversationService::class)
+            ->recordConversationRating($supportConversation, (int) $data['rating'], $data['comment'] ?? null);
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
+        $page = $request->routeIs('site.vendor.*') ? 'site.vendor.support' : 'site.partner.support';
+
+        return redirect()->route($page)->with('status', 'Asante kwa tathmini yako.');
     }
 
     public function terms()

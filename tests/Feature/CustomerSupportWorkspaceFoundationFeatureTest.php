@@ -53,7 +53,8 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Support', false)
             ->assertSee('Support queue', false)
-            ->assertSee(__('admin.role_view.staff_all'), false)
+            ->assertSee('Viewing', false)
+            ->assertSee('Team', false)
             ->assertDontSee('Operations dashboard', false);
 
         $this->assertSame('Support', app(AdminRoleViewService::class)->bannerLabel());
