@@ -1,6 +1,11 @@
-{{-- Admin Account / Role — role-first internal workspace directory --}}
+{{-- Admin Account / Role — Admin return + role-first workspace directory --}}
 @php
-    $staffRoleDirectory = app(\App\Services\AdminRoleViewService::class)->staffRoleDirectory();
+    $roleViewService = app(\App\Services\AdminRoleViewService::class);
+    $staffRoleDirectory = $roleViewService->staffRoleDirectory();
+    $adminActor = auth('admin')->user();
+    $canReturnToAdmin = $adminActor
+        && app(\App\Services\RoleService::class)->hasPermissionBypass($adminActor);
+    $viewingActive = $roleViewService->isActive();
 @endphp
 <div class="relative"
      x-data="{
@@ -8,6 +13,7 @@
         filter: '',
         roles: @js($staffRoleDirectory),
         enterUrl: @js(route('admin.role-view.enter')),
+        exitUrl: @js(route('admin.role-view.exit')),
         csrf: @js(csrf_token()),
         filteredRoles() {
             if (! this.filter) {
@@ -29,6 +35,23 @@
 
     <x-site.action-panel :title="__('admin.role_view.title')" open="open" size="lg">
         <p class="text-xs text-gray-500 mb-3">{{ __('admin.role_view.hint') }}</p>
+
+        @if ($canReturnToAdmin)
+            <form method="POST" action="{{ route('admin.role-view.exit') }}" class="mb-4">
+                @csrf
+                <button type="submit"
+                        class="w-full text-left rounded-2xl ring-1 {{ $viewingActive ? 'ring-brand/40 bg-brand-muted/30' : 'ring-gray-200 bg-white' }} px-4 py-3 hover:ring-brand/40 hover:bg-brand-muted/20 transition">
+                    <span class="flex items-center justify-between gap-3">
+                        <span>
+                            <span class="block text-sm font-bold text-gray-900">{{ __('admin.role_view.admin_account') }}</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">{{ __('admin.role_view.admin_account_hint') }}</span>
+                        </span>
+                        <span class="shrink-0 text-xs font-bold text-brand">← {{ __('admin.role_view.back_to_admin') }}</span>
+                    </span>
+                </button>
+            </form>
+            <p class="text-[10px] uppercase tracking-widest text-gray-400 font-semibold mb-2">{{ __('admin.role_view.filter_all') }}</p>
+        @endif
 
         <label class="block mb-4">
             <span class="sr-only">{{ __('admin.role_view.filter_label') }}</span>

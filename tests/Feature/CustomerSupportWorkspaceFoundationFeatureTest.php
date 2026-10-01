@@ -74,7 +74,7 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
         $html = $this->get(route('admin.support.home'))->assertOk()->getContent();
         $navChunk = Str::before(Str::after($html, 'aria-label="Main navigation"'), '</nav>');
 
-        foreach (['Home', 'Inbox', 'Tickets', 'Members', 'Reports'] as $label) {
+        foreach (['Home', 'Inbox', 'Tickets', 'Contacts', 'Reports'] as $label) {
             $this->assertMatchesRegularExpression('/>\s*'.preg_quote($label, '/').'\s*</', $navChunk);
         }
         $this->assertDoesNotMatchRegularExpression('/>\s*Notifications\s*</', $navChunk);
@@ -185,7 +185,7 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
         $this->get(route('admin.support.home'))
             ->assertOk()
             ->assertSee(__('admin.role_view.viewing'), false)
-            ->assertSee(__('admin.role_view.exit'), false);
+            ->assertSee(__('admin.role_view.back_to_admin'), false);
 
         $this->post(route('admin.role-view.exit'))
             ->assertRedirect(route('admin.dashboard'));
@@ -205,7 +205,7 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
         $html = $this->get(route('admin.support-tickets.index'))->assertOk()->getContent();
         $navChunk = Str::before(Str::after($html, 'aria-label="Main navigation"'), '</nav>');
 
-        foreach (['Home', 'Inbox', 'Tickets', 'Members', 'Reports'] as $label) {
+        foreach (['Home', 'Inbox', 'Tickets', 'Contacts', 'Reports'] as $label) {
             $this->assertMatchesRegularExpression('/>\s*'.preg_quote($label, '/').'\s*</', $navChunk);
         }
         $this->assertStringNotContainsString('Lending', $navChunk);

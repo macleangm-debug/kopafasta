@@ -1,6 +1,7 @@
 @props([
     'supportUrl' => null,
     'activeConversation' => null,
+    'openCount' => null,
     'isSw' => null,
 ])
 
@@ -8,12 +9,19 @@
     $isSw = $isSw ?? str_starts_with(app()->getLocale(), 'sw');
     $supportUrl = $supportUrl ?? route('site.borrower.support');
     $active = $activeConversation;
-    $ctaUrl = $active
-        ? (str_contains($supportUrl, '?') ? $supportUrl.'&chat=1' : $supportUrl.'?chat=1&section=active')
-        : $supportUrl;
-    $ctaLabel = $active
-        ? ($isSw ? 'Endelea na mazungumzo' : 'Continue conversation')
-        : ($isSw ? 'Pata msaada' : 'Get help');
+    $opens = $openCount !== null ? (int) $openCount : ($active ? 1 : 0);
+    if ($opens > 1) {
+        $ctaUrl = str_contains($supportUrl, '?') ? $supportUrl.'&section=active' : $supportUrl.'?section=active';
+        $ctaLabel = $isSw ? 'Endelea na mazungumzo' : 'Continue conversation';
+    } elseif ($active) {
+        $ctaUrl = str_contains($supportUrl, '?')
+            ? $supportUrl.'&chat=1&section=active&conversation='.$active->id
+            : $supportUrl.'?chat=1&section=active&conversation='.$active->id;
+        $ctaLabel = $isSw ? 'Endelea na mazungumzo' : 'Continue conversation';
+    } else {
+        $ctaUrl = $supportUrl;
+        $ctaLabel = $isSw ? 'Pata msaada' : 'Get help';
+    }
     $status = $active ? (string) ($active->status ?? '') : '';
 @endphp
 
@@ -28,7 +36,9 @@
                 <p class="mt-1 text-base font-bold leading-snug">Msaidizi wa Kopafasta</p>
                 <p class="mt-0.5 text-xs text-white/80">
                     {{ $isSw ? 'Msaada saa 24' : 'Available 24/7' }}
-                    @if ($active && $status !== '')
+                    @if ($opens > 1)
+                        · {{ $isSw ? $opens.' mazungumzo yanayoendelea' : $opens.' open conversations' }}
+                    @elseif ($active && $status !== '')
                         · {{ $isSw ? 'Mazungumzo yanaendelea' : 'Conversation in progress' }}
                     @endif
                 </p>

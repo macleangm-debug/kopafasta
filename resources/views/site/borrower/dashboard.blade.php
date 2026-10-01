@@ -36,15 +36,18 @@
     <x-site.borrower-dashboard-hero :hero="$hero" />
 
     @php
-        $dashSupportConversation = \App\Models\SupportConversation::query()
+        $dashOpenSupport = \App\Models\SupportConversation::query()
             ->where('customer_id', $customer->id ?? 0)
             ->whereNotIn('status', ['closed', 'resolved'])
+            ->latest('last_message_at')
             ->latest('id')
-            ->first(['id', 'status', 'conversation_number']);
+            ->get(['id', 'status', 'conversation_number']);
+        $dashSupportConversation = $dashOpenSupport->count() === 1 ? $dashOpenSupport->first() : null;
     @endphp
     <x-site.support-need-help-card
         :support-url="route('site.borrower.support')"
         :active-conversation="$dashSupportConversation"
+        :open-count="$dashOpenSupport->count()"
     />
 
     <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />

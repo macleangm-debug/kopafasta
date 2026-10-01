@@ -230,9 +230,15 @@ class SupportWorkspaceController extends Controller
         return redirect()->route('admin.support-tickets.index');
     }
 
-    public function members(): RedirectResponse
+    public function members(Request $request): RedirectResponse
     {
-        return redirect()->route('admin.customers.index');
+        $tab = (string) $request->query('tab', 'members');
+
+        return match ($tab) {
+            'guests' => redirect()->route('admin.customers.guests.index'),
+            'partners' => redirect()->route('admin.partners.index'),
+            default => redirect()->route('admin.customers.index'),
+        };
     }
 
     public function performance(Request $request): View

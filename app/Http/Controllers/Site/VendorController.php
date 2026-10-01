@@ -1040,15 +1040,22 @@ class VendorController extends Controller
         }
 
         $user = auth()->user();
-        $conversation = $user
-            ? \App\Models\SupportConversation::query()
-                ->where('user_id', $user->id)
-                ->whereNull('customer_id')
-                ->whereNotIn('status', ['closed', 'resolved'])
-                ->with(['messages' => fn ($q) => $q->orderBy('id'), 'assignedTo'])
-                ->latest('id')
-                ->first()
+        $conversations = app(\App\Services\Support\SupportConversationService::class);
+        $openConversations = $user
+            ? $conversations->listOpenConversationsFor(null, $user)->load(['assignedTo:id,name'])
+            : collect();
+        $requestedId = (int) request('conversation', 0);
+        $conversation = $requestedId > 0
+            ? $openConversations->firstWhere('id', $requestedId)
             : null;
+        if (! $conversation && $openConversations->count() === 1) {
+            $conversation = $openConversations->first();
+            if ($conversation) {
+                $conversation->load(['messages' => fn ($q) => $q->orderBy('id'), 'assignedTo']);
+            }
+        } elseif ($conversation) {
+            $conversation->load(['messages' => fn ($q) => $q->orderBy('id'), 'assignedTo']);
+        }
 
         $history = $user
             ? \App\Models\SupportConversation::query()
@@ -1091,10 +1098,18 @@ class VendorController extends Controller
 
         $help = app(\App\Services\Support\SupportHelpLibraryService::class);
         $q = trim((string) request('q', ''));
+        $openChat = request()->boolean('chat') && $conversation;
+        $needsChooser = $openConversations->count() > 1 && ! $conversation;
         $section = in_array(request('section'), ['help', 'active', 'history'], true)
             ? (string) request('section')
-            : 'help';
+            : ($needsChooser || $openChat ? 'active' : 'help');
         $workspace = app(\App\Services\PartnerWorkspaceService::class)->currentKey($vendor);
+        $partnerSupportRoute = request()->routeIs('site.vendor.*') ? 'site.vendor.support' : 'site.partner.support';
+        $chatUrl = $openConversations->isEmpty()
+            ? route($partnerSupportRoute, ['chat' => 1])
+            : ($openConversations->count() === 1
+                ? route($partnerSupportRoute, ['chat' => 1, 'conversation' => $openConversations->first()->id, 'section' => 'active'])
+                : route($partnerSupportRoute, ['section' => 'active']));
 
         return view('site.vendor.support', [
             'vendor' => $vendor,
@@ -1103,6 +1118,7 @@ class VendorController extends Controller
             'supportEmail' => support_contact('email'),
             'supportWhatsapp' => support_contact('whatsapp'),
             'supportConversation' => $conversation,
+            'openSupportConversations' => $openConversations,
             'supportHistory' => $history,
             'openTickets' => $openTickets,
             'resolvedTickets' => $resolvedTickets,
@@ -1113,7 +1129,7 @@ class VendorController extends Controller
             'helpTopic' => (string) request('topic', ''),
             'helpArticle' => (string) request('article', ''),
             'helpSection' => $section,
-            'openHumanChat' => request()->boolean('chat'),
+            'openHumanChat' => $openChat,
             'speakUrl' => request()->routeIs('site.vendor.*')
                 ? route('site.vendor.support.speak')
                 : route('site.partner.support.speak'),
@@ -1123,9 +1139,7 @@ class VendorController extends Controller
             'supportPageUrl' => request()->routeIs('site.vendor.*')
                 ? route('site.vendor.support')
                 : route('site.partner.support'),
-            'chatUrl' => request()->routeIs('site.vendor.*')
-                ? route('site.vendor.support', ['chat' => 1])
-                : route('site.partner.support', ['chat' => 1]),
+            'chatUrl' => $chatUrl,
             'feedbackUrl' => route('site.feedback', ['open' => 1, 'from' => 'partner']),
         ]);
     }

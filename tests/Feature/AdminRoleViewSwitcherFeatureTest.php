@@ -215,6 +215,59 @@ class AdminRoleViewSwitcherFeatureTest extends TestCase
         $this->assertTrue(Auth::guard('admin')->check());
     }
 
+    public function test_admin_exit_clears_support_and_restores_admin_chrome(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support'])
+            ->assertRedirect(route('admin.support.home'));
+
+        $this->get(route('admin.support.home'))
+            ->assertOk()
+            ->assertSee(__('admin.role_view.back_to_admin'), false);
+
+        $this->post(route('admin.role-view.exit'))
+            ->assertRedirect(route('admin.dashboard'));
+
+        $this->assertFalse(app(AdminRoleViewService::class)->isActive());
+        $this->assertFalse(app(\App\Services\Support\CustomerSupportWorkspaceService::class)->isSupportShellSticky());
+
+        // Visiting Support routes after Exit must NOT silently re-trap Admin into Viewing.
+        $this->get(route('admin.support.home'))->assertOk();
+        $this->assertFalse(app(AdminRoleViewService::class)->isActive());
+        $this->assertFalse(app(\App\Services\Support\CustomerSupportWorkspaceService::class)->inSupportShell($admin));
+
+        $dash = $this->get(route('admin.dashboard'))->assertOk()->getContent();
+        $this->assertStringContainsString('Lending', $dash);
+        $this->assertStringNotContainsString(__('admin.role_view.viewing').': Support', $dash);
+    }
+
+    public function test_admin_can_exit_via_account_role_admin_option_after_marketer(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support'])
+            ->assertRedirect();
+
+        $this->post(route('admin.role-view.enter'), ['workspace_key' => 'marketer'])
+            ->assertRedirect(route('admin.growth.index'));
+
+        $this->assertSame('marketer', app(AdminRoleViewService::class)->active()['role_key']);
+        $this->assertFalse(app(\App\Services\Support\CustomerSupportWorkspaceService::class)->isSupportShellSticky());
+
+        $this->get(route('admin.growth.index'))
+            ->assertOk()
+            ->assertSee(__('admin.role_view.admin_account'), false)
+            ->assertSee(__('admin.role_view.back_to_admin'), false);
+
+        $this->post(route('admin.role-view.exit'))
+            ->assertRedirect(route('admin.dashboard'));
+
+        $this->assertFalse(app(AdminRoleViewService::class)->isActive());
+    }
+
     public function test_legacy_staff_enter_still_maps_agent_into_support_workspace(): void
     {
         $admin = $this->admin();

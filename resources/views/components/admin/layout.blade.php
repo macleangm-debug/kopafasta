@@ -397,6 +397,8 @@
             @endif
         </div>
 
+        @include('admin.partials._support-contacts-tabs')
+
         {{-- Flash feedback uses premium modal; ordinary field validation stays inline. --}}
 
         {{ $slot }}

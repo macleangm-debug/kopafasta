@@ -17,19 +17,22 @@
         $helpQuery = $helpQuery ?? '';
         $helpSection = $helpSection ?? 'help';
         $isSw = str_starts_with(app()->getLocale(), 'sw');
-        $hasActive = (bool) $supportConversation || $openTickets->isNotEmpty();
+        $hasActive = (bool) ($supportConversation ?? null)
+            || (($openSupportConversations ?? collect())->isNotEmpty())
+            || $openTickets->isNotEmpty();
         $rateUrl = $supportConversation && $supportConversation->awaitsRating()
             ? route('site.borrower.support.conversation.rate', $supportConversation)
             : null;
         // Closed thread awaiting rating still shows chat ★ card; Talk opens a NEW conversation after closure.
         $chatConversation = $supportConversation;
-        if (! $chatConversation && request()->boolean('chat')) {
+        if (! $chatConversation && request()->boolean('chat') && ($openSupportConversations ?? collect())->count() <= 1) {
             $chatConversation = app(\App\Services\Support\SupportConversationService::class)
                 ->memberFacingConversation($customer->id);
             $rateUrl = $chatConversation && $chatConversation->awaitsRating()
                 ? route('site.borrower.support.conversation.rate', $chatConversation)
                 : null;
         }
+        $supportChatUrl = $supportChatUrl ?? route('site.borrower.support', ['chat' => 1]);
     @endphp
 
     <div x-data="{ human: @js((bool) $openHumanChat), q: @js($helpQuery), section: @js($helpSection) }">
@@ -85,7 +88,7 @@
                     'helpTopic' => $helpTopic ?? '',
                     'helpArticle' => $helpArticle ?? '',
                     'homeUrl' => route('site.borrower.support'),
-                    'chatUrl' => route('site.borrower.support', ['chat' => 1]),
+                    'chatUrl' => $supportChatUrl,
                     'phones' => $phones ?? support_phones(),
                     'primaryPhone' => $primaryPhone ?? null,
                 ])
@@ -93,6 +96,11 @@
 
             {{-- ACTIVE --}}
             <div x-show="section === 'active'" x-cloak class="space-y-4">
+                <x-site.support-open-conversations
+                    :conversations="$openSupportConversations ?? []"
+                    continue-route="site.borrower.support"
+                    :is-sw="$isSw"
+                />
                 @if ($supportConversation)
                     @php
                         $agentName = app(\App\Services\Support\SupportConversationService::class)

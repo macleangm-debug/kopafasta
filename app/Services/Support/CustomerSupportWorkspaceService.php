@@ -44,42 +44,52 @@ class CustomerSupportWorkspaceService
     }
 
     /**
-     * True when Account/Role is viewing Support, a support agent is signed in,
-     * or the request is already inside the support workspace routes.
+     * True when Account/Role is viewing Support, sticky Support shell is active,
+     * or a native Support staff user is signed in.
+     *
+     * Admin (permission bypass) must NOT be silently re-entered into Viewing: Support
+     * merely by visiting admin.support.* — that trapped Exit → Admin.
      */
     public function inSupportShell(?User $viewer = null): bool
     {
+        $viewer ??= auth('admin')->user() ?? auth()->user();
         $ctx = $this->roleView->active();
+
+        // Explicit Account/Role viewing Support.
         if ($ctx && $this->isSupportRoleKey($ctx['role_key'] ?? null)) {
             $this->markSupportShell();
 
             return true;
         }
 
-        if (request()->routeIs('admin.support.*')) {
-            $this->markSupportShell();
-            $this->ensureSupportWorkspaceContext($viewer);
-
-            return true;
-        }
-
-        // Sticky Support context across Tickets / Members / conversations that reuse Admin routes.
+        // Sticky shell after explicit enter — survives Tickets/Members/Guests routes.
         if ($this->isSupportShellSticky() && $this->isSupportRelatedRoute()) {
             $this->ensureSupportWorkspaceContext($viewer);
 
             return true;
         }
 
-        $viewer ??= auth('admin')->user() ?? auth()->user();
         if (! $viewer) {
             return false;
         }
 
-        if ($this->roles->hasPermissionBypass($viewer) || $viewer->hasRole('manager') || $viewer->hasRole('super_admin')) {
+        // Native Support staff (not Admin/manager bypass) always use Support chrome.
+        if ($this->roles->hasPermissionBypass($viewer)
+            || $viewer->hasRole('manager')
+            || $viewer->hasRole('super_admin')) {
             return false;
         }
 
-        return $viewer->hasRole(self::ROLE_KEY) || $viewer->hasRole('partner_support');
+        if ($viewer->hasRole(self::ROLE_KEY) || $viewer->hasRole('partner_support')) {
+            if (request()->routeIs('admin.support.*') || $this->isSupportRelatedRoute()) {
+                $this->markSupportShell();
+                $this->ensureSupportWorkspaceContext($viewer);
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     public function markSupportShell(): void
@@ -108,6 +118,7 @@ class CustomerSupportWorkspaceService
             'admin.support-tickets.*',
             'admin.support-chats.*',
             'admin.customers.*',
+            'admin.partners.*',
         );
     }
 

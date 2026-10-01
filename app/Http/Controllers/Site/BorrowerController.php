@@ -3999,12 +3999,17 @@ class BorrowerController extends Controller
     public function support(): View
     {
         $customer = $this->customer();
-        $conversation = \App\Models\SupportConversation::query()
-            ->where('customer_id', $customer->id)
-            ->whereNotIn('status', ['closed', 'resolved'])
-            ->with(['messages' => fn ($q) => $q->orderBy('id'), 'assignedTo'])
-            ->latest('id')
-            ->first();
+        $conversations = app(\App\Services\Support\SupportConversationService::class);
+        $openConversations = $conversations->listOpenConversationsFor($customer, null)
+            ->load(['assignedTo:id,name']);
+
+        $requestedId = (int) request('conversation', 0);
+        $conversation = $requestedId > 0
+            ? $openConversations->firstWhere('id', $requestedId)
+            : null;
+        if (! $conversation && $openConversations->count() === 1) {
+            $conversation = $openConversations->first();
+        }
 
         $history = \App\Models\SupportConversation::query()
             ->where('customer_id', $customer->id)
@@ -4031,15 +4036,23 @@ class BorrowerController extends Controller
         $help = app(\App\Services\Support\SupportHelpLibraryService::class);
         $q = trim((string) request('q', ''));
 
-        // Support Home first — never auto-enter chat. ?chat=1 is Continue / Talk to Support only.
-        $openChat = request()->boolean('chat');
+        // Support Home first — never auto-enter chat. ?chat=1 resumes only when a single/selected CNV exists.
+        $openChat = request()->boolean('chat') && $conversation;
+        $needsChooser = $openConversations->count() > 1 && ! $conversation;
         $section = in_array(request('section'), ['help', 'active', 'history'], true)
             ? (string) request('section')
-            : 'help';
+            : ($needsChooser || ($openChat && $conversation) ? 'active' : 'help');
+
+        $chatUrl = $openConversations->isEmpty()
+            ? route('site.borrower.support', ['chat' => 1])
+            : ($openConversations->count() === 1
+                ? route('site.borrower.support', ['chat' => 1, 'conversation' => $openConversations->first()->id, 'section' => 'active'])
+                : route('site.borrower.support', ['section' => 'active']));
 
         return view('site.borrower.support', [
             'customer' => $customer,
             'supportConversation' => $conversation,
+            'openSupportConversations' => $openConversations,
             'supportHistory' => $history,
             'openTickets' => $openTickets,
             'resolvedTickets' => $resolvedTickets,
@@ -4051,6 +4064,7 @@ class BorrowerController extends Controller
             'helpArticle' => (string) request('article', ''),
             'openHumanChat' => $openChat,
             'helpSection' => $section,
+            'supportChatUrl' => $chatUrl,
             'phones' => support_phones(),
             'primaryPhone' => support_phones()[0] ?? null,
         ]);

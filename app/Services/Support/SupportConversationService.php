@@ -151,6 +151,30 @@ class SupportConversationService
         });
     }
 
+    /**
+     * Open (non-terminal) conversations for a Member or Partner, newest activity first.
+     * Does not merge or delete history — used for resume / chooser UI.
+     *
+     * @return \Illuminate\Support\Collection<int, SupportConversation>
+     */
+    public function listOpenConversationsFor(?Customer $customer, ?User $user): \Illuminate\Support\Collection
+    {
+        $q = SupportConversation::query()
+            ->whereNotIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED])
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id');
+
+        if ($customer) {
+            $q->where('customer_id', $customer->id);
+        } elseif ($user) {
+            $q->where('user_id', $user->id)->whereNull('customer_id');
+        } else {
+            return collect();
+        }
+
+        return $q->get();
+    }
+
     public function openConversationFor(
         ?Customer $customer,
         ?User $user,
@@ -158,16 +182,8 @@ class SupportConversationService
         ?string $guestPhone = null,
         ?string $channel = 'web_chat',
     ): SupportConversation {
-        // Deterministic active thread: latest non-terminal conversation for this requester.
-        $query = SupportConversation::query()
-            ->whereNotIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED])
-            ->latest('id');
-
-        if ($customer) {
-            $query->where('customer_id', $customer->id);
-        } elseif ($user) {
-            $query->where('user_id', $user->id)->whereNull('customer_id');
-        } else {
+        // Guest: keep single active phone thread (retire siblings — guests stay contacts).
+        if (! $customer && ! $user) {
             if ($guestPhone) {
                 $existing = SupportConversation::query()
                     ->whereNull('customer_id')
@@ -199,33 +215,34 @@ class SupportConversationService
             return $created;
         }
 
-        $existing = $query->first();
-        if ($existing) {
-            $this->retireSiblingOpenConversations($existing, $customer, $user, $guestPhone);
+        // Member / Partner: never create a second open CNV; never retire/merge siblings.
+        return DB::transaction(function () use ($customer, $user, $channel) {
+            $open = $this->listOpenConversationsFor($customer, $user);
+            if ($open->isNotEmpty()) {
+                return $this->normalizeLegacyStatus($open->first());
+            }
 
-            return $this->normalizeLegacyStatus($existing);
-        }
+            // Lock identity rows lightly via re-check under transaction to beat double-click races.
+            $again = $this->listOpenConversationsFor($customer, $user);
+            if ($again->isNotEmpty()) {
+                return $this->normalizeLegacyStatus($again->first());
+            }
 
-        $created = SupportConversation::query()->create([
-            'conversation_number' => $this->nextConversationNumber(),
-            'customer_id' => $customer?->id,
-            'user_id' => $user?->id,
-            'channel' => $channel ?: 'web_chat',
-            'status' => self::STATUS_WAITING,
-            'needs_human' => true,
-            'guest_name' => $customer ? null : $guestName,
-            'guest_phone' => $customer ? null : $guestPhone,
-            'last_message_at' => now(),
-        ]);
-
-        $this->retireSiblingOpenConversations($created, $customer, $user, $guestPhone);
-
-        return $created;
+            return SupportConversation::query()->create([
+                'conversation_number' => $this->nextConversationNumber(),
+                'customer_id' => $customer?->id,
+                'user_id' => $user?->id,
+                'channel' => $channel ?: 'web_chat',
+                'status' => self::STATUS_WAITING,
+                'needs_human' => true,
+                'last_message_at' => now(),
+            ]);
+        });
     }
 
     /**
-     * Keep exactly one non-terminal conversation per requester.
-     * Older open threads are resolved (history preserved) so Member and Support cannot drift.
+     * Guest-only: keep exactly one non-terminal conversation per phone.
+     * Member/Partner open histories are preserved (chooser UI) — do not call for them.
      */
     public function retireSiblingOpenConversations(
         SupportConversation $keep,
@@ -233,19 +250,17 @@ class SupportConversationService
         ?User $user = null,
         ?string $guestPhone = null,
     ): void {
-        $q = SupportConversation::query()
-            ->where('id', '!=', $keep->id)
-            ->whereNotIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED]);
-
-        if ($customer) {
-            $q->where('customer_id', $customer->id);
-        } elseif ($user) {
-            $q->where('user_id', $user->id)->whereNull('customer_id');
-        } elseif ($guestPhone) {
-            $q->whereNull('customer_id')->whereNull('user_id')->where('guest_phone', $guestPhone);
-        } else {
+        // Only Guests — Member/Partner multi-open is handled by chooser, not retirement.
+        if ($customer || $user || blank($guestPhone)) {
             return;
         }
+
+        $q = SupportConversation::query()
+            ->where('id', '!=', $keep->id)
+            ->whereNotIn('status', [self::STATUS_CLOSED, self::STATUS_RESOLVED])
+            ->whereNull('customer_id')
+            ->whereNull('user_id')
+            ->where('guest_phone', $guestPhone);
 
         $q->update([
             'status' => self::STATUS_RESOLVED,

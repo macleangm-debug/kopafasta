@@ -224,8 +224,12 @@ class AdminRoleViewService
             'entered_at' => now()->toIso8601String(),
         ]);
 
+        $support = app(\App\Services\Support\CustomerSupportWorkspaceService::class);
         if (in_array($canonical, [self::WORKSPACE_SUPPORT, ...self::SUPPORT_ROLE_KEYS], true)) {
-            app(\App\Services\Support\CustomerSupportWorkspaceService::class)->markSupportShell();
+            $support->markSupportShell();
+        } else {
+            // Switching Role A → Role B must not leave Support sticky trapping chrome.
+            $support->clearSupportShell();
         }
 
         $this->audit->logAdminAction($admin, 'admin.role_view.enter', null, [

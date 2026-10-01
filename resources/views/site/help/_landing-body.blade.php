@@ -121,16 +121,18 @@
         <div x-ref="carousel"
              class="overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-none"
              style="-webkit-overflow-scrolling: touch;">
-            <div class="flex gap-3.5 w-max mx-auto sm:mx-0">
+            <div class="flex gap-3.5 w-max mx-auto sm:mx-0 lg:grid lg:grid-cols-3 lg:w-full lg:gap-4">
                 <template x-for="cat in groups" :key="cat.key">
                     <button type="button"
                             @click="selectCategory(cat.key)"
-                            class="snap-start shrink-0 w-[12.5rem] sm:w-[13.5rem] rounded-2xl bg-white ring-1 shadow-sm px-5 py-6 transition text-left"
+                            class="snap-start shrink-0 w-[13rem] sm:w-[14rem] lg:w-auto min-h-[9.5rem] rounded-2xl bg-white ring-1 shadow-sm px-5 py-5 transition text-left flex flex-col"
                             :class="selectedKey === cat.key ? 'ring-brand/50 bg-brand-muted/30' : 'ring-brand/10 hover:ring-brand/30'">
-                        <span class="text-3xl sm:text-4xl" aria-hidden="true" x-text="cat.icon"></span>
-                        <p class="mt-3.5 text-[15px] font-bold text-gray-900 leading-snug" x-text="cat.label"></p>
-                        <p class="mt-1.5 text-xs font-semibold text-brand/80"
-                           x-text="topicCountPrefix + cat.topic_count + topicCountSuffix"></p>
+                        <span class="inline-flex size-12 items-center justify-center rounded-2xl bg-brand-muted/50 text-3xl" aria-hidden="true" x-text="cat.icon"></span>
+                        <p class="mt-3.5 text-[15px] font-bold text-gray-900 leading-snug flex-1" x-text="cat.label"></p>
+                        <p class="mt-2 text-xs font-semibold text-brand flex items-center justify-between gap-2">
+                            <span x-text="topicCountPrefix + cat.topic_count + topicCountSuffix"></span>
+                            <span aria-hidden="true">→</span>
+                        </p>
                     </button>
                 </template>
             </div>
@@ -196,7 +198,7 @@
     </section>
 
     {{-- Get help — Anza mazungumzo primary; Feedback/Phone secondary. Chat and Feedback never share routing/state. --}}
-    <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-4 sm:p-5 space-y-3">
+    <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-4 sm:p-5 space-y-4">
         <div>
             <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">{{ $isSw ? 'Pata msaada' : 'Get help' }}</p>
             <p class="mt-1 text-sm text-gray-600">{{ $isSw ? 'Chagua njia inayokufaa sasa.' : 'Choose the path that fits right now.' }}</p>
@@ -204,23 +206,24 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <a href="{{ $chatUrl }}"
                data-kf-support-action="chat"
-               class="rounded-2xl bg-brand text-white ring-1 ring-brand/30 hover:bg-brand-light px-4 sm:px-5 py-4 text-left transition shadow-sm sm:col-span-1">
-                <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
+               class="rounded-2xl bg-brand text-white ring-1 ring-brand/30 hover:bg-brand-light px-4 sm:px-5 py-5 text-left transition shadow-sm relative">
+                <span class="absolute top-3 right-3 inline-flex items-center rounded-full bg-brand-gold/95 text-brand text-[10px] font-extrabold px-2 py-0.5">24/7</span>
+                <p class="text-xl" aria-hidden="true">💬</p>
                 <p class="mt-2 text-sm font-bold leading-snug">{{ $isSw ? 'Anza mazungumzo' : 'Start a conversation' }}</p>
-                <p class="mt-1 text-xs text-white/80 leading-snug">{{ $isSw ? 'Msaidizi wa Kopafasta — msaada saa 24.' : 'Kopafasta Assistant — help 24/7.' }}</p>
+                <p class="mt-1 text-xs text-white/80 leading-snug">{{ $isSw ? 'Msaidizi wa Kopafasta — msaada unapouhitaji.' : 'Kopafasta Assistant — help when you need it.' }}</p>
             </a>
             <button type="button"
                     data-kf-support-action="feedback"
                     @click.stop="$dispatch('open-feedback')"
-                    class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 hover:ring-brand/25 hover:bg-white px-4 sm:px-5 py-4 text-left transition">
-                <p class="text-lg sm:text-xl" aria-hidden="true">✉️</p>
+                    class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 hover:ring-brand/25 hover:bg-white px-4 sm:px-5 py-5 text-left transition">
+                <p class="text-xl" aria-hidden="true">✉️</p>
                 <p class="mt-2 text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</p>
                 <p class="mt-1 text-xs text-gray-500 leading-snug">{{ $isSw ? 'Tuma swali, pendekezo au malalamiko.' : 'Send a question, suggestion or complaint.' }}</p>
             </button>
             @if ($primaryPhone)
                 <a href="tel:{{ preg_replace('/\s+/', '', $primaryPhone) }}"
-                   class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 hover:ring-brand/25 hover:bg-white px-4 sm:px-5 py-4 text-left transition">
-                    <p class="text-lg sm:text-xl" aria-hidden="true">☎️</p>
+                   class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 hover:ring-brand/25 hover:bg-white px-4 sm:px-5 py-5 text-left transition">
+                    <p class="text-xl" aria-hidden="true">☎️</p>
                     <p class="mt-2 text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Piga simu' : 'Call us' }}</p>
                     <p class="mt-1 text-xs text-brand font-semibold leading-snug tabular-nums">{{ $primaryPhone }}</p>
                     @if (filled($supportHours))
@@ -228,13 +231,18 @@
                     @endif
                 </a>
             @else
-                <div class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 px-4 sm:px-5 py-4 text-left opacity-70">
-                    <p class="text-lg sm:text-xl" aria-hidden="true">☎️</p>
+                <div class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 px-4 sm:px-5 py-5 text-left opacity-70">
+                    <p class="text-xl" aria-hidden="true">☎️</p>
                     <p class="mt-2 text-sm font-bold text-gray-900">{{ $isSw ? 'Piga simu' : 'Call us' }}</p>
                     <p class="mt-1 text-xs text-gray-500">{{ $isSw ? 'Nambari itakuja hivi karibuni' : 'Number coming soon' }}</p>
                 </div>
             @endif
         </div>
+        <p class="text-center text-[11px] sm:text-xs font-semibold text-brand/80 tracking-wide">
+            {{ $isSw
+                ? 'Majibu ya haraka · Mazungumzo salama · Msaada unapouhitaji'
+                : 'Quick answers · Secure chat · Help when you need it' }}
+        </p>
     </section>
 </div>
 

@@ -15,7 +15,9 @@
         $homeUrl = $supportPageUrl ?? route('site.partner.support');
         $feedbackUrl = $feedbackUrl ?? route('site.feedback', ['open' => 1, 'from' => 'partner']);
         $isSw = str_starts_with(app()->getLocale(), 'sw');
-        $hasActive = (bool) $supportConversation || $openTickets->isNotEmpty();
+        $hasActive = (bool) $supportConversation
+            || (($openSupportConversations ?? collect())->isNotEmpty())
+            || $openTickets->isNotEmpty();
         $chatConversation = $supportConversation;
         if (! $chatConversation && request()->boolean('chat') && auth()->user()) {
             $chatConversation = app(\App\Services\Support\SupportConversationService::class)
@@ -77,6 +79,11 @@
             </div>
 
             <div x-show="section === 'active'" x-cloak class="space-y-4">
+                <x-site.support-open-conversations
+                    :conversations="$openSupportConversations ?? []"
+                    :continue-route="request()->routeIs('site.vendor.*') ? 'site.vendor.support' : 'site.partner.support'"
+                    :is-sw="$isSw"
+                />
                 @if ($supportConversation)
                     @php
                         $agentName = app(\App\Services\Support\SupportConversationService::class)
