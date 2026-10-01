@@ -189,43 +189,21 @@
                 <div class="flex items-center gap-3 ml-auto shrink-0">
                     <x-site.theme-toggle variant="header" />
                     <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                    <div class="relative" x-data="notificationBell()" x-init="load()">
-                        <button type="button" @click.stop="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
+                    <div class="relative" x-data="{ sheetOpen: false }">
+                        <button type="button" @click="sheetOpen = !sheetOpen" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
-                            <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
+                            @if ($unreadNotifications > 0)
+                                <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
+                            @endif
                         </button>
-                        <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100%-2rem)] rounded-2xl glass-card overflow-hidden z-50">
-                            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white/80">
+                        <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak
+                             class="absolute right-0 mt-2 w-96 max-w-[calc(100%-2rem)] rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden z-[80]">
+                            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
                                 <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
                                 <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
                             </div>
-                            <div class="max-h-80 overflow-y-auto bg-white/90">
-                                <div x-show="loading && items.length === 0" class="p-4"><x-site.skeleton variant="rows" :lines="3" /></div>
-                                <p x-show="!loading && items.length === 0" class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
-                                <template x-for="item in items" :key="item.id">
-                                    <div class="px-4 py-3 border-b border-gray-50 hover:bg-brand-muted/30" :class="!item.read ? 'bg-brand-muted/50' : ''">
-                                        <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category_label || item.category"></p>
-                                        <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
-                                        <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
-                                        <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
-                                        <div class="mt-2 flex flex-wrap gap-2" x-show="item.accept_url && item.decline_url">
-                                            <a :href="item.accept_url"
-                                               class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand"
-                                               x-text="item.action_label || @js(__('borrower.guarantor_notifications.accept_cta'))"></a>
-                                            <form :action="item.decline_url" method="POST" class="inline">
-                                                <input type="hidden" name="_token" :value="document.querySelector('meta[name=csrf-token]')?.content || ''">
-                                                <input type="hidden" name="action" value="reject">
-                                                <button type="submit"
-                                                        class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50"
-                                                        x-text="item.decline_label || @js(__('borrower.guarantor_notifications.decline_cta'))"></button>
-                                            </form>
-                                        </div>
-                                        <a x-show="item.action_url && !(item.accept_url && item.decline_url)"
-                                           :href="item.action_url"
-                                           class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline"
-                                           x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
-                                    </div>
-                                </template>
+                            <div class="max-h-80 overflow-y-auto bg-white">
+                                <x-site.borrower-bell-items :items="$bellPreviewItems" />
                             </div>
                         </div>
                     </div>
@@ -281,10 +259,12 @@
             <div class="flex items-center gap-0.5 shrink-0">
                 <x-site.theme-toggle variant="compact" />
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                <div class="relative" x-data="notificationBell()" x-init="load()">
-                    <button type="button" @click.stop="toggle()" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
+                <div class="relative" x-data="{ sheetOpen: false }">
+                    <button type="button" @click="sheetOpen = !sheetOpen" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
-                        <span x-show="unread > 0" x-cloak class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
+                        @if ($unreadNotifications > 0)
+                            <span class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
+                        @endif
                     </button>
                     <template x-teleport="body">
                         <div x-show="sheetOpen" x-cloak class="fixed inset-0 z-[10060] lg:hidden" role="dialog" aria-modal="true">
@@ -310,17 +290,7 @@
                                     </div>
                                 </div>
                                 <div class="flex-1 overflow-y-auto overscroll-contain">
-                                    <div x-show="loading && items.length === 0" class="p-5"><x-site.skeleton variant="rows" :lines="3" /></div>
-                                    <p x-show="!loading && items.length === 0" class="px-5 py-10 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
-                                    <template x-for="item in items" :key="item.id">
-                                        <div class="px-5 py-3 border-b border-gray-50" :class="!item.read ? 'bg-brand-muted/40' : ''">
-                                            <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category_label || item.category"></p>
-                                            <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
-                                            <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
-                                            <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
-                                            <a x-show="item.action_url" :href="item.action_url" @click="sheetOpen = false" class="inline-flex mt-2 text-xs font-semibold text-brand" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
-                                        </div>
-                                    </template>
+                                    <x-site.borrower-bell-items :items="$bellPreviewItems" compact />
                                 </div>
                             </div>
                         </div>
@@ -451,59 +421,6 @@ document.addEventListener('alpine:init', () => {
             detail: typeof detail === 'string' ? { message: detail } : detail,
         }));
     };
-
-    Alpine.data('notificationBell', () => ({
-        sheetOpen: false,
-        unread: {{ (int) $unreadNotifications }},
-        items: @js($bellPreviewItems),
-        loading: false,
-        async load() {
-            this.loading = this.items.length === 0;
-            try {
-                const res = await fetch(@js(route('site.borrower.notifications.preview')), {
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    credentials: 'same-origin',
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                this.unread = Number(data.unread ?? 0);
-                this.items = Array.isArray(data.items) ? data.items : [];
-            } catch (e) {}
-            this.loading = false;
-        },
-        toggle() {
-            // Open/close synchronously so @click.outside cannot race an await and snap the panel shut.
-            this.sheetOpen = !this.sheetOpen;
-            if (!this.sheetOpen) return;
-            this.refreshOpen();
-        },
-        async refreshOpen() {
-            await this.load();
-            if (this.unread <= 0) return;
-            try {
-                const res = await fetch(@js(route('site.borrower.notifications.read')), {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
-                    },
-                    credentials: 'same-origin',
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                // Pending guarantor/group invites stay in the attention count until acted on.
-                this.unread = Number(data.unread ?? 0);
-                this.items = this.items.map(item => {
-                    if (item.template === 'guarantor_request' || item.template === 'group_loan_invitation') {
-                        return item;
-                    }
-                    return { ...item, read: true };
-                });
-            } catch (e) {}
-        },
-    }));
 });
 </script>
 @vite('resources/js/alpine-init.js')
