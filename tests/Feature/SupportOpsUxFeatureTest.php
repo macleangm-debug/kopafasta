@@ -62,11 +62,35 @@ class SupportOpsUxFeatureTest extends TestCase
         [$user] = $this->member();
 
         $this->actingAs($user)
+            ->withSession(['locale' => 'sw'])
             ->get(route('site.borrower.support'))
             ->assertOk()
             ->assertSee('Kituo cha Usaidizi', false)
-            ->assertSee('Ongea na Timu ya Usaidizi', false)
-            ->assertSee('HOW TO', false);
+            ->assertSee('Unahitaji msaada gani?', false)
+            ->assertSee('Kuomba mkopo', false)
+            ->assertSee('Ongea na timu', false)
+            ->assertDontSee('<details', false);
+    }
+
+    public function test_help_article_deep_link_and_jinsi_ya_label(): void
+    {
+        [$user] = $this->member();
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'sw'])
+            ->get(route('site.help.article', ['category' => 'apply-loan', 'slug' => 'how-to-apply']))
+            ->assertOk()
+            ->assertSee('JINSI YA', false)
+            ->assertSee('Kuomba mkopo', false)
+            ->assertSee('Nakili kiungo', false)
+            ->assertSee('Je, hii imekusaidia?', false);
+
+        $this->actingAs($user)
+            ->withSession(['locale' => 'en'])
+            ->get(route('site.help.article', ['category' => 'apply-loan', 'slug' => 'how-to-apply']))
+            ->assertOk()
+            ->assertSee('HOW TO', false)
+            ->assertSee('Copy link', false);
     }
 
     public function test_habari_message_is_clean_and_visible_in_inbox(): void

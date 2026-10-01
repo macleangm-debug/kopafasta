@@ -174,6 +174,9 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/about/impact', [PageController::class, 'aboutImpact'])->name('about.impact');
     Route::get('/about/roadmap', [PageController::class, 'aboutRoadmap'])->name('about.roadmap');
     Route::get('/faq', [PageController::class, 'faq'])->name('faq');
+    Route::get('/help/{category}', [\App\Http\Controllers\Site\HelpCentreController::class, 'category'])->name('help.category');
+    Route::get('/help/{category}/{slug}', [\App\Http\Controllers\Site\HelpCentreController::class, 'article'])->name('help.article');
+    Route::post('/help/{category}/{slug}/feedback', [\App\Http\Controllers\Site\HelpCentreController::class, 'feedback'])->name('help.feedback');
     Route::get('/legal', [PageController::class, 'legalIndex'])->name('legal');
     Route::get('/legal/terms', [PageController::class, 'terms'])->name('legal.terms');
     Route::get('/legal/privacy', [PageController::class, 'privacy'])->name('legal.privacy');

@@ -2,23 +2,36 @@
 
 namespace App\Services\Support;
 
+use App\Models\Customer;
+use App\Models\Setting;
+use App\Services\PortalContextService;
+
 /**
- * Grouped FAQ + HOW TO library for Support Home (Member/Partner).
- * Settings-backed override key: support.help_library
+ * Self-service Help Centre library (Member + Partner).
+ * Settings override: support.help_library
  */
 class SupportHelpLibraryService
 {
     public const SETTING_KEY = 'support.help_library';
 
     /**
-     * @return list<array{key:string, label_en:string, label_sw:string, audience:string, faqs:list<array>, howtos:list<array>}>
+     * @return list<array<string, mixed>>
      */
     public function groups(string $audience = 'member'): array
     {
-        $stored = \App\Models\Setting::get(self::SETTING_KEY);
-        $groups = is_array($stored) && $stored !== [] ? $stored : $this->defaults();
+        $stored = Setting::get(self::SETTING_KEY);
+        $groups = $this->defaults();
+        if (is_array($stored) && $stored !== []) {
+            $hasNewShape = collect($stored)->contains(
+                fn ($g) => is_array($g) && (($g['key'] ?? '') === 'apply-loan' || isset($g['articles']))
+            );
+            if ($hasNewShape) {
+                $groups = $stored;
+            }
+        }
 
         return collect($groups)
+            ->map(fn (array $g) => $this->normalizeGroup($g))
             ->filter(function (array $g) use ($audience) {
                 $aud = (string) ($g['audience'] ?? 'both');
 
@@ -29,37 +42,96 @@ class SupportHelpLibraryService
     }
 
     /**
-     * Flat searchable rows for Support Home search.
-     *
-     * @return list<array{type:string, group:string, title:string, body:string, steps?:list<string>}>
+     * @return list<array{key:string,label:string,icon:string,topic_count:int,audience:string}>
+     */
+    public function categories(string $audience = 'member', ?string $locale = null): array
+    {
+        $isSw = $this->isSw($locale);
+
+        return collect($this->groups($audience))
+            ->map(function (array $g) use ($isSw) {
+                $articles = $g['articles'] ?? [];
+
+                return [
+                    'key' => (string) ($g['key'] ?? ''),
+                    'label' => $isSw
+                        ? (string) ($g['label_sw'] ?? $g['label_en'] ?? '')
+                        : (string) ($g['label_en'] ?? $g['label_sw'] ?? ''),
+                    'icon' => (string) ($g['icon'] ?? '📘'),
+                    'topic_count' => count($articles),
+                    'audience' => (string) ($g['audience'] ?? 'both'),
+                ];
+            })
+            ->filter(fn (array $c) => $c['key'] !== '')
+            ->values()
+            ->all();
+    }
+
+    public function category(string $key, string $audience = 'member'): ?array
+    {
+        return collect($this->groups($audience))
+            ->first(fn (array $g) => ($g['key'] ?? '') === $key);
+    }
+
+    public function article(string $categoryKey, string $slug, string $audience = 'member'): ?array
+    {
+        $group = $this->category($categoryKey, $audience);
+        if (! $group) {
+            return null;
+        }
+
+        $article = collect($group['articles'] ?? [])
+            ->first(fn (array $a) => ($a['slug'] ?? '') === $slug);
+
+        if (! $article) {
+            return null;
+        }
+
+        return array_merge($article, [
+            'category_key' => $categoryKey,
+            'category_label_en' => $group['label_en'] ?? '',
+            'category_label_sw' => $group['label_sw'] ?? '',
+        ]);
+    }
+
+    /**
+     * @return list<array{type:string,group:string,category:string,slug:string,title:string,body:string,steps?:list<string>,url:string}>
      */
     public function searchable(string $audience = 'member', ?string $locale = null): array
     {
-        $isSw = str_starts_with(strtolower((string) ($locale ?: app()->getLocale())), 'sw');
+        $isSw = $this->isSw($locale);
         $rows = [];
 
         foreach ($this->groups($audience) as $group) {
             $groupLabel = $isSw
                 ? (string) ($group['label_sw'] ?? $group['label_en'] ?? '')
                 : (string) ($group['label_en'] ?? $group['label_sw'] ?? '');
+            $categoryKey = (string) ($group['key'] ?? '');
 
-            foreach ($group['faqs'] ?? [] as $faq) {
-                $rows[] = [
-                    'type' => 'faq',
-                    'group' => $groupLabel,
-                    'title' => $isSw ? (string) ($faq['q_sw'] ?? $faq['q_en'] ?? '') : (string) ($faq['q_en'] ?? $faq['q_sw'] ?? ''),
-                    'body' => $isSw ? (string) ($faq['a_sw'] ?? $faq['a_en'] ?? '') : (string) ($faq['a_en'] ?? $faq['a_sw'] ?? ''),
-                ];
-            }
+            foreach ($group['articles'] ?? [] as $article) {
+                $slug = (string) ($article['slug'] ?? '');
+                $kind = (string) ($article['kind'] ?? 'answer');
+                $title = $isSw
+                    ? (string) ($article['q_sw'] ?? $article['q_en'] ?? $article['title_sw'] ?? $article['title_en'] ?? '')
+                    : (string) ($article['q_en'] ?? $article['q_sw'] ?? $article['title_en'] ?? $article['title_sw'] ?? '');
+                $body = $isSw
+                    ? (string) ($article['a_sw'] ?? $article['a_en'] ?? '')
+                    : (string) ($article['a_en'] ?? $article['a_sw'] ?? '');
+                $steps = $isSw
+                    ? ($article['steps_sw'] ?? $article['steps_en'] ?? [])
+                    : ($article['steps_en'] ?? $article['steps_sw'] ?? []);
 
-            foreach ($group['howtos'] ?? [] as $how) {
-                $steps = $isSw ? ($how['steps_sw'] ?? $how['steps_en'] ?? []) : ($how['steps_en'] ?? $how['steps_sw'] ?? []);
                 $rows[] = [
-                    'type' => 'howto',
+                    'type' => $kind === 'howto' ? 'howto' : 'faq',
                     'group' => $groupLabel,
-                    'title' => $isSw ? (string) ($how['title_sw'] ?? $how['title_en'] ?? '') : (string) ($how['title_en'] ?? $how['title_sw'] ?? ''),
-                    'body' => $isSw ? (string) ($how['intro_sw'] ?? $how['intro_en'] ?? '') : (string) ($how['intro_en'] ?? $how['intro_sw'] ?? ''),
+                    'category' => $categoryKey,
+                    'slug' => $slug,
+                    'title' => $title,
+                    'body' => $body,
                     'steps' => array_values(array_filter(array_map('strval', (array) $steps))),
+                    'url' => $slug !== '' && $categoryKey !== ''
+                        ? route('site.help.article', ['category' => $categoryKey, 'slug' => $slug])
+                        : route('site.help.category', ['category' => $categoryKey]),
                 ];
             }
         }
@@ -68,8 +140,7 @@ class SupportHelpLibraryService
     }
 
     /**
-     * @param  list<array{type:string, group:string, title:string, body:string, steps?:list<string>}>  $rows
-     * @return list<array{type:string, group:string, title:string, body:string, steps?:list<string>}>
+     * @return list<array{type:string,group:string,category:string,slug:string,title:string,body:string,steps?:list<string>,url:string}>
      */
     public function search(string $query, string $audience = 'member', ?string $locale = null): array
     {
@@ -96,253 +167,487 @@ class SupportHelpLibraryService
     }
 
     /**
-     * @return list<array{key:string, label_en:string, label_sw:string, audience:string, faqs:list<array>, howtos:list<array>}>
+     * Soft prioritisation — recommendation only.
+     *
+     * @return list<array{category:string,slug:string,title:string,url:string}>
+     */
+    public function recommended(?Customer $customer, string $audience = 'member', ?string $locale = null): array
+    {
+        $isSw = $this->isSw($locale);
+        $keys = [];
+
+        if ($customer && $audience === 'member') {
+            $portal = app(PortalContextService::class);
+            if ($portal->pendingGuarantorLinks($customer)->isNotEmpty()) {
+                $keys[] = ['guarantors', 'accept-request'];
+                $keys[] = ['guarantors', 'complete-guarantor-profile'];
+            }
+
+            $inScreening = \App\Models\LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->where(function ($q) {
+                    $q->where('current_stage', 'screening')
+                        ->orWhereIn('status', ['submitted', 'screening']);
+                })
+                ->exists();
+
+            if ($inScreening) {
+                $keys[] = ['apply-loan', 'what-is-screening'];
+                $keys[] = ['apply-loan', 'submit-requested-documents'];
+            }
+
+            $awaitingFee = \App\Models\LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->whereIn('status', ['awaiting_application_fee', 'awaiting_valuation_fee', 'awaiting_payment'])
+                ->exists();
+            if ($awaitingFee) {
+                $keys[] = ['fees-payments', 'application-fee'];
+                $keys[] = ['fees-payments', 'payment-pending'];
+            }
+        }
+
+        if ($keys === []) {
+            $keys = [
+                ['apply-loan', 'how-to-apply'],
+                ['profile-verification', 'complete-profile'],
+                ['fees-payments', 'how-to-pay'],
+            ];
+        }
+
+        $out = [];
+        foreach ($keys as [$cat, $slug]) {
+            $article = $this->article($cat, $slug, $audience);
+            if (! $article) {
+                continue;
+            }
+            $title = $isSw
+                ? (string) ($article['q_sw'] ?? $article['q_en'] ?? '')
+                : (string) ($article['q_en'] ?? $article['q_sw'] ?? '');
+            $out[] = [
+                'category' => $cat,
+                'slug' => $slug,
+                'title' => $title,
+                'url' => route('site.help.article', ['category' => $cat, 'slug' => $slug]),
+            ];
+            if (count($out) >= 4) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
+    public function howtoLabel(?string $locale = null): string
+    {
+        return $this->isSw($locale) ? 'JINSI YA' : 'HOW TO';
+    }
+
+    /**
+     * @return list<array{key:string,label_en:string,label_sw:string,audience:string,icon:string,articles:list<array>}>
      */
     public function defaults(): array
     {
         return [
-            [
-                'key' => 'getting_started',
-                'label_en' => 'Getting started',
-                'label_sw' => 'Kuanza',
-                'audience' => 'both',
-                'faqs' => [
-                    [
-                        'q_en' => 'How do I join Kopafasta?',
-                        'q_sw' => 'Ninawezaje kujiunga na Kopafasta?',
-                        'a_en' => 'Register with your phone number, set a PIN, then complete your profile. Membership unlocks loan applications.',
-                        'a_sw' => 'Jisajili kwa nambari ya simu, weka PIN, kisha kamilisha wasifu. Uanachama hufungua maombi ya mikopo.',
-                    ],
-                ],
-                'howtos' => [
-                    [
-                        'title_en' => 'Complete your profile',
-                        'title_sw' => 'Kamilisha wasifu wako',
-                        'intro_en' => 'A complete profile speeds up Screening.',
-                        'intro_sw' => 'Wasifu kamili huharakisha Uchunguzi.',
-                        'steps_en' => ['Open Profile', 'Fill personal and contact details', 'Upload identity documents', 'Save — look for the green saved tab'],
-                        'steps_sw' => ['Fungua Wasifu', 'Jaza taarifa binafsi na mawasiliano', 'Pakia hati za utambulisho', 'Hifadhi — angalia kibao cha kijani Imehifadhiwa'],
-                    ],
-                ],
-            ],
-            [
-                'key' => 'account_profile',
-                'label_en' => 'Account & profile',
-                'label_sw' => 'Akaunti na wasifu',
-                'audience' => 'both',
-                'faqs' => [
-                    [
-                        'q_en' => 'How do I reset my PIN?',
-                        'q_sw' => 'Ninawezaje kuweka upya PIN?',
-                        'a_en' => 'Use Forgot PIN on the login screen. We send a code to your registered phone.',
-                        'a_sw' => 'Tumia Umesahau PIN kwenye skrini ya kuingia. Tunatuma msimbo kwa simu yako iliyosajiliwa.',
-                    ],
-                ],
-                'howtos' => [
-                    [
-                        'title_en' => 'Reset PIN',
-                        'title_sw' => 'Weka upya PIN',
-                        'intro_en' => 'Keep your registered phone nearby.',
-                        'intro_sw' => 'Hakikisha simu yako iliyosajiliwa iko karibu.',
-                        'steps_en' => ['Open login', 'Tap Forgot PIN', 'Enter the SMS code', 'Choose a new 4-digit PIN'],
-                        'steps_sw' => ['Fungua kuingia', 'Gusa Umesahau PIN', 'Weka msimbo wa SMS', 'Chagua PIN mpya ya tarakimu 4'],
-                    ],
-                ],
-            ],
-            [
-                'key' => 'loan_applications',
-                'label_en' => 'Loan applications',
-                'label_sw' => 'Maombi ya mikopo',
-                'audience' => 'member',
-                'faqs' => [
-                    [
-                        'q_en' => 'Where do I apply for a loan?',
-                        'q_sw' => 'Ninaomba wapi mkopo?',
-                        'a_en' => 'From your Dashboard choose a product, then Apply. Stay inside your account for the whole journey.',
-                        'a_sw' => 'Kutoka Dashibodi chagua bidhaa, kisha Omba. Endelea ndani ya akaunti yako kwa safari yote.',
-                    ],
-                ],
-                'howtos' => [
-                    [
-                        'title_en' => 'Apply for a loan',
-                        'title_sw' => 'Omba mkopo',
-                        'intro_en' => 'Have your profile and documents ready.',
-                        'intro_sw' => 'Hakikisha wasifu na hati zipo tayari.',
-                        'steps_en' => ['Open Dashboard', 'Pick a product', 'Tap Apply', 'Complete required steps', 'Submit and track status'],
-                        'steps_sw' => ['Fungua Dashibodi', 'Chagua bidhaa', 'Gusa Omba', 'Kamilisha hatua zinazohitajika', 'Wasilisha na fuatilia hali'],
-                    ],
-                    [
-                        'title_en' => 'Track your application',
-                        'title_sw' => 'Fuatilia ombi lako',
-                        'intro_en' => 'Status updates appear under Loans / Applications.',
-                        'intro_sw' => 'Masasisho ya hali yanaonekana chini ya Mikopo / Maombi.',
-                        'steps_en' => ['Open Loans', 'Select the application', 'Read the current stage and any requests'],
-                        'steps_sw' => ['Fungua Mikopo', 'Chagua ombi', 'Soma hatua ya sasa na maombi yoyote'],
-                    ],
-                ],
-            ],
-            [
-                'key' => 'guarantors',
-                'label_en' => 'Guarantors',
-                'label_sw' => 'Wadhamini',
-                'audience' => 'member',
-                'faqs' => [
-                    [
-                        'q_en' => 'When are guarantors required?',
-                        'q_sw' => 'Wadhamini wanahitajika lini?',
-                        'a_en' => 'When your product and Screening require them. You invite them from the application, not a separate menu.',
-                        'a_sw' => 'Bidhaa na Uchunguzi vinapohitaji. Unawaalika kutoka ombi, si menyu tofauti.',
-                    ],
-                ],
-                'howtos' => [
-                    [
-                        'title_en' => 'Add a guarantor',
-                        'title_sw' => 'Ongeza mdhamini',
-                        'intro_en' => 'Use the guarantor step on your open application.',
-                        'intro_sw' => 'Tumia hatua ya mdhamini kwenye ombi lililo wazi.',
-                        'steps_en' => ['Open the application', 'Go to Guarantors', 'Enter phone/name', 'Send invite', 'Wait for acceptance'],
-                        'steps_sw' => ['Fungua ombi', 'Nenda Wadhamini', 'Weka simu/jina', 'Tuma mwaliko', 'Subiri kukubaliwa'],
-                    ],
-                ],
-            ],
-            [
-                'key' => 'payments_fees',
-                'label_en' => 'Payments & fees',
-                'label_sw' => 'Malipo na ada',
-                'audience' => 'both',
-                'faqs' => [
-                    [
-                        'q_en' => 'How do I make a payment?',
-                        'q_sw' => 'Ninafanyaje malipo?',
-                        'a_en' => 'Open Payments, choose what you are paying for, enter your number, and wait for confirmation from the payment provider.',
-                        'a_sw' => 'Fungua Malipo, chagua unacholipia, weka nambari, subiri uthibitisho kutoka mtoa huduma wa malipo.',
-                    ],
-                ],
-                'howtos' => [
-                    [
-                        'title_en' => 'Make a payment',
-                        'title_sw' => 'Fanya malipo',
-                        'intro_en' => 'Stay on the payment screen until status updates.',
-                        'intro_sw' => 'Kaa kwenye skrini ya malipo hadi hali isasishwe.',
-                        'steps_en' => ['Open Payments', 'Select the item', 'Confirm amount', 'Enter mobile money number', 'Approve on your phone'],
-                        'steps_sw' => ['Fungua Malipo', 'Chagua kipengele', 'Thibitisha kiasi', 'Weka nambari ya simu', 'Idhinisha kwenye simu yako'],
-                    ],
-                ],
-            ],
-            [
-                'key' => 'repayments',
-                'label_en' => 'Repayments',
-                'label_sw' => 'Marejesho',
-                'audience' => 'member',
-                'faqs' => [
-                    [
-                        'q_en' => 'Where do I see my repayment schedule?',
-                        'q_sw' => 'Ninaona wapi ratiba ya marejesho?',
-                        'a_en' => 'Open Loans, select the active loan, then view the schedule and outstanding balance.',
-                        'a_sw' => 'Fungua Mikopo, chagua mkopo hai, kisha angalia ratiba na salio.',
-                    ],
-                ],
-                'howtos' => [],
-            ],
-            [
-                'key' => 'marketplace',
-                'label_en' => 'Marketplace / assets',
-                'label_sw' => 'Soko / mali',
-                'audience' => 'member',
-                'faqs' => [
-                    [
-                        'q_en' => 'How does asset financing work?',
-                        'q_sw' => 'Ufadhili wa mali unafanyaje kazi?',
-                        'a_en' => 'Browse Marketplace assets linked to your product, then continue the application with that asset where required.',
-                        'a_sw' => 'Vinjari mali za Soko zinazohusiana na bidhaa yako, kisha endelea na ombi ukitumia mali hiyo inapohitajika.',
-                    ],
-                ],
-                'howtos' => [],
-            ],
-            [
-                'key' => 'plus',
-                'label_en' => 'Kopafasta Plus',
-                'label_sw' => 'Kopafasta Plus',
-                'audience' => 'member',
-                'faqs' => [
-                    [
-                        'q_en' => 'What is Kopafasta Plus?',
-                        'q_sw' => 'Kopafasta Plus ni nini?',
-                        'a_en' => 'Learning and growth content for members. Open Plus from your account menu.',
-                        'a_sw' => 'Maudhui ya kujifunza na kukua kwa wanachama. Fungua Plus kutoka menyu ya akaunti.',
-                    ],
-                ],
-                'howtos' => [],
-            ],
-            [
-                'key' => 'rewards',
-                'label_en' => 'Rewards / referrals',
-                'label_sw' => 'Zawadi / rufaa',
-                'audience' => 'member',
-                'faqs' => [
-                    [
-                        'q_en' => 'How do referrals work?',
-                        'q_sw' => 'Rufaa zinafanyaje kazi?',
-                        'a_en' => 'Share your referral link from Rewards / Affiliate where enabled. Terms follow your agreement.',
-                        'a_sw' => 'Shiriki kiungo chako kutoka Zawadi / Affiliate inapowezeshwa. Masharti yafuate makubaliano yako.',
-                    ],
-                ],
-                'howtos' => [],
-            ],
-            [
-                'key' => 'partner_account',
-                'label_en' => 'Partner account',
-                'label_sw' => 'Akaunti ya Mshirika',
-                'audience' => 'partner',
-                'faqs' => [
-                    [
-                        'q_en' => 'How do I become a Partner or Affiliate?',
-                        'q_sw' => 'Ninawezaje kuwa Mshirika au Affiliate?',
-                        'a_en' => 'Apply from the public Partner pages, complete KYC, then accept the agreement when approved.',
-                        'a_sw' => 'Omba kutoka kurasa za umma za Washirika, kamilisha KYC, kisha kubali makubaliano utakapoidhinishwa.',
-                    ],
-                ],
-                'howtos' => [
-                    [
-                        'title_en' => 'Become a Partner / Affiliate',
-                        'title_sw' => 'Kuwa Mshirika / Affiliate',
-                        'intro_en' => 'Use the public apply flow, then track activation.',
-                        'intro_sw' => 'Tumia mtiririko wa ombi la umma, kisha fuatilia uanzishaji.',
-                        'steps_en' => ['Open Partner apply', 'Complete the form', 'Submit documents', 'Wait for review', 'Accept agreement and activate'],
-                        'steps_sw' => ['Fungua ombi la Mshirika', 'Kamilisha fomu', 'Wasilisha hati', 'Subiri ukaguzi', 'Kubali makubaliano na anzisha'],
-                    ],
-                ],
-            ],
-            [
-                'key' => 'security_login',
-                'label_en' => 'Security / login',
-                'label_sw' => 'Usalama / kuingia',
-                'audience' => 'both',
-                'faqs' => [
-                    [
-                        'q_en' => 'I cannot log in — what should I do?',
-                        'q_sw' => 'Siwezi kuingia — nifanye nini?',
-                        'a_en' => 'Confirm you use the registered phone and PIN. Try Forgot PIN. If still blocked, Talk to Support.',
-                        'a_sw' => 'Hakikisha unatumia simu na PIN zilizosajiliwa. Jaribu Umesahau PIN. Bado ukizuiwa, Ongea na Usaidizi.',
-                    ],
-                ],
-                'howtos' => [],
-            ],
-            [
-                'key' => 'complaints_support',
-                'label_en' => 'Complaints & support',
-                'label_sw' => 'Malalamiko na usaidizi',
-                'audience' => 'both',
-                'faqs' => [
-                    [
-                        'q_en' => 'How do I raise a complaint?',
-                        'q_sw' => 'Ninawezaje kuwasilisha malalamiko?',
-                        'a_en' => 'Use Send feedback and choose Complaint, or Talk to Support. Serious issues may become a Case for follow-up.',
-                        'a_sw' => 'Tumia Tuma maoni na chagua Malalamiko, au Ongea na Usaidizi. Masuala mazito yanaweza kuwa Kesi ya ufuatiliaji.',
-                    ],
-                ],
-                'howtos' => [],
-            ],
+            $this->cat('apply-loan', 'Applying for a loan', 'Kuomba mkopo', 'member', '📋', [
+                $this->howto('how-to-apply', 'Getting started', 'Kuanza',
+                    'How do I apply for a loan?', 'Ninawezaje kuomba mkopo?',
+                    'Apply for a loan', 'Kuomba mkopo',
+                    'Open Loans, pick a product, complete the steps, then submit.',
+                    'Fungua Mikopo, chagua bidhaa, kamilisha hatua, kisha wasilisha.',
+                    ['Open Loans', 'Choose a loan product', 'Tap Apply', 'Complete required steps', 'Review your details', 'Submit the application'],
+                    ['Fungua Mikopo', 'Chagua bidhaa ya mkopo', 'Gusa Omba', 'Kamilisha hatua zinazohitajika', 'Hakiki taarifa zako', 'Wasilisha ombi'],
+                    'site.borrower.loan-products', 'Browse loan products', 'Omba mkopo'),
+                $this->answer('who-can-apply', 'Getting started', 'Kuanza',
+                    'Who can apply?', 'Ni nani anayeweza kuomba?',
+                    'Active members with a complete profile can apply for products they are eligible for. Some products need a guarantor or collateral.',
+                    'Wanachama hai wenye wasifu kamili wanaweza kuomba bidhaa wanazostahili. Baadhi ya bidhaa zinahitaji mdhamini au dhamana.'),
+                $this->answer('how-much-can-i-borrow', 'Getting started', 'Kuanza',
+                    'How much can I borrow?', 'Ninaweza kukopa kiasi gani?',
+                    'Each product shows its min/max amount. Your offer depends on Screening, income, and product rules — not a fixed promise at apply time.',
+                    'Kila bidhaa inaonyesha kiasi cha chini/juu. Ofa inategemea Uchunguzi, mapato, na sheria za bidhaa — si ahadi thabiti wakati wa kuomba.'),
+                $this->answer('what-documents', 'Getting started', 'Kuanza',
+                    'What documents do I need?', 'Ninahitaji nyaraka gani?',
+                    'Start with a complete Profile (ID, face, residence, income). Some products also need guarantor, collateral, or asset documents.',
+                    'Anza na Wasifu kamili (kitambulisho, uso, makazi, mapato). Baadhi ya bidhaa zinahitaji pia mdhamini, dhamana, au hati za mali.'),
+                $this->answer('application-stage', 'After applying', 'Baada ya kuomba',
+                    'What stage is my application at?', 'Ombi langu liko hatua gani?',
+                    'Open Loans → your application. The Application View shows the current stage and any actions waiting on you.',
+                    'Fungua Mikopo → ombi lako. Muonekano wa Ombi unaonyesha hatua ya sasa na vitendo vinavyokusubiri.'),
+                $this->answer('what-is-screening', 'After applying', 'Baada ya kuomba',
+                    'What is Screening?', 'Screening ni nini?',
+                    'Screening is our first review of your submitted application. We may ask for extra documents before Committee or Management.',
+                    'Screening ni ukaguzi wa kwanza wa ombi ulilowasilisha. Tunaweza kuomba nyaraka za ziada kabla ya Kamati au Usimamizi.'),
+                $this->howto('submit-requested-documents', 'After applying', 'Baada ya kuomba',
+                    'How do I submit requested documents?', 'Ninawezaje kuwasilisha nyaraka zilizoombwa?',
+                    'Submit requested documents', 'Kuwasilisha nyaraka zilizoombwa',
+                    'Use the document request card on your Application View.',
+                    'Tumia kadi ya ombi la nyaraka kwenye Muonekano wa Ombi.',
+                    ['Open the application', 'Find the requested-document card', 'Tap + / Upload', 'Select files', 'Submit — the same card moves to received'],
+                    ['Fungua ombi', 'Tafuta kadi ya ombi la nyaraka', 'Gusa + / Pakia', 'Chagua faili', 'Wasilisha — kadi ile ile inahamia imepokelewa'],
+                    'site.borrower.loans', 'Open Loans', 'Fungua Mikopo'),
+                $this->answer('application-rejected', 'After applying', 'Baada ya kuomba',
+                    'My application was rejected — what does that mean?', 'Ombi langu limekataliwa — maana yake nini?',
+                    'Rejection means this application cannot continue under current rules. Read the reason on Application View. You may apply again later if eligible.',
+                    'Kukataliwa kunamaanisha ombi hili haliwezi kuendelea chini ya sheria za sasa. Soma sababu kwenye Muonekano wa Ombi. Unaweza kuomba tena baadaye ukistahili.'),
+                $this->answer('what-is-offer', 'After applying', 'Baada ya kuomba',
+                    'What is an Offer?', 'Offer ni nini?',
+                    'An Offer is the approved loan terms we present for you to accept or decline before contract and disbursement.',
+                    'Ofa ni masharti ya mkopo yaliyoidhinishwa tunayokuletea ukubali au ukatae kabla ya mkataba na malipo.'),
+            ]),
+            $this->cat('profile-verification', 'Profile & verification', 'Wasifu na uthibitishaji', 'both', '🪪', [
+                $this->howto('complete-profile', 'Profile', 'Wasifu',
+                    'How do I complete my profile?', 'Ninawezaje kukamilisha wasifu?',
+                    'Complete your profile', 'Kukamilisha wasifu',
+                    'A complete profile speeds Screening.',
+                    'Wasifu kamili huharakisha Uchunguzi.',
+                    ['Open Profile', 'Fill personal and contact details', 'Upload identity documents', 'Add residence and income', 'Save — look for the saved confirmation'],
+                    ['Fungua Wasifu', 'Jaza taarifa binafsi na mawasiliano', 'Pakia hati za utambulisho', 'Ongeza makazi na mapato', 'Hifadhi — angalia uthibitisho wa kuhifadhi'],
+                    'site.borrower.profile', 'Open Profile', 'Fungua Wasifu'),
+                $this->answer('id-documents', 'Profile', 'Wasifu',
+                    'Which ID do I need?', 'Ninahitaji kitambulisho gani?',
+                    'Use a valid national ID (or permitted alternative). Clear front/back photos and a face check are usually required.',
+                    'Tumia kitambulisho cha taifa halali (au mbadala unaoruhusiwa). Picha wazi za mbele/nyuma na ukaguzi wa uso mara nyingi zinahitajika.'),
+                $this->answer('change-details', 'Profile', 'Wasifu',
+                    'How do I change my details?', 'Ninawezaje kubadilisha taarifa zangu?',
+                    'Update editable fields in Profile. Some verified identity fields are locked — Talk to Support if a correction is needed.',
+                    'Sasisha sehemu zinazoweza kuhaririwa kwenye Wasifu. Baadhi ya sehemu za utambulisho zilizothibitishwa zimefungwa — Ongea na Usaidizi ikiwa marekebisho yanahitajika.'),
+                $this->answer('signature', 'Verification', 'Uthibitishaji',
+                    'Where do I set my signature?', 'Ninaweka wapi sahihi yangu?',
+                    'Create or reuse your legal signature from Profile. Loan contracts and guarantor acceptance may require it.',
+                    'Unda au tumia tena sahihi yako ya kisheria kutoka Wasifu. Mikataba ya mkopo na kukubali udhamini inaweza kuihitaji.'),
+            ]),
+            $this->cat('guarantors', 'Guarantors', 'Wadhamini', 'member', '🤝', [
+                $this->howto('add-guarantor', 'Inviting', 'Kualika',
+                    'How do I add a guarantor?', 'Ninawezaje kuongeza mdhamini?',
+                    'Add a guarantor', 'Kuongeza mdhamini',
+                    'Invite from the open application — not a separate account type.',
+                    'Alika kutoka ombi lililo wazi — si aina tofauti ya akaunti.',
+                    ['Open the application', 'Go to Guarantors', 'Enter name and phone', 'Send the invitation', 'Wait for acceptance and profile completion'],
+                    ['Fungua ombi', 'Nenda Wadhamini', 'Weka jina na simu', 'Tuma mwaliko', 'Subiri kukubaliwa na kukamilisha wasifu'],
+                    'site.borrower.loans', 'Open Loans', 'Fungua Mikopo'),
+                $this->howto('accept-request', 'As guarantor', 'Kama mdhamini',
+                    'How do I accept a guarantor request?', 'Ninawezaje kukubali ombi la udhamini?',
+                    'Accept a guarantor request', 'Kukubali ombi la udhamini',
+                    'Use the Guarantor Request notification, then open Mikopo → Mdhamini.',
+                    'Tumia arifa ya Ombi la udhamini, kisha fungua Mikopo → Mdhamini.',
+                    ['Open the notification Angalia ombi la udhamini', 'Go to Loans → Guarantor requests', 'Tap View on the request card', 'Review loan overview and liability', 'Accept or decline'],
+                    ['Fungua arifa Angalia ombi la udhamini', 'Nenda Mikopo → Maombi ya udhamini', 'Gusa Angalia kwenye kadi', 'Hakiki muhtasari na dhamana', 'Kubali au kataa'],
+                    'site.borrower.loans', 'Open Loans', 'Fungua Mikopo'),
+                $this->howto('complete-guarantor-profile', 'As guarantor', 'Kama mdhamini',
+                    'What do I do after accepting?', 'Nifanye nini baada ya kukubali?',
+                    'Complete guarantor profile', 'Kukamilisha wasifu wa mdhamini',
+                    'After accept, finish your profile so the borrower application can proceed.',
+                    'Baada ya kukubali, kamilisha wasifu ili ombi la mkopaji liendelee.',
+                    ['Accept the request', 'Open Profile', 'Complete missing sections', 'Return to Loans to track progress'],
+                    ['Kubali ombi', 'Fungua Wasifu', 'Kamilisha sehemu zinazokosekana', 'Rudi Mikopo kufuatilia maendeleo'],
+                    'site.borrower.profile', 'Complete profile', 'Kamilisha wasifu'),
+                $this->answer('replace-guarantor', 'Inviting', 'Kualika',
+                    'How do I replace a guarantor?', 'Ninawezaje kubadilisha mdhamini?',
+                    'If the invite was declined or expired, use Choose another / Edit on Application View (before acceptance locks edit).',
+                    'Ikiwa mwaliko umekataliwa au umekwisha, tumia Chagua mwingine / Hariri kwenye Muonekano wa Ombi (kabla ya kukubaliwa kufunga uhariri).'),
+                $this->answer('guarantor-deadline', 'Inviting', 'Kualika',
+                    'What is the guarantor deadline?', 'Deadline ya mdhamini ni nini?',
+                    'Some products give the guarantor a time window to accept and complete. Track it on Application View and remind via WhatsApp if needed.',
+                    'Baadhi ya bidhaa zinampa mdhamini muda wa kukubali na kukamilisha. Fuatilia kwenye Muonekano wa Ombi na kumbusha kwa WhatsApp inapohitajika.'),
+            ]),
+            $this->cat('group-loans', 'Group loans', 'Mikopo ya kikundi', 'member', '👥', [
+                $this->howto('join-group', 'Joining', 'Kujiunga',
+                    'How do I join a group loan?', 'Ninawezaje kujiunga na mkopo wa kikundi?',
+                    'Join a group loan', 'Kujiunga na mkopo wa kikundi',
+                    'Use the group invitation notification → Loans → Angalia.',
+                    'Tumia arifa ya mwaliko wa kikundi → Mikopo → Angalia.',
+                    ['Open Angalia ombi la kikundi', 'Review group overview', 'Accept the invitation', 'Complete your profile', 'Sign when asked'],
+                    ['Fungua Angalia ombi la kikundi', 'Hakiki muhtasari wa kikundi', 'Kubali mwaliko', 'Kamilisha wasifu', 'Weka sahihi unapoulizwa'],
+                    'site.borrower.loans', 'Open Loans', 'Fungua Mikopo'),
+                $this->answer('leader-vs-member', 'Roles', 'Majukumu',
+                    'What is the difference between leader and member?', 'Kuna tofauti gani kati ya kiongozi na mwanachama?',
+                    'The leader starts the group application and invites members. Members accept, complete profile, and sign their part.',
+                    'Kiongozi anaanzisha ombi la kikundi na kualika wanachama. Wanachama wanakubali, kukamilisha wasifu, na kuweka sahihi yao.'),
+                $this->answer('group-application-fee', 'Fees', 'Ada',
+                    'Who pays the group application fee?', 'Nani analipa ada ya ombi la kikundi?',
+                    'Follow the fee instruction on the group application. Do not invent a second payment outside Payments.',
+                    'Fuata maelekezo ya ada kwenye ombi la kikundi. Usianzishe malipo ya pili nje ya Malipo.'),
+            ]),
+            $this->cat('fees-payments', 'Fees & payments', 'Ada na malipo', 'both', '💳', [
+                $this->howto('how-to-pay', 'Making a payment', 'Kufanya malipo',
+                    'How do I make a payment?', 'Ninafanyaje malipo?',
+                    'Make a payment', 'Kufanya malipo',
+                    'Stay on the payment screen until the provider confirms.',
+                    'Kaa kwenye skrini ya malipo hadi mtoa huduma athibitishe.',
+                    ['Open Payments', 'Select what you are paying', 'Confirm amount', 'Enter mobile money number', 'Approve on your phone', 'Wait for Paid / Failed status'],
+                    ['Fungua Malipo', 'Chagua unacholipia', 'Thibitisha kiasi', 'Weka nambari ya simu', 'Idhinisha kwenye simu', 'Subiri hali ya Imelipwa / Imeshindikana'],
+                    'site.borrower.payments', 'Open Payments', 'Fungua Malipo'),
+                $this->answer('application-fee', 'Fees', 'Ada',
+                    'What is the application fee?', 'Ada ya maombi ni nini?',
+                    'Some products charge an application fee before or during submission. Pay only from the payment screen shown in your journey.',
+                    'Baadhi ya bidhaa zinatoza ada ya maombi kabla au wakati wa kuwasilisha. Lipa tu kutoka skrini ya malipo inayoonekana kwenye safari yako.'),
+                $this->answer('payment-pending', 'Problems', 'Matatizo',
+                    'Why is my payment pending?', 'Kwa nini malipo yangu yamesimama (Pending)?',
+                    'Pending means we are waiting for the payment provider. Do not pay twice. Wait for Paid, Failed, or Expired — then retry if needed.',
+                    'Pending inamaanisha tunasubiri mtoa huduma. Usilipe mara mbili. Subiri Imelipwa, Imeshindikana, au Imekwisha — kisha jaribu tena inapohitajika.'),
+                $this->answer('payment-failed', 'Problems', 'Matatizo',
+                    'What if payment fails?', 'Malipo yakishindikana?',
+                    'Use Retry or change number on the same payment surface. Check balance and PIN on your mobile money account.',
+                    'Tumia Jaribu tena au badilisha nambari kwenye skrini ile ile. Angalia salio na PIN kwenye akaunti yako ya simu.'),
+                $this->answer('receipts', 'Records', 'Rekodi',
+                    'Where are my receipts?', 'Risiti zangu ziko wapi?',
+                    'Open Payments history for confirmed payments. Successful payments show a receipt reference.',
+                    'Fungua historia ya Malipo kwa malipo yaliyothibitishwa. Malipo yaliyofanikiwa yanaonyesha rejea ya risiti.'),
+            ]),
+            $this->cat('after-approval', 'After approval', 'Baada ya kuidhinishwa', 'member', '✅', [
+                $this->answer('accept-offer', 'Offer', 'Ofa',
+                    'How do I accept an Offer?', 'Ninawezaje kukubali Ofa?',
+                    'Open the application, review Offer terms, then Accept. Declining stops that offer path.',
+                    'Fungua ombi, hakiki masharti ya Ofa, kisha Kubali. Kukataa kunasimamisha njia hiyo ya ofa.'),
+                $this->answer('post-approval-fees', 'Fees', 'Ada',
+                    'What fees come after approval?', 'Ada gani zinakuja baada ya kuidhinishwa?',
+                    'Depending on product: valuation, insurance, or other post-approval fees. Pay only from the checklist on your application.',
+                    'Kulingana na bidhaa: utathmini, bima, au ada nyingine baada ya idhini. Lipa tu kutoka orodha kwenye ombi lako.'),
+                $this->answer('contract-disbursement', 'Disbursement', 'Malipo',
+                    'When do I get the money?', 'Nitapata lini pesa?',
+                    'After Offer acceptance, required fees, signatures, and disbursement checks. Track checklist items on Application View.',
+                    'Baada ya kukubali Ofa, ada zinazohitajika, sahihi, na ukaguzi wa malipo. Fuatilia orodha kwenye Muonekano wa Ombi.'),
+            ]),
+            $this->cat('repayments', 'Repayments', 'Marejesho', 'member', '📅', [
+                $this->answer('due-dates', 'Schedule', 'Ratiba',
+                    'Where do I see due dates?', 'Ninaona wapi tarehe za malipo?',
+                    'Open Loans → active loan. The schedule shows installment dates and amounts.',
+                    'Fungua Mikopo → mkopo hai. Ratiba inaonyesha tarehe na kiasi cha awamu.'),
+                $this->howto('pay-installment', 'Paying', 'Kulipa',
+                    'How do I pay an installment?', 'Ninawezaje kulipa awamu?',
+                    'Pay an installment', 'Kulipa awamu',
+                    'Use Payments or Pay loan from your account.',
+                    'Tumia Malipo au Lipa mkopo kutoka akaunti yako.',
+                    ['Open Payments or the active loan', 'Choose the installment / amount', 'Enter mobile money number', 'Approve on your phone', 'Confirm Paid status'],
+                    ['Fungua Malipo au mkopo hai', 'Chagua awamu / kiasi', 'Weka nambari ya simu', 'Idhinisha kwenye simu', 'Thibitisha hali ya Imelipwa'],
+                    'site.borrower.payments', 'Open Payments', 'Fungua Malipo'),
+                $this->answer('late-payment', 'Problems', 'Matatizo',
+                    'What if I pay late?', 'Nikichelewa kulipa?',
+                    'Late payments may attract penalties per product rules. Pay as soon as you can and Talk to Support if you need a restructuring option.',
+                    'Malipo yaliyochelewa yanaweza kuvuta faini kulingana na sheria za bidhaa. Lipa haraka unavyoweza na Ongea na Usaidizi ikiwa unahitaji urekebishaji.'),
+            ]),
+            $this->cat('collateral', 'Collateral / assets', 'Dhamana / mali', 'member', '🏠', [
+                $this->answer('collateral-required', 'Basics', 'Misingi',
+                    'When is collateral required?', 'Dhamana inahitajika lini?',
+                    'When the product or Screening requires it. You will see collateral steps on the application.',
+                    'Bidhaa au Uchunguzi vinapohitaji. Utaona hatua za dhamana kwenye ombi.'),
+                $this->answer('valuation', 'Valuation', 'Utathmini',
+                    'What is valuation?', 'Utathmini ni nini?',
+                    'An assigned valuer reviews the asset. There may be a valuation fee and a waiting period before Screening continues.',
+                    'Mthamini aliyepewa anakagua mali. Kunaweza kuwa na ada ya utathmini na muda wa kusubiri kabla ya Uchunguzi kuendelea.'),
+                $this->answer('what-happens-collateral', 'Basics', 'Misingi',
+                    'What happens to my collateral?', 'Inatokea nini kwa dhamana yangu?',
+                    'Collateral secures the loan under your agreement. Release follows repayment and product rules — not informal promises.',
+                    'Dhamana inalinda mkopo chini ya makubaliano yako. Kuachiliwa kunafuata marejesho na sheria za bidhaa — si ahadi zisizo rasmi.'),
+            ]),
+            $this->cat('marketplace', 'Asset marketplace', 'Soko la mali', 'member', '🛒', [
+                $this->answer('asset-financing', 'Basics', 'Misingi',
+                    'How does asset financing work?', 'Ufadhili wa mali unafanyaje kazi?',
+                    'Browse Marketplace, select an asset linked to a product, then continue the loan application for that asset.',
+                    'Vinjari Soko, chagua mali inayohusiana na bidhaa, kisha endelea na ombi la mkopo kwa mali hiyo.'),
+                $this->answer('deposit-supplier', 'Purchase journey', 'Safari ya ununuzi',
+                    'What about deposit and supplier?', 'Je, amana na msambazaji?',
+                    'Follow deposit and supplier steps shown on the asset application. Pay only through Kopafasta payment screens.',
+                    'Fuata hatua za amana na msambazaji zinazoonekana kwenye ombi la mali. Lipa tu kupitia skrini za malipo za Kopafasta.'),
+            ]),
+            $this->cat('account-security', 'Account & security', 'Akaunti na usalama', 'both', '🔐', [
+                $this->howto('reset-pin', 'Login', 'Kuingia',
+                    'How do I reset my PIN?', 'Ninawezaje kuweka upya PIN?',
+                    'Reset PIN', 'Kuweka upya PIN',
+                    'Keep your registered phone nearby.',
+                    'Hakikisha simu yako iliyosajiliwa iko karibu.',
+                    ['Open login', 'Tap Forgot PIN', 'Enter the SMS code', 'Choose a new 4-digit PIN'],
+                    ['Fungua kuingia', 'Gusa Umesahau PIN', 'Weka msimbo wa SMS', 'Chagua PIN mpya ya tarakimu 4']),
+                $this->answer('cannot-login', 'Login', 'Kuingia',
+                    'I cannot log in — what should I do?', 'Siwezi kuingia — nifanye nini?',
+                    'Confirm registered phone and PIN. Try Forgot PIN. If still blocked, Talk to Support.',
+                    'Hakikisha simu na PIN zilizosajiliwa. Jaribu Umesahau PIN. Bado ukizuiwa, Ongea na Usaidizi.'),
+                $this->answer('lost-phone', 'Security', 'Usalama',
+                    'I lost my phone — what now?', 'Nimepoteza simu — sasa nini?',
+                    'Contact Support immediately so we can secure the account. You will need identity checks to restore access.',
+                    'Wasiliana na Usaidizi mara moja ili tusalimishe akaunti. Utahitaji ukaguzi wa utambulisho kurejesha ufikiaji.'),
+            ]),
+            $this->cat('plus', 'Kopafasta Plus', 'Kopafasta Plus', 'member', '✨', [
+                $this->answer('what-is-plus', 'Basics', 'Misingi',
+                    'What is Kopafasta Plus?', 'Kopafasta Plus ni nini?',
+                    'Plus is learning and growth for members: Money, Business, Goals, Reports, Offers and Rewards where enabled.',
+                    'Plus ni kujifunza na kukua kwa wanachama: Pesa, Biashara, Malengo, Ripoti, Ofa na Zawadi zinapowezeshwa.'),
+                $this->answer('join-plus', 'Basics', 'Misingi',
+                    'How do I join Plus?', 'Ninawezaje kujiunga na Plus?',
+                    'Open Plus from your account. Follow any payment or activation step shown there.',
+                    'Fungua Plus kutoka akaunti yako. Fuata hatua yoyote ya malipo au uanzishaji inayoonekana huko.'),
+            ]),
+            $this->cat('rewards', 'Rewards & referrals', 'Zawadi na rufaa', 'member', '🎁', [
+                $this->answer('how-referrals-work', 'Referrals', 'Rufaa',
+                    'How do referrals work?', 'Rufaa zinafanyaje kazi?',
+                    'Share your referral link from Rewards where enabled. Eligibility and rewards follow the current programme terms.',
+                    'Shiriki kiungo chako cha rufaa kutoka Zawadi inapowezeshwa. Stahiki na zawadi zinafuata masharti ya programu ya sasa.'),
+                $this->answer('claiming-rewards', 'Rewards', 'Zawadi',
+                    'How do I claim rewards?', 'Ninawezaje kudai zawadi?',
+                    'Open Rewards / Engagement and follow claim instructions for eligible items.',
+                    'Fungua Zawadi / Ushiriki na fuata maelekezo ya kudai kwa vipengele unavyostahili.'),
+            ]),
+            $this->cat('complaints', 'Complaints & issues', 'Malalamiko na matatizo', 'both', '📣', [
+                $this->answer('raise-complaint', 'Complaints', 'Malalamiko',
+                    'How do I raise a complaint?', 'Ninawezaje kuwasilisha malalamiko?',
+                    'Use Send feedback and choose Complaint, or Talk to Support. Serious issues may become a tracked Case.',
+                    'Tumia Tuma maoni na chagua Malalamiko, au Ongea na Usaidizi. Masuala mazito yanaweza kuwa Kesi inayofuatiliwa.'),
+                $this->answer('technical-issue', 'Technical', 'Kiufundi',
+                    'I found a technical issue', 'Nimeona tatizo la kiufundi',
+                    'Send feedback with what you tapped and what you expected. Screenshots help Support reproduce the issue.',
+                    'Tuma maoni ukieleza ulichogusa na ulichotarajia. Picha za skrini zinasaidia Usaidizi kuzalisha tena tatizo.'),
+                $this->answer('disputed-payment', 'Disputes', 'Migogoro',
+                    'My payment or application looks wrong', 'Malipo au ombi langu linaonekana vibaya',
+                    'Do not create a second payment. Talk to Support with the payment/application reference so we can investigate.',
+                    'Usianzishe malipo ya pili. Ongea na Usaidizi ukiwa na rejea ya malipo/ombi ili tuchunguze.'),
+            ]),
+            $this->cat('partner-account', 'Partner account', 'Akaunti ya Mshirika', 'partner', '🏢', [
+                $this->howto('become-partner', 'Getting started', 'Kuanza',
+                    'How do I become a Partner or Affiliate?', 'Ninawezaje kuwa Mshirika au Affiliate?',
+                    'Become a Partner / Affiliate', 'Kuwa Mshirika / Affiliate',
+                    'Use the public apply flow, then track activation.',
+                    'Tumia mtiririko wa ombi la umma, kisha fuatilia uanzishaji.',
+                    ['Open Partner apply', 'Complete the form', 'Submit documents', 'Wait for review', 'Accept agreement and activate'],
+                    ['Fungua ombi la Mshirika', 'Kamilisha fomu', 'Wasilisha hati', 'Subiri ukaguzi', 'Kubali makubaliano na anzisha']),
+                $this->answer('partner-wallet', 'Wallet', 'Pochi',
+                    'Where is my Partner wallet?', 'Pochi yangu ya Mshirika iko wapi?',
+                    'Open your Partner workspace wallet for available / pending balance and withdrawal history.',
+                    'Fungua pochi ya nafasi yako ya Mshirika kwa salio linalopatikana / linalosubiri na historia ya uondoaji.'),
+            ]),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $group
+     * @return array<string, mixed>
+     */
+    private function normalizeGroup(array $group): array
+    {
+        $articles = $group['articles'] ?? null;
+        if (! is_array($articles)) {
+            $articles = [];
+            foreach ($group['faqs'] ?? [] as $i => $faq) {
+                if (! is_array($faq)) {
+                    continue;
+                }
+                $articles[] = array_merge($faq, [
+                    'slug' => $faq['slug'] ?? ('faq-'.($i + 1)),
+                    'kind' => 'answer',
+                    'subgroup_en' => $faq['subgroup_en'] ?? 'Questions',
+                    'subgroup_sw' => $faq['subgroup_sw'] ?? 'Maswali',
+                ]);
+            }
+            foreach ($group['howtos'] ?? [] as $i => $how) {
+                if (! is_array($how)) {
+                    continue;
+                }
+                $articles[] = array_merge($how, [
+                    'slug' => $how['slug'] ?? ('howto-'.($i + 1)),
+                    'kind' => 'howto',
+                    'q_en' => $how['q_en'] ?? $how['title_en'] ?? '',
+                    'q_sw' => $how['q_sw'] ?? $how['title_sw'] ?? '',
+                    'subgroup_en' => $how['subgroup_en'] ?? 'How to',
+                    'subgroup_sw' => $how['subgroup_sw'] ?? 'Jinsi ya',
+                ]);
+            }
+        }
+
+        $group['articles'] = array_values($articles);
+        $group['icon'] = $group['icon'] ?? '📘';
+
+        return $group;
+    }
+
+    private function isSw(?string $locale): bool
+    {
+        return str_starts_with(strtolower((string) ($locale ?: app()->getLocale())), 'sw');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $articles
+     * @return array<string, mixed>
+     */
+    private function cat(string $key, string $en, string $sw, string $audience, string $icon, array $articles): array
+    {
+        return [
+            'key' => $key,
+            'label_en' => $en,
+            'label_sw' => $sw,
+            'audience' => $audience,
+            'icon' => $icon,
+            'articles' => $articles,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $stepsEn
+     * @param  list<string>  $stepsSw
+     * @return array<string, mixed>
+     */
+    private function howto(
+        string $slug,
+        string $subEn,
+        string $subSw,
+        string $qEn,
+        string $qSw,
+        string $titleEn,
+        string $titleSw,
+        string $aEn,
+        string $aSw,
+        array $stepsEn,
+        array $stepsSw,
+        ?string $ctaRoute = null,
+        ?string $ctaEn = null,
+        ?string $ctaSw = null,
+    ): array {
+        return [
+            'slug' => $slug,
+            'kind' => 'howto',
+            'subgroup_en' => $subEn,
+            'subgroup_sw' => $subSw,
+            'q_en' => $qEn,
+            'q_sw' => $qSw,
+            'title_en' => $titleEn,
+            'title_sw' => $titleSw,
+            'a_en' => $aEn,
+            'a_sw' => $aSw,
+            'steps_en' => $stepsEn,
+            'steps_sw' => $stepsSw,
+            'cta_route' => $ctaRoute,
+            'cta_label_en' => $ctaEn,
+            'cta_label_sw' => $ctaSw,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function answer(
+        string $slug,
+        string $subEn,
+        string $subSw,
+        string $qEn,
+        string $qSw,
+        string $aEn,
+        string $aSw,
+        ?string $ctaRoute = null,
+        ?string $ctaEn = null,
+        ?string $ctaSw = null,
+    ): array {
+        return [
+            'slug' => $slug,
+            'kind' => 'answer',
+            'subgroup_en' => $subEn,
+            'subgroup_sw' => $subSw,
+            'q_en' => $qEn,
+            'q_sw' => $qSw,
+            'a_en' => $aEn,
+            'a_sw' => $aSw,
+            'steps_en' => [],
+            'steps_sw' => [],
+            'cta_route' => $ctaRoute,
+            'cta_label_en' => $ctaEn,
+            'cta_label_sw' => $ctaSw,
         ];
     }
 }

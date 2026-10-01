@@ -1106,6 +1106,8 @@ class VendorController extends Controller
             'openTickets' => $openTickets,
             'resolvedTickets' => $resolvedTickets,
             'helpGroups' => $help->groups('partner'),
+            'helpCategories' => $help->categories('partner'),
+            'helpRecommended' => $help->recommended(null, 'partner'),
             'helpResults' => $q !== '' ? $help->search($q, 'partner') : [],
             'helpQuery' => $q,
             'helpSection' => $section,

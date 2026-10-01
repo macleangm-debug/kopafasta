@@ -60,67 +60,18 @@
                 @endforeach
             </nav>
 
-            <div x-show="section === 'help'" x-cloak class="space-y-4">
-                @if ($helpQuery !== '')
-                    <section class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 space-y-3">
-                        @forelse ($helpResults as $row)
-                            <div class="rounded-xl bg-slate-50 px-4 py-3">
-                                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ strtoupper($row['type']) }} · {{ $row['group'] }}</p>
-                                <p class="text-sm font-bold text-gray-900 mt-1">{{ $row['title'] }}</p>
-                                <p class="text-sm text-gray-600 mt-1">{{ $row['body'] }}</p>
-                            </div>
-                        @empty
-                            <p class="text-sm text-gray-500">{{ $isSw ? 'Hakuna matokeo.' : 'No matches.' }}</p>
-                        @endforelse
-                    </section>
-                @else
-                    <section class="space-y-3">
-                        @foreach ($helpGroups as $group)
-                            @php $gLabel = $isSw ? ($group['label_sw'] ?? $group['label_en']) : ($group['label_en'] ?? $group['label_sw']); @endphp
-                            <details class="glass-card rounded-2xl overflow-hidden">
-                                <summary class="px-4 py-3.5 font-semibold text-sm cursor-pointer">{{ $gLabel }}</summary>
-                                <div class="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
-                                    @foreach ($group['faqs'] ?? [] as $faq)
-                                        <div>
-                                            <p class="text-sm font-semibold">{{ $isSw ? ($faq['q_sw'] ?? $faq['q_en']) : ($faq['q_en'] ?? $faq['q_sw']) }}</p>
-                                            <p class="text-sm text-gray-600 mt-1">{{ $isSw ? ($faq['a_sw'] ?? $faq['a_en']) : ($faq['a_en'] ?? $faq['a_sw']) }}</p>
-                                        </div>
-                                    @endforeach
-                                    @foreach ($group['howtos'] ?? [] as $how)
-                                        <div class="rounded-xl bg-brand-muted/30 px-3 py-3">
-                                            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">HOW TO</p>
-                                            <p class="text-sm font-bold mt-1">{{ $isSw ? ($how['title_sw'] ?? $how['title_en']) : ($how['title_en'] ?? $how['title_sw']) }}</p>
-                                            <ol class="mt-2 list-decimal ml-5 text-sm space-y-1">
-                                                @foreach (($isSw ? ($how['steps_sw'] ?? []) : ($how['steps_en'] ?? [])) as $step)
-                                                    <li>{{ $step }}</li>
-                                                @endforeach
-                                            </ol>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </details>
-                        @endforeach
-                    </section>
-                @endif
-
-                <div class="grid sm:grid-cols-2 gap-3">
-                    @if ($supportConversation)
-                        <a href="{{ $chatUrl }}" class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Endelea mazungumzo' : 'Continue conversation' }}</a>
-                    @else
-                        <a href="{{ $chatUrl }}" class="rounded-2xl bg-brand-gold text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Ongea na Timu ya Usaidizi' : 'Talk to Support' }}</a>
-                    @endif
-                    <button type="button" @click="$dispatch('open-feedback')" class="rounded-2xl ring-1 ring-brand/20 text-brand font-bold text-sm px-5 py-4 text-center">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</button>
-                </div>
-
-                <div class="grid sm:grid-cols-3 gap-3 text-sm">
-                    @if ($tel)
-                        <a href="tel:{{ $tel }}" class="glass-card rounded-2xl p-4">{{ __('site.partner_portal.support_call') }} · {{ $supportPhone }}</a>
-                    @endif
-                    @if ($wa !== '')
-                        <a href="https://wa.me/{{ $wa }}" target="_blank" rel="noopener" class="glass-card rounded-2xl p-4">{{ __('site.partner_portal.support_whatsapp') }}</a>
-                    @endif
-                    <a href="mailto:{{ $supportEmail }}" class="glass-card rounded-2xl p-4">{{ $supportEmail }}</a>
-                </div>
+            <div x-show="section === 'help'" x-cloak class="space-y-6">
+                @include('site.help._landing-body', [
+                    'isSw' => $isSw,
+                    'helpCategories' => $helpCategories ?? [],
+                    'helpRecommended' => $helpRecommended ?? [],
+                    'helpResults' => $helpResults ?? [],
+                    'helpQuery' => $helpQuery ?? '',
+                    'homeUrl' => $homeUrl,
+                    'chatUrl' => $chatUrl,
+                    'phones' => support_phones(),
+                    'primaryPhone' => $supportPhone ?? (support_phones()[0] ?? null),
+                ])
             </div>
 
             <div x-show="section === 'active'" x-cloak class="space-y-4">

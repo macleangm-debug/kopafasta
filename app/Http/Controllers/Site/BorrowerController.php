@@ -4052,6 +4052,8 @@ class BorrowerController extends Controller
             'openTickets' => $openTickets,
             'resolvedTickets' => $resolvedTickets,
             'helpGroups' => $help->groups('member'),
+            'helpCategories' => $help->categories('member'),
+            'helpRecommended' => $help->recommended($customer, 'member'),
             'helpResults' => $q !== '' ? $help->search($q, 'member') : [],
             'helpQuery' => $q,
             'openHumanChat' => $openChat,
