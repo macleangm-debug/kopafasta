@@ -146,6 +146,40 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
         $this->assertNull($staff->fresh()->email);
     }
 
+    public function test_user_show_page_exposes_browser_setup_link_form_and_posts_successfully(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+        $staff = User::factory()->create([
+            'role' => 'officer',
+            'roles' => ['officer'],
+            'email' => null,
+            'phone' => '255711000088',
+            'is_active' => true,
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.users.show', $staff))
+            ->assertOk()
+            ->assertSee('data-testid="password-setup-link-cta"', false)
+            ->assertSee('admin-password-setup-link-form', false)
+            ->assertSee(route('admin.users.password-setup-link', $staff), false)
+            ->getContent();
+
+        $this->assertStringContainsString('confirmForm(document.getElementById(\'admin-password-setup-link-form\')', $html);
+
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.users.show', $staff))
+            ->post(route('admin.users.password-setup-link', $staff))
+            ->assertRedirect(route('admin.users.show', $staff))
+            ->assertSessionHas('password_setup_url');
+
+        $follow = $this->actingAs($admin, 'admin')
+            ->get(route('admin.users.show', $staff))
+            ->assertOk()
+            ->assertSee('data-testid="password-setup-url"', false)
+            ->assertSee('password-setup', false);
+    }
+
     public function test_another_issue_restarts_category_inside_same_conversation(): void
     {
         $member = User::factory()->create([

@@ -312,6 +312,43 @@ class AdminRoleViewSwitcherFeatureTest extends TestCase
         $this->assertStringNotContainsString(__('admin.role_view.viewing').': Support', $dash);
     }
 
+    public function test_admin_support_never_lands_on_marketer_and_direct_role_hops_work(): void
+    {
+        $admin = $this->admin();
+        $support = app(\App\Services\Support\CustomerSupportWorkspaceService::class);
+
+        // Admin → Support
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support'])
+            ->assertRedirect(route('admin.support.home'));
+        $this->assertSame('support', app(AdminRoleViewService::class)->active()['role_key']);
+        $this->assertTrue($support->isSupportShellSticky());
+        $home = $this->get(route('admin.support.home'))->assertOk()->getContent();
+        $this->assertStringContainsString('Customer Support', $home);
+        $this->assertStringNotContainsString('admin.growth.index', $home);
+
+        // Support → Marketer
+        $this->post(route('admin.role-view.enter'), ['workspace_key' => 'marketer'])
+            ->assertRedirect(route('admin.growth.index'));
+        $this->assertSame('marketer', app(AdminRoleViewService::class)->active()['role_key']);
+        $this->assertFalse($support->isSupportShellSticky());
+
+        // Marketer → Support (must not stay Marketer)
+        $this->post(route('admin.role-view.enter'), ['workspace_key' => 'support'])
+            ->assertRedirect(route('admin.support.home'));
+        $this->assertSame('support', app(AdminRoleViewService::class)->active()['role_key']);
+        $this->assertTrue($support->isSupportShellSticky());
+        $again = $this->get(route('admin.support.home'))->assertOk()->getContent();
+        $this->assertStringContainsString('Customer Support', $again);
+
+        // Support → Admin → Support
+        $this->post(route('admin.role-view.exit'))->assertRedirect(route('admin.dashboard'));
+        $this->assertFalse(app(AdminRoleViewService::class)->isActive());
+        $this->post(route('admin.role-view.enter'), ['workspace_key' => 'support'])
+            ->assertRedirect(route('admin.support.home'));
+        $this->assertSame('support', app(AdminRoleViewService::class)->active()['role_key']);
+    }
+
     public function test_legacy_staff_enter_still_maps_agent_into_support_workspace(): void
     {
         $admin = $this->admin();

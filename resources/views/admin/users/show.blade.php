@@ -86,7 +86,7 @@
     </div>
 </div>
 
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
+<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5" id="password-access">
     <div>
         <h3 class="text-sm font-semibold text-gray-900">Password</h3>
         <p class="text-xs text-gray-500 mt-1">Set a temporary password or issue a secure setup link. Current password is never shown.</p>
@@ -97,18 +97,18 @@
         </p>
     @endif
     @if (session('password_setup_url'))
-        <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-2">
+        <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-2" data-testid="password-setup-url">
             <p class="text-xs font-semibold text-brand">Setup / reset link (expires {{ session('password_setup_expires') }})</p>
             <input type="text" readonly value="{{ session('password_setup_url') }}"
                    class="w-full rounded-lg border-gray-200 text-xs font-mono bg-white"
-                   onclick="this.select()">
+                   onclick="this.select()" id="password-setup-url-field">
             <p class="text-[11px] text-gray-500">Copy and share out-of-band when the user has no email.</p>
         </div>
     @endif
     <div class="grid lg:grid-cols-2 gap-4">
         <form method="POST" action="{{ route('admin.users.reset-password', $record) }}" class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4"
               x-data="{ show: false }"
-              @submit.prevent="window.confirmForm($el, {
+              onsubmit="event.preventDefault(); confirmForm(this, {
                   title: 'Reset staff password?',
                   message: 'This replaces the current password with a temporary password you can share securely.',
                   confirmLabel: 'Set password',
@@ -134,13 +134,19 @@
         </form>
         <form method="POST"
               action="{{ route('admin.users.password-setup-link', $record) }}"
+              id="admin-password-setup-link-form"
               class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4"
-              onsubmit="event.preventDefault(); confirmForm(this, { title: 'Issue password setup link?', message: 'Creates a single-use link that expires. Share it securely. Never invent an email address.', confirmLabel: 'Create link', confirmClass: 'bg-brand-gold text-brand hover:brightness-95' })">
+              data-testid="password-setup-link-form">
             @csrf
             <p class="text-sm font-semibold text-gray-900">Secure setup link</p>
             <p class="text-xs text-gray-500">User chooses their own password. Link is single-use and expires.</p>
-            <button type="submit" data-loading-label="Creating…"
-                    class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5 hover:brightness-95">
+            {{-- Hidden real submit for confirmForm → form.submit() + loader binding. Visible CTA is type=button. --}}
+            <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true" data-loading-label="Creating…">Create link</button>
+            <button type="button"
+                    data-loading-label="Creating…"
+                    data-testid="password-setup-link-cta"
+                    class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5 hover:brightness-95 kf-press"
+                    onclick="confirmForm(document.getElementById('admin-password-setup-link-form'), { title: 'Issue password setup link?', message: 'Creates a single-use link that expires. Share it securely. Never invent an email address.', confirmLabel: 'Create link', confirmClass: 'bg-brand-gold text-brand hover:brightness-95' })">
                 Create / send setup link
             </button>
         </form>

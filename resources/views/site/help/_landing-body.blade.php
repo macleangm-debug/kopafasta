@@ -70,6 +70,9 @@
     })->filter(fn ($g) => ($g['key'] ?? '') !== '')->values()->all();
 @endphp
 
+    @php
+        $initialHelpResults = collect($helpResults ?? [])->values()->all();
+    @endphp
 <div
     x-data="helpCentreSurface({
         groups: @js($surfaceGroups),
@@ -81,29 +84,33 @@
         topicCountPrefix: @js($isSw ? 'Mada ' : ''),
         topicCountSuffix: @js($isSw ? '' : ' topics'),
         homePath: @js(parse_url($homeUrl, PHP_URL_PATH) ?: '/support'),
+        initialQuery: @js($helpQuery),
+        initialResults: @js($initialHelpResults),
+        resultsLabel: @js($isSw ? 'Matokeo' : 'Results'),
     })"
     x-init="init()"
     class="space-y-6"
 >
-    @if ($helpQuery !== '')
-        <section class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 space-y-3">
-            <p class="text-sm font-semibold text-gray-900">{{ $isSw ? 'Matokeo' : 'Results' }} ({{ count($helpResults) }})</p>
-            @forelse ($helpResults as $row)
-                <button type="button"
-                        @click="openFromSearch(@js($row['category'] ?? ''), @js($row['slug'] ?? ''))"
-                        class="w-full text-left block rounded-xl bg-slate-50 hover:bg-brand-muted/30 px-4 py-3 transition">
-                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ $row['group'] }}</p>
-                    <p class="text-sm font-bold text-gray-900 mt-1">{{ $row['title'] }}</p>
-                    <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ $row['body'] }}</p>
-                </button>
-            @empty
-                <p class="text-sm text-gray-500">{{ $isSw ? 'Hakuna matokeo. Jaribu maneno mengine au Ongea na timu.' : 'No matches. Try different words or Talk to Support.' }}</p>
-            @endforelse
-        </section>
-    @endif
+    <section x-show="showSearchResults" x-cloak class="rounded-2xl bg-white ring-1 ring-brand/10 p-5 space-y-3" data-testid="help-search-results">
+        <p class="text-sm font-semibold text-gray-900">
+            <span x-text="resultsLabel"></span> (<span x-text="searchResults.length"></span>)
+        </p>
+        <template x-if="searchResults.length === 0">
+            <p class="text-sm text-gray-500">{{ $isSw ? 'Hakuna matokeo. Jaribu maneno mengine au Ongea na timu.' : 'No matches. Try different words or Talk to Support.' }}</p>
+        </template>
+        <template x-for="row in searchResults" :key="(row.category || '') + '-' + (row.slug || '') + '-' + (row.title || '')">
+            <button type="button"
+                    @click="openFromSearch(row.category || '', row.slug || '')"
+                    class="w-full text-left block rounded-xl bg-slate-50 hover:bg-brand-muted/30 px-4 py-3 transition kf-card-lift">
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold" x-text="row.group"></p>
+                <p class="text-sm font-bold text-gray-900 mt-1" x-text="row.title"></p>
+                <p class="text-sm text-gray-600 mt-1 line-clamp-2" x-text="row.body"></p>
+            </button>
+        </template>
+    </section>
 
-    {{-- Category carousel (no “Chagua mada” heading — self-explanatory) --}}
-    <section>
+    {{-- Category carousel --}}
+    <section x-show="!showSearchResults">
         <div class="flex items-center justify-end gap-2 mb-3">
             <div class="flex items-center gap-2">
                 <button type="button" @click="scrollCarousel(-1)"
@@ -126,7 +133,7 @@
                 <template x-for="cat in groups" :key="cat.key">
                     <button type="button"
                             @click="selectCategory(cat.key)"
-                            class="snap-start shrink-0 w-[14.5rem] sm:w-[15.5rem] min-h-[10.5rem] rounded-2xl bg-white ring-1 shadow-sm px-5 py-5 transition text-left flex flex-col"
+                            class="snap-start shrink-0 w-[14.5rem] sm:w-[15.5rem] min-h-[10.5rem] rounded-2xl bg-white ring-1 shadow-sm px-5 py-5 transition text-left flex flex-col kf-card-lift kf-press"
                             :class="selectedKey === cat.key ? 'ring-brand/50 bg-brand-muted/30' : 'ring-brand/10 hover:ring-brand/30'">
                         <span class="inline-flex size-12 items-center justify-center rounded-2xl bg-brand-muted/50 text-3xl" aria-hidden="true" x-text="cat.icon"></span>
                         <p class="mt-3.5 text-[15px] font-bold text-gray-900 leading-snug flex-1" x-text="cat.label"></p>
@@ -260,19 +267,43 @@ document.addEventListener('alpine:init', () => {
         topicCountSuffix: cfg.topicCountSuffix || '',
         copiedSlug: null,
         homePath: cfg.homePath || '/support',
+        liveQuery: cfg.initialQuery || '',
+        committedQuery: cfg.initialQuery || '',
+        searchResults: cfg.initialResults || [],
+        resultsLabel: cfg.resultsLabel || 'Results',
+        get showSearchResults() {
+            const live = String(this.liveQuery || '').trim();
+            const committed = String(this.committedQuery || '').trim();
+
+            return live !== '' && committed !== '' && live === committed;
+        },
         get selectedGroup() {
             return this.groups.find((g) => g.key === this.selectedKey) || null;
         },
         init() {
-            if (this.selectedKey && this.openSlug) {
-                // deep link already set
-            } else if (this.selectedKey && ! this.openSlug) {
-                // category only
-            }
             if (this.selectedKey) {
                 this.$nextTick(() => this.scrollSelectedIntoView());
             }
             window.addEventListener('popstate', () => this.restoreFromUrl());
+            window.addEventListener('kf-help-query', (e) => {
+                const q = String(e.detail?.q ?? '').trim();
+                this.liveQuery = q;
+                if (q === '') {
+                    this.committedQuery = '';
+                    this.searchResults = [];
+                }
+            });
+        },
+        clearSearchResults() {
+            this.liveQuery = '';
+            this.committedQuery = '';
+            this.searchResults = [];
+            try {
+                const u = new URL(window.location.href);
+                u.searchParams.delete('q');
+                u.searchParams.delete('query');
+                history.replaceState({}, '', u.pathname + u.search + u.hash);
+            } catch (err) { /* ignore */ }
         },
         selectCategory(key) {
             this.selectedKey = key;

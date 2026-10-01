@@ -49,7 +49,8 @@ class AdminRoleViewController extends Controller
 
             $url = $views->enterWorkspace($admin, $data['workspace_key'])['url'];
 
-            return redirect()->to($url)
+            // 303 so a refresh cannot re-POST the previous role enter.
+            return redirect()->to($url, 303)
                 ->with('status', __('admin.role_view.entered'));
         }
 
@@ -67,7 +68,7 @@ class AdminRoleViewController extends Controller
             $data['role_key'],
         )['url'];
 
-        return redirect()->to($url)
+        return redirect()->to($url, 303)
             ->with('status', __('admin.role_view.entered'));
     }
 

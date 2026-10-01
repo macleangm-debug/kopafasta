@@ -50,9 +50,21 @@
                 <div class="relative px-5 sm:px-8 py-7 sm:py-9">
                     <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">{{ $isSw ? 'Kituo cha Usaidizi' : 'Help Centre' }}</p>
                     <h1 class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight">{{ $isSw ? 'Unahitaji msaada gani?' : 'How can we help?' }}</h1>
-                    <form method="GET" action="{{ route('site.borrower.support') }}" class="mt-5 max-w-xl">
+                    <form method="GET" action="{{ route('site.borrower.support') }}" class="mt-5 max-w-xl"
+                          @submit="if (!String(q || '').trim()) { $event.preventDefault(); window.dispatchEvent(new CustomEvent('kf-help-query', { detail: { q: '' } })); }">
                         <input type="hidden" name="section" value="help">
-                        <input type="search" name="q" value="{{ $helpQuery }}"
+                        <input type="search" name="q" x-model="q"
+                               @input="
+                                    const v = String(q || '').trim();
+                                    window.dispatchEvent(new CustomEvent('kf-help-query', { detail: { q: v } }));
+                                    if (!v) {
+                                        try {
+                                            const u = new URL(window.location.href);
+                                            u.searchParams.delete('q');
+                                            history.replaceState({}, '', u.pathname + u.search + u.hash);
+                                        } catch (e) {}
+                                    }
+                               "
                                placeholder="{{ $isSw ? 'mdhamini, ada ya maombi, malipo yamekwama, kubadilisha PIN…' : 'guarantor, application fee, payment pending, reset PIN…' }}"
                                class="w-full rounded-2xl border-0 bg-white/95 text-gray-900 text-sm px-4 py-3 shadow-sm focus:ring-2 focus:ring-brand-gold/50">
                     </form>

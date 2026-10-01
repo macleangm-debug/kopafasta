@@ -32,15 +32,27 @@
         }
     @endphp
 
-    <div x-data="{ human: @js((bool) $openHumanChat), section: @js($helpSection) }">
+    <div x-data="{ human: @js((bool) $openHumanChat), section: @js($helpSection), q: @js($helpQuery) }">
         <div x-show="!human" x-cloak class="space-y-6">
             <section class="relative overflow-hidden rounded-3xl kf-premium-panel">
                 <div class="relative px-5 sm:px-8 py-7 sm:py-9">
                     <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-white/70">{{ $isSw ? 'Kituo cha Usaidizi' : 'Help Center' }}</p>
                     <h1 class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-white">{{ $isSw ? 'Unahitaji msaada gani?' : 'How can we help?' }}</h1>
-                    <form method="GET" action="{{ $homeUrl }}" class="mt-5 max-w-xl">
+                    <form method="GET" action="{{ $homeUrl }}" class="mt-5 max-w-xl"
+                          @submit="if (!String(q || '').trim()) { $event.preventDefault(); window.dispatchEvent(new CustomEvent('kf-help-query', { detail: { q: '' } })); }">
                         <input type="hidden" name="section" value="help">
-                        <input type="search" name="q" value="{{ $helpQuery }}"
+                        <input type="search" name="q" x-model="q"
+                               @input="
+                                    const v = String(q || '').trim();
+                                    window.dispatchEvent(new CustomEvent('kf-help-query', { detail: { q: v } }));
+                                    if (!v) {
+                                        try {
+                                            const u = new URL(window.location.href);
+                                            u.searchParams.delete('q');
+                                            history.replaceState({}, '', u.pathname + u.search + u.hash);
+                                        } catch (e) {}
+                                    }
+                               "
                                placeholder="{{ $isSw ? 'Tafuta msaada wa Partner…' : 'Search Partner help…' }}"
                                class="w-full rounded-2xl border-0 bg-white/95 text-gray-900 text-sm px-4 py-3 shadow-sm">
                     </form>

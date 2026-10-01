@@ -55,15 +55,16 @@
             </select>
         </label>
 
-        {{-- Server-rendered forms: Alpine x-for + :value was dropping workspace_key on role→role switch. --}}
+        {{-- Server-rendered forms; workspace_key on the submit button so it cannot drop. --}}
         <ul class="space-y-2 max-h-[60vh] overflow-y-auto pr-0.5">
             @foreach ($staffRoleDirectory as $role)
                 <li x-show="!filter || filter === @js($role['key'])">
                     <form method="POST" action="{{ route('admin.role-view.enter') }}" class="block" data-skip-loading="1">
                         @csrf
                         <input type="hidden" name="subject_type" value="workspace">
-                        <input type="hidden" name="workspace_key" value="{{ $role['key'] }}">
                         <button type="submit"
+                                name="workspace_key"
+                                value="{{ $role['key'] }}"
                                 class="w-full text-left rounded-2xl ring-1 px-4 py-3 hover:ring-brand/40 hover:bg-brand-muted/20 transition {{ $activeRoleKey === $role['key'] ? 'ring-brand/40 bg-brand-muted/25' : 'ring-gray-200' }}">
                             <span class="flex items-center justify-between gap-3">
                                 <span>

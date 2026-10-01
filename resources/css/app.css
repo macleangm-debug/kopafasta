@@ -1173,3 +1173,43 @@ html.dark .kf-receipt--paper::after {
     background-color: #111827;
     border-bottom-color: #374151;
 }
+
+/* Restrained premium micro-interactions (respect reduced motion) */
+@layer utilities {
+    .kf-card-lift {
+        transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+    @media (hover: hover) and (pointer: fine) {
+        .kf-card-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(0, 77, 64, 0.08);
+        }
+    }
+    .kf-press:active {
+        transform: scale(0.98);
+    }
+    .kf-hero-enter {
+        animation: kf-fade-up 420ms ease both;
+    }
+    .kf-success-pop {
+        animation: kf-soft-pop 280ms ease both;
+    }
+    @keyframes kf-fade-up {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes kf-soft-pop {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .kf-card-lift,
+        .kf-press,
+        .kf-hero-enter,
+        .kf-success-pop {
+            transition: none !important;
+            animation: none !important;
+            transform: none !important;
+        }
+    }
+}

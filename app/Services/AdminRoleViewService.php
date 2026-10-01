@@ -208,13 +208,11 @@ class AdminRoleViewService
             ? self::WORKSPACE_SUPPORT
             : $workspaceKey;
 
-        // Role → role: clear previous workspace/shell completely, then establish the selected one.
-        // Never leave Support sticky or prior role_key surviving into the next desk.
-        $this->clearViewingContextPreservingAdmin($admin);
-
         $label = $this->workspaceLabel($canonical);
         $underlying = $this->underlyingRolesForWorkspace($canonical);
 
+        // Overwrite viewing context in place (do not Session::forget first — that
+        // briefly emptied active() mid-request and left Admin chrome on Support landings).
         Session::put(self::SESSION_KEY, [
             'admin_id' => $admin->id,
             'subject_type' => 'workspace',
@@ -231,6 +229,9 @@ class AdminRoleViewService
         $support = app(\App\Services\Support\CustomerSupportWorkspaceService::class);
         if (in_array($canonical, [self::WORKSPACE_SUPPORT, ...self::SUPPORT_ROLE_KEYS], true)) {
             $support->markSupportShell();
+        } else {
+            // Switching Role A → Role B must not leave Support sticky chrome.
+            $support->clearSupportShell();
         }
 
         $this->audit->logAdminAction($admin, 'admin.role_view.enter', null, [
@@ -245,6 +246,7 @@ class AdminRoleViewService
 
     /**
      * Drop viewing/partner/Support shell only — Admin identity and guard stay.
+     * Used by Exit / Admin return — not mid-enter (enter overwrites SESSION_KEY).
      */
     public function clearViewingContextPreservingAdmin(?User $admin = null): void
     {
