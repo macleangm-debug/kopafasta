@@ -37,8 +37,8 @@ class SupportConversationService
     ) {}
 
     /**
-     * Settings-backed readable conversation number, e.g. KPF-CNV-000001.
-     * Mirrors SupportTicketService::nextTicketNumber.
+     * Settings-backed readable conversation number, e.g. KPF-CNV-A7K4Q2.
+     * New references are alphanumeric; historical sequential numbers are unchanged.
      */
     public function nextConversationNumber(?string $explicit = null): string
     {
@@ -52,16 +52,11 @@ class SupportConversationService
             $prefix = self::CONVERSATION_PREFIX_DEFAULT;
         }
 
-        $seqKey = 'support.conversation_number_seq.kpf';
-        $seq = (int) Setting::get($seqKey, 0);
-        do {
-            $seq++;
-            $candidate = $prefix.'-'.str_pad((string) $seq, 6, '0', STR_PAD_LEFT);
-        } while (SupportConversation::query()->where('conversation_number', $candidate)->exists());
-
-        Setting::set($seqKey, $seq);
-
-        return $candidate;
+        return app(\App\Services\ReferenceNumberService::class)->prefixedReference(
+            $prefix,
+            6,
+            fn (string $candidate) => SupportConversation::query()->where('conversation_number', $candidate)->exists(),
+        );
     }
 
     /**

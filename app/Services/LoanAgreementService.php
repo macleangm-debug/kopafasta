@@ -139,6 +139,13 @@ class LoanAgreementService
             $this->snapshotFromApplication($application),
         );
 
+        $this->assertRejectionLetterAssets($snapshot);
+
+        if ($regenerate) {
+            $snapshot['regenerated_at'] = now()->toIso8601String();
+            $snapshot['regenerated_by'] = Auth::id();
+        }
+
         $agreement = $existing ?: new LoanAgreement([
             'loan_application_id' => $application->id,
             'customer_id' => $application->customer_id,
@@ -146,10 +153,13 @@ class LoanAgreementService
             'reference' => 'RJ-'.strtoupper(Str::random(8)),
         ]);
 
+        $previousReference = $existing?->reference;
+        $previousHash = data_get($existing?->snapshot, 'document_hash');
+
         $agreement->fill([
             'snapshot' => $snapshot,
             'status' => 'sent',
-            'sent_at' => now(),
+            'sent_at' => $existing?->sent_at ?? now(),
             'generated_by_user_id' => Auth::id(),
         ]);
 
@@ -161,6 +171,25 @@ class LoanAgreementService
 
         $pdf = $this->renderAgreementPdf(null, 'pdf.rejection-letter', $viewData);
         $this->writeAgreementPdf($agreement, $pdf, $snapshot);
+
+        if ($regenerate) {
+            app(AuditService::class)->log(
+                Auth::user(),
+                'rejection_letter.regenerated',
+                $agreement,
+                [
+                    'reference' => $previousReference,
+                    'document_hash' => $previousHash,
+                    'rejected_at' => $snapshot['rejected_at'] ?? null,
+                ],
+                [
+                    'reference' => $agreement->reference,
+                    'document_hash' => data_get($agreement->snapshot, 'document_hash'),
+                    'rejected_at' => $snapshot['rejected_at'] ?? null,
+                    'regenerated_at' => $snapshot['regenerated_at'] ?? null,
+                ],
+            );
+        }
 
         return $agreement;
     }
@@ -1204,6 +1233,44 @@ class LoanAgreementService
             'approval_reason_label' => $label && $code !== 'custom' ? $label : ($approval['notes'] ?? $label),
             'approval_reason_notes' => $approval['notes'] ?? null,
         ];
+    }
+
+    /**
+     * Block member-facing decision letters when authorised CEO signature / stamp assets are missing.
+     * The rejection decision itself stays intact — only letter issuance is blocked.
+     *
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function assertRejectionLetterAssets(array $snapshot): void
+    {
+        $missing = [];
+
+        $name = trim((string) ($snapshot['ceo_signatory_name']
+            ?? $snapshot['company_signatory_name']
+            ?? ''));
+        if ($name === '') {
+            $missing[] = 'CEO name and title (Settings → Signatories / Legal)';
+        }
+
+        $signature = $snapshot['ceo_signature_path'] ?? $snapshot['company_signature_path'] ?? null;
+        if (! is_string($signature) || $signature === '' || ! is_file($signature)) {
+            $missing[] = 'CEO signature image (Settings → Signatories)';
+        }
+
+        $stamp = $snapshot['company_stamp_path'] ?? null;
+        if (! is_string($stamp) || $stamp === '' || ! is_file($stamp)) {
+            $missing[] = 'Company stamp image (Settings → Legal)';
+        }
+
+        if ($missing === []) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'rejection_letter' => 'Decision letter cannot be issued until these authorised assets are configured: '
+                .implode('; ', $missing)
+                .'. The rejection decision is unchanged — fix Legal settings, then regenerate the letter.',
+        ]);
     }
 
     /**

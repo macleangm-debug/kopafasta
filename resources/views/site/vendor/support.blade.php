@@ -201,10 +201,4 @@
         </div>
     </div>
 
-    <x-site.feedback-form-panel
-        :show-trigger="false"
-        :show-faq-link="false"
-        :open-on-load="request()->boolean('feedback') || filled(session('status'))"
-        from="partner"
-    />
 </x-site.vendor-layout>

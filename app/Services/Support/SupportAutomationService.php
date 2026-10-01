@@ -108,14 +108,14 @@ class SupportAutomationService
         if ($sw) {
             $variants = $name !== ''
                 ? [
+                    "Habari {$name}. Mimi ni {$personaName}, Msaidizi wa Kopafasta. Niambie unahitaji msaada gani leo.",
+                    "Mambo {$name}. Mimi ni {$personaName}, Msaidizi wa Kopafasta. Niambie unahitaji msaada gani leo.",
                     "Habari {$name}, mimi ni {$personaName}, Msaidizi wa Kopafasta. Nipo hapa kukusaidia. Unahitaji msaada kuhusu nini?",
-                    "Shikamoo {$name}. Mimi ni {$personaName}, Msaidizi wa Kopafasta. Niambie unahitaji msaada gani leo.",
-                    "Habari {$name}. Mimi ni {$personaName} · Msaidizi wa Kopafasta. Naweza kukusaidia sasa — unahitaji nini?",
                 ]
                 : [
+                    "Habari. Mimi ni {$personaName}, Msaidizi wa Kopafasta. Niambie unahitaji msaada gani leo.",
+                    "Mambo. Mimi ni {$personaName}, Msaidizi wa Kopafasta. Niambie unahitaji msaada gani leo.",
                     "Habari, mimi ni {$personaName}, Msaidizi wa Kopafasta. Nipo hapa kukusaidia. Unahitaji msaada kuhusu nini?",
-                    "Shikamoo. Mimi ni {$personaName}, Msaidizi wa Kopafasta. Niambie unahitaji msaada gani.",
-                    "Habari. Mimi ni {$personaName} · Msaidizi wa Kopafasta. Naweza kukusaidia — unahitaji nini?",
                 ];
         } else {
             $variants = $name !== ''
@@ -225,6 +225,7 @@ class SupportAutomationService
             'category' => $this->selectCategory($conversation, (string) ($input['key'] ?? ''), $audience, $workspace, $locale),
             'issue' => $this->selectIssue($conversation, (string) ($input['slug'] ?? ''), $customer, $user, $audience, $workspace, $locale),
             'resolved_yes' => $this->resolveAutomated($conversation, $locale),
+            'no_other_issue' => $this->resolveAutomated($conversation, $locale, doneLabel: true),
             'resolved_no' => $this->continueOrEscalate($conversation, $customer, $user, $audience, $workspace, $locale),
             'escalate' => $this->escalateToHuman($conversation, $customer, $user, $input, $locale),
             'start' => $this->start(
@@ -285,6 +286,7 @@ class SupportAutomationService
             } elseif ($phase === 'escalate_offer') {
                 $choices = [
                     ['action' => 'escalate', 'key' => 'human', 'label' => $this->humanOfferLabel($locale)],
+                    ['action' => 'no_other_issue', 'key' => 'done', 'label' => $this->isSw($locale) ? 'Hakuna tatizo lingine' : 'No other issue'],
                     ['action' => 'category', 'key' => '__restart__', 'label' => $this->isSw($locale) ? 'Anza upya' : 'Start over'],
                 ];
             }
@@ -486,25 +488,28 @@ class SupportAutomationService
     /**
      * @return array<string, mixed>
      */
-    private function resolveAutomated(SupportConversation $conversation, ?string $locale): array
+    private function resolveAutomated(SupportConversation $conversation, ?string $locale, bool $doneLabel = false): array
     {
         $meta = $this->meta($conversation);
         $meta['phase'] = 'done';
-        $yes = $this->isSw($locale) ? 'Ndiyo' : 'Yes';
-        $this->conversations->appendMessage($conversation, 'customer', $yes, null, false, false);
+        $customerLabel = $doneLabel
+            ? ($this->isSw($locale) ? 'Hakuna tatizo lingine' : 'No other issue')
+            : ($this->isSw($locale) ? 'Ndiyo' : 'Yes');
+        $this->conversations->appendMessage($conversation, 'customer', $customerLabel, null, false, false);
         $firstName = (string) ($meta['customer_first_name'] ?? '');
         $thanks = $this->closeResolvedCopy($locale, $firstName !== '' ? $firstName : null);
         $this->conversations->appendMessage($conversation, 'bot', $thanks, null, true, false);
 
         $conversation->update([
             'handling_state' => self::STATE_RESOLVED_AUTOMATED,
-            'resolution_kind' => 'automated',
+            'resolution_kind' => 'msaidizi',
             'automation_meta' => $meta,
             'status' => SupportConversationService::STATUS_CLOSED,
             'needs_human' => false,
             'resolved_at' => now(),
             'closed_at' => now(),
-            'resolution_category' => 'automated',
+            'resolution_category' => 'msaidizi',
+            'resolution_note' => 'Resolved by Msaidizi',
         ]);
 
         return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
@@ -960,12 +965,12 @@ class SupportAutomationService
         $name = trim((string) $firstName);
         if ($this->isSw($locale)) {
             return $name !== ''
-                ? "Asante {$name}. Nimefunga mazungumzo haya kama yaliyotatuliwa. Anza mazungumzo mapya ukihitaji msaada mwingine."
-                : 'Asante. Nimefunga mazungumzo haya kama yaliyotatuliwa. Anza mazungumzo mapya ukihitaji msaada mwingine.';
+                ? "Sawa {$name}, nimefurahi kusaidia."
+                : 'Sawa, nimefurahi kusaidia.';
         }
 
         return $name !== ''
-            ? "Thank you {$name}. I’ve closed this conversation as resolved. Start a new chat if you need help with something else."
-            : 'Thank you. I’ve closed this conversation as resolved. Start a new chat if you need help with something else.';
+            ? "Alright {$name}, glad I could help."
+            : 'Alright, glad I could help.';
     }
 }

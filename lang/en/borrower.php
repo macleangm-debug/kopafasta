@@ -5056,6 +5056,9 @@ return [
         'preview' => 'View decision letter',
         'download_pdf' => 'Download PDF',
         'a4_preview' => 'A4 preview — one document at a time',
+        'pending_title' => 'Decision letter is being prepared',
+        'pending_body' => 'Your application decision is recorded. The formal letter will appear here once it is ready.',
+        'pending_assets' => 'Decision letter assets are not ready yet.',
         'pdf' => [
             'title' => 'Decision letter — :reference',
             'tagline' => 'Microfinance Services · Tanzania',

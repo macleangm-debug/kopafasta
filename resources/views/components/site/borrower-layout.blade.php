@@ -408,6 +408,12 @@
 <x-site.upload-busy-overlay />
 <x-site.confirm-modal name="default" />
 <x-site.feedback-modal name="default" />
+<x-site.feedback-form-panel
+    :show-trigger="false"
+    :show-faq-link="false"
+    :open-on-load="request()->boolean('feedback') || request()->boolean('open')"
+    from="borrower"
+/>
 @if (session('show_membership_card') && $borrowerCustomer && ($borrowerCustomer->isMembershipActive() || $borrowerCustomer->isMembershipInGrace() || $borrowerCustomer->hasMembership()))
     <x-site.membership-card-modal :customer="$borrowerCustomer" />
 @endif

@@ -329,6 +329,12 @@
     <x-site.upload-busy-overlay />
     <x-site.confirm-modal name="default" />
     <x-site.feedback-modal name="default" />
+    <x-site.feedback-form-panel
+        :show-trigger="false"
+        :show-faq-link="false"
+        :open-on-load="request()->boolean('feedback') || request()->boolean('open')"
+        :from="request()->get('from', 'public')"
+    />
     @stack('scripts')
     <script>
         document.addEventListener('alpine:init', () => {

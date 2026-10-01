@@ -4896,6 +4896,9 @@ return [
         'preview' => 'Angalia barua ya uamuzi',
         'download_pdf' => 'Pakua PDF',
         'a4_preview' => 'Hakiki ya A4 — hati moja kwa wakati',
+        'pending_title' => 'Barua ya uamuzi inaandaliwa',
+        'pending_body' => 'Uamuzi wa ombi lako umerekodiwa. Barua rasmi itaonekana hapa ikishakuwa tayari.',
+        'pending_assets' => 'Rasilimali za barua ya uamuzi bado hazijakamilika.',
         'pdf' => [
             'title' => 'Barua ya uamuzi — :reference',
             'tagline' => 'Huduma za mikopo ndogo · Tanzania',

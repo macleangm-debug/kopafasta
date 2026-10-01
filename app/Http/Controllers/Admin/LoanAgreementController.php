@@ -8,6 +8,7 @@ use App\Services\ApplicationOfferService;
 use App\Services\LoanAgreementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class LoanAgreementController extends Controller
 {
@@ -42,6 +43,31 @@ class LoanAgreementController extends Controller
         return redirect()
             ->route('admin.loan-applications.guided-post-approval', $loan_application)
             ->with('status', "Loan contract generated ({$agreement->reference}).");
+    }
+
+    public function regenerateRejectionLetter(LoanApplication $loan_application): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('applications.view'), 403);
+        abort_unless(
+            in_array((string) $loan_application->status, ['rejected'], true)
+            || (string) $loan_application->current_stage === 'rejected',
+            404
+        );
+
+        try {
+            $agreement = $this->service->generateRejectionLetter(
+                $loan_application->loadMissing(['customer', 'product']),
+                regenerate: true,
+            );
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('admin.loan-applications.show', $loan_application)
+                ->with('error', collect($e->errors())->flatten()->first() ?: 'Decision letter assets are incomplete.');
+        }
+
+        return redirect()
+            ->route('admin.loan-applications.show', $loan_application)
+            ->with('status', "Decision letter regenerated ({$agreement->reference}). The borrower was not notified automatically.");
     }
 
     public function resendOffer(LoanApplication $loan_application): RedirectResponse

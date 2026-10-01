@@ -49,10 +49,4 @@
         ])
     </section>
 
-    <x-site.feedback-form-panel
-        :show-trigger="false"
-        :show-faq-link="false"
-        :open-on-load="request()->boolean('feedback')"
-        from="public"
-    />
 </x-site.layout>

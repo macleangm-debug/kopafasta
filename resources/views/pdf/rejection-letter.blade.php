@@ -109,28 +109,29 @@
         </div>
     @endif
 
+    @php
+        $ceoSignature = $snapshot['ceo_signature_path'] ?? $snapshot['company_signature_path'] ?? null;
+        $ceoName = $snapshot['ceo_signatory_name'] ?? $snapshot['company_signatory_name'] ?? $company;
+        $ceoTitle = $snapshot['ceo_signatory_title'] ?? $snapshot['company_signatory_title'] ?? null;
+        $companyStamp = $snapshot['company_stamp_path'] ?? null;
+    @endphp
     <table style="width:100%;margin-top:28px">
         <tr>
             <td style="width:55%;vertical-align:top">
                 <strong>{{ pdf_text(__('borrower.rejection_letter.pdf.for_company', ['company' => $company], $locale)) }}</strong>
-                @if (! empty($snapshot['company_signature_path']))
-                    <div><img src="{{ $snapshot['company_signature_path'] }}" class="sig-img" alt=""></div>
-                @else
-                    <div style="height:36px"></div>
+                @if (! empty($ceoSignature))
+                    <div><img src="{{ $ceoSignature }}" class="sig-img" alt=""></div>
                 @endif
-                <div class="muted">{{ $snapshot['company_signatory_name'] ?? $company }}</div>
-                @if (! empty($snapshot['company_signatory_title']))
-                    <div class="muted">{{ $snapshot['company_signatory_title'] }}</div>
+                <div class="muted">{{ $ceoName }}</div>
+                @if (! empty($ceoTitle))
+                    <div class="muted">{{ $ceoTitle }}</div>
                 @endif
             </td>
             <td style="width:45%;vertical-align:top;text-align:center">
                 <strong>{{ pdf_text(__('borrower.rejection_letter.pdf.company_stamp', [], $locale)) }}</strong>
-                @if (! empty($snapshot['company_stamp_path']))
-                    <div><img src="{{ $snapshot['company_stamp_path'] }}" class="stamp-img" alt=""></div>
-                @else
-                    <div class="muted" style="margin-top:8px">{{ pdf_text(__('borrower.rejection_letter.pdf.stamp_missing', [], $locale)) }}</div>
+                @if (! empty($companyStamp))
+                    <div><img src="{{ $companyStamp }}" class="stamp-img" alt=""></div>
                 @endif
-                <div class="muted" style="margin-top:6px">{{ pdf_text(__('borrower.rejection_letter.pdf.company_stamp_only', [], $locale)) }}</div>
             </td>
         </tr>
     </table>

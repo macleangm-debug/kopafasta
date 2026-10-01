@@ -791,6 +791,7 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
     public function test_rejection_letter_lists_catalog_reasons_in_borrower_language_without_internal_capacity(): void
     {
         Storage::fake('public');
+        $this->seedAuthorisedLetterAssets();
 
         $this->borrower()->user->update(['preferences' => ['preferred_locale' => 'sw']]);
         $product = $this->product();
@@ -856,6 +857,30 @@ class LoanAgreementMasterTemplateFeatureTest extends TestCase
         $this->assertStringNotContainsString(format_money(33_330), $html);
         $this->assertStringContainsString(__('rejection.advice.reapply_smaller_amount', [], 'sw'), $html);
         $this->assertStringContainsString('<li>', $html);
+        $this->assertStringContainsString('Test CEO', $html);
+        $this->assertStringNotContainsString('Stamp on file when configured', $html);
+        $this->assertStringNotContainsString('legal advocate stamp', strtolower($html));
+        $this->assertStringNotContainsString('Muhuri utaonekana ukisanidiwa', $html);
+    }
+
+    public function test_rejection_letter_blocks_when_authorised_assets_missing(): void
+    {
+        Storage::fake('public');
+
+        $application = LoanApplication::create([
+            'customer_id' => $this->borrower()->id,
+            'loan_product_id' => $this->product()->id,
+            'application_number' => 'APP-RJ-NOASSET',
+            'requested_amount' => 1_000_000,
+            'requested_tenure_months' => 6,
+            'status' => 'rejected',
+            'current_stage' => 'rejected',
+            'rejection_reason_code' => 'repayment_exceeds_limit',
+            'rejection_reason_codes' => ['repayment_exceeds_limit'],
+        ]);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(LoanAgreementService::class)->generateRejectionLetter($application->fresh(['customer', 'product']));
     }
 
     public function test_company_stamp_white_background_is_removed(): void

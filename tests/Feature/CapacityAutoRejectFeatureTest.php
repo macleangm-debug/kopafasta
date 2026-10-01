@@ -26,6 +26,7 @@ class CapacityAutoRejectFeatureTest extends TestCase
         Setting::set('underwriting.enable_automatic_rejection', true);
         Setting::set('underwriting.enable_capacity_auto_reject', true);
         Setting::set('underwriting.capacity_auto_reject_delay_hours', 12);
+        $this->seedAuthorisedLetterAssets();
     }
 
     public function test_capacity_fail_is_parked_then_fired_with_numbered_borrower_message(): void

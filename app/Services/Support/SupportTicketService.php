@@ -51,8 +51,8 @@ class SupportTicketService
     ) {}
 
     /**
-     * Settings-backed readable ticket number, e.g. KPF-TKT-000001.
-     * Optional explicit override kept for internal callers (rewards, migrations).
+     * Settings-backed readable ticket number, e.g. KPF-TKT-A7K4Q2.
+     * New references are alphanumeric; historical sequential numbers are unchanged.
      */
     public function nextTicketNumber(?string $explicit = null): string
     {
@@ -66,16 +66,11 @@ class SupportTicketService
             $prefix = self::TICKET_PREFIX_DEFAULT;
         }
 
-        $seqKey = 'support.ticket_number_seq.kpf';
-        $seq = (int) Setting::get($seqKey, 0);
-        do {
-            $seq++;
-            $candidate = $prefix.'-'.str_pad((string) $seq, 6, '0', STR_PAD_LEFT);
-        } while (SupportTicket::query()->where('ticket_number', $candidate)->exists());
-
-        Setting::set($seqKey, $seq);
-
-        return $candidate;
+        return app(\App\Services\ReferenceNumberService::class)->prefixedReference(
+            $prefix,
+            6,
+            fn (string $candidate) => SupportTicket::query()->where('ticket_number', $candidate)->exists(),
+        );
     }
 
     /**

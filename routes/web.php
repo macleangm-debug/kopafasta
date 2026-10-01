@@ -824,6 +824,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             ->name('loan-applications.offer.reissue');
         Route::post('loan-applications/{loan_application}/contract', [App\Http\Controllers\Admin\LoanAgreementController::class, 'generateContract'])
             ->name('loan-applications.contract.generate');
+        Route::post('loan-applications/{loan_application}/rejection-letter/regenerate', [App\Http\Controllers\Admin\LoanAgreementController::class, 'regenerateRejectionLetter'])
+            ->name('loan-applications.rejection-letter.regenerate');
         Route::get('loan-agreements/{agreement}/download', [LoanAgreementController::class, 'download'])
             ->name('loan-agreements.download');
         Route::post('loan-applications/{loan_application}/document-requests', [LoanApplicationDocumentRequestController::class, 'store'])

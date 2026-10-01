@@ -65,8 +65,11 @@
             <div class="mt-4 flex flex-wrap justify-center gap-3">
                 <a href="{{ route('site.support') }}" class="inline-flex bg-brand text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-light transition">{{ __('site.footer.support') }}</a>
             </div>
-            <div class="mt-6 max-w-md mx-auto">
-                <x-site.feedback-form-panel :show-faq-link="false" />
+            <div class="mt-6 max-w-md mx-auto text-center">
+                <button type="button" @click="$dispatch('open-feedback')"
+                        class="inline-flex items-center justify-center gap-2 bg-brand hover:bg-brand-light text-white font-bold px-8 py-3.5 rounded-xl shadow-sm">
+                    {{ __('site.feedback.submit') }}
+                </button>
             </div>
         </div>
     </section>

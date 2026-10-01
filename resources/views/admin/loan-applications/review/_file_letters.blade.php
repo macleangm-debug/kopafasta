@@ -101,14 +101,56 @@
                     <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">Rejected feedback letter</p>
                     <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $rejectionLetter->reference }}</p>
                 </div>
-                <x-admin.letter-actions :url="$letterUrl($rejectionLetter)" preview-label="Open letter" :use-admin-preview="$useAdminPreview" />
+                <div class="flex flex-wrap items-center gap-2">
+                    <x-admin.letter-actions :url="$letterUrl($rejectionLetter)" preview-label="Open letter" :use-admin-preview="$useAdminPreview" />
+                    @if ($allowMutations)
+                        <form method="POST" action="{{ route('admin.loan-applications.rejection-letter.regenerate', $record) }}"
+                              @submit.prevent="confirmForm($event.target, {
+                                  title: 'Regenerate decision letter?',
+                                  message: 'Re-renders the PDF with the current authorised CEO signature and company stamp. Keeps the original rejection decision, reason, reference and date. Does not notify the borrower.',
+                                  confirmLabel: 'Regenerate letter',
+                              })">
+                            @csrf
+                            <button type="submit" class="text-xs font-semibold text-gray-700 hover:text-brand bg-white ring-1 ring-gray-200 hover:ring-brand/20 px-3 py-1.5 rounded-lg">
+                                Regenerate letter
+                            </button>
+                        </form>
+                    @endif
+                </div>
             </div>
         </div>
     @elseif (($closedStatus ?? $record?->closedStatus()) === 'rejected' && ! $rejectionLetter?->file_path)
         <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-5 py-4 text-sm text-amber-950">
             <p class="font-semibold">No rejection letter is on file yet</p>
-            <p class="mt-1 text-amber-900/80">The decision reason below is still on the file. The PDF is generated when the rejection is sent to the applicant.</p>
+            <p class="mt-1 text-amber-900/80">The decision reason below is still on the file. Generate the PDF once CEO signature and company stamp are configured in Legal settings.</p>
+            @if ($allowMutations)
+                <form method="POST" action="{{ route('admin.loan-applications.rejection-letter.regenerate', $record) }}" class="mt-3"
+                      @submit.prevent="confirmForm($event.target, {
+                          title: 'Generate decision letter?',
+                          message: 'Creates the member-facing PDF from the original rejection decision, reason, reference and date. The borrower is not notified automatically.',
+                          confirmLabel: 'Generate letter',
+                      })">
+                    @csrf
+                    <button type="submit" class="text-xs font-semibold text-amber-950 bg-white ring-1 ring-amber-300 hover:bg-amber-100 px-3 py-1.5 rounded-lg">
+                        Generate decision letter
+                    </button>
+                </form>
+            @endif
         </div>
+    @endif
+
+    @if ($rejectionLetter?->file_path && $allowMutations && $showEmbeddedPdf)
+        <form method="POST" action="{{ route('admin.loan-applications.rejection-letter.regenerate', $record) }}"
+              @submit.prevent="confirmForm($event.target, {
+                  title: 'Regenerate decision letter?',
+                  message: 'Re-renders the PDF with the current authorised CEO signature and company stamp. Keeps the original rejection decision, reason, reference and date. Does not notify the borrower.',
+                  confirmLabel: 'Regenerate letter',
+              })">
+            @csrf
+            <button type="submit" class="text-xs font-semibold text-gray-700 hover:text-brand bg-white ring-1 ring-gray-200 hover:ring-brand/20 px-3 py-1.5 rounded-lg">
+                Regenerate decision letter
+            </button>
+        </form>
     @endif
 
     @if ($featureSignedContract && ! $signedContract?->file_path)

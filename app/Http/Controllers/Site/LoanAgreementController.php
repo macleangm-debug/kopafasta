@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class LoanAgreementController extends Controller
@@ -70,7 +71,16 @@ class LoanAgreementController extends Controller
             ->first();
 
         if (! $agreement) {
-            $agreement = $this->service->generateRejectionLetter($application->loadMissing(['customer', 'product']));
+            try {
+                $agreement = $this->service->generateRejectionLetter($application->loadMissing(['customer', 'product']));
+            } catch (ValidationException $e) {
+                return view('site.borrower.rejection-letter-pending', [
+                    'application' => $application,
+                    'customer' => $customer,
+                    'message' => collect($e->errors())->flatten()->first()
+                        ?: __('borrower.rejection_letter.pending_assets'),
+                ]);
+            }
         }
 
         return view('site.borrower.rejection-letter', compact('application', 'agreement', 'customer'));

@@ -50,6 +50,11 @@ class SupportAutomationFeatureTest extends TestCase
         $greeting = collect($start->json('messages') ?? [])->firstWhere('role', 'bot')['text'] ?? '';
         $this->assertStringContainsString('Asha', (string) $greeting);
         $this->assertStringContainsString($persona, (string) $greeting);
+        $this->assertStringNotContainsString('Shikamoo', (string) $greeting);
+        $this->assertTrue(
+            str_contains((string) $greeting, 'Habari') || str_contains((string) $greeting, 'Mambo'),
+            'SW greeting must use Habari or Mambo'
+        );
         $this->assertStringNotContainsString('SMS', (string) $greeting);
         $this->assertStringNotContainsString('bot', strtolower((string) $greeting));
         $this->assertStringNotContainsString('automated', strtolower((string) $greeting));
@@ -99,6 +104,31 @@ class SupportAutomationFeatureTest extends TestCase
         $this->assertFalse((bool) $conversation->needs_human);
         $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
         $this->assertSame($persona, $meta['persona_name'] ?? null);
+        $this->assertSame('Resolved by Msaidizi', $conversation->resolution_note);
+    }
+
+    public function test_no_other_issue_resolves_immediately(): void
+    {
+        $start = $this->postJson(route('site.support.chat.automation'), array_merge([
+            'action' => 'start',
+        ], $this->guestIdentity()));
+        $start->assertOk();
+        $conversationId = (int) $start->json('conversation_id');
+
+        $done = $this->postJson(route('site.support.chat.automation'), array_merge([
+            'action' => 'no_other_issue',
+            'conversation_id' => $conversationId,
+        ], $this->guestIdentity()));
+        $done->assertOk();
+        $done->assertJsonPath('handling_state', SupportAutomationService::STATE_RESOLVED_AUTOMATED);
+        $closing = collect($done->json('messages') ?? [])->last()['text'] ?? '';
+        $this->assertStringContainsString('Asha', (string) $closing);
+        $this->assertStringNotContainsString('Shikamoo', (string) $closing);
+        $this->assertStringNotContainsString('automated', strtolower((string) $closing));
+
+        $conversation = SupportConversation::query()->findOrFail($conversationId);
+        $this->assertSame('closed', $conversation->status);
+        $this->assertSame('Resolved by Msaidizi', $conversation->resolution_note);
     }
 
     public function test_registration_help_has_no_otp_or_sms_code_fiction(): void

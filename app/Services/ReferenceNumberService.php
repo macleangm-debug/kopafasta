@@ -89,4 +89,30 @@ class ReferenceNumberService
 
         return $suffix;
     }
+
+    /**
+     * Shared human-facing alphanumeric reference: PREFIX-BODY (no sequential padding).
+     * Database primary keys and historical references are never rewritten.
+     *
+     * @param  callable(string): bool  $exists
+     */
+    public function prefixedReference(string $prefix, int $bodyLength, callable $exists): string
+    {
+        $prefix = strtoupper(trim($prefix));
+        if ($prefix === '') {
+            throw new \InvalidArgumentException('Reference prefix is required.');
+        }
+        $bodyLength = max(4, min(12, $bodyLength));
+
+        return DB::transaction(function () use ($prefix, $bodyLength, $exists): string {
+            for ($attempt = 0; $attempt < 40; $attempt++) {
+                $candidate = $prefix.'-'.$this->randomSuffix($bodyLength);
+                if (! $exists($candidate)) {
+                    return $candidate;
+                }
+            }
+
+            throw new \RuntimeException("Unable to generate unique {$prefix} reference.");
+        });
+    }
 }

@@ -1084,6 +1084,9 @@ return [
             'affiliate' => 'Programu yetu ya wasambazaji inalipa kamisheni kwa wateja uliowaelekeza.',
             'contact' => 'Unaweza kuwasiliana nasi kwa simu, barua pepe, au WhatsApp.',
             'default' => 'Naweza kusaidia kuhusu bidhaa, maombi, soko, malipo, na wasambazaji.',
+            'register_prompt' => 'Jisajili kama mwanachama ili upate huduma zote na kuomba mikopo.',
+            'guest_hint' => 'Unataka kutumia huduma zote za mwanachama?',
+            'typing' => 'Msaidizi anaandika…',
         ],
         'suggestions' => [
             'Mnatoa mikopo gani?',

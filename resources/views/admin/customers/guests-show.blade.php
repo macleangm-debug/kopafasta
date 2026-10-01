@@ -31,7 +31,7 @@
                     'guest_phone' => $guest->phone,
                 ]) }}"
                class="inline-flex w-full justify-center rounded-xl bg-brand text-white font-bold text-sm px-4 py-3">
-                Record call
+                {{ str_starts_with(app()->getLocale(), 'sw') ? 'Rekodi simu' : 'Record phone call' }}
             </a>
         </div>
 
