@@ -210,22 +210,13 @@ class RoleService
         }
 
         $codes = $user->roleCodes();
+        $views = app(AdminRoleViewService::class);
         foreach (['admin', 'super_admin', 'manager', 'credit_committee', 'credit_analyst', 'officer', 'marketer', 'asset_manager', 'agent', 'partner_support', 'collector', 'auditor'] as $code) {
             if (! in_array($code, $codes, true)) {
                 continue;
             }
 
-            return match ($code) {
-                'marketer' => 'admin.growth.index',
-                'asset_manager' => 'admin.marketplace-assets.index',
-                'officer', 'credit_analyst' => 'admin.teams.screening',
-                'credit_committee' => 'admin.teams.committee',
-                'manager' => 'admin.teams.management',
-                'agent', 'partner_support' => 'admin.support.home',
-                'collector' => 'admin.reports.collections-performance',
-                'auditor' => 'admin.audit-logs.index',
-                default => 'admin.dashboard',
-            };
+            return $views->workspaceLandingRoute($code);
         }
 
         return 'admin.dashboard';

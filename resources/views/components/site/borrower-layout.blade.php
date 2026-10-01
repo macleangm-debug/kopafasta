@@ -208,6 +208,13 @@
                                  aria-label="{{ __('borrower.layout.notifications') }}">
                                 <div class="absolute inset-0" @click="sheetOpen = false"></div>
                                 <div class="absolute top-16 right-4 lg:right-8 w-[24rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+                                     x-show="sheetOpen"
+                                     x-transition:enter="transition ease-out duration-200"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-150"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
                                      @click.stop>
                                     <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
                                         <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>

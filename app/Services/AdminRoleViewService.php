@@ -308,29 +308,151 @@ class AdminRoleViewService
         return ['url' => $this->workspaceHomeUrl($workspaceKey)];
     }
 
+    /**
+     * Authoritative staff workspace map.
+     * Every configured staff role resolves here — never silently to Marketer.
+     *
+     * @return array<string, array{route: string, shell: string, label: string}>
+     */
+    public function workspaceCatalog(): array
+    {
+        return [
+            'admin' => [
+                'route' => 'admin.dashboard',
+                'shell' => 'admin_console',
+                'label' => 'Administrator',
+            ],
+            'super_admin' => [
+                'route' => 'admin.dashboard',
+                'shell' => 'admin_console',
+                'label' => 'Super administrator',
+            ],
+            self::WORKSPACE_SUPPORT => [
+                'route' => 'admin.support.home',
+                'shell' => 'support',
+                'label' => 'Support',
+            ],
+            'agent' => [
+                'route' => 'admin.support.home',
+                'shell' => 'support',
+                'label' => 'Support',
+            ],
+            'partner_support' => [
+                'route' => 'admin.support.home',
+                'shell' => 'support',
+                'label' => 'Support',
+            ],
+            'marketer' => [
+                'route' => 'admin.growth.index',
+                'shell' => 'growth',
+                'label' => 'Marketer',
+            ],
+            'officer' => [
+                'route' => 'admin.teams.screening',
+                'shell' => 'screening',
+                'label' => 'Loan officer',
+            ],
+            'credit_analyst' => [
+                'route' => 'admin.teams.screening',
+                'shell' => 'screening',
+                'label' => 'Credit analyst',
+            ],
+            'credit_committee' => [
+                'route' => 'admin.teams.committee',
+                'shell' => 'committee',
+                'label' => 'Credit committee',
+            ],
+            'manager' => [
+                'route' => 'admin.teams.management',
+                'shell' => 'management',
+                'label' => 'Credit manager',
+            ],
+            'asset_manager' => [
+                'route' => 'admin.marketplace-assets.index',
+                'shell' => 'marketplace',
+                'label' => 'Asset manager',
+            ],
+            'collector' => [
+                'route' => 'admin.reports.collections-performance',
+                'shell' => 'recovery',
+                'label' => 'Collector',
+            ],
+            'auditor' => [
+                'route' => 'admin.audit-logs.index',
+                'shell' => 'audit',
+                'label' => 'Auditor',
+            ],
+        ];
+    }
+
+    /**
+     * Canonical landing route name for a workspace key.
+     * Unknown keys → admin.dashboard (safe staff fallback — never Marketer).
+     */
+    public function workspaceLandingRoute(string $workspaceKey): string
+    {
+        $canonical = in_array($workspaceKey, self::SUPPORT_ROLE_KEYS, true)
+            ? self::WORKSPACE_SUPPORT
+            : $workspaceKey;
+
+        $catalog = $this->workspaceCatalog();
+        $route = $catalog[$canonical]['route'] ?? 'admin.dashboard';
+
+        return \Illuminate\Support\Facades\Route::has($route) ? $route : 'admin.dashboard';
+    }
+
+    public function workspaceShell(string $workspaceKey): string
+    {
+        $canonical = in_array($workspaceKey, self::SUPPORT_ROLE_KEYS, true)
+            ? self::WORKSPACE_SUPPORT
+            : $workspaceKey;
+
+        return $this->workspaceCatalog()[$canonical]['shell'] ?? 'admin_safe';
+    }
+
+    /**
+     * Complete Role → workspace_key → landing route → navigation shell matrix.
+     *
+     * @return list<array{role: string, workspace_key: string, landing_route: string, navigation_shell: string, landing_url: string}>
+     */
+    public function workspaceMappingMatrix(): array
+    {
+        $rows = [];
+        $emittedSupport = false;
+
+        foreach ($this->roles->staffRoles() as $code) {
+            if (in_array($code, self::SUPPORT_ROLE_KEYS, true)) {
+                if ($emittedSupport) {
+                    continue;
+                }
+                $emittedSupport = true;
+                $workspaceKey = self::WORKSPACE_SUPPORT;
+            } else {
+                $workspaceKey = $code;
+            }
+
+            $route = $this->workspaceLandingRoute($workspaceKey);
+            $rows[] = [
+                'role' => $code,
+                'workspace_key' => $workspaceKey,
+                'landing_route' => $route,
+                'navigation_shell' => $this->workspaceShell($workspaceKey),
+                'landing_url' => $this->workspaceHomeUrl($workspaceKey),
+            ];
+        }
+
+        return $rows;
+    }
+
     public function workspaceHomeUrl(string $workspaceKey): string
     {
         if (in_array($workspaceKey, [self::WORKSPACE_SUPPORT, ...self::SUPPORT_ROLE_KEYS], true)) {
             return app(\App\Services\Support\CustomerSupportWorkspaceService::class)->homeUrl();
         }
 
-        $route = match ($workspaceKey) {
-            'marketer' => 'admin.growth.index',
-            'asset_manager' => 'admin.marketplace-assets.index',
-            'officer', 'credit_analyst' => 'admin.teams.screening',
-            'credit_committee' => 'admin.teams.committee',
-            'manager' => 'admin.teams.management',
-            'partner_support' => 'admin.teams.partners',
-            'collector' => 'admin.reports.collections-performance',
-            'auditor' => 'admin.audit-logs.index',
-            default => 'admin.dashboard',
-        };
+        $route = $this->workspaceLandingRoute($workspaceKey);
 
-        if (\Illuminate\Support\Facades\Route::has($route)) {
-            return route($route);
-        }
-
-        return route('admin.dashboard');
+        return route($route);
     }
 
     /** @return list<array{id: int, name: string, subtitle: string}> */

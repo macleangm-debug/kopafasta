@@ -282,7 +282,7 @@
             <div class="flex items-stretch gap-0.5 px-2 lg:px-4 overflow-x-auto">
                 @foreach ($visibleSections as $section)
                     <a href="{{ route($section['targetRoute']) }}"
-                       class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
+                       class="kf-nav-active shrink-0 inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg
                               {{ ($section['separated'] ?? false) ? 'ml-auto' : '' }}
                               {{ $section['isActive']
                                    ? 'bg-brand-gold text-brand font-bold'

@@ -57,35 +57,16 @@ class ConsoleNavService
         // While viewing a staff desk, Home must land on that desk — not Credit Admin dashboard.
         $viewing = $this->viewingStaffRoleKey();
         if ($viewing !== null) {
-            $deskHome = app(AdminRoleViewService::class)->workspaceHomeUrl($viewing);
-            $deskRoute = null;
-            foreach ([
-                'marketer' => 'admin.growth.index',
-                'asset_manager' => 'admin.marketplace-assets.index',
-                'officer' => 'admin.teams.screening',
-                'credit_analyst' => 'admin.teams.screening',
-                'credit_committee' => 'admin.teams.committee',
-                'manager' => 'admin.teams.management',
-                'collector' => 'admin.reports.collections-performance',
-                'auditor' => 'admin.audit-logs.index',
-            ] as $role => $routeName) {
-                if ($viewing === $role && \Illuminate\Support\Facades\Route::has($routeName)) {
-                    $deskRoute = $routeName;
-                    break;
+            $deskRoute = app(AdminRoleViewService::class)->workspaceLandingRoute($viewing);
+            foreach ($visible as &$section) {
+                if (($section['label'] ?? '') === 'Home') {
+                    $section['targetRoute'] = $deskRoute;
+                    $section['items'] = [['Home', $deskRoute]];
+                    $section['isActive'] = $currentRoute === $deskRoute
+                        || (is_string($currentRoute) && str_starts_with($currentRoute, str_replace('.index', '.', $deskRoute)));
                 }
             }
-            if ($deskRoute) {
-                foreach ($visible as &$section) {
-                    if (($section['label'] ?? '') === 'Home') {
-                        $section['targetRoute'] = $deskRoute;
-                        $section['items'] = [['Home', $deskRoute]];
-                        $section['isActive'] = $currentRoute === $deskRoute
-                            || (is_string($currentRoute) && str_starts_with($currentRoute, str_replace('.index', '.', $deskRoute)));
-                    }
-                }
-                unset($section);
-            }
-            unset($deskHome);
+            unset($section);
         }
 
         return $visible;
@@ -118,7 +99,7 @@ class ConsoleNavService
                     ['Section rules', 'admin.profile-sections.index', 'customers.edit', null, ['nav' => 'more']],
                 ],
                 'perms' => ['customers.view', 'applications.view'],
-                'hide_from' => ['partner_support', 'asset_manager', 'marketer'],
+                'hide_from' => ['partner_support', 'asset_manager', 'marketer', 'auditor', 'collector'],
             ],
             [
                 'label' => 'Lending',
@@ -158,7 +139,7 @@ class ConsoleNavService
                     ['Credit teams',        'admin.credit-team.index', 'applications.view', null, ['roles' => ['admin', 'super_admin', 'manager']]],
                 ],
                 'perms' => ['applications.view', 'loans.view'],
-                'hide_from' => ['partner_support', 'asset_manager', 'marketer'],
+                'hide_from' => ['partner_support', 'asset_manager', 'marketer', 'auditor'],
             ],
             [
                 'label' => 'Money',
@@ -186,7 +167,7 @@ class ConsoleNavService
                     ['Chart of accounts',     'admin.chart-of-accounts.index',       'finance.accounts'],
                 ],
                 'perms' => ['finance.accounts', 'finance.methods', 'finance.operations', 'membership.approve_payments'],
-                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee'],
+                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee', 'marketer', 'auditor'],
             ],
             [
                 'label' => 'Partners',
@@ -204,7 +185,7 @@ class ConsoleNavService
                     ['Recovery assignments',    'admin.recovery.assignments.index', 'partners.manage'],
                 ],
                 'perms' => ['partners.manage', 'marketplace.view'],
-                'hide_from' => [],
+                'hide_from' => ['marketer', 'auditor', 'collector', 'officer', 'credit_analyst', 'credit_committee'],
             ],
             [
                 'label' => 'Growth',
@@ -222,7 +203,8 @@ class ConsoleNavService
                     ['Performance', 'admin.growth.performance', 'marketing.performance.view', null, ['nav' => 'more']],
                 ],
                 'perms' => ['marketing.view'],
-                'hide_from' => [],
+                // Marketer-only desk. Auditor/Screening/Recovery/etc. must never inherit this chrome.
+                'hide_from' => ['auditor', 'collector', 'officer', 'credit_analyst', 'credit_committee', 'manager', 'asset_manager', 'partner_support'],
             ],
             [
                 'label' => 'Communications',
@@ -237,7 +219,7 @@ class ConsoleNavService
                     ['Complaints', 'admin.complaints.index', 'support.tickets', null, ['nav' => 'more', 'roles' => ['admin', 'super_admin', 'manager']]],
                 ],
                 'perms' => ['communications.view', 'support.tickets', 'communications.templates.manage', 'communications.chatbot.manage'],
-                'hide_from' => [],
+                'hide_from' => ['auditor', 'marketer', 'asset_manager', 'collector', 'officer', 'credit_analyst', 'credit_committee'],
             ],
             [
                 'label' => 'Reports',
@@ -272,7 +254,7 @@ class ConsoleNavService
                     ['Regulatory Exports',  'admin.compliance.exports', 'reports.view'],
                 ],
                 'perms' => ['reports.view', 'finance.reports'],
-                'hide_from' => ['partner_support', 'asset_manager'],
+                'hide_from' => ['partner_support', 'asset_manager', 'marketer'],
             ],
             [
                 'label' => 'More',
@@ -293,7 +275,7 @@ class ConsoleNavService
                     ['Audit Logs',          'admin.audit-logs.index', 'audit.view'],
                 ],
                 'perms' => ['audit.view', 'users.view', 'users.manage', 'content.plus.manage', 'applications.view'],
-                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee'],
+                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee', 'marketer', 'collector'],
             ],
             [
                 'label' => 'Settings',
@@ -305,7 +287,7 @@ class ConsoleNavService
                     ['System', 'admin.settings.system', 'settings.manage'],
                 ],
                 'perms' => ['settings.manage'],
-                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee'],
+                'hide_from' => ['partner_support', 'asset_manager', 'officer', 'credit_analyst', 'credit_committee', 'marketer', 'auditor', 'collector'],
             ],
         ];
     }

@@ -136,17 +136,25 @@
               action="{{ route('admin.users.password-setup-link', $record) }}"
               id="admin-password-setup-link-form"
               class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4"
-              data-testid="password-setup-link-form">
+              data-testid="password-setup-link-form"
+              onsubmit="
+                  if (typeof confirmForm !== 'function') { return true; }
+                  event.preventDefault();
+                  confirmForm(this, {
+                      title: 'Issue password setup link?',
+                      message: 'Creates a single-use link that expires. Share it securely. Never invent an email address.',
+                      confirmLabel: 'Create link',
+                      confirmClass: 'bg-brand-gold text-brand hover:brightness-95',
+                  });
+              ">
             @csrf
             <p class="text-sm font-semibold text-gray-900">Secure setup link</p>
             <p class="text-xs text-gray-500">User chooses their own password. Link is single-use and expires.</p>
-            {{-- Hidden real submit for confirmForm → form.submit() + loader binding. Visible CTA is type=button. --}}
-            <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true" data-loading-label="Creating…">Create link</button>
-            <button type="button"
+            {{-- Native type=submit POST. confirmForm enhances; if JS is absent the form still submits. --}}
+            <button type="submit"
                     data-loading-label="Creating…"
                     data-testid="password-setup-link-cta"
-                    class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5 hover:brightness-95 kf-press"
-                    onclick="confirmForm(document.getElementById('admin-password-setup-link-form'), { title: 'Issue password setup link?', message: 'Creates a single-use link that expires. Share it securely. Never invent an email address.', confirmLabel: 'Create link', confirmClass: 'bg-brand-gold text-brand hover:brightness-95' })">
+                    class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5 hover:brightness-95 kf-press">
                 Create / send setup link
             </button>
         </form>

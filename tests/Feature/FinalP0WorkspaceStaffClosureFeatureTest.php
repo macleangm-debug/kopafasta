@@ -34,7 +34,60 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
         $this->assertSame(route('admin.support.home'), $views->workspaceHomeUrl('support'));
         $this->assertSame(route('admin.growth.index'), $views->workspaceHomeUrl('marketer'));
         $this->assertSame(route('admin.teams.screening'), $views->workspaceHomeUrl('officer'));
+        $this->assertSame(route('admin.audit-logs.index'), $views->workspaceHomeUrl('auditor'));
         $this->assertSame(route('admin.dashboard'), $views->workspaceHomeUrl('admin'));
+        // Unknown / unmapped never falls into Marketer.
+        $this->assertSame(route('admin.dashboard'), $views->workspaceHomeUrl('not_a_real_role'));
+        $this->assertNotSame(route('admin.growth.index'), $views->workspaceHomeUrl('auditor'));
+        $this->assertNotSame(route('admin.growth.index'), $views->workspaceHomeUrl('collector'));
+    }
+
+    public function test_complete_staff_role_workspace_matrix_has_no_marketer_fallback(): void
+    {
+        $views = app(AdminRoleViewService::class);
+        $matrix = $views->workspaceMappingMatrix();
+        $this->assertNotEmpty($matrix);
+
+        $byWorkspace = [];
+        foreach ($matrix as $row) {
+            if ($row['workspace_key'] !== 'marketer') {
+                $this->assertNotSame(
+                    route('admin.growth.index'),
+                    $row['landing_url'],
+                    "{$row['role']} must not land on Marketer Growth"
+                );
+            }
+            $byWorkspace[$row['workspace_key']] = $row;
+        }
+
+        $this->assertSame('admin.audit-logs.index', $byWorkspace['auditor']['landing_route']);
+        $this->assertSame('audit', $byWorkspace['auditor']['navigation_shell']);
+        $this->assertSame('admin.growth.index', $byWorkspace['marketer']['landing_route']);
+        $this->assertSame('admin.support.home', $byWorkspace['support']['landing_route']);
+        $this->assertSame('admin.teams.screening', $byWorkspace['officer']['landing_route']);
+        $this->assertSame('admin.reports.collections-performance', $byWorkspace['collector']['landing_route']);
+    }
+
+    public function test_entering_auditor_workspace_never_opens_marketer(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'marketer'])
+            ->assertRedirect(route('admin.growth.index'));
+
+        $this->post(route('admin.role-view.enter'), ['workspace_key' => 'auditor'])
+            ->assertRedirect(route('admin.audit-logs.index'));
+
+        $ctx = app(AdminRoleViewService::class)->active();
+        $this->assertSame('auditor', $ctx['role_key'] ?? null);
+        $this->assertSame('auditor', $ctx['workspace_key'] ?? null);
+
+        $html = $this->get(route('admin.audit-logs.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('Auditor', $html);
+        $this->assertStringNotContainsString('admin.growth.index', $html);
+        // Growth chrome must not appear while Viewing Auditor.
+        $this->assertStringNotContainsString('>Growth<', $html);
     }
 
     public function test_staff_users_table_excludes_vendor_partners(): void
@@ -165,7 +218,17 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
             ->assertSee(route('admin.users.password-setup-link', $staff), false)
             ->getContent();
 
-        $this->assertStringContainsString('confirmForm(document.getElementById(\'admin-password-setup-link-form\')', $html);
+        // Visible CTA must be a native submit; confirmForm may enhance but must not be required.
+        $this->assertMatchesRegularExpression(
+            '/type="submit"[^>]*data-testid="password-setup-link-cta"|data-testid="password-setup-link-cta"[^>]*type="submit"/',
+            $html
+        );
+        $this->assertStringNotContainsString('type="button"', substr(
+            $html,
+            (int) strpos($html, 'password-setup-link-form'),
+            800
+        ));
+        $this->assertStringContainsString('confirmForm(this,', $html);
 
         $this->actingAs($admin, 'admin')
             ->from(route('admin.users.show', $staff))
@@ -173,7 +236,7 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
             ->assertRedirect(route('admin.users.show', $staff))
             ->assertSessionHas('password_setup_url');
 
-        $follow = $this->actingAs($admin, 'admin')
+        $this->actingAs($admin, 'admin')
             ->get(route('admin.users.show', $staff))
             ->assertOk()
             ->assertSee('data-testid="password-setup-url"', false)

@@ -152,17 +152,23 @@
     role="dialog"
     aria-modal="true"
 >
-    <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm lg:bg-brand/70" @click="cancel()" x-transition.opacity></div>
+    <div class="absolute inset-0 bg-brand/70 backdrop-blur-sm lg:bg-brand/70" @click="cancel()"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"></div>
 
     <div class="absolute inset-x-0 bottom-0 lg:inset-auto lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2
                 w-full lg:max-w-md max-h-[min(90dvh,640px)] flex flex-col overflow-hidden
                 rounded-t-2xl lg:rounded-3xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] lg:shadow-2xl lg:ring-1 lg:ring-brand/15"
          style="padding-bottom: env(safe-area-inset-bottom, 0px)"
          x-show="open"
-         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="translate-y-full lg:translate-y-0 lg:opacity-0 lg:scale-95"
          x-transition:enter-end="translate-y-0 lg:opacity-100 lg:scale-100"
-         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="translate-y-0 lg:opacity-100"
          x-transition:leave-end="translate-y-full lg:opacity-0 lg:scale-95"
          @click.stop>
