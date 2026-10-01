@@ -53,13 +53,15 @@ class GuarantorSupportUatCorrectionFeatureTest extends TestCase
 
     public function test_guarantor_request_preview_uses_focused_wizard_width(): void
     {
-        // Width contract is in the Blade shell — assert the focused container marker is present
-        // on the public guest chat (same max-w-3xl principle) and the request-show template source.
-        $path = resource_path('views/site/borrower/guarantor-request-show.blade.php');
-        $blade = file_get_contents($path);
-        $this->assertIsString($blade);
-        $this->assertStringContainsString('max-w-3xl mx-auto w-full min-w-0', $blade);
-        $this->assertStringNotContainsString('content-width="wide"', $blade);
+        $requestShow = file_get_contents(resource_path('views/site/borrower/guarantor-request-show.blade.php'));
+        $this->assertIsString($requestShow);
+        $this->assertStringContainsString('content-width="focused"', $requestShow);
+        $this->assertStringNotContainsString('content-width="wide"', $requestShow);
+
+        $guaranteed = file_get_contents(resource_path('views/site/borrower/guaranteed-show.blade.php'));
+        $this->assertIsString($guaranteed);
+        $this->assertStringContainsString('max-w-3xl mx-auto w-full min-w-0', $guaranteed);
+        $this->assertStringNotContainsString('content-width="wide"', $guaranteed);
     }
 
     public function test_change_guarantor_footer_always_exposes_continue_in_supplement_mode(): void

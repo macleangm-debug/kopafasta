@@ -1,7 +1,10 @@
+{{-- Focused guarantor task — same centered max-w-3xl as the loan wizard (not wide Loans shell). --}}
 <x-site.borrower-layout
     :title="brand_title(__('borrower.guaranteed.detail_title'))"
     active="loans"
-    content-width="wide">
+    content-width="full">
+
+    <div class="max-w-3xl mx-auto w-full min-w-0">
 
     @php
         $borrowerName = $row->borrower?->legalDisplayName() ?? __('borrower.loans_page.borrower');
@@ -420,4 +423,5 @@
         </div>
     </div>
 
+    </div>
 </x-site.borrower-layout>
