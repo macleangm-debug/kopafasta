@@ -59,7 +59,7 @@ class GuarantorInvitationService
             })
             ->first();
 
-        if (! $customer || ! $customer->hasMembership()) {
+        if (! $customer || ! ($customer->isMembershipActive() || $customer->isMembershipInGrace())) {
             return null;
         }
 
@@ -68,8 +68,7 @@ class GuarantorInvitationService
 
     public function isEligibleInternalGuarantor(Customer $customer): bool
     {
-        return $customer->hasMembership()
-            && ($customer->isMembershipActive() || $customer->isMembershipInGrace());
+        return $customer->isMembershipActive() || $customer->isMembershipInGrace();
     }
 
     /**
@@ -85,7 +84,7 @@ class GuarantorInvitationService
             ];
         }
 
-        if (! $member->hasMembership()) {
+        if (! $member->isMembershipActive() && ! $member->isMembershipInGrace()) {
             return [
                 'ok' => false,
                 'message' => __('borrower.apply.alerts.guarantor_not_member'),
@@ -709,7 +708,9 @@ class GuarantorInvitationService
                 return $this->borrowerStatusPayload('registration_in_progress', null, true, false);
             }
 
-            if (! $guarantorCustomer->hasMembership()) {
+            if (MembershipService::isRequiredForCountry($guarantorCustomer->country_code ?? null)
+                && ! $guarantorCustomer->isMembershipActive()
+                && ! $guarantorCustomer->isMembershipInGrace()) {
                 return $this->borrowerStatusPayload('registration_in_progress', $profilePercent, true, false);
             }
 

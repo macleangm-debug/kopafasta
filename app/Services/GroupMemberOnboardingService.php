@@ -267,7 +267,10 @@ class GroupMemberOnboardingService
                 ->with('status', __('borrower.apply.group.continue_after_pin'));
         }
 
-        if (! $customer->isMembershipActive() && ! $customer->isMembershipInGrace()) {
+        $membershipRequired = MembershipService::isRequiredForCountry($customer->country_code ?? null);
+        if ($membershipRequired
+            && ! $customer->isMembershipActive()
+            && ! $customer->isMembershipInGrace()) {
             if ($request->routeIs('site.membership.*', 'site.borrower.setup-pin', 'site.borrower.setup-pin.post', 'site.borrower.dashboard', 'site.group-member.application')) {
                 return null;
             }

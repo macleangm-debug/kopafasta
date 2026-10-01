@@ -269,7 +269,12 @@ class GuarantorOnboardingService
                 ->with('status', __('borrower.guarantor_invite.continue_after_pin'));
         }
 
-        if (! $customer->hasMembership()) {
+        // Tanzania (and any country with borrower membership OFF): permanent identity
+        // card — never send invitees to /borrower/membership/renew.
+        $membershipRequired = MembershipService::isRequiredForCountry($customer->country_code ?? null);
+        if ($membershipRequired
+            && ! $customer->isMembershipActive()
+            && ! $customer->isMembershipInGrace()) {
             if ($request->routeIs('site.membership.*', 'site.borrower.setup-pin', 'site.borrower.setup-pin.post')) {
                 return null;
             }
@@ -278,11 +283,25 @@ class GuarantorOnboardingService
                 ->with('status', __('borrower.guarantor_invite.continue_after_membership'));
         }
 
-        if (! $this->guarantorRequirementsMet($customer)) {
-            $status = app(ProfileCompletionService::class)->calculate($customer);
+        // Let dashboard / Welcome / guarantor request / profile load — do not bounce
+        // a fresh TZ registrant off the borrower home into membership or a forced profile hop.
+        if ($request->routeIs(
+            'site.borrower.dashboard',
+            'site.account-welcome.show',
+            'site.account-welcome.complete',
+            'site.borrower.guarantor-requests',
+            'site.borrower.guarantor-requests.*',
+            'site.borrower.profile',
+            'site.borrower.profile.*',
+            'site.guarantor.onboarding',
+            'site.guarantor.onboarding.*',
+        )) {
+            return null;
+        }
 
-            return redirect()->route('site.borrower.profile')
-                ->with('status', __('borrower.guarantor_invite.continue_after_profile', ['percent' => $status['percent'] ?? 0]));
+        if (! $this->guarantorRequirementsMet($customer)) {
+            return redirect()->route('site.borrower.dashboard')
+                ->with('status', __('borrower.guarantor_invite.continue_in_portal'));
         }
 
         if ($this->canFinalize($customer, $invitation->fresh())) {

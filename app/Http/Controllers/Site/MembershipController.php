@@ -30,13 +30,14 @@ class MembershipController extends Controller
             return redirect()->route('site.borrower.dashboard');
         }
 
-        if ($redirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
-            return $redirect;
-        }
-
-        if (! MembershipService::isRequiredForCountry()) {
+        // Country gate first — Tanzania membership renew must never render (.com or otherwise).
+        if (! MembershipService::isRequiredForCountry($customer->country_code ?? null)) {
             return redirect()->route('site.borrower.dashboard')
                 ->with('status', __('borrower.membership.compulsory_retired'));
+        }
+
+        if ($redirect = app(\App\Services\PortalOnboardingResumeService::class)->redirectIfPending($request, $customer)) {
+            return $redirect;
         }
 
         if ($customer->isMembershipActive() && ! $customer->isMembershipExpiringSoon(30)) {

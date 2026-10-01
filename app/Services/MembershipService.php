@@ -69,7 +69,7 @@ class MembershipService
             $expires = $start->addDays($cfg['duration_days']);
 
             if (empty($customer->member_no)) {
-                $customer->member_no = $this->generateMemberNo();
+                $customer->member_no = $this->generateMemberNo($customer->country_code ?? null);
             }
             $customer->membership_issued_at  = $start->toDateString();
             $customer->membership_expires_at = $expires->toDateString();
@@ -118,7 +118,7 @@ class MembershipService
             $newExpiry = $base->addDays($cfg['duration_days']);
 
             if (empty($customer->member_no)) {
-                $customer->member_no = $this->generateMemberNo();
+                $customer->member_no = $this->generateMemberNo($customer->country_code ?? null);
             }
             if (empty($customer->membership_issued_at)) {
                 $customer->membership_issued_at = $today->toDateString();
@@ -216,15 +216,21 @@ class MembershipService
     }
 
     /**
-     * Generate a unique member number like KPF-TZ-X72A.
+     * Generate a unique member number like KPF-TZ-X72A (country from customer / default).
      */
-    public function generateMemberNo(): string
+    public function generateMemberNo(?string $countryCode = null): string
     {
-        do {
-            $code = self::PREFIX . strtoupper(Str::random(4));
-        } while (Customer::where('member_no', $code)->exists());
+        $code = strtoupper((string) ($countryCode ?: app(CountrySettingsService::class)->defaultCountryCode()));
+        if (! preg_match('/^[A-Z]{2}$/', $code)) {
+            $code = 'TZ';
+        }
+        $prefix = 'KPF-'.$code.'-';
 
-        return $code;
+        do {
+            $memberNo = $prefix.strtoupper(Str::random(4));
+        } while (Customer::where('member_no', $memberNo)->exists());
+
+        return $memberNo;
     }
 
     /**
@@ -236,7 +242,7 @@ class MembershipService
         $dirty = false;
 
         if (blank($customer->member_no)) {
-            $customer->member_no = $this->generateMemberNo();
+            $customer->member_no = $this->generateMemberNo($customer->country_code ?? null);
             $dirty = true;
         }
 
