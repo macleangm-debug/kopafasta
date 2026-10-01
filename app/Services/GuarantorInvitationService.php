@@ -272,7 +272,24 @@ class GuarantorInvitationService
             'repayment_frequency_label' => $frequencyLabel,
             'application_reference' => $reference !== '' ? $reference : '—',
             'borrower_name' => $borrowerName !== '' ? $borrowerName : '—',
+            'has_collateral' => false,
+            'collateral_label' => null,
         ];
+
+        $requiresCollateral = (bool) ($product?->requires_collateral ?? false);
+        if ($requiresCollateral && $application) {
+            $application->loadMissing('collateralAssets');
+            $assetNames = collect($application->collateralAssets ?? [])
+                ->map(fn ($row) => trim((string) ($row->description ?: $row->asset_type ?: '')))
+                ->filter()
+                ->unique()
+                ->values();
+            if ($assetNames->isNotEmpty()) {
+                $context['has_collateral'] = true;
+                $context['collateral_label'] = $assetNames->implode(', ');
+            }
+        }
+
         $context['fingerprint'] = $this->quoteFingerprint($context);
 
         return $context;
@@ -806,9 +823,21 @@ class GuarantorInvitationService
             $profilePercent,
         );
 
+        $label = app(InviteeProgressPresenter::class)->badgeLabel(
+            $acceptedDone,
+            $accountDone,
+            $profileDone,
+            $ready,
+            $profilePercent,
+        );
+        // Keep terminal labels for rejected/expired.
+        if (in_array($code, ['rejected', 'expired'], true)) {
+            $label = __('borrower.apply.guarantor_status.'.$labelKey);
+        }
+
         return [
             'code' => $code,
-            'label' => __('borrower.apply.guarantor_status.'.$labelKey),
+            'label' => $label,
             'profile_percent' => $profilePercent,
             'accepted' => $acceptedDone,
             'ready' => $ready,
@@ -1673,8 +1702,13 @@ class GuarantorInvitationService
         }
     }
 
-    public function approve(CustomerGuarantor $link): void
+    public function approve(CustomerGuarantor $link, bool $notifyBorrower = true): void
     {
+        $alreadyAccepted = GuarantorInvitation::query()
+            ->where('customer_guarantor_id', $link->id)
+            ->where('status', 'accepted')
+            ->exists();
+
         DB::transaction(function () use ($link): void {
             $link->update(['status' => 'approved']);
 
@@ -1685,7 +1719,7 @@ class GuarantorInvitationService
                 ->each(function (GuarantorInvitation $invitation): void {
                     $invitation->update([
                         'status' => 'accepted',
-                        'responded_at' => now(),
+                        'responded_at' => $invitation->responded_at ?? now(),
                     ]);
                     $this->recordConsentSnapshot($invitation->fresh());
                 });
@@ -1695,6 +1729,10 @@ class GuarantorInvitationService
 
         app(NotificationCtaService::class)->consumeGuarantorRequestCtas($link);
 
+        if (! $notifyBorrower || $alreadyAccepted) {
+            return;
+        }
+
         $invitation = GuarantorInvitation::query()
             ->where('customer_guarantor_id', $link->id)
             ->latest('id')
@@ -1702,6 +1740,24 @@ class GuarantorInvitationService
         if ($invitation) {
             $this->notifyBorrowerAccepted($invitation);
         }
+    }
+
+    /**
+     * External invitee already accepted on the public invite link — sync the
+     * CustomerGuarantor row without asking them to Accept again in Mikopo.
+     */
+    public function syncApprovedAfterInvitationAccept(GuarantorInvitation $invitation): void
+    {
+        if ($invitation->type !== 'external' || $invitation->status !== 'accepted') {
+            return;
+        }
+
+        $link = $invitation->customerGuarantor;
+        if (! $link || $link->status === 'approved') {
+            return;
+        }
+
+        $this->approve($link, notifyBorrower: false);
     }
 
     /**

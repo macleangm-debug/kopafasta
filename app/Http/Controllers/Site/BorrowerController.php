@@ -3566,15 +3566,13 @@ class BorrowerController extends Controller
 
             if (! ($profileStatus['met'] ?? false) || ! app(\App\Services\BorrowerSignatureService::class)->profileSignature($customer)) {
                 return redirect()
-                    ->route('site.borrower.profile', ['section' => 'personal', 'focus' => 'signature'])
-                    ->with('status', __('borrower.guarantor.accepted_finish_profile', [
-                        'percent' => $profileStatus['percent'] ?? 0,
-                    ]));
+                    ->route('site.borrower.guarantor-requests.show', $customerGuarantor)
+                    ->with('status', __('borrower.guarantor.approved_success'));
             }
 
             return redirect()
-                ->route('site.borrower.loans', ['tab' => 'guarantor'])
-                ->with('status', __('borrower.guaranteed.approved_track_message'));
+                ->route('site.borrower.guarantor-requests.show', $customerGuarantor)
+                ->with('status', __('borrower.guarantor.approved_success'));
         }
 
         $guarantors->reject($customerGuarantor, $data['notes'] ?? null);
@@ -3588,37 +3586,56 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.guarantor.declined_success'));
     }
 
-    public function showGuarantorRequest(CustomerGuarantor $customerGuarantor, GuarantorOnboardingService $guarantorOnboarding): View
+    public function showGuarantorRequest(CustomerGuarantor $customerGuarantor, GuarantorOnboardingService $guarantorOnboarding): View|RedirectResponse
     {
         $customer = $this->customer();
 
         $invitation = GuarantorInvitation::query()
-            ->with(['borrower', 'application.product', 'product'])
+            ->with(['borrower', 'application.product', 'product', 'customerGuarantor'])
             ->where('customer_guarantor_id', $customerGuarantor->id)
             ->where('guarantor_customer_id', $customer->id)
             ->first();
 
         abort_unless($invitation, 403);
+
+        $guarantors = app(GuarantorInvitationService::class);
+        // Public-link accept already recorded — never ask Accept again; sync link for Screening.
+        if ($invitation->status === 'accepted' && $customerGuarantor->status === 'pending'
+            && ! $invitation->needsQuoteReconfirmation()) {
+            $guarantors->syncApprovedAfterInvitationAccept($invitation->fresh(['customerGuarantor']));
+            $customerGuarantor->refresh();
+        }
+
         abort_unless(
-            $customerGuarantor->status === 'pending' || $invitation->needsQuoteReconfirmation(),
+            $customerGuarantor->status === 'pending'
+                || $customerGuarantor->status === 'approved'
+                || $invitation->needsQuoteReconfirmation(),
             404
         );
 
         $profileStatus = $guarantorOnboarding->guarantorProfileStatus($customer);
+        $inviteStatus = $guarantors->borrowerInvitationStatus($invitation->fresh());
         $guarantorExposure = app(PortalContextService::class)->hasGuarantorWork($customer)
             ? app(LoanPolicyService::class)->guarantorExposureSummary($customer)
             : null;
-        $loanContext = app(GuarantorInvitationService::class)->invitationLoanContext($invitation);
-        $quoteComparison = app(GuarantorInvitationService::class)->quoteComparison($invitation);
+        $loanContext = $guarantors->invitationLoanContext($invitation);
+        $quoteComparison = $guarantors->quoteComparison($invitation);
+        $decisionRequired = $invitation->needsQuoteReconfirmation()
+            || (
+                $customerGuarantor->status === 'pending'
+                && $invitation->status === 'pending'
+            );
 
         return view('site.borrower.guarantor-request-show', compact(
             'customer',
             'invitation',
             'customerGuarantor',
             'profileStatus',
+            'inviteStatus',
             'guarantorExposure',
             'loanContext',
             'quoteComparison',
+            'decisionRequired',
         ));
     }
 

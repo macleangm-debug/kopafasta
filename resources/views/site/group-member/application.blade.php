@@ -1,195 +1,193 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.apply.group.application_title'))" active="dashboard" content-width="wide">
+<x-site.borrower-layout
+    :title="brand_title(__('borrower.apply.group.application_title'))"
+    active="loans"
+    content-width="narrow">
     @php
         $leaderName = $invitation->leader?->full_name ?? brand_name();
         $displayGroupName = $group_name ?: __('borrower.apply.group.loan_label');
         $quoteReady = (bool) ($quote_ready ?? false);
         $profilePercent = (int) ($profile['percent'] ?? 0);
+        $decisionRequired = (bool) ($decision_required ?? false);
+        $memberProgress = $member_progress ?? [];
+        $steps = $memberProgress['progress_steps'] ?? [];
+        $badge = $memberProgress['status_label'] ?? null;
+        $badgeTone = $memberProgress['badge_tone'] ?? 'sky';
+        $otherMembers = collect($members ?? [])
+            ->reject(fn ($row) => (int) ($row['invitation_id'] ?? 0) === (int) $invitation->id
+                || (int) ($row['customer_id'] ?? 0) === (int) ($member->id ?? 0))
+            ->values();
     @endphp
 
-    <div class="max-w-5xl mx-auto space-y-6">
-        @if (session('status'))
-            <div class="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
-        @endif
-        @if (session('warning'))
-            <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">{{ session('warning') }}</div>
-        @endif
+    <div class="mb-4">
+        <a href="{{ route('site.borrower.loans') }}" data-kf-motion="pop" class="text-sm font-semibold text-brand hover:underline">
+            ← {{ __('borrower.nav.loans') }}
+        </a>
+    </div>
 
-        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-6 sm:px-7 sm:py-8 shadow-lg shadow-brand/20">
-            <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 12% 20%, #fbbf24 0, transparent 42%), radial-gradient(circle at 90% 0%, #fff 0, transparent 36%);"></div>
-            <div class="relative">
-                <p class="text-[10px] uppercase tracking-[0.22em] font-semibold text-brand-gold">{{ __('borrower.apply.group.onboarding_label') }}</p>
-                <h1 class="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">{{ $displayGroupName }}</h1>
-                <p class="mt-3 text-sm text-white/80 leading-relaxed max-w-2xl">
-                    {{ __('borrower.apply.group.application_intro', ['leader' => $leaderName]) }}
+    @if (session('status'))
+        <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
+    @endif
+    @if (session('warning'))
+        <div class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">{{ session('warning') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="mb-4 rounded-xl bg-red-50 ring-1 ring-red-200 px-4 py-3 text-sm text-red-800">{{ session('error') }}</div>
+    @endif
+
+    <section class="relative overflow-hidden rounded-2xl kf-premium-panel mb-6">
+        <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
+        <div class="relative px-5 sm:px-6 py-5 sm:py-6 text-white">
+            <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.apply.group.onboarding_label') }}</p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $displayGroupName }}</h1>
+            <p class="mt-2 text-sm text-white/85">{{ $leaderName }}@if ($draft_reference) · {{ $draft_reference }}@endif</p>
+            @if ($badge)
+                <p class="mt-4 inline-flex text-xs font-semibold rounded-full px-3 py-1.5 bg-white/15 ring-1 ring-white/25">
+                    {{ $badge }}
                 </p>
-                @if ($draft_reference)
-                    <p class="mt-4 inline-flex items-center rounded-xl bg-white/10 ring-1 ring-white/15 px-3 py-1.5 font-mono text-xs text-white/90">{{ $draft_reference }}</p>
-                @endif
-            </div>
+            @endif
         </div>
+    </section>
 
-        <div class="grid lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 space-y-6">
-                <section class="rounded-3xl overflow-hidden ring-1 ring-brand/12 bg-white shadow-sm">
-                    <div class="bg-gradient-to-b from-brand-muted/40 to-white px-5 sm:px-6 py-4 border-b border-brand/10">
-                        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.group.loan_details_eyebrow') }}</p>
-                        <h2 class="mt-1 text-lg font-bold text-gray-900">
-                            {{ $quoteReady ? __('borrower.apply.group.readonly_quote') : __('borrower.apply.group.loan_details_pending_title') }}
-                        </h2>
-                    </div>
-
-                    @if ($quoteReady)
-                        <dl class="grid sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-brand/10 text-sm">
-                            <div class="px-5 sm:px-6 py-4">
-                                <dt class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.purpose') }}</dt>
-                                <dd class="font-semibold mt-1 text-gray-900">{{ $group_purpose ?: '—' }}</dd>
-                            </div>
-                            <div class="px-5 sm:px-6 py-4">
-                                <dt class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.amount_per_member') }}</dt>
-                                <dd class="font-extrabold mt-1 tabular-nums text-brand">{{ format_money($amount_per_member) }}</dd>
-                            </div>
-                            <div class="px-5 sm:px-6 py-4">
-                                <dt class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.tenure') }}</dt>
-                                <dd class="font-semibold mt-1 text-gray-900">{{ $tenure_months }} {{ __('borrower.apply.quote.months') }}</dd>
-                            </div>
-                            <div class="px-5 sm:px-6 py-4">
-                                <dt class="text-xs text-gray-500">{{ $installment_label ?? __('borrower.apply.group_setup.weekly_installment_label') }}</dt>
-                                <dd class="font-extrabold mt-1 tabular-nums text-brand">
-                                    {{ ($installment_amount ?? 0) > 0 ? format_money($installment_amount) : '—' }}
-                                </dd>
-                                <p class="text-[11px] text-gray-500 mt-1">{{ __('borrower.apply.group_setup.installment_after_disbursement_note') }}</p>
-                            </div>
-                        </dl>
-                        @if ($invitation_reason)
-                            <div class="mx-5 sm:mx-6 mb-5 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3 text-sm">
-                                <p class="text-[10px] font-semibold uppercase tracking-widest text-brand mb-1">{{ __('borrower.apply.group.invitation_reason') }}</p>
-                                <p class="text-gray-800 leading-relaxed">{{ $invitation_reason }}</p>
-                            </div>
-                        @endif
-                    @else
-                        <div class="px-5 sm:px-6 py-6 space-y-4">
-                            <div class="rounded-2xl bg-amber-50 ring-1 ring-amber-200/80 px-4 py-4">
-                                <p class="text-sm font-semibold text-amber-950">{{ __('borrower.apply.group.loan_details_pending_title') }}</p>
-                                <p class="mt-1.5 text-sm text-amber-900/90 leading-relaxed">
-                                    {{ __('borrower.apply.group.loan_details_pending_body', ['leader' => $leaderName]) }}
-                                </p>
-                            </div>
-                            <dl class="grid sm:grid-cols-2 gap-3 text-sm">
-                                <div class="rounded-2xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
-                                    <dt class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.name') }}</dt>
-                                    <dd class="font-semibold mt-1 text-gray-900">{{ $group_name ?: '—' }}</dd>
-                                </div>
-                                <div class="rounded-2xl bg-gray-50 ring-1 ring-gray-100 px-4 py-3">
-                                    <dt class="text-xs text-gray-500">{{ __('borrower.apply.group_setup.purpose') }}</dt>
-                                    <dd class="font-semibold mt-1 text-gray-900">{{ $group_purpose ?: '—' }}</dd>
-                                </div>
-                            </dl>
-                            @if ($invitation_reason)
-                                <div class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/10 px-4 py-3 text-sm">
-                                    <p class="text-[10px] font-semibold uppercase tracking-widest text-brand mb-1">{{ __('borrower.apply.group.invitation_reason') }}</p>
-                                    <p class="text-gray-800 leading-relaxed">{{ $invitation_reason }}</p>
-                                </div>
-                            @endif
-                        </div>
-                    @endif
-                </section>
-
-                <section class="rounded-3xl overflow-hidden ring-1 ring-brand/12 bg-white shadow-sm">
-                    <div class="px-5 sm:px-6 py-4 border-b border-brand/10 flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.group_members.your_team') }}</p>
-                            <h2 class="mt-1 text-lg font-bold text-gray-900">{{ $displayGroupName }}</h2>
-                        </div>
-                        <p class="text-sm font-semibold text-brand tabular-nums">
-                            {{ ($progress['added'] ?? 0) }}/{{ ($progress['target'] ?? 0) }}
-                        </p>
-                    </div>
-                    <ul class="divide-y divide-gray-100">
-                        @forelse ($members as $row)
-                            @php
-                                $percent = (int) ($row['profile_percent'] ?? 0);
-                                $avatarUrl = $row['avatar_url'] ?? null;
-                                $isLeader = ($row['role'] ?? '') === 'leader';
-                            @endphp
-                            <li class="px-5 sm:px-6 py-4">
-                                <div class="flex items-start gap-3">
-                                    <div class="size-11 rounded-2xl bg-brand text-white grid place-items-center text-sm font-bold shrink-0 overflow-hidden">
-                                        @if ($avatarUrl)
-                                            <img src="{{ $avatarUrl }}" alt="" class="size-full object-cover">
-                                        @else
-                                            {{ strtoupper(mb_substr((string) ($row['name'] ?? '?'), 0, 1)) }}
-                                        @endif
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <p class="font-semibold text-sm text-gray-900 truncate">{{ $row['name'] ?? '—' }}</p>
-                                            @if ($isLeader)
-                                                <span class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                                                    {{ __('borrower.apply.group_members.leader_badge') }}
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                                                    {{ __('borrower.apply.group_members.member_badge') }}
-                                                </span>
-                                            @endif
-                                        </div>
-                                        <p class="text-xs text-gray-500 mt-0.5">{{ $row['phone'] ?? '' }}</p>
-                                    </div>
-                                    <span class="text-xs font-semibold text-gray-700 shrink-0 w-[7.5rem] text-right leading-snug">{{ $row['status_label'] ?? '—' }}</span>
-                                </div>
-                                <div class="mt-3">
-                                    <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500 mb-1">
-                                        <span>{{ __('borrower.apply.group.profile_completion') }}</span>
-                                        <span class="font-bold tabular-nums text-brand">{{ $percent }}%</span>
-                                    </div>
-                                    <div class="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                                        <div @class([
-                                            'h-full rounded-full',
-                                            'bg-emerald-500' => $percent >= 100,
-                                            'bg-brand' => $percent < 100,
-                                        ]) style="width: {{ max(0, min(100, $percent)) }}%"></div>
-                                    </div>
-                                </div>
-                            </li>
-                        @empty
-                            <li class="px-5 sm:px-6 py-8 text-sm text-gray-500">{{ __('borrower.apply.group.no_members_listed') }}</li>
-                        @endforelse
-                    </ul>
-                </section>
-
-                @if (! empty($group_payout ?? null))
-                    @include('site.borrower.loan-profile._group_payout_queue', ['groupPayout' => $group_payout])
-                @endif
+    <div class="glass-card p-5 mb-6 ring-1 ring-brand/15">
+        <h2 class="font-semibold mb-4">{{ __('borrower.apply.group.request_overview') }}</h2>
+        <div class="grid sm:grid-cols-2 gap-4 text-sm">
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.group_setup.amount_per_member') }}</p>
+                <p class="font-semibold mt-1">{{ $quoteReady ? format_money($amount_per_member) : '—' }}</p>
             </div>
-
-            <aside class="space-y-4">
-                <section class="rounded-3xl overflow-hidden ring-1 ring-brand/15 bg-white shadow-sm">
-                    <div class="bg-gradient-to-br from-brand via-brand to-brand-light text-white px-5 py-5">
-                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.apply.group.your_progress') }}</p>
-                        <p class="mt-3 text-4xl font-extrabold tabular-nums">{{ $profilePercent }}%</p>
-                        <p class="mt-1 text-sm text-white/75">{{ __('borrower.apply.group.profile_completion') }}</p>
-                        <div class="mt-4 h-2 rounded-full bg-white/15 overflow-hidden">
-                            <div class="h-full rounded-full bg-brand-gold" style="width: {{ max(0, min(100, $profilePercent)) }}%"></div>
-                        </div>
-                    </div>
-                    <div class="px-5 py-5">
-                        @if (! $profile_complete)
-                            <a href="{{ $profile_url }}" class="inline-flex w-full items-center justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-3 rounded-xl text-sm shadow-sm">
-                                {{ __('borrower.apply.group.complete_profile_cta') }}
-                            </a>
-                        @elseif ($can_finalize)
-                            <a href="{{ $onboarding_url }}" class="inline-flex w-full items-center justify-center bg-brand hover:bg-brand-light text-white font-semibold px-4 py-3 rounded-xl text-sm shadow-sm">
-                                {{ __('borrower.apply.group.sign_and_submit_cta') }}
-                            </a>
-                        @else
-                            <p class="text-sm text-emerald-800 font-medium leading-relaxed">{{ __('borrower.apply.group.waiting_for_group') }}</p>
-                        @endif
-                        @unless ($quoteReady)
-                            <p class="mt-4 text-xs text-gray-500 leading-relaxed">{{ __('borrower.apply.group.loan_details_pending_hint') }}</p>
-                        @endunless
-                    </div>
-                </section>
-            </aside>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.group_setup.tenure') }}</p>
+                <p class="font-semibold mt-1">{{ $tenure_months ? $tenure_months.' '.__('borrower.apply.quote.months') : '—' }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.group_setup.purpose') }}</p>
+                <p class="font-semibold mt-1">{{ $group_purpose ?: '—' }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $installment_label ?? __('borrower.apply.group_setup.weekly_installment_label') }}</p>
+                <p class="font-semibold mt-1 text-brand">{{ ($installment_amount ?? 0) > 0 ? format_money($installment_amount) : '—' }}</p>
+            </div>
         </div>
     </div>
+
+    <div class="mb-6">
+        <x-site.invitee-progress
+            :name="''"
+            :badge="$badge"
+            :badge-tone="$badgeTone"
+            :steps="$steps"
+        />
+    </div>
+
+    @if ($decisionRequired)
+        <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15"
+             x-data="{ submitting: false, action: null }">
+            <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 sm:px-6 py-5">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.group.your_decision') }}</p>
+                <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ __('borrower.apply.group.decision_short') }}</p>
+                <div class="mt-6 flex flex-col-reverse sm:flex-row gap-3 sm:items-center sm:justify-end">
+                    <form method="POST" action="{{ route('site.group-member.reject', $invitation->token) }}"
+                          @submit="if (submitting) { $event.preventDefault(); return false } submitting = true; action = 'reject'">
+                        @csrf
+                        <button type="submit"
+                                :disabled="submitting"
+                                class="w-full sm:w-auto bg-white ring-1 ring-gray-300 hover:bg-gray-50 text-gray-800 font-semibold px-5 py-2.5 rounded-xl text-sm disabled:opacity-60 disabled:cursor-wait">
+                            <span x-show="!(submitting && action === 'reject')">{{ __('borrower.apply.group.decline_invite') }}</span>
+                            <span x-cloak x-show="submitting && action === 'reject'">{{ __('borrower.apply.group.saving') }}…</span>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('site.group-member.accept', $invitation->token) }}"
+                          @submit="if (submitting) { $event.preventDefault(); return false } submitting = true; action = 'approve'">
+                        @csrf
+                        <button type="submit"
+                                :disabled="submitting"
+                                class="w-full sm:w-auto bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-8 py-3.5 rounded-xl text-sm shadow-sm disabled:opacity-60 disabled:cursor-wait">
+                            <span x-show="!(submitting && action === 'approve')">{{ __('borrower.apply.group.accept_request_cta') }}</span>
+                            <span x-cloak x-show="submitting && action === 'approve'">{{ __('borrower.apply.group.saving') }}…</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @elseif (! $profile_complete)
+        <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15">
+            <div class="px-5 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.group.your_progress') }}</p>
+                    <p class="text-sm font-semibold text-gray-900 mt-2">
+                        {{ __('borrower.apply.group.profile_next_short', ['percent' => $profilePercent]) }}
+                    </p>
+                    <div class="flex items-center gap-3 mt-3 max-w-md">
+                        <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div class="h-full rounded-full bg-brand" style="width: {{ max(0, min(100, $profilePercent)) }}%"></div>
+                        </div>
+                        <span class="text-sm font-bold tabular-nums text-gray-900">{{ $profilePercent }}%</span>
+                    </div>
+                </div>
+                <a href="{{ $profile_url }}"
+                   class="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm shrink-0 bg-brand-gold hover:bg-yellow-400 text-brand">
+                    {{ __('borrower.apply.group.complete_profile_cta') }}
+                </a>
+            </div>
+        </div>
+    @elseif ($can_finalize)
+        <div class="mb-6 glass-card overflow-hidden ring-1 ring-brand/15 px-5 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <p class="text-sm text-gray-700">{{ __('borrower.apply.group.waiting_for_group') }}</p>
+            <a href="{{ $onboarding_url }}"
+               class="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm shrink-0 bg-brand hover:bg-brand-light text-white">
+                {{ __('borrower.apply.group.sign_and_submit_cta') }}
+            </a>
+        </div>
+    @else
+        <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
+            {{ __('borrower.apply.group.waiting_for_group') }}
+        </div>
+    @endif
+
+    @if ($otherMembers->isNotEmpty() || collect($members ?? [])->isNotEmpty())
+        <div class="glass-card overflow-hidden ring-1 ring-brand/15 mb-6">
+            <div class="px-5 sm:px-6 py-4 border-b border-gray-100/80 flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.apply.group.group_members_section') }}</p>
+                    <p class="text-sm font-semibold text-gray-900 mt-1">{{ ($progress['added'] ?? 0) }}/{{ ($progress['target'] ?? 0) }}</p>
+                </div>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($members as $row)
+                    @php
+                        $rowSteps = $row['progress_steps'] ?? [];
+                        $rowBadge = $row['status_label'] ?? null;
+                        $rowTone = $row['badge_tone'] ?? 'sky';
+                    @endphp
+                    <li class="px-5 sm:px-6 py-4">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <div class="min-w-0">
+                                <p class="font-semibold text-sm text-gray-900 truncate">{{ $row['name'] ?? '—' }}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    {{ ($row['role'] ?? '') === 'leader'
+                                        ? __('borrower.apply.group_members.leader_badge')
+                                        : __('borrower.apply.group_members.member_badge') }}
+                                </p>
+                            </div>
+                            @if ($rowBadge)
+                                <span class="text-[11px] font-semibold text-gray-600 shrink-0">{{ $rowBadge }}</span>
+                            @endif
+                        </div>
+                        @if (! empty($rowSteps))
+                            <x-site.invitee-progress
+                                :name="''"
+                                :badge="null"
+                                :badge-tone="$rowTone"
+                                :steps="$rowSteps"
+                            />
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    @if (! empty($group_payout ?? null))
+        @include('site.borrower.loan-profile._group_payout_queue', ['groupPayout' => $group_payout])
+    @endif
 </x-site.borrower-layout>

@@ -74,19 +74,25 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" x-data="{ submitting: false, action: null }">
         <form method="POST" action="{{ route('site.group-member.accept', $invitation->token) }}"
-              @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.apply.group.accept_confirm_title')), message: @js(__('borrower.apply.group.accept_confirm_message')), confirmLabel: @js(__('borrower.apply.group.accept_invite')), confirmClass: 'bg-brand-gold hover:brightness-95 text-brand' })">
+              @submit="if (submitting) { $event.preventDefault(); return false } submitting = true; action = 'approve'">
             @csrf
-            <button type="submit" class="w-full bg-brand-gold hover:brightness-95 text-brand font-extrabold px-5 py-3.5 rounded-2xl text-sm shadow-sm shadow-brand-gold/30">
-                {{ __('borrower.apply.group.accept_invite') }}
+            <button type="submit"
+                    :disabled="submitting"
+                    class="w-full bg-brand-gold hover:brightness-95 text-brand font-extrabold px-5 py-3.5 rounded-2xl text-sm shadow-sm shadow-brand-gold/30 disabled:opacity-60 disabled:cursor-wait">
+                <span x-show="!(submitting && action === 'approve')">{{ __('borrower.apply.group.accept_invite') }}</span>
+                <span x-cloak x-show="submitting && action === 'approve'">{{ __('borrower.apply.group.saving') }}…</span>
             </button>
         </form>
         <form method="POST" action="{{ route('site.group-member.reject', $invitation->token) }}"
-              @submit.prevent="window.confirmForm($el, { title: @js(__('borrower.apply.group.decline_confirm_title')), message: @js(__('borrower.apply.group.decline_confirm_message')), confirmLabel: @js(__('borrower.apply.group.decline_invite')), confirmClass: 'bg-red-600 hover:bg-red-700 text-white' })">
+              @submit="if (submitting) { $event.preventDefault(); return false } submitting = true; action = 'reject'">
             @csrf
-            <button type="submit" class="w-full bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-3.5 rounded-2xl text-sm">
-                {{ __('borrower.apply.group.decline_invite') }}
+            <button type="submit"
+                    :disabled="submitting"
+                    class="w-full bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 font-semibold px-5 py-3.5 rounded-2xl text-sm disabled:opacity-60 disabled:cursor-wait">
+                <span x-show="!(submitting && action === 'reject')">{{ __('borrower.apply.group.decline_invite') }}</span>
+                <span x-cloak x-show="submitting && action === 'reject'">{{ __('borrower.apply.group.saving') }}…</span>
             </button>
         </form>
     </div>

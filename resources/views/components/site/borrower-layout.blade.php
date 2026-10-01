@@ -41,9 +41,7 @@
     $unreadNotifications = $notificationQuery
         ? $notificationQuery->whereNull('read_at')->count()
         : 0;
-    $pendingGuarantorPopup = $borrowerCustomer
-        ? $portalContext->pendingGuarantorLinks($borrowerCustomer)
-        : collect();
+    $pendingGuarantorPopup = collect();
 
     $icon = function (string $name) {
         return match ($name) {
@@ -437,7 +435,7 @@
 </template>
 @endif
 
-<x-site.guarantor-request-popup :pending="$pendingGuarantorPopup" />
+{{-- Invitation surface after login is notifications + Mikopo, not an automatic modal. --}}
 <x-site.upload-busy-overlay />
 <x-site.confirm-modal name="default" />
 <x-site.feedback-modal name="default" />

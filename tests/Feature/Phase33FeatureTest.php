@@ -229,8 +229,9 @@ class Phase33FeatureTest extends TestCase
 
         $response->assertOk()
             ->assertSee('max-w-3xl', false)
-            ->assertSee(__('borrower.guaranteed.detail_glance_title'), false)
-            ->assertSee(__('borrower.guarantor.your_decision'), false);
+            ->assertSee(__('borrower.guarantor.request_overview'), false)
+            ->assertSee(__('borrower.guarantor.your_decision'), false)
+            ->assertSee(__('borrower.guarantor.accept_request_cta'), false);
     }
 
     public function test_payments_index_shows_translated_refund_entries(): void

@@ -72,13 +72,14 @@ class InviteeProgressPresenter
         bool $readyDone,
         ?int $profilePercent = null,
     ): string {
+        // Furthest achieved state — never stay on “invitation sent” after later steps complete.
         return match (true) {
-            ! $acceptedDone => __('borrower.apply.guarantor_status.invitation_sent'),
-            ! $accountDone => __('borrower.apply.guarantor_status.invitation_accepted'),
-            ! $profileDone && ($profilePercent ?? 0) <= 0 => __('borrower.apply.guarantor_status.account_opened'),
-            ! $profileDone => __('borrower.apply.guarantor_status.profile_in_progress'),
-            ! $readyDone => __('borrower.apply.guarantor_status.profile_in_progress'),
-            default => __('borrower.apply.guarantor_status.ready_for_review'),
+            $readyDone => __('borrower.apply.guarantor_status.ready_for_review'),
+            $profileDone => __('borrower.apply.guarantor_status.ready_for_review'),
+            $accountDone && ($profilePercent ?? 0) > 0 => __('borrower.apply.guarantor_status.profile_in_progress'),
+            $accountDone => __('borrower.apply.guarantor_status.account_opened'),
+            $acceptedDone => __('borrower.apply.guarantor_status.invitation_accepted'),
+            default => __('borrower.apply.guarantor_status.invitation_sent'),
         };
     }
 }

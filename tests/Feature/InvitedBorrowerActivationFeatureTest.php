@@ -166,4 +166,146 @@ class InvitedBorrowerActivationFeatureTest extends TestCase
         $this->assertStringContainsString(__('borrower.nav.dashboard'), $html);
         $this->assertStringContainsString(__('borrower.nav.loans'), $html);
     }
+
+    public function test_external_public_accept_skips_second_accept_and_hides_decision(): void
+    {
+        $borrowerUser = User::factory()->create(['role' => 'borrower']);
+        app(PinService::class)->setPin($borrowerUser, '1234');
+        $borrower = Customer::create([
+            'user_id' => $borrowerUser->id,
+            'customer_number' => 'CU-ACT-B2',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'David',
+            'last_name' => 'Maclean',
+            'phone' => '255711000202',
+            'country_code' => 'TZ',
+            'member_no' => 'KPF-TZ-BOR3',
+            'membership_status' => 'identity',
+            'membership_issued_at' => now(),
+        ]);
+
+        $product = LoanProduct::create([
+            'code' => 'IL-ACT2',
+            'name' => 'Act Product 2',
+            'is_active' => true,
+            'interest_rate' => 0.15,
+            'min_amount' => 100_000,
+            'max_amount' => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 12,
+            'requires_guarantor' => true,
+        ]);
+        $application = LoanApplication::create([
+            'customer_id' => $borrower->id,
+            'loan_product_id' => $product->id,
+            'application_number' => 'APP-ACT-02',
+            'requested_amount' => 500_000,
+            'requested_tenure_months' => 6,
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+        ]);
+
+        $person = Guarantor::create([
+            'first_name' => 'Vase',
+            'last_name' => 'Two',
+            'phone' => '+255700000022',
+            'relationship' => 'friend',
+        ]);
+        $link = CustomerGuarantor::create([
+            'customer_id' => $borrower->id,
+            'guarantor_id' => $person->id,
+            'loan_application_id' => $application->id,
+            'status' => 'pending',
+        ]);
+        $invite = GuarantorInvitation::create([
+            'customer_id' => $borrower->id,
+            'loan_application_id' => $application->id,
+            'loan_product_id' => $product->id,
+            'customer_guarantor_id' => $link->id,
+            'type' => 'external',
+            'channel' => 'whatsapp',
+            'token' => 'act-invite-token-2',
+            'short_code' => 'ACT002',
+            'contact' => '+255700000022',
+            'invitee_name' => 'Vase Two',
+            'status' => 'accepted',
+            'responded_at' => now(),
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $guarantorUser = User::factory()->create([
+            'role' => 'borrower',
+            'phone' => '+255700000022',
+            'is_active' => true,
+            'preferences' => ['account_welcome_completed_at' => now()->toIso8601String()],
+        ]);
+        app(PinService::class)->setPin($guarantorUser, '1234');
+        $guarantor = Customer::create([
+            'user_id' => $guarantorUser->id,
+            'customer_number' => 'CU-ACT-G2',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Vase',
+            'last_name' => 'Two',
+            'phone' => '255700000022',
+            'country_code' => 'TZ',
+            'member_no' => 'KPF-TZ-VAS3',
+            'membership_status' => 'identity',
+            'membership_issued_at' => now(),
+            'onboarded_at' => now(),
+        ]);
+        $invite->update(['guarantor_customer_id' => $guarantor->id]);
+
+        $html = $this->actingAs($guarantorUser)
+            ->withSession(['account_welcome_done' => true])
+            ->get(route('site.borrower.guarantor-requests.show', $link))
+            ->assertOk()
+            ->assertSee(__('borrower.guarantor.request_overview'), false)
+            ->assertDontSee(__('borrower.guarantor.your_decision'), false)
+            ->assertDontSee(__('borrower.guarantor.accept_request_cta'), false)
+            ->assertDontSee('guarantor-invite-popup-title', false)
+            ->getContent();
+
+        $this->assertStringContainsString('max-w-3xl', $html);
+        $this->assertStringContainsString(__('borrower.loan_profile.complete_profile'), $html);
+        $this->assertSame('approved', $link->fresh()->status);
+
+        $status = app(GuarantorInvitationService::class)->borrowerInvitationStatus($invite->fresh());
+        $this->assertSame('pending_profile', $status['code']);
+        $this->assertContains($status['label'], [
+            __('borrower.apply.guarantor_status.account_opened'),
+            __('borrower.apply.guarantor_status.profile_in_progress'),
+        ]);
+        $this->assertNotSame(__('borrower.apply.guarantor_status.invitation_sent'), $status['label']);
+    }
+
+    public function test_dashboard_does_not_auto_open_guarantor_request_modal(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'borrower',
+            'preferences' => ['account_welcome_completed_at' => now()->toIso8601String()],
+        ]);
+        app(PinService::class)->setPin($user, '1234');
+        Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-ACT-B3',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'No',
+            'last_name' => 'Modal',
+            'phone' => '255711000203',
+            'country_code' => 'TZ',
+            'member_no' => 'KPF-TZ-NOM',
+            'membership_status' => 'identity',
+            'membership_issued_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['account_welcome_done' => true])
+            ->get(route('site.borrower.dashboard'))
+            ->assertOk()
+            ->assertDontSee('guarantor-invite-popup-title', false)
+            ->assertDontSee('x-site.guarantor-request-popup', false);
+    }
 }

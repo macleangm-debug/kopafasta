@@ -94,7 +94,7 @@ class GroupMemberInviteController extends Controller
             return $redirect;
         }
 
-        return redirect()->route('site.group-member.invite', $token)
+        return redirect()->route('site.group-member.application')
             ->with('status', __('borrower.apply.group.accept_recorded'));
     }
 

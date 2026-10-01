@@ -265,7 +265,7 @@ class GroupMemberOnboardingService
 
     public function canFinalize(Customer $customer, GroupMemberInvitation $invitation): bool
     {
-        if (! in_array($invitation->status, ['accepted', 'pending'], true)) {
+        if (! in_array($invitation->status, ['accepted'], true)) {
             return false;
         }
 

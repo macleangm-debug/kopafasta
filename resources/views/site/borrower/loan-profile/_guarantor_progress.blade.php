@@ -97,6 +97,46 @@
             }
         }
 
+        // One progress card per current guarantor identity (never duplicate the same invitee).
+        $rank = static function (object $row): int {
+            $code = (string) ($row->status['code'] ?? '');
+
+            return match ($code) {
+                'ready' => 50,
+                'pending_profile', 'kyc_in_progress', 'guarantee_pending', 'pending_reconfirmation' => 40,
+                'registration_in_progress', 'accepted' => 30,
+                'pending_acceptance' => 20,
+                'invitation_sent' => 10,
+                default => 0,
+            };
+        };
+        $identityKey = static function (object $row): string {
+            $invite = $row->invite ?? null;
+            if ($invite?->guarantor_customer_id) {
+                return 'c:'.(int) $invite->guarantor_customer_id;
+            }
+            if ($invite?->customer_guarantor_id) {
+                return 'l:'.(int) $invite->customer_guarantor_id;
+            }
+            $phone = preg_replace('/\D+/', '', (string) ($row->phone ?? $invite?->contact ?? ''));
+            if (strlen($phone) >= 9) {
+                return 'p:'.substr($phone, -9);
+            }
+            $name = mb_strtolower(trim((string) ($row->name ?? '')));
+
+            return $name !== '' && $name !== '—' ? 'n:'.$name : 'id:'.spl_object_id($row);
+        };
+        $currentRows = $currentRows
+            ->groupBy(fn ($row) => $identityKey($row))
+            ->map(function ($group) use ($rank) {
+                return $group->sortByDesc(fn ($row) => [
+                    $rank($row),
+                    (int) ($row->status['profile_percent'] ?? 0),
+                    (int) ($row->invite?->id ?? 0),
+                ])->first();
+            })
+            ->values();
+
         $readyCount = $currentRows->filter(fn ($row) => ($row->status['ready'] ?? false) || ($row->status['code'] ?? '') === 'ready')->count();
         $allReady = $currentRows->isNotEmpty() && $readyCount >= $currentRows->count();
         $primary = $currentRows->first();

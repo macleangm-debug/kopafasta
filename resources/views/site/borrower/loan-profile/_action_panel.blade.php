@@ -40,11 +40,16 @@
         $editGuarantorUrl = null;
     }
 
-    // Hero / Wadhamini / _submitted already own wait/status copy. Suppress duplicate
-    // status card unless there is a discrete borrower CTA (valuation, docs, additional
-    // guarantor). Replacement/change is handled inside Guarantor Details.
+    // Hero / Wadhamini / _document_requests already own wait/status copy. Suppress duplicate
+    // status card unless there is a discrete borrower CTA (valuation, additional guarantor).
+    // Screening document requests use premium cards only — never a second warning block.
+    $hasDocumentRequestCards = collect($profile['document_request_groups']['pending'] ?? [])
+        ->concat($profile['document_request_groups']['rejected'] ?? [])
+        ->concat($profile['document_request_groups']['uploaded'] ?? [])
+        ->concat($profile['document_request_groups']['completed'] ?? [])
+        ->isNotEmpty();
     $suppressDuplicateStatusCard = ! $isDraft
-        && $underwritingActions->isEmpty()
+        && ($underwritingActions->isEmpty() || $hasDocumentRequestCards)
         && in_array(($next['code'] ?? ''), [
             'awaiting_guarantor',
             'awaiting_guarantor_profile',
@@ -53,6 +58,7 @@
             'under_review',
             'view_application',
             'documents_resubmitted',
+            'upload_documents',
             '',
         ], true)
         && ! in_array(($next['code'] ?? ''), ['pay_valuation_fee', 'add_guarantor', 'collateral_shortfall'], true);

@@ -55,6 +55,31 @@ class GroupMemberApplicationService
             ? __('borrower.apply.group_setup.weekly_installment_label')
             : __('borrower.apply.group_setup.monthly_installment_label');
 
+        $decisionRequired = $invitation->status === 'pending';
+        $memberRow = collect($summary['members'] ?? [])->first(function (array $row) use ($invitation, $member) {
+            if ((int) ($row['invitation_id'] ?? 0) === (int) $invitation->id) {
+                return true;
+            }
+
+            return (int) ($row['customer_id'] ?? 0) === (int) $member->id;
+        }) ?? [
+            'status_key' => $decisionRequired ? 'invitation_sent' : 'registration_complete',
+            'profile_percent' => (int) ($profile['percent'] ?? 0),
+            'status_label' => '',
+            'progress_steps' => [],
+            'badge_tone' => 'sky',
+        ];
+        if (empty($memberRow['progress_steps'])) {
+            $presentation = $this->progress->presentationForStatus(
+                (string) ($memberRow['status_key'] ?? ''),
+                (int) ($profile['percent'] ?? 0),
+                (string) ($memberRow['status_label'] ?? ''),
+            );
+            $memberRow['progress_steps'] = $presentation['steps'];
+            $memberRow['status_label'] = $presentation['badge'];
+            $memberRow['badge_tone'] = $presentation['tone'];
+        }
+
         return [
             'invitation'         => $invitation,
             'member'             => $member,
@@ -80,6 +105,8 @@ class GroupMemberApplicationService
             'can_finalize'       => app(GroupMemberOnboardingService::class)->canFinalize($member, $invitation),
             'onboarding_url'     => route('site.group-member.onboarding'),
             'group_payout'       => $this->payoutQueueForInvitation($invitation),
+            'decision_required'  => $decisionRequired,
+            'member_progress'    => $memberRow,
         ];
     }
 
