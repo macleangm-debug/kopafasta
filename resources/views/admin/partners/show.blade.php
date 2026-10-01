@@ -94,6 +94,19 @@
     </div>
 @endif
 
+<div class="mt-4 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
+    <div>
+        <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">{{ __('admin.support.member360.title') }}</p>
+        <p class="text-xs text-gray-500 mt-0.5">{{ $record->name }} · {{ $record->phone ?? '—' }}</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <a href="{{ route('admin.support.interactions.new', ['partner_id' => $record->id, 'party' => 'registered', 'support_action' => 'conversation']) }}"
+           class="inline-flex rounded-xl bg-brand text-white text-xs font-semibold px-3.5 py-2">{{ __('admin.support.member360.start_conversation') }}</a>
+        <a href="{{ route('admin.support.interactions.new', ['partner_id' => $record->id, 'party' => 'registered', 'support_action' => 'ticket']) }}"
+           class="inline-flex rounded-xl ring-1 ring-brand/25 text-brand text-xs font-semibold px-3.5 py-2">{{ __('admin.support.member360.create_ticket') }}</a>
+    </div>
+</div>
+
 <div class="mt-6 space-y-4"
      x-data="{
         tab: @js($startTab),

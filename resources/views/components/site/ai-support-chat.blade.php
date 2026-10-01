@@ -53,8 +53,8 @@
     $isSw = str_starts_with(app()->getLocale(), 'sw');
     $composerLocked = $conversation instanceof \App\Models\SupportConversation
         && in_array((string) $conversation->status, ['closed', 'resolved'], true);
-    // Guest identity is collected only when escalating to a human — not at automation start.
-    $needsGuestIdentity = ! $memberMode && $forceHuman && ! $automationMode;
+    // Public guests identify before starting (automation or human). Member/partner skip the gate.
+    $needsGuestIdentity = ! $memberMode && ($forceHuman || $automationMode);
     $guestMayEscalate = ! $memberMode && $automationMode;
     $guestFirstName = trim((string) ($guestFirstName ?? ''));
     $guestLastName = trim((string) ($guestLastName ?? ''));
@@ -163,7 +163,7 @@
         </div>
         <div class="px-3.5 sm:px-4 pt-3 pb-4">
             <div x-show="needsGuestGate" x-cloak class="mb-4 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-3" x-ref="guestGate"
-                 @input="guestPhone = ($refs.guestGate && $refs.guestGate.querySelector('input[name=guest_phone]') || {}).value || guestPhone">
+                 @input.capture="syncGuestPhone()" @change.capture="syncGuestPhone()" @keyup.capture="syncGuestPhone()">
                 <p class="text-sm text-gray-700" x-text="config.guestIdentityHint"></p>
                 <div class="grid sm:grid-cols-2 gap-3">
                     <div>
@@ -331,24 +331,53 @@
                         guestName: config.guestName || '',
                         guestPhone: config.guestPhone || '',
                         guestFieldErrors: { first: '', last: '', phone: '' },
+                        guestPhoneDigits: String(config.guestPhone || '').replace(/\D/g, ''),
                         guestReady: !!(config.guestFirstName || '').trim()
                             && !!(config.guestLastName || '').trim()
-                            && !!(config.guestPhone || '').trim(),
+                            && String(config.guestPhone || '').replace(/\D/g, '').length >= 9,
                         get needsGuestGate() {
                             if (this.pendingEscalate && !this.guestReady) return true;
                             return !!config.needsGuestIdentity && !this.guestReady;
                         },
                         get guestFormReady() {
-                            var phone = this.readGuestPhone();
                             return !!(this.guestFirstName || '').trim()
                                 && !!(this.guestLastName || '').trim()
-                                && phone.length >= 9;
+                                && String(this.guestPhoneDigits || '').length >= 9;
                         },
-                        readGuestPhone() {
+                        syncGuestPhone() {
+                            var digits = this.readGuestPhone();
+                            this.guestPhoneDigits = digits;
                             var phoneEl = this.$refs.guestGate
                                 ? this.$refs.guestGate.querySelector('input[name="guest_phone"]')
                                 : null;
-                            var raw = phoneEl ? String(phoneEl.value || '').trim() : (this.guestPhone || '').trim();
+                            if (phoneEl && phoneEl.value) {
+                                this.guestPhone = String(phoneEl.value || '').trim();
+                            } else if (digits.length >= 9 && digits.indexOf('255') !== 0) {
+                                this.guestPhone = '+255' + digits.replace(/^0+/, '');
+                            } else if (digits.length >= 9) {
+                                this.guestPhone = '+' + digits;
+                            }
+                        },
+                        readGuestPhone() {
+                            var root = this.$refs.guestGate;
+                            if (!root) {
+                                return String(this.guestPhone || '').replace(/\D/g, '');
+                            }
+                            var hidden = root.querySelector('input[name="guest_phone"]');
+                            var local = root.querySelector('input[data-phone-local], input[name="guest_phone_local"]');
+                            var raw = '';
+                            if (hidden && String(hidden.value || '').trim()) {
+                                raw = String(hidden.value || '').trim();
+                            } else if (local && String(local.value || '').trim()) {
+                                // Local digits only — prefix is locked +255 for TZ.
+                                var prefixEl = root.querySelector('[data-phone-prefix]');
+                                var prefix = prefixEl
+                                    ? String(prefixEl.value || prefixEl.getAttribute('value') || '255').replace(/\D/g, '')
+                                    : '255';
+                                raw = prefix + String(local.value || '').replace(/\D/g, '').replace(/^0+/, '');
+                            } else {
+                                raw = String(this.guestPhone || '').trim();
+                            }
                             return String(raw || '').replace(/\D/g, '');
                         },
                         _timer: null,
@@ -486,11 +515,16 @@
                             this.guestLastName = last;
                             this.guestName = (first + ' ' + last).trim();
                             this.guestPhone = phone;
+                            this.syncGuestPhone();
                             this.guestReady = true;
                             this.sendError = '';
                             if (this.pendingEscalate) {
                                 this.pendingEscalate = false;
                                 this.runAutomation('escalate', { key: 'human' });
+                                return;
+                            }
+                            if (this.automationMode && config.automationUrl && !this.humanMode) {
+                                this.runAutomation('start', {});
                                 return;
                             }
                             this.$nextTick(function () {
@@ -692,12 +726,18 @@
                         init() {
                             var self = this;
                             this.scrollBottom();
-                            this.$nextTick(function () { self.growComposer(); });
+                            this.$nextTick(function () {
+                                self.growComposer();
+                                self.syncGuestPhone();
+                            });
+                            if (this.needsGuestGate) {
+                                return;
+                            }
                             if (this.automationMode && config.automationUrl && !this.humanMode) {
                                 this.runAutomation('start', {});
                                 return;
                             }
-                            if (this.humanMode && config.threadUrl && !this.needsGuestGate) {
+                            if (this.humanMode && config.threadUrl) {
                                 this.pollThread();
                                 this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2000);
                             }

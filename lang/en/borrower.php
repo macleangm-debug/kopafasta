@@ -4580,6 +4580,8 @@ return [
         'support_resolved_title' => 'Your support matter has been resolved',
         'support_resolved_body' => 'Please rate your support experience.',
         'support_resolved_cta' => 'View & rate support',
+        'support_replied_title' => 'New message from Kopafasta Support',
+        'support_replied_body' => 'You have a new Support message (:ref).',
         'support_replied_cta' => 'View reply',
         'support_ticket_created_cta' => 'View ticket',
         'support_open_cta' => 'Open Help Center',

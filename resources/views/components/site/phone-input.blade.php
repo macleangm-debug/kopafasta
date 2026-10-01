@@ -87,6 +87,14 @@
             if (typeof window.syncSitePhoneInput === 'function') {
                 window.syncSitePhoneInput(this.$root);
             }
+            // Notify parent Alpine (e.g. Guest chat gate) so enablement re-evaluates.
+            this.$nextTick(() => {
+                const hidden = this.$root.querySelector('[data-phone-hidden]');
+                if (hidden) {
+                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
         }
      }"
      x-init="syncHidden(); $watch('prefix', () => syncHidden()); $watch('local', () => syncHidden())">

@@ -151,10 +151,8 @@ class SupportConversationService
                 $this->maybeSendWaitingNudge($conversation->fresh() ?? $conversation);
             }
 
-            $fresh = $conversation->fresh(['customer', 'user', 'messages', 'assignedTo']) ?? $conversation;
-            $this->maybeSendAssignedAgentOfflineAck($fresh);
-
-            return $fresh;
+            // Presence is operational metadata — never inject offline bubbles into customer chat.
+            return $conversation->fresh(['customer', 'user', 'messages', 'assignedTo']) ?? $conversation;
         });
     }
 
@@ -349,9 +347,7 @@ class SupportConversationService
                 $updates['last_message_at'] = now();
             }
             $conversation->update($updates);
-            if (in_array($senderType, ['customer', 'guest'], true) && $conversation->assigned_to) {
-                $this->maybeNotifyAssignedAgentOffline($conversation->fresh() ?? $conversation);
-            }
+            // Presence is operational metadata — never inject offline bubbles into customer chat.
         } else {
             $conversation->update(['last_message_at' => now()]);
         }
@@ -740,14 +736,27 @@ class SupportConversationService
      */
     public function serializeMessages(SupportConversation $conversation): array
     {
-        return $conversation->messages()->orderBy('id')->get()->map(fn (SupportMessage $m) => [
-            'id' => (int) $m->id,
-            'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
-            'sender_type' => (string) $m->sender_type,
-            'text' => (string) $m->body,
-            'at' => $m->created_at?->toIso8601String(),
-            'time' => $m->created_at ? format_app_datetime($m->created_at, 'H:i') : null,
-        ])->all();
+        return $conversation->messages()->orderBy('id')->get()
+            ->reject(function (SupportMessage $m) {
+                if (! $m->is_automated) {
+                    return false;
+                }
+                $body = (string) $m->body;
+
+                // Legacy offline presence bubbles — never show to customers again.
+                return str_contains($body, 'Mtoa huduma wako hayupo')
+                    || str_contains($body, 'Your support agent is offline')
+                    || str_contains($body, 'Your Support agent is offline');
+            })
+            ->values()
+            ->map(fn (SupportMessage $m) => [
+                'id' => (int) $m->id,
+                'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
+                'sender_type' => (string) $m->sender_type,
+                'text' => (string) $m->body,
+                'at' => $m->created_at?->toIso8601String(),
+                'time' => $m->created_at ? format_app_datetime($m->created_at, 'H:i') : null,
+            ])->all();
     }
 
     /**

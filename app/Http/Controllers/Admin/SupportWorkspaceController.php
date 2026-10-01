@@ -117,6 +117,7 @@ class SupportWorkspaceController extends Controller
             'specialistFollowUps' => $specialistFollowUps,
             'ticketTaxonomy' => \App\Support\SupportTaxonomy::all(),
             'similarSearchUrl' => route('admin.support-tickets.similar'),
+            'attentionBadges' => $this->workspace->attentionBadges($agent),
             'supportShell' => true,
         ]);
     }
@@ -214,6 +215,7 @@ class SupportWorkspaceController extends Controller
             'specialistFollowUps' => 0,
             'ticketTaxonomy' => \App\Support\SupportTaxonomy::all(),
             'similarSearchUrl' => route('admin.support-tickets.similar'),
+            'attentionBadges' => $this->workspace->attentionBadges($this->workspace->actingAgent()),
             'supportShell' => true,
         ]);
     }
@@ -296,7 +298,7 @@ class SupportWorkspaceController extends Controller
 
         if (! $supportConversation->assigned_to) {
             if (! $agent || ! $this->workspace->isAssignableSupportAgent($agent)) {
-                $message = 'Select a Support staff member (staff filter) before replying to an unassigned conversation.';
+                $message = __('admin.support.errors.select_agent_before_reply');
                 if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
                     return response()->json(['ok' => false, 'error' => $message], 422);
                 }
@@ -304,7 +306,7 @@ class SupportWorkspaceController extends Controller
                 return back()->withInput()->with('error', $message);
             }
             if ($this->workspace->availability($agent) !== 'online') {
-                $message = 'Go Online before accepting an unassigned conversation.';
+                $message = __('admin.support.errors.must_be_online');
                 if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
                     return response()->json(['ok' => false, 'error' => $message], 422);
                 }
@@ -321,6 +323,13 @@ class SupportWorkspaceController extends Controller
                 return back()->withInput()->with('error', $e->getMessage());
             }
             $supportConversation->refresh();
+        } elseif ($agent && $this->workspace->availability($agent) !== 'online') {
+            $message = __('admin.support.errors.must_be_online_to_reply');
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'error' => $message], 422);
+            }
+
+            return back()->withInput()->with('error', $message);
         }
 
         $senderId = $agent?->id ?? $supportConversation->assigned_to;
@@ -332,6 +341,11 @@ class SupportWorkspaceController extends Controller
             false,
             true,
         );
+
+        $supportConversation->loadMissing('customer');
+        if ($supportConversation->customer) {
+            $this->notifyMemberSupportReply($supportConversation, trim($data['body']));
+        }
 
         if ($actor) {
             $this->audit->logAdminAction($actor, 'admin.support.conversation.reply', $supportConversation, [
@@ -351,7 +365,44 @@ class SupportWorkspaceController extends Controller
             ]);
         }
 
-        return back()->with('status', 'Reply sent.');
+        return back()->with('status', __('admin.support.status.reply_sent'));
+    }
+
+    private function notifyMemberSupportReply(SupportConversation $conversation, string $body): void
+    {
+        $customer = $conversation->customer;
+        if (! $customer) {
+            return;
+        }
+
+        // Deduplicate: one in-app ping per conversation per minute.
+        $recent = \App\Models\NotificationLog::query()
+            ->where('customer_id', $customer->id)
+            ->where('template', 'support_replied')
+            ->where('created_at', '>=', now()->subMinute())
+            ->where('message', 'like', '%'.$conversation->publicNumber().'%')
+            ->exists();
+        if ($recent) {
+            return;
+        }
+
+        $url = route('site.borrower.support', ['chat' => 1]);
+        app(\App\Services\NotificationService::class)->notifyInApp(
+            $customer,
+            __('borrower.notifications.support_replied_body', ['ref' => $conversation->publicNumber()], 'sw'),
+            'support',
+            'support_replied',
+            __('borrower.notifications.support_replied_title', [], 'sw'),
+            $url,
+            __('borrower.notifications.support_replied_cta', [], 'sw'),
+            [
+                'title_key' => 'borrower.notifications.support_replied_title',
+                'body_key' => 'borrower.notifications.support_replied_body',
+                'cta_key' => 'borrower.notifications.support_replied_cta',
+                'ref' => $conversation->publicNumber(),
+                'support_conversation_id' => $conversation->id,
+            ],
+        );
     }
 
     public function accept(Request $request, SupportConversation $supportConversation): RedirectResponse|\Illuminate\Http\JsonResponse
@@ -549,6 +600,7 @@ class SupportWorkspaceController extends Controller
                     'customer_id' => $c->id,
                     'party' => 'registered',
                     'channel' => request('channel', 'phone'),
+                    'support_action' => request('support_action', 'conversation'),
                 ]),
             ];
         }
@@ -586,6 +638,7 @@ class SupportWorkspaceController extends Controller
                         'partner_id' => $p->id,
                         'party' => 'registered',
                         'channel' => request('channel', 'phone'),
+                        'support_action' => request('support_action', 'conversation'),
                     ]),
                 ];
             }
@@ -612,22 +665,37 @@ class SupportWorkspaceController extends Controller
 
         $data = $request->validate([
             'party' => ['required', 'in:registered,non_member'],
-            'channel' => ['required', 'in:phone,walk_in,other'],
+            'support_action' => ['required', 'in:conversation,interaction,ticket'],
+            'channel' => ['nullable', 'in:phone,walk_in,other,web_chat'],
             'customer_id' => ['nullable', 'exists:customers,id'],
             'partner_id' => ['nullable', 'integer'],
             'guest_first_name' => ['nullable', 'string', 'max:80'],
             'guest_middle_name' => ['nullable', 'string', 'max:80'],
             'guest_last_name' => ['nullable', 'string', 'max:80'],
             'guest_phone' => ['nullable', 'string', 'max:32'],
-            'subject_key' => ['required', 'string', Rule::in(array_keys($subjects))],
+            'subject_key' => ['nullable', 'string', Rule::in(array_keys($subjects))],
             'subject_other' => ['nullable', 'string', 'max:180'],
-            'body' => ['required', 'string', 'max:5000'],
+            'body' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        $action = (string) $data['support_action'];
+        if ($action !== 'conversation') {
+            $request->validate([
+                'subject_key' => ['required', 'string', Rule::in(array_keys($subjects))],
+                'body' => ['required', 'string', 'max:5000'],
+            ]);
+        }
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
         $agent = $this->workspace->actingAgent();
         if (! $agent || ! $this->workspace->isAssignableSupportAgent($agent)) {
             $agent = $actor && $this->workspace->isAssignableSupportAgent($actor) ? $actor : null;
+        }
+
+        if ($action === 'conversation') {
+            if (! $agent || $this->workspace->availability($agent) !== 'online') {
+                return back()->withInput()->with('error', __('admin.support.errors.must_be_online'));
+            }
         }
 
         $customer = null;
@@ -645,7 +713,7 @@ class SupportWorkspaceController extends Controller
                 $guestPhone = \App\Support\PhoneNumber::digits((string) ($partner?->phone ?? $partnerUser?->phone ?? ''));
             }
             if (! $customer && ! $partnerUser && ! $guestName) {
-                return back()->withInput()->with('error', 'Select a Member or Partner before recording the interaction.');
+                return back()->withInput()->with('error', __('admin.support.errors.select_person'));
             }
         } else {
             $request->validate([
@@ -653,9 +721,6 @@ class SupportWorkspaceController extends Controller
                 'guest_last_name' => ['required', 'string', 'max:80'],
                 'guest_phone' => ['required', 'string', 'max:32'],
             ]);
-            if (($data['subject_key'] ?? '') === 'other') {
-                $request->validate(['subject_other' => ['required', 'string', 'max:180']]);
-            }
             $guestName = trim(collect([
                 $data['guest_first_name'] ?? '',
                 $data['guest_middle_name'] ?? '',
@@ -667,24 +732,55 @@ class SupportWorkspaceController extends Controller
                 (string) ($data['guest_first_name'] ?? ''),
                 (string) ($data['guest_last_name'] ?? ''),
                 (string) $data['guest_phone'],
-                match ($data['channel']) {
+                match ($data['channel'] ?? 'phone') {
                     'walk_in' => \App\Services\Support\SupportGuestService::SOURCE_WALK_IN,
                     'other' => \App\Services\Support\SupportGuestService::SOURCE_OTHER,
+                    'web_chat' => \App\Services\Support\SupportGuestService::SOURCE_GUEST_CHAT,
                     default => \App\Services\Support\SupportGuestService::SOURCE_PHONE_CALL,
                 },
             );
         }
 
-        $subject = $subjects[$data['subject_key']] ?? 'Other';
-        if ($data['subject_key'] === 'other' && filled($data['subject_other'] ?? null)) {
+        $subject = $subjects[$data['subject_key'] ?? ''] ?? null;
+        if (($data['subject_key'] ?? '') === 'other' && filled($data['subject_other'] ?? null)) {
             $subject = trim((string) $data['subject_other']);
         }
 
-        $channel = match ($data['channel']) {
+        $channel = match ($data['channel'] ?? 'web_chat') {
             'walk_in' => 'walk_in',
             'other' => 'other',
-            default => 'phone',
+            'phone' => 'phone',
+            default => 'web_chat',
         };
+
+        if ($action === 'ticket') {
+            $ticket = $this->tickets->create([
+                'customer_id' => $customer?->id,
+                'contact_kind' => $customer ? 'customer' : 'guest',
+                'guest_name' => $customer ? null : $guestName,
+                'guest_phone' => $customer ? null : $guestPhone,
+                'source' => 'admin',
+                'channel' => $channel,
+                'category' => 'other',
+                'subject' => $subject ?: 'Support ticket',
+                'description' => trim((string) ($data['body'] ?? '')),
+                'priority' => 'normal',
+                'status' => 'open',
+                'assigned_to' => $agent?->id,
+                'actor' => $actor,
+            ]);
+
+            if ($actor) {
+                $this->audit->logAdminAction($actor, 'admin.support.ticket.create', $ticket, [
+                    'channel' => $channel,
+                    'subject' => $subject,
+                ]);
+            }
+
+            return redirect()
+                ->route('admin.support-tickets.show', $ticket)
+                ->with('status', __('admin.support.status.ticket_created'));
+        }
 
         $conversation = $this->conversations->openConversationFor(
             $customer,
@@ -694,34 +790,44 @@ class SupportWorkspaceController extends Controller
             $channel,
         );
 
-        $conversation->update([
-            'topic' => $subject,
-            'needs_human' => false,
-            'status' => 'active',
-            'assigned_to' => $agent?->id ?: $conversation->assigned_to,
+        $updates = [
+            'topic' => $subject ?: $conversation->topic,
+            'channel' => $channel,
             'last_message_at' => now(),
-        ]);
+        ];
 
-        $this->conversations->appendMessage(
-            $conversation,
-            'staff',
-            trim($data['body']),
-            $agent?->id,
-            false,
-            true,
-        );
+        if ($action === 'conversation') {
+            $updates['needs_human'] = false;
+            $updates['status'] = SupportConversationService::STATUS_ACTIVE;
+            $updates['assigned_to'] = $agent?->id;
+            $updates['accepted_at'] = now();
+            $updates['handling_state'] = \App\Services\Support\SupportAutomationService::STATE_HUMAN;
+        } else {
+            // Record interaction — internal only; never post notes as customer-visible chat.
+            $updates['needs_human'] = false;
+            $updates['status'] = SupportConversationService::STATUS_ACTIVE;
+            $updates['assigned_to'] = $agent?->id ?: $conversation->assigned_to;
+            $updates['resolution_note'] = trim((string) ($data['body'] ?? ''));
+        }
+
+        $conversation->update($updates);
 
         if ($actor) {
-            $this->audit->logAdminAction($actor, 'admin.support.interaction.record', $conversation, [
+            $this->audit->logAdminAction($actor, 'admin.support.'.$action.'.record', $conversation, [
                 'channel' => $channel,
                 'subject' => $subject,
                 'party' => $data['party'],
+                'internal_notes' => $action === 'interaction' ? trim((string) ($data['body'] ?? '')) : null,
             ]);
         }
 
+        $status = $action === 'conversation'
+            ? __('admin.support.status.conversation_opened')
+            : __('admin.support.status.interaction_recorded');
+
         return redirect()
             ->route('admin.support.inbox.show', $conversation)
-            ->with('status', 'Interaction recorded. Create a follow-up case only if ownership is still needed.');
+            ->with('status', $status);
     }
 
     public function createCase(Request $request, SupportConversation $supportConversation): RedirectResponse

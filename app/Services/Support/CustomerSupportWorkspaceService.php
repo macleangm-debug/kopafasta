@@ -209,33 +209,104 @@ class CustomerSupportWorkspaceService
     }
 
     /**
-     * @return list<array{label: string, route: string, active_prefixes: list<string>}>
+     * Actionable unread/activity badges for Inbox filters and Support nav.
+     * Counts new unread customer/guest messages — not total open workload.
+     *
+     * @return array{waiting:int,active:int,mine:int,tickets:int,inbox:int,tickets_nav:int}
+     */
+    public function attentionBadges(?User $agent = null): array
+    {
+        $agent ??= $this->actingAgent();
+        $agentId = $agent?->id;
+
+        $unreadBase = SupportConversation::query()
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->whereHas('messages', fn ($m) => $m->whereNull('read_at')->whereIn('sender_type', ['customer', 'guest']));
+
+        $waiting = (clone $unreadBase)->where(function ($q) {
+            $q->where('status', 'waiting')
+                ->orWhere(function ($inner) {
+                    $inner->where('needs_human', true)->whereNull('assigned_to');
+                });
+        })->count();
+
+        $active = (clone $unreadBase)
+            ->whereNotNull('assigned_to')
+            ->whereIn('status', ['assigned', 'active'])
+            ->count();
+
+        $mine = $agentId
+            ? (clone $unreadBase)->where('assigned_to', $agentId)->count()
+            : 0;
+
+        $ticketsUnread = SupportTicket::query()
+            ->whereNotIn('status', ['resolved', 'closed'])
+            ->where(function ($q) use ($agentId) {
+                $q->whereIn('status', ['open', 'in_progress']);
+                if ($agentId) {
+                    $q->orWhere('assigned_to', $agentId);
+                }
+            })
+            ->where(function ($q) {
+                // Action-required: unassigned open, or assigned needing attention recently.
+                $q->whereNull('assigned_to')
+                    ->orWhere('updated_at', '>=', now()->subDay());
+            })
+            ->count();
+
+        // Cap ticket badge to actionable volume for nav (avoid decorative totals).
+        $ticketsNav = SupportTicket::query()
+            ->whereIn('status', ['open', 'in_progress'])
+            ->where(function ($q) use ($agentId) {
+                $q->whereNull('assigned_to');
+                if ($agentId) {
+                    $q->orWhere('assigned_to', $agentId);
+                }
+            })
+            ->count();
+
+        return [
+            'waiting' => $waiting,
+            'active' => $active,
+            'mine' => $mine,
+            'tickets' => min($ticketsUnread, 99),
+            'inbox' => min($waiting + $mine, 99),
+            'tickets_nav' => min($ticketsNav, 99),
+        ];
+    }
+
+    /**
+     * @return list<array{label: string, route: string, active_prefixes: list<string>, badge?: int}>
      */
     public function navItems(): array
     {
+        $badges = $this->attentionBadges();
+
         return [
             [
-                'label' => 'Home',
+                'label' => __('admin.support.nav.home'),
                 'route' => 'admin.support.home',
                 'active_prefixes' => ['admin.support.home'],
             ],
             [
-                'label' => 'Inbox',
+                'label' => __('admin.support.nav.inbox'),
                 'route' => 'admin.support.inbox',
                 'active_prefixes' => ['admin.support.inbox', 'admin.support-chats.'],
+                'badge' => $badges['inbox'] > 0 ? $badges['inbox'] : null,
             ],
             [
-                'label' => 'Tickets',
+                'label' => __('admin.support.nav.tickets'),
                 'route' => 'admin.support.cases',
                 'active_prefixes' => ['admin.support.cases', 'admin.support-tickets.'],
+                'badge' => $badges['tickets_nav'] > 0 ? $badges['tickets_nav'] : null,
             ],
             [
-                'label' => 'Members',
+                'label' => __('admin.support.nav.members'),
                 'route' => 'admin.support.members',
                 'active_prefixes' => ['admin.support.members', 'admin.customers.'],
             ],
             [
-                'label' => 'Reports',
+                'label' => __('admin.support.nav.reports'),
                 'route' => 'admin.support.performance',
                 'active_prefixes' => ['admin.support.performance', 'admin.support.reports'],
             ],

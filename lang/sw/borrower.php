@@ -4555,6 +4555,8 @@ return [
         'support_resolved_title' => 'Suala lako la msaada limekamilishwa',
         'support_resolved_body' => 'Tafadhali tathmini huduma yetu ya usaidizi.',
         'support_resolved_cta' => 'Angalia na tathmini huduma',
+        'support_replied_title' => 'Ujumbe mpya kutoka Kopafasta Support',
+        'support_replied_body' => 'Una ujumbe mpya wa Usaidizi (:ref).',
         'support_replied_cta' => 'Angalia jibu',
         'support_ticket_created_cta' => 'Angalia tiketi',
         'support_open_cta' => 'Fungua Kituo cha Usaidizi',

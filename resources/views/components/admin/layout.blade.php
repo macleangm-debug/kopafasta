@@ -51,6 +51,7 @@
                 'label' => $item['label'],
                 'targetRoute' => $item['route'],
                 'isActive' => $active,
+                'badge' => $item['badge'] ?? null,
                 'items' => [],
                 'separated' => false,
             ];
@@ -281,12 +282,16 @@
             <div class="flex items-stretch gap-0.5 px-2 lg:px-4 overflow-x-auto">
                 @foreach ($visibleSections as $section)
                     <a href="{{ route($section['targetRoute']) }}"
-                       class="shrink-0 inline-flex items-center px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
+                       class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap rounded-t-lg transition
                               {{ ($section['separated'] ?? false) ? 'ml-auto' : '' }}
                               {{ $section['isActive']
                                    ? 'bg-brand-gold text-brand font-bold'
                                    : 'text-white/85 hover:text-white hover:bg-white/10' }}">
                         {{ $section['label'] }}
+                        @if (! empty($section['badge']))
+                            <span class="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold
+                                         {{ $section['isActive'] ? 'bg-brand text-white' : 'bg-brand-gold text-brand' }}">{{ $section['badge'] }}</span>
+                        @endif
                     </a>
                 @endforeach
             </div>

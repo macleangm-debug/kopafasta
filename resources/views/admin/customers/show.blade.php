@@ -176,6 +176,59 @@
         </div>
     </div>
 
+    {{-- Support context — start conversation / ticket without re-searching --}}
+    @php
+        $supportOpen = \App\Models\SupportConversation::query()
+            ->where('customer_id', $customer->id)
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->latest('id')
+            ->first();
+        $supportTickets = \App\Models\SupportTicket::query()
+            ->where('customer_id', $customer->id)
+            ->whereNotIn('status', ['resolved', 'closed'])
+            ->latest('id')
+            ->limit(3)
+            ->get();
+    @endphp
+    <section class="mb-5 rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-[10px] uppercase tracking-[0.2em] text-brand font-semibold">{{ __('admin.support.member360.title') }}</p>
+                <p class="text-sm text-gray-600 mt-1">{{ $customer->full_name }} · {{ $customer->phone }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('admin.support.interactions.new', ['customer_id' => $customer->id, 'party' => 'registered', 'support_action' => 'conversation']) }}"
+                   class="inline-flex rounded-xl bg-brand text-white text-xs font-semibold px-3.5 py-2 hover:bg-brand-light">
+                    {{ __('admin.support.member360.start_conversation') }}
+                </a>
+                <a href="{{ route('admin.support.interactions.new', ['customer_id' => $customer->id, 'party' => 'registered', 'support_action' => 'ticket']) }}"
+                   class="inline-flex rounded-xl ring-1 ring-brand/25 text-brand text-xs font-semibold px-3.5 py-2 hover:bg-brand-muted/40">
+                    {{ __('admin.support.member360.create_ticket') }}
+                </a>
+            </div>
+        </div>
+        <div class="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
+            <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200/80 px-3 py-2.5">
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ __('admin.support.member360.open_conversation') }}</p>
+                @if ($supportOpen)
+                    <a href="{{ route('admin.support.inbox.show', $supportOpen) }}" class="mt-1 block font-semibold text-brand hover:underline">{{ $supportOpen->publicNumber() }}</a>
+                    <p class="text-xs text-slate-500">{{ $supportOpen->topic ?: '—' }}</p>
+                @else
+                    <p class="mt-1 text-xs text-slate-500">{{ __('admin.support.member360.none') }}</p>
+                @endif
+            </div>
+            <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200/80 px-3 py-2.5">
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ __('admin.support.member360.open_tickets') }}</p>
+                @forelse ($supportTickets as $t)
+                    <a href="{{ route('admin.support-tickets.show', $t) }}" class="mt-1 block font-semibold text-brand hover:underline">{{ $t->publicNumber() }}</a>
+                    <p class="text-xs text-slate-500 truncate">{{ $t->subject }}</p>
+                @empty
+                    <p class="mt-1 text-xs text-slate-500">{{ __('admin.support.member360.none') }}</p>
+                @endforelse
+            </div>
+        </div>
+    </section>
+
     {{-- Tabbed member file --}}
     <section id="member-file" class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm overflow-hidden scroll-mt-24">
         <div class="px-5 pt-5 pb-3 border-b border-gray-100 bg-gradient-to-r from-brand-muted/50 to-white">

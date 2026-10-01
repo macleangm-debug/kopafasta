@@ -3,35 +3,38 @@
         ? 'registered'
         : (request()->filled('guest_phone') || request('party') === 'non_member' ? 'non_member' : request('party', 'registered')));
     $channel = old('channel', $channel ?? 'phone');
+    $action = old('support_action', request('support_action', 'conversation'));
     $subjects = [
-        'how_to_join' => 'How to join / registration',
-        'loan_application' => 'Loan application inquiry',
-        'existing_loan' => 'Existing loan',
-        'payment' => 'Payment',
-        'guarantor' => 'Guarantor',
-        'marketplace' => 'Marketplace / asset',
-        'account_profile' => 'Account / profile',
-        'technical' => 'Technical problem',
-        'complaint' => 'Complaint',
-        'partner_inquiry' => 'Partner inquiry',
-        'other' => 'Other',
+        'how_to_join' => __('admin.support.subjects.how_to_join'),
+        'loan_application' => __('admin.support.subjects.loan_application'),
+        'existing_loan' => __('admin.support.subjects.existing_loan'),
+        'payment' => __('admin.support.subjects.payment'),
+        'guarantor' => __('admin.support.subjects.guarantor'),
+        'marketplace' => __('admin.support.subjects.marketplace'),
+        'account_profile' => __('admin.support.subjects.account_profile'),
+        'technical' => __('admin.support.subjects.technical'),
+        'complaint' => __('admin.support.subjects.complaint'),
+        'partner_inquiry' => __('admin.support.subjects.partner_inquiry'),
+        'other' => __('admin.support.subjects.other'),
     ];
     $subjectKey = old('subject_key', '');
+    $preselected = (bool) ($customer || ! empty($partner));
 @endphp
-<x-admin.layout title="New interaction" heading="" subheading="">
+<x-admin.layout :title="__('admin.support.new_support')" heading="" subheading="">
     <div class="mb-4">
-        <a href="{{ route('admin.support.inbox') }}" class="text-sm font-semibold text-brand hover:underline">← Inbox</a>
+        <a href="{{ route('admin.support.inbox') }}" class="text-sm font-semibold text-brand hover:underline">← {{ __('admin.support.inbox.title') }}</a>
     </div>
 
     <x-admin.letterhead
-        kicker="Customer Support"
-        title="+ New interaction"
-        subtitle="Record a phone, walk-in, or other contact — same customer context as chat." />
+        :kicker="__('admin.support.kicker')"
+        :title="__('admin.support.new_support')"
+        :subtitle="__('admin.support.new_support_subtitle')" />
 
     <div class="mt-6 grid lg:grid-cols-5 gap-6"
          x-data="{
             party: @js($party),
             channel: @js($channel),
+            action: @js($action),
             subjectKey: @js($subjectKey),
             q: '',
             results: [],
@@ -50,14 +53,14 @@
         <div class="lg:col-span-3 space-y-4">
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 space-y-5">
                 <div>
-                    <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500 mb-2">1. Who contacted us?</p>
+                    <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500 mb-2">{{ __('admin.support.who_helping') }}</p>
                     <div class="flex flex-wrap gap-2">
                         <button type="button" @click="party = 'registered'"
                                 :class="party === 'registered' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'"
-                                class="text-xs font-semibold px-3 py-1.5 rounded-full">Member / Partner</button>
+                                class="text-xs font-semibold px-3 py-1.5 rounded-full">{{ __('admin.support.party_registered') }}</button>
                         <button type="button" @click="party = 'non_member'"
                                 :class="party === 'non_member' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'"
-                                class="text-xs font-semibold px-3 py-1.5 rounded-full">Non-member</button>
+                                class="text-xs font-semibold px-3 py-1.5 rounded-full">{{ __('admin.support.party_guest') }}</button>
                     </div>
                 </div>
 
@@ -65,42 +68,80 @@
                     @csrf
                     <input type="hidden" name="party" :value="party">
 
-                    <div x-show="party === 'registered'" x-cloak class="space-y-3">
+                    <div x-show="party === 'registered'" x-cloak class="space-y-3 rounded-xl bg-slate-50 ring-1 ring-slate-200/80 p-4">
+                        <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">{{ __('admin.support.search_card') }}</p>
                         @if ($customer)
                             <input type="hidden" name="customer_id" value="{{ $customer->id }}">
-                            <p class="text-sm font-semibold text-gray-900">{{ trim($customer->first_name.' '.$customer->last_name) }}</p>
-                            <p class="text-xs text-gray-500">{{ $customer->phone }} · {{ $customer->customer_number }}</p>
-                            <a href="{{ route('admin.support.interactions.new', ['party' => 'registered']) }}" class="text-xs font-semibold text-brand hover:underline">Change person</a>
+                            <div class="rounded-xl bg-white ring-1 ring-brand/15 px-4 py-3">
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ __('admin.support.customer_details') }}</p>
+                                <p class="text-sm font-semibold text-gray-900 mt-1">{{ trim($customer->first_name.' '.$customer->last_name) }}</p>
+                                <p class="text-xs text-gray-500">{{ $customer->phone }} · {{ $customer->customer_number }}</p>
+                            </div>
+                            @unless ($preselected)
+                                <a href="{{ route('admin.support.interactions.new', ['party' => 'registered']) }}" class="text-xs font-semibold text-brand hover:underline">{{ __('admin.support.change_person') }}</a>
+                            @endunless
                         @elseif (! empty($partner))
                             <input type="hidden" name="partner_id" value="{{ $partner->id }}">
-                            <p class="text-sm font-semibold text-gray-900">{{ $partner->name }}</p>
-                            <p class="text-xs text-gray-500">{{ $partner->phone ?? '—' }} · Partner</p>
-                            <a href="{{ route('admin.support.interactions.new', ['party' => 'registered']) }}" class="text-xs font-semibold text-brand hover:underline">Change person</a>
-                        @else
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-700 mb-1">Search Member / Partner</label>
-                                <input type="search" x-model="q" @input.debounce.300ms="search()"
-                                       placeholder="Phone · Member/Partner # · Name · Application #"
-                                       class="w-full rounded-xl border-gray-200 text-sm">
-                                <ul class="mt-2 space-y-1" x-show="results.length" x-cloak>
-                                    <template x-for="row in results" :key="row.id + '-' + row.kind">
-                                        <li>
-                                            <a :href="row.url" class="block rounded-lg px-3 py-2 text-sm hover:bg-brand-muted/40">
-                                                <span class="font-semibold" x-text="row.label"></span>
-                                                <span class="text-xs text-slate-500" x-text="' · ' + (row.kind_label || '')"></span>
-                                            </a>
-                                        </li>
-                                    </template>
-                                </ul>
-                                <p class="text-xs text-gray-500 mt-2" x-show="searching">Searching…</p>
+                            <div class="rounded-xl bg-white ring-1 ring-brand/15 px-4 py-3">
+                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ __('admin.support.customer_details') }}</p>
+                                <p class="text-sm font-semibold text-gray-900 mt-1">{{ $partner->name }}</p>
+                                <p class="text-xs text-gray-500">{{ $partner->phone ?? '—' }} · {{ __('admin.support.partner') }}</p>
                             </div>
+                        @else
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">{{ __('admin.support.search_label') }}</label>
+                            <input type="search" x-model="q" @input.debounce.300ms="search()"
+                                   placeholder="{{ __('admin.support.search_placeholder') }}"
+                                   class="w-full rounded-xl border-gray-200 text-sm">
+                            <ul class="mt-2 space-y-1" x-show="results.length" x-cloak>
+                                <template x-for="row in results" :key="row.id + '-' + row.kind">
+                                    <li>
+                                        <a :href="row.url" class="block rounded-lg px-3 py-2 text-sm hover:bg-brand-muted/40">
+                                            <span class="font-semibold" x-text="row.label"></span>
+                                            <span class="text-xs text-slate-500" x-text="' · ' + (row.kind_label || '')"></span>
+                                        </a>
+                                    </li>
+                                </template>
+                            </ul>
+                            <p class="text-xs text-gray-500 mt-2" x-show="searching">{{ __('admin.support.searching') }}</p>
                         @endif
                     </div>
 
+                    <div x-show="party === 'non_member'" x-cloak class="space-y-3 rounded-xl bg-slate-50 ring-1 ring-slate-200/80 p-4">
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <label class="block text-xs font-semibold text-gray-700">{{ __('admin.support.guest_first_name') }}
+                                <input type="text" name="guest_first_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_first_name', request('guest_first_name')) }}" :required="party === 'non_member'">
+                            </label>
+                            <label class="block text-xs font-semibold text-gray-700">{{ __('admin.support.guest_last_name') }}
+                                <input type="text" name="guest_last_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_last_name', request('guest_last_name')) }}" :required="party === 'non_member'">
+                            </label>
+                        </div>
+                        <x-admin.phone-input name="guest_phone" :label="__('admin.support.guest_phone')" :value="old('guest_phone', request('guest_phone'))" :required="false" />
+                    </div>
+
                     <div>
-                        <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500 mb-2">Channel</p>
+                        <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500 mb-2">{{ __('admin.support.choose_action') }}</p>
                         <div class="flex flex-wrap gap-2">
-                            @foreach (['phone' => 'Phone call', 'walk_in' => 'Walk-in', 'other' => 'Other'] as $key => $label)
+                            @foreach ([
+                                'conversation' => __('admin.support.action_conversation'),
+                                'interaction' => __('admin.support.action_interaction'),
+                                'ticket' => __('admin.support.action_ticket'),
+                            ] as $key => $label)
+                                <label class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer"
+                                       :class="action === '{{ $key }}' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'">
+                                    <input type="radio" name="support_action" value="{{ $key }}" class="sr-only" x-model="action" @checked($action === $key)>
+                                    {{ $label }}
+                                </label>
+                            @endforeach
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2" x-show="action === 'conversation'" x-cloak>{{ __('admin.support.hint_conversation') }}</p>
+                        <p class="text-xs text-slate-500 mt-2" x-show="action === 'interaction'" x-cloak>{{ __('admin.support.hint_interaction') }}</p>
+                        <p class="text-xs text-slate-500 mt-2" x-show="action === 'ticket'" x-cloak>{{ __('admin.support.hint_ticket') }}</p>
+                    </div>
+
+                    <div x-show="action === 'interaction'" x-cloak>
+                        <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500 mb-2">{{ __('admin.support.channel') }}</p>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (['phone' => __('admin.support.channel_phone'), 'walk_in' => __('admin.support.channel_walk_in'), 'other' => __('admin.support.channel_other')] as $key => $label)
                                 <label class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer"
                                        :class="channel === '{{ $key }}' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'">
                                     <input type="radio" name="channel" value="{{ $key }}" class="sr-only" x-model="channel" @checked($channel === $key)>
@@ -109,85 +150,43 @@
                             @endforeach
                         </div>
                     </div>
+                    <template x-if="action !== 'interaction'">
+                        <input type="hidden" name="channel" value="web_chat">
+                    </template>
 
-                    <div x-show="party === 'non_member'" x-cloak class="space-y-3 rounded-xl bg-slate-50 ring-1 ring-slate-200/80 p-4">
-                        <div class="grid sm:grid-cols-3 gap-3">
-                            <label class="block text-xs font-semibold text-gray-700">First name
-                                <input type="text" name="guest_first_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_first_name', request('guest_first_name')) }}" :required="party === 'non_member'">
-                            </label>
-                            <label class="block text-xs font-semibold text-gray-700">Middle name <span class="font-normal text-gray-400">(optional)</span>
-                                <input type="text" name="guest_middle_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_middle_name') }}">
-                            </label>
-                            <label class="block text-xs font-semibold text-gray-700">Last name
-                                <input type="text" name="guest_last_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_last_name', request('guest_last_name')) }}" :required="party === 'non_member'">
-                            </label>
-                        </div>
-                        <div>
-                            <x-admin.phone-input name="guest_phone" label="Phone" :value="old('guest_phone', request('guest_phone'))" />
-                        </div>
+                    <div x-show="action !== 'conversation'" x-cloak class="space-y-3">
+                        <label class="block text-xs font-semibold text-gray-700">{{ __('admin.support.subject') }}
+                            <select name="subject_key" x-model="subjectKey" class="mt-1 w-full rounded-xl border-gray-200 text-sm"
+                                    :required="action !== 'conversation'">
+                                <option value="">{{ __('admin.support.subject_select') }}</option>
+                                @foreach ($subjects as $key => $label)
+                                    <option value="{{ $key }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="block text-xs font-semibold text-gray-700" x-show="subjectKey === 'other'" x-cloak>{{ __('admin.support.subject_other') }}
+                            <input type="text" name="subject_other" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('subject_other') }}">
+                        </label>
+                        <label class="block text-xs font-semibold text-gray-700">
+                            <span x-text="action === 'ticket' ? @js(__('admin.support.ticket_description')) : @js(__('admin.support.internal_notes'))"></span>
+                            <textarea name="body" rows="4" class="mt-1 w-full rounded-xl border-gray-200 text-sm" :required="action !== 'conversation'"
+                                      placeholder="{{ __('admin.support.internal_notes_placeholder') }}">{{ old('body') }}</textarea>
+                        </label>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Subject</label>
-                        <select name="subject_key" x-model="subjectKey" class="w-full rounded-xl border-gray-200 text-sm" required>
-                            <option value="">Select subject…</option>
-                            @foreach ($subjects as $key => $label)
-                                <option value="{{ $key }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <div class="mt-2" x-show="subjectKey === 'other'" x-cloak>
-                            <input type="text" name="subject_other" maxlength="180" placeholder="Short subject"
-                                   class="w-full rounded-xl border-gray-200 text-sm" value="{{ old('subject_other') }}">
-                        </div>
-                    </div>
-
-                    <label class="block text-xs font-semibold text-gray-700">Interaction note
-                        <textarea name="body" rows="5" required maxlength="5000" class="mt-1 w-full rounded-xl border-gray-200 text-sm" placeholder="What did they ask? What did you advise?">{{ old('body') }}</textarea>
-                    </label>
-
-                    <p class="text-xs text-slate-500">Default is <span class="font-semibold text-slate-700">record interaction only</span>. Create a follow-up case later only if investigation or another department is needed.</p>
-
-                    <div class="flex flex-wrap gap-2 pt-1">
-                        <button class="rounded-xl bg-brand-gold text-brand text-sm font-semibold px-4 py-2.5">Record interaction</button>
-                        <a href="{{ route('admin.support.inbox') }}" class="rounded-xl ring-1 ring-gray-200 text-sm font-semibold px-4 py-2.5 text-gray-700">Cancel</a>
-                    </div>
+                    <button type="submit" class="w-full sm:w-auto rounded-xl bg-brand text-white text-sm font-semibold px-5 py-2.5">
+                        <span x-show="action === 'conversation'">{{ __('admin.support.submit_conversation') }}</span>
+                        <span x-show="action === 'interaction'" x-cloak>{{ __('admin.support.submit_interaction') }}</span>
+                        <span x-show="action === 'ticket'" x-cloak>{{ __('admin.support.submit_ticket') }}</span>
+                    </button>
                 </form>
             </div>
         </div>
-
-        <aside class="lg:col-span-2 space-y-4">
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 text-sm space-y-3">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Customer details</p>
-                @if ($context)
-                    <p class="font-bold text-gray-900">{{ $context['name'] }}</p>
-                    <p class="text-xs text-gray-500">{{ $context['phone'] ?: '—' }} · {{ $context['member_number'] ?? 'Guest' }}</p>
-                    @if (! empty($context['member_url']))
-                        <a href="{{ $context['member_url'] }}" class="text-xs font-semibold text-brand hover:underline">Open Member 360 →</a>
-                    @endif
-                    @if (! empty($context['application']))
-                        <div class="pt-2 border-t border-gray-100 text-xs">
-                            <p class="font-semibold">Application {{ $context['application']['number'] }}</p>
-                            <p class="text-gray-500">{{ $context['application']['stage'] }}</p>
-                        </div>
-                    @endif
-                    @if (! empty($context['loan']))
-                        <div class="pt-2 border-t border-gray-100 text-xs">
-                            <p class="font-semibold">Loan {{ $context['loan']['number'] }}</p>
-                            <p class="text-gray-500">TZS {{ number_format((float) ($context['loan']['outstanding'] ?? 0)) }} outstanding</p>
-                        </div>
-                    @endif
-                    <div class="pt-2 border-t border-gray-100 text-xs">
-                        <p class="font-semibold">Open cases ({{ count($context['open_cases'] ?? []) }})</p>
-                        @forelse ($context['open_cases'] ?? [] as $case)
-                            <a href="{{ $case['url'] }}" class="block text-brand hover:underline">{{ $case['number'] }}</a>
-                        @empty
-                            <p class="text-gray-400">None</p>
-                        @endforelse
-                    </div>
-                @else
-                    <p class="text-xs text-gray-500">Select a Member/Partner to load their journey, or capture a Non-member below.</p>
-                @endif
+        <div class="lg:col-span-2 space-y-4">
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 text-sm text-slate-600 space-y-2">
+                <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-brand">{{ __('admin.support.tips_title') }}</p>
+                <p>{{ __('admin.support.tips_body') }}</p>
             </div>
-        </aside>
+        </div>
     </div>
 </x-admin.layout>

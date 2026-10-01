@@ -1,10 +1,11 @@
 @php
+    $attentionBadges = $attentionBadges ?? ['waiting' => 0, 'active' => 0, 'mine' => 0, 'tickets' => 0];
     $filters = [
-        'waiting' => 'Waiting',
-        'active' => 'Active',
-        'mine' => 'Mine',
-        'tickets' => 'Tickets',
-        'resolved' => 'Resolved',
+        'waiting' => __('admin.support.inbox.filter_waiting'),
+        'active' => __('admin.support.inbox.filter_active'),
+        'mine' => __('admin.support.inbox.filter_mine'),
+        'tickets' => __('admin.support.inbox.filter_tickets'),
+        'resolved' => __('admin.support.inbox.filter_resolved'),
     ];
     $locale = str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw';
     $quickReplyBodies = $quickReplyBodies ?? [];
@@ -19,6 +20,14 @@
     $seedMessages = [];
     if ($conversation) {
         foreach ($conversation->messages as $message) {
+            if ($message->is_automated) {
+                $body = (string) $message->body;
+                if (str_contains($body, 'Mtoa huduma wako hayupo')
+                    || str_contains($body, 'Your support agent is offline')
+                    || str_contains($body, 'Your Support agent is offline')) {
+                    continue;
+                }
+            }
             $seedMessages[] = [
                 'id' => (int) $message->id,
                 'role' => in_array($message->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
@@ -33,16 +42,16 @@
         $longestLabel = sprintf('%02d:%02d:%02d', intdiv($longest, 3600), intdiv($longest, 60) % 60, $longest % 60);
     }
 @endphp
-<x-admin.layout title="Inbox" heading="" subheading="">
+<x-admin.layout :title="__('admin.support.inbox.title')" heading="" subheading="">
     <x-admin.letterhead
-        kicker="Customer Support"
-        title="Support Inbox"
-        subtitle="Waiting queue · active chats · tickets — one operational desk"
+        :kicker="__('admin.support.kicker')"
+        :title="__('admin.support.inbox.title')"
+        :subtitle="__('admin.support.inbox.subtitle')"
     >
         <x-slot:actions>
             <a href="{{ route('admin.support.interactions.new') }}"
                class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-semibold px-4 py-2.5 hover:brightness-95">
-                + New interaction
+                {{ __('admin.support.new_support') }}
             </a>
         </x-slot:actions>
     </x-admin.letterhead>
@@ -105,9 +114,13 @@
                 </form>
                 <div class="flex flex-wrap gap-1 px-3 pb-3">
                     @foreach ($filters as $key => $label)
+                        @php $badge = (int) ($attentionBadges[$key] ?? 0); @endphp
                         <a href="{{ route('admin.support.inbox', ['filter' => $key, 'q' => $q]) }}"
-                           class="text-xs font-semibold px-2.5 py-1 rounded-full {{ $filter === $key ? 'bg-brand text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-brand-muted' }}">
+                           class="text-xs font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 {{ $filter === $key ? 'bg-brand text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-brand-muted' }}">
                             {{ $label }}
+                            @if ($badge > 0 && $key !== 'resolved')
+                                <span class="inline-flex min-w-[1.1rem] h-4 items-center justify-center rounded-full px-1 text-[10px] font-bold {{ $filter === $key ? 'bg-white text-brand' : 'bg-brand text-white' }}">{{ $badge }}</span>
+                            @endif
                         </a>
                     @endforeach
                 </div>
