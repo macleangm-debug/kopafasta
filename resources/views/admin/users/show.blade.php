@@ -92,9 +92,12 @@
         <p class="text-xs text-gray-500 mt-1">Set a temporary password or issue a secure setup link. Current password is never shown.</p>
     </div>
     @if (session('temporary_password'))
-        <p class="text-sm text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200 rounded-lg px-3 py-2">
-            Temporary password (show once): <span class="font-mono font-bold">{{ session('temporary_password') }}</span>
-        </p>
+        <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-4 space-y-2" data-testid="temporary-password">
+            <p class="text-xs font-semibold text-emerald-900">Temporary password (shown once — copy now)</p>
+            <input type="text" readonly value="{{ session('temporary_password') }}"
+                   class="w-full rounded-lg border-emerald-200 text-sm font-mono bg-white"
+                   onclick="this.select()" id="temporary-password-field">
+        </div>
     @endif
     @if (session('password_setup_url'))
         <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-2" data-testid="password-setup-url">
@@ -116,9 +119,9 @@
               })">
             @csrf
             <div class="relative">
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Optional temporary password</label>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Temporary password</label>
                 <input :type="show ? 'text' : 'password'" name="password" autocomplete="new-password"
-                       class="w-full rounded-lg border-gray-200 text-sm pr-16" placeholder="Leave blank to auto-generate">
+                       class="w-full rounded-lg border-gray-200 text-sm pr-16" placeholder="Enter one or leave blank to generate securely">
                 <button type="button" @click="show = !show" class="absolute right-2 bottom-2 text-xs font-semibold text-brand">Show</button>
             </div>
             <div class="relative" x-data="{ show2: false }">
@@ -128,7 +131,7 @@
                 <button type="button" @click="show2 = !show2" class="absolute right-2 bottom-2 text-xs font-semibold text-brand">Show</button>
             </div>
             <button type="submit" data-loading-label="Setting…"
-                    class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:brightness-95">
+                    class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:brightness-95 kf-press">
                 Set password
             </button>
         </form>
@@ -176,7 +179,8 @@
         return intdiv($m, 60).'h '.($m % 60).'m';
     };
 @endphp
-<div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+<x-site.defer-section skeleton="cards" class="mt-6" :lines="5">
+<div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <div class="flex items-start justify-between gap-3 mb-4">
         <div>
             <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Support performance</p>
@@ -212,6 +216,7 @@
         </div>
     @endif
 </div>
+</x-site.defer-section>
 @else
 <div class="mt-6 bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Performance</p>

@@ -42,9 +42,11 @@
             <form method="POST" action="{{ route('staff.login') }}" class="space-y-4 form-scroll-lock">
                 @csrf
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Email</label>
-                    <input type="email" name="email" value="{{ old('email') }}" required autofocus
-                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-base px-3.5 py-2.5 bg-white">
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Email or phone</label>
+                    <input type="text" name="login" value="{{ old('login', old('email')) }}" required autofocus autocomplete="username"
+                           class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-base px-3.5 py-2.5 bg-white"
+                           placeholder="staff@example.com or +255…">
+                    <p class="mt-1 text-[11px] text-gray-500">Use email when set. Phone works when the account has no email.</p>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Password</label>

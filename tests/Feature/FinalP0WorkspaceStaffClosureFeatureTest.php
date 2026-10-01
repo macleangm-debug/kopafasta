@@ -283,4 +283,111 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
         $this->assertSame('category', $payload['phase'] ?? null);
         $this->assertNotEmpty($payload['choices'] ?? []);
     }
+
+    public function test_manager_workspace_management_page_does_not_crash(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'manager'])
+            ->assertRedirect(route('admin.teams.management'));
+
+        $this->get(route('admin.teams.management'))
+            ->assertOk()
+            ->assertSee('Post-approval', false)
+            ->assertSee('data-kf-glass-hero', false);
+
+        $this->assertSame('manager', app(AdminRoleViewService::class)->active()['role_key'] ?? null);
+
+        // Refresh preserves viewing context and still renders.
+        $this->get(route('admin.teams.management'))->assertOk();
+        $this->assertSame('manager', app(AdminRoleViewService::class)->active()['role_key'] ?? null);
+    }
+
+    public function test_user_edit_exposes_focused_wizard_steps_not_one_long_form(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+        $staff = User::factory()->create([
+            'role' => 'officer',
+            'roles' => ['officer'],
+            'is_active' => true,
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.users.edit', $staff))
+            ->assertOk()
+            ->assertSee('admin-wizard', false)
+            ->assertSee('data-step-label="Personal"', false)
+            ->assertSee('data-step-label="Capabilities"', false)
+            ->assertSee('data-step-label="Work / Team"', false)
+            ->assertSee('data-step-label="Security"', false)
+            ->getContent();
+
+        $this->assertStringContainsString('Switch any section', $html);
+        $this->assertStringContainsString('admin-wizard-rebuild', $html);
+    }
+
+    public function test_manual_and_auto_password_authenticate_on_staff_login(): void
+    {
+        config(['auth_portal.require_2fa_staff' => false, 'auth_portal.require_2fa_admin' => false]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+        $staff = User::factory()->create([
+            'role' => 'officer',
+            'roles' => ['officer'],
+            'email' => 'officer.auth@example.com',
+            'password' => 'old-secret-99',
+            'is_active' => true,
+        ]);
+
+        $manual = app(UserAccountService::class)->resetPassword($admin, $staff, 'ManualPass99');
+        $this->assertSame('ManualPass99', $manual['temporary_password']);
+
+        $this->post(route('staff.login'), [
+            'login' => 'officer.auth@example.com',
+            'password' => 'ManualPass99',
+        ])->assertRedirect(route('admin.teams.screening'));
+
+        Auth::guard('admin')->logout();
+
+        $auto = app(UserAccountService::class)->resetPassword($admin, $staff->fresh(), null);
+        $this->assertNotSame('', $auto['temporary_password']);
+
+        $this->post(route('staff.login'), [
+            'email' => 'officer.auth@example.com',
+            'password' => $auto['temporary_password'],
+        ])->assertRedirect(route('admin.teams.screening'));
+    }
+
+    public function test_setup_link_password_authenticates_and_phone_login_without_email(): void
+    {
+        config(['auth_portal.require_2fa_staff' => false, 'auth_portal.require_2fa_admin' => false]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+        $staff = User::factory()->create([
+            'role' => 'collector',
+            'roles' => ['collector'],
+            'email' => null,
+            'phone' => '255711000777',
+            'password' => 'old-secret-99',
+            'is_active' => true,
+        ]);
+
+        $issued = app(UserAccountService::class)->issuePasswordSetupLink($admin, $staff);
+        $query = [];
+        parse_str(parse_url($issued['url'], PHP_URL_QUERY) ?: '', $query);
+
+        $this->post(route('staff.password-setup.store'), [
+            'token' => $query['token'],
+            'uid' => $staff->id,
+            'email' => $query['email'],
+            'password' => 'SetupChosen99',
+            'password_confirmation' => 'SetupChosen99',
+        ])->assertRedirect(route('staff.login'));
+
+        $this->post(route('staff.login'), [
+            'login' => '255711000777',
+            'password' => 'SetupChosen99',
+        ])->assertRedirect(route('staff.dashboard'));
+    }
 }

@@ -275,7 +275,7 @@ class PostApprovalNextActionService
             'waiting_on' => $next['waiting_on'] ?? null,
             'blocking_reason' => $next['blocking_reason'] ?? null,
             'next_action' => $next['next_action'] ?? ($disbursement['ready'] ? 'Review disbursement' : 'Continue Post-Approval'),
-            'destination' => $next['destination'] ?? $href,
+            'destination' => $next['destination'] ?? $deskHref,
             'contract_ready' => $contract['ready'],
             'contract_readiness' => $contract,
             'disbursement_ready' => $disbursement['ready'],

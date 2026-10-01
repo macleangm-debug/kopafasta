@@ -5,8 +5,20 @@
         $primaryPhone = $primaryPhone ?? ($phones[0] ?? null);
     @endphp
 
-    <section class="relative overflow-hidden kf-hero-enter">
+    <section class="relative overflow-hidden kf-hero-enter kf-glass-hero"
+             data-kf-glass-hero
+             x-data
+             x-init="
+                const key = 'kf-glass-glare:' + window.location.pathname;
+                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                try {
+                    if (sessionStorage.getItem(key) === '1') return;
+                    sessionStorage.setItem(key, '1');
+                    $el.classList.add('kf-glass-hero--glare');
+                } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+             ">
         <div class="absolute inset-0 bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27]"></div>
+        <div class="kf-glass-hero__surface absolute inset-0 pointer-events-none" aria-hidden="true"></div>
         <div class="absolute inset-0 opacity-[0.16] pointer-events-none" style="background-image:url(&quot;data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.55' stroke-width='2'/%3E%3C/svg%3E&quot;); background-size:72px 48px;"></div>
         <div class="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-gold/15 pointer-events-none"></div>
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">

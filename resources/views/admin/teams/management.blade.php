@@ -16,15 +16,11 @@
 <x-admin.layout title="Credit management" heading="" subheading="">
 
     <section class="mb-6">
-        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
-            <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-7 text-white">
-                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Credit desk</p>
-                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Post-approval</h1>
-                <p class="text-sm text-white/75 mt-2 max-w-2xl">
-                    After Committee approval, complete offer, fees, conditions, contract, then disbursement. Do not re-screen the file.
-                </p>
-            </div>
-            <div class="bg-white px-4 sm:px-6 py-4 flex flex-wrap gap-2">
+        <x-site.premium-hero
+            eyebrow="Credit desk"
+            title="Post-approval"
+            subtitle="After Committee approval, complete offer, fees, conditions, contract, then disbursement. Do not re-screen the file.">
+            <div class="mt-4 flex flex-wrap gap-2">
                 @foreach ([
                     'do_now' => 'Do now · '.count($queue['do_now']),
                     'waiting' => 'Waiting · '.count($queue['waiting']),
@@ -34,12 +30,12 @@
                     <a href="{{ route('admin.teams.management', ['bucket' => $key]) }}"
                        @class([
                            'inline-flex rounded-xl px-4 py-2 text-sm font-bold ring-1',
-                           'bg-brand text-white ring-brand' => $tab === $key,
-                           'bg-white text-slate-800 ring-slate-200' => $tab !== $key,
+                           'bg-brand-gold text-brand ring-brand-gold' => $tab === $key,
+                           'bg-white/10 text-white ring-white/25 hover:bg-white/15' => $tab !== $key,
                        ])>{{ $label }}</a>
                 @endforeach
             </div>
-        </div>
+        </x-site.premium-hero>
     </section>
 
     <div class="hidden lg:grid lg:grid-cols-12 gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">

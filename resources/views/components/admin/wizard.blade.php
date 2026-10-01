@@ -45,7 +45,7 @@
                 <h2 class="text-lg sm:text-xl font-bold tracking-tight mt-1 truncate" data-wizard-current-title>Details</h2>
             </div>
             <div class="text-right shrink-0">
-                <p class="text-[11px] text-white/70">Complete each section to continue</p>
+                <p class="text-[11px] text-white/70">Switch any section — no forced order</p>
                 <div class="mt-2 h-1.5 w-36 sm:w-48 rounded-full bg-white/15 overflow-hidden">
                     <div data-wizard-progress-bar class="h-full rounded-full bg-brand-gold transition-all duration-300" style="width: 0%"></div>
                 </div>
@@ -130,6 +130,9 @@
             }
 
             function visibleSteps(root) {
+                // Count all wizard steps, including those CSS-hidden before data-ready.
+                // Filtering by computed display collapsed multi-step edit forms into
+                // one long vertical page (Owner UAT regression).
                 return Array.from(root.querySelectorAll('[data-step]')).filter(function (el) {
                     if (el.closest('template')) {
                         return false;
@@ -138,7 +141,7 @@
                     if (gate && ! isShown(gate)) {
                         return false;
                     }
-                    return isShown(el);
+                    return true;
                 });
             }
 
@@ -244,10 +247,9 @@
                         label +
                         '</span>';
                     btn.addEventListener('click', function () {
-                        if (index <= step) {
-                            step = index;
-                            render();
-                        }
+                        // Sections are directly switchable — not a forced linear journey.
+                        step = index;
+                        render();
                     });
                     wrap.appendChild(btn);
                     navButtons.push({ btn: btn, label: label, index: index });

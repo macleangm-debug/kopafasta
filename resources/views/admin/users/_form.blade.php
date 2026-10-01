@@ -81,18 +81,18 @@
         },
     }"
 >
-    <x-admin.step title="Person">
+    <x-admin.step title="Personal">
         <x-admin.input name="name" label="Full name" :value="$r?->name" required autocomplete="name" />
         <x-admin.input name="email" label="Email (optional)" :value="$emailValue" type="email" autocomplete="off" />
         <div class="md:col-span-2">
             <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" />
         </div>
         <p class="md:col-span-2 text-xs text-gray-500">
-            Staff console sign-in uses email + password when email is set. Never invent placeholder emails — leave blank if none.
+            Staff sign-in uses email + password when email is set, or phone + password when email is blank. Never invent placeholder emails.
         </p>
     </x-admin.step>
 
-    <x-admin.step title="Desk">
+    <x-admin.step title="Capabilities">
         <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Capabilities <span class="text-red-500">*</span></label>
             <p class="text-xs text-gray-500 mb-2">Select one or more. Home desk follows the primary credit/ops capability; Customer Support adds ticket access without approval authority.</p>
@@ -131,7 +131,9 @@
                 </p>
             @endif
         </div>
+    </x-admin.step>
 
+    <x-admin.step title="Work / Team">
         <div class="md:col-span-2" x-show="extraTeams.length > 0">
             <label class="block text-sm font-medium text-gray-700 mb-1">Also on these teams <span class="text-gray-400 font-normal">(optional)</span></label>
             <p class="text-xs text-gray-500 mb-2">The home desk above is assigned from the primary capability. Extra teams only add nav — they cannot mix Screening and Committee.</p>
@@ -149,9 +151,12 @@
                 </template>
             </div>
         </div>
+        <div class="md:col-span-2" x-show="extraTeams.length === 0">
+            <p class="text-sm text-gray-600">Home desk is assigned automatically from the selected capabilities. No extra teams available for this primary role.</p>
+        </div>
     </x-admin.step>
 
-    <x-admin.step title="Access">
+    <x-admin.step title="Security">
         <div class="md:col-span-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 space-y-4">
             <input type="text" name="fake_username" autocomplete="username" class="hidden" tabindex="-1" aria-hidden="true">
             <input type="password" name="fake_password" autocomplete="current-password" class="hidden" tabindex="-1" aria-hidden="true">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Staff;
 use App\Http\Controllers\Controller;
 use App\Services\KopafastaLaunchService;
 use App\Services\RoleService;
+use App\Services\StaffCredentialAuthService;
 use App\Services\TurnstileService;
 use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\RedirectResponse;
@@ -20,27 +21,37 @@ class AuthController extends Controller
         return view('staff.auth.login');
     }
 
-    public function login(Request $request, RoleService $roles, WebTwoFactorAuthService $twoFactor): RedirectResponse
-    {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
+    public function login(
+        Request $request,
+        RoleService $roles,
+        WebTwoFactorAuthService $twoFactor,
+        StaffCredentialAuthService $credentials,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'login' => ['nullable', 'string', 'max:150'],
+            'email' => ['nullable', 'string', 'max:150'],
+            'password' => ['required', 'string'],
         ]);
 
-        app(TurnstileService::class)->assertHuman($request);
-
-        if (! Auth::guard('admin')->attempt($credentials, $request->boolean('remember'))) {
+        $identifier = trim((string) ($data['login'] ?? $data['email'] ?? ''));
+        if ($identifier === '') {
             throw ValidationException::withMessages([
-                'email' => 'These credentials do not match our records.',
+                'login' => 'Enter your email or phone.',
             ]);
         }
 
-        $user = Auth::guard('admin')->user();
-        Auth::guard('admin')->logout();
+        app(TurnstileService::class)->assertHuman($request);
 
-        if (! $roles->isStaff($user->role)) {
+        $user = $credentials->attempt($identifier, $data['password']);
+        if (! $user) {
             throw ValidationException::withMessages([
-                'email' => 'This portal is for staff accounts only.',
+                'login' => 'These credentials do not match our records.',
+            ]);
+        }
+
+        if (! $roles->isStaffUser($user)) {
+            throw ValidationException::withMessages([
+                'login' => 'This portal is for staff accounts only.',
             ]);
         }
 
@@ -87,14 +98,16 @@ class AuthController extends Controller
 
     protected function finishStaffLogin(Request $request, $user, WebTwoFactorAuthService $twoFactor): RedirectResponse
     {
+        $home = route('staff.dashboard');
+
         if ($twoFactor->mustEnroll($user, 'staff')) {
-            $twoFactor->storePendingLogin($request, $user, 'admin', 'staff', route('staff.dashboard'), $request->boolean('remember'));
+            $twoFactor->storePendingLogin($request, $user, 'admin', 'staff', $home, $request->boolean('remember'));
 
             return redirect()->route('auth.two-factor.setup', ['context' => 'staff']);
         }
 
         if ($twoFactor->needsChallenge($user, $request, 'staff')) {
-            $twoFactor->storePendingLogin($request, $user, 'admin', 'staff', route('staff.dashboard'), $request->boolean('remember'));
+            $twoFactor->storePendingLogin($request, $user, 'admin', 'staff', $home, $request->boolean('remember'));
 
             return redirect()->route('auth.two-factor.challenge', ['context' => 'staff']);
         }
@@ -104,6 +117,6 @@ class AuthController extends Controller
         $twoFactor->markSessionVerified($request);
         app(KopafastaLaunchService::class)->arm($request);
 
-        return redirect()->route('staff.dashboard');
+        return redirect()->to($home);
     }
 }
