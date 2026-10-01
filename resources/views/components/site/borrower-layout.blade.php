@@ -196,16 +196,25 @@
                                 <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $unreadNotifications > 9 ? '9+' : $unreadNotifications }}</span>
                             @endif
                         </button>
-                        <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak
-                             class="absolute right-0 mt-2 w-96 max-w-[calc(100%-2rem)] rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden z-[80]">
-                            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
-                                <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
-                                <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
+                        {{-- Teleport + fixed width: parent is only the bell button; max-w-% of that collapses the panel to a 1px line. --}}
+                        <template x-teleport="body">
+                            <div x-show="sheetOpen" x-cloak
+                                 class="fixed inset-0 z-[10070]"
+                                 role="dialog"
+                                 aria-label="{{ __('borrower.layout.notifications') }}">
+                                <div class="absolute inset-0" @click="sheetOpen = false"></div>
+                                <div class="absolute top-16 right-4 lg:right-8 w-[24rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+                                     @click.stop>
+                                    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
+                                        <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
+                                        <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
+                                    </div>
+                                    <div class="max-h-80 overflow-y-auto bg-white">
+                                        <x-site.borrower-bell-items :items="$bellPreviewItems" />
+                                    </div>
+                                </div>
                             </div>
-                            <div class="max-h-80 overflow-y-auto bg-white">
-                                <x-site.borrower-bell-items :items="$bellPreviewItems" />
-                            </div>
-                        </div>
+                        </template>
                     </div>
                     <div class="relative" x-data="{ profileOpen: false }">
                         <button type="button" @click="profileOpen = !profileOpen"
