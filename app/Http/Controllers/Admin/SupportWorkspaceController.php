@@ -662,6 +662,17 @@ class SupportWorkspaceController extends Controller
                 $data['guest_last_name'] ?? '',
             ])->filter()->implode(' '));
             $guestPhone = \App\Support\PhoneNumber::digits($data['guest_phone']);
+
+            app(\App\Services\Support\SupportGuestService::class)->touchGuest(
+                (string) ($data['guest_first_name'] ?? ''),
+                (string) ($data['guest_last_name'] ?? ''),
+                (string) $data['guest_phone'],
+                match ($data['channel']) {
+                    'walk_in' => \App\Services\Support\SupportGuestService::SOURCE_WALK_IN,
+                    'other' => \App\Services\Support\SupportGuestService::SOURCE_OTHER,
+                    default => \App\Services\Support\SupportGuestService::SOURCE_PHONE_CALL,
+                },
+            );
         }
 
         $subject = $subjects[$data['subject_key']] ?? 'Other';

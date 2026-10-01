@@ -1327,6 +1327,9 @@ class AuthController extends Controller
                     }
                 }
 
+                app(\App\Services\Support\SupportGuestService::class)
+                    ->convertOnRegistration($data['phone'], $customer, 'member');
+
                 return $user;
             });
         } catch (\InvalidArgumentException $e) {
@@ -1434,6 +1437,9 @@ class AuthController extends Controller
                 'address' => $data['address'] ?? null,
                 'status' => 'pending',
             ]);
+
+            app(\App\Services\Support\SupportGuestService::class)
+                ->convertOnRegistration($data['phone'], $user, 'partner');
 
             return $user;
         });

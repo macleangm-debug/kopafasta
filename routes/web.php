@@ -920,6 +920,10 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             Route::post('customers/grade-watch/{customer}', [GradeSettingsController::class, 'saveWatch'])->name('customers.grade-watch.save');
             Route::post('customers/grade-override/{customer}', [GradeSettingsController::class, 'saveOverride'])->name('customers.grade-override.save');
             Route::get('customers/profiles', [CustomerProfileOpsController::class, 'index'])->name('customers.profiles');
+            Route::get('customers/guests', [\App\Http\Controllers\Admin\SupportGuestController::class, 'index'])->name('customers.guests.index');
+            Route::get('customers/guests/create', [\App\Http\Controllers\Admin\SupportGuestController::class, 'create'])->name('customers.guests.create');
+            Route::post('customers/guests', [\App\Http\Controllers\Admin\SupportGuestController::class, 'store'])->name('customers.guests.store');
+            Route::get('customers/guests/{guest}', [\App\Http\Controllers\Admin\SupportGuestController::class, 'show'])->name('customers.guests.show');
         });
         $registerResource('customers', 'customer', CustomerController::class);
         $registerResource('customer-kycs', 'customer_kyc', CustomerKycController::class);

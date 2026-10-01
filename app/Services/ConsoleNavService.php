@@ -78,6 +78,7 @@ class ConsoleNavService
                 'active_prefixes' => ['admin.customers.', 'admin.profile-sections.'],
                 'items' => [
                     ['All', 'admin.customers.index'],
+                    ['Guests', 'admin.customers.guests.index', 'customers.view'],
                     ['Grade Watch', 'admin.customers.grade-watch', 'customers.view'],
                     ['Profiles', 'admin.customers.profiles', 'customers.view'],
                     ['Section rules', 'admin.profile-sections.index', 'customers.edit', null, ['nav' => 'more']],

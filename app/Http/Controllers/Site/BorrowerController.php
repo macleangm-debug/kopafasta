@@ -435,8 +435,7 @@ class BorrowerController extends Controller
         ]);
 
         return redirect()
-            ->to($url)
-            ->with('status', __('borrower.guarantor_supplement.borrower_change_started'));
+            ->to($url);
     }
 
     public function editGuarantorInvitation(Request $request, LoanApplication $application): RedirectResponse|\Illuminate\Http\JsonResponse
@@ -3594,11 +3593,24 @@ class BorrowerController extends Controller
         abort_unless($invitation, 403);
 
         $guarantors = app(GuarantorInvitationService::class);
-        // Public-link accept already recorded — never ask Accept again; sync link for Screening.
-        if ($invitation->status === 'accepted' && $customerGuarantor->status === 'pending'
+        // Public-link / prior accept already recorded — never ask Accept again; sync link for Screening.
+        if (in_array((string) $invitation->status, ['accepted'], true)
+            && $customerGuarantor->status === 'pending'
             && ! $invitation->needsQuoteReconfirmation()) {
             $guarantors->syncApprovedAfterInvitationAccept($invitation->fresh(['customerGuarantor']));
             $customerGuarantor->refresh();
+            $invitation->refresh();
+        }
+
+        // Also treat recorded consent as acceptance for external invites (single accept only).
+        if ((string) $invitation->type === 'external'
+            && $guarantors->hasRecordedConsent($invitation)
+            && (string) $invitation->status !== 'accepted'
+            && ! $invitation->needsQuoteReconfirmation()) {
+            $invitation->update(['status' => 'accepted']);
+            $guarantors->syncApprovedAfterInvitationAccept($invitation->fresh(['customerGuarantor']));
+            $customerGuarantor->refresh();
+            $invitation->refresh();
         }
 
         abort_unless(
@@ -3615,10 +3627,12 @@ class BorrowerController extends Controller
             : null;
         $loanContext = $guarantors->invitationLoanContext($invitation);
         $quoteComparison = $guarantors->quoteComparison($invitation);
+        // One acceptance only: pending invite + pending link. External already-accepted never re-asks.
         $decisionRequired = $invitation->needsQuoteReconfirmation()
             || (
                 $customerGuarantor->status === 'pending'
                 && $invitation->status === 'pending'
+                && ! $guarantors->hasRecordedConsent($invitation)
             );
 
         return view('site.borrower.guarantor-request-show', compact(

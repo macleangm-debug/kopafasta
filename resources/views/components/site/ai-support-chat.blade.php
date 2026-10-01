@@ -80,6 +80,9 @@
          'guestLastNameLabel' => $isSw ? 'Jina la mwisho' : 'Last name',
          'guestPhoneLabel' => $isSw ? 'Namba ya simu' : 'Phone number',
          'guestContinue' => $isSw ? 'Anza mazungumzo' : 'Start chat',
+         'guestFirstRequired' => $isSw ? 'Andika jina la kwanza.' : 'Enter your first name.',
+         'guestLastRequired' => $isSw ? 'Andika jina la mwisho.' : 'Enter your last name.',
+         'guestPhoneRequired' => $isSw ? 'Andika namba ya simu.' : 'Enter your phone number.',
          'registerPrompt' => $registerPrompt,
          'registerUrl' => $registerUrl,
          'typingLabel' => __('site.support.chat.typing'),
@@ -140,18 +143,23 @@
             </div>
         </div>
         <div class="px-3.5 sm:px-4 pt-3 pb-4">
-            <div x-show="needsGuestGate" x-cloak class="mb-4 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-3" x-ref="guestGate">
+            <div x-show="needsGuestGate" x-cloak class="mb-4 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-3" x-ref="guestGate"
+                 @input="guestPhone = ($refs.guestGate && $refs.guestGate.querySelector('input[name=guest_phone]') || {}).value || guestPhone">
                 <p class="text-sm text-gray-700" x-text="config.guestIdentityHint"></p>
                 <div class="grid sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1" x-text="config.guestFirstNameLabel"></label>
                         <input type="text" x-model="guestFirstName" maxlength="60" autocomplete="given-name"
-                               class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
+                               class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10"
+                               :class="guestFieldErrors.first ? 'border-red-400' : ''">
+                        <p x-show="guestFieldErrors.first" x-cloak class="mt-1 text-xs text-red-600" x-text="guestFieldErrors.first"></p>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1" x-text="config.guestLastNameLabel"></label>
                         <input type="text" x-model="guestLastName" maxlength="60" autocomplete="family-name"
-                               class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
+                               class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10"
+                               :class="guestFieldErrors.last ? 'border-red-400' : ''">
+                        <p x-show="guestFieldErrors.last" x-cloak class="mt-1 text-xs text-red-600" x-text="guestFieldErrors.last"></p>
                     </div>
                 </div>
                 <div>
@@ -162,12 +170,13 @@
                         variant="rounded"
                         :allow-country-change="false"
                         :help="false"
-                        :required="true"
+                        :required="false"
                     />
+                    <p x-show="guestFieldErrors.phone" x-cloak class="mt-1 text-xs text-red-600" x-text="guestFieldErrors.phone"></p>
                 </div>
                 <button type="button" @click="confirmGuestIdentity()"
-                        class="w-full rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
-                        :disabled="!guestFirstName.trim() || !guestLastName.trim()"
+                        class="w-full rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        :disabled="!guestFormReady"
                         x-text="config.guestContinue"></button>
             </div>
     @else
@@ -290,6 +299,7 @@
                         guestLastName: config.guestLastName || '',
                         guestName: config.guestName || '',
                         guestPhone: config.guestPhone || '',
+                        guestFieldErrors: { first: '', last: '', phone: '' },
                         guestReady: !config.needsGuestIdentity || (
                             !!(config.guestFirstName || '').trim()
                             && !!(config.guestLastName || '').trim()
@@ -297,6 +307,19 @@
                         ),
                         get needsGuestGate() {
                             return !!config.needsGuestIdentity && !this.guestReady;
+                        },
+                        get guestFormReady() {
+                            var phone = this.readGuestPhone();
+                            return !!(this.guestFirstName || '').trim()
+                                && !!(this.guestLastName || '').trim()
+                                && phone.length >= 9;
+                        },
+                        readGuestPhone() {
+                            var phoneEl = this.$refs.guestGate
+                                ? this.$refs.guestGate.querySelector('input[name="guest_phone"]')
+                                : null;
+                            var raw = phoneEl ? String(phoneEl.value || '').trim() : (this.guestPhone || '').trim();
+                            return String(raw || '').replace(/\D/g, '');
                         },
                         _timer: null,
                         csrfToken() {
@@ -331,12 +354,18 @@
                         confirmGuestIdentity() {
                             var first = (this.guestFirstName || '').trim();
                             var last = (this.guestLastName || '').trim();
+                            var phoneDigits = this.readGuestPhone();
                             var phoneEl = this.$refs.guestGate
                                 ? this.$refs.guestGate.querySelector('input[name="guest_phone"]')
                                 : null;
                             var phone = phoneEl ? String(phoneEl.value || '').trim() : (this.guestPhone || '').trim();
-                            if (! first || ! last || ! phone) {
-                                this.sendError = config.guestIdentityHint || '';
+                            this.guestFieldErrors = {
+                                first: first ? '' : (config.guestFirstRequired || ''),
+                                last: last ? '' : (config.guestLastRequired || ''),
+                                phone: phoneDigits.length >= 9 ? '' : (config.guestPhoneRequired || ''),
+                            };
+                            if (! first || ! last || phoneDigits.length < 9) {
+                                this.sendError = '';
                                 return;
                             }
                             this.guestFirstName = first;

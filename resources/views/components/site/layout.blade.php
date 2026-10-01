@@ -324,7 +324,7 @@
             </div>
         </footer>
 
-        <x-site.chatbot-widget />
+        <x-site.help-fab variant="public" />
     @endunless
     <x-site.upload-busy-overlay />
     <x-site.confirm-modal name="default" />

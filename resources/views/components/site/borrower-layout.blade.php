@@ -411,7 +411,7 @@
 @if (session('show_membership_card') && $borrowerCustomer && ($borrowerCustomer->isMembershipActive() || $borrowerCustomer->isMembershipInGrace() || $borrowerCustomer->hasMembership()))
     <x-site.membership-card-modal :customer="$borrowerCustomer" />
 @endif
-<x-site.borrower-help-hub />
+<x-site.help-fab variant="borrower" />
 <x-site.celebration-confetti />
 <x-site.document-lightbox />
 

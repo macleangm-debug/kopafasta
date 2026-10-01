@@ -22,6 +22,10 @@
                     <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Active</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['active']) }}</p>
                 </a>
+                <a href="{{ route('admin.customers.guests.index') }}" class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-4 hover:ring-sky-300 transition">
+                    <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">Guests</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format(\App\Models\SupportGuest::query()->where('registration_status', 'guest')->count()) }}</p>
+                </a>
                 <div class="rounded-xl bg-sky-50 ring-1 ring-sky-100 px-4 py-4">
                     <p class="text-[10px] uppercase tracking-widest text-sky-800 font-semibold">With loans</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ number_format($counts['with_loans']) }}</p>

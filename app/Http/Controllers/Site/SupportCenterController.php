@@ -98,6 +98,13 @@ class SupportCenterController extends Controller
 
         $this->rememberGuestIdentity($request, $first, $last, $phone);
 
+        app(\App\Services\Support\SupportGuestService::class)->touchGuest(
+            $first,
+            $last,
+            $phone,
+            \App\Services\Support\SupportGuestService::SOURCE_GUEST_CHAT,
+        );
+
         $conversation = $service->requestHuman(
             null,
             null,

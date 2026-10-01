@@ -204,9 +204,14 @@
             default => 'pending',
         };
 
-        $showInviteActions = in_array($uiState, ['pending', 'accepted_incomplete'], true)
+        $showInviteActions = $uiState === 'pending'
             && $share
-            && empty($share['ready']);
+            && empty($share['ready'])
+            && ! ($primary?->status['accepted'] ?? false)
+            && ! in_array($primaryCode, [
+                'pending_profile', 'guarantee_pending', 'registration_in_progress',
+                'kyc_in_progress', 'ready', 'accepted', 'account_opened', 'invitation_accepted',
+            ], true);
         $showCountdown = $isHeld && $showInviteActions && (! empty($deadline['label']) || isset($deadline['days_left']));
         $showChangeSecondary = in_array($uiState, ['pending', 'accepted_incomplete', 'completed', 'ready_before_submit'], true)
             && ($showChangeGuarantor || $canChangeWhileHeld);
@@ -382,8 +387,6 @@
                     <p class="text-xs text-amber-800">{{ $supplementBanner }}</p>
                 @elseif ($isChangeSupplement && $supplementBanner && $uiState === 'needs_replacement')
                     <p class="text-xs text-amber-800">{{ $supplementBanner }}</p>
-                @elseif ($canChangeWhileHeld && $uiState === 'pending')
-                    <p class="text-xs text-gray-500">{{ __('borrower.guarantor_supplement.borrower_change_hint') }}</p>
                 @endif
             </div>
 

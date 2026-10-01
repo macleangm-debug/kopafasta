@@ -1,5 +1,7 @@
 @php
-    $party = old('party', ($customer || ! empty($partner)) ? 'registered' : request('party', 'registered'));
+    $party = old('party', ($customer || ! empty($partner))
+        ? 'registered'
+        : (request()->filled('guest_phone') || request('party') === 'non_member' ? 'non_member' : request('party', 'registered')));
     $channel = old('channel', $channel ?? 'phone');
     $subjects = [
         'how_to_join' => 'How to join / registration',
@@ -111,17 +113,17 @@
                     <div x-show="party === 'non_member'" x-cloak class="space-y-3 rounded-xl bg-slate-50 ring-1 ring-slate-200/80 p-4">
                         <div class="grid sm:grid-cols-3 gap-3">
                             <label class="block text-xs font-semibold text-gray-700">First name
-                                <input type="text" name="guest_first_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_first_name') }}" :required="party === 'non_member'">
+                                <input type="text" name="guest_first_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_first_name', request('guest_first_name')) }}" :required="party === 'non_member'">
                             </label>
                             <label class="block text-xs font-semibold text-gray-700">Middle name <span class="font-normal text-gray-400">(optional)</span>
                                 <input type="text" name="guest_middle_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_middle_name') }}">
                             </label>
                             <label class="block text-xs font-semibold text-gray-700">Last name
-                                <input type="text" name="guest_last_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_last_name') }}" :required="party === 'non_member'">
+                                <input type="text" name="guest_last_name" class="mt-1 w-full rounded-xl border-gray-200 text-sm" value="{{ old('guest_last_name', request('guest_last_name')) }}" :required="party === 'non_member'">
                             </label>
                         </div>
                         <div>
-                            <x-admin.phone-input name="guest_phone" label="Phone" :value="old('guest_phone')" />
+                            <x-admin.phone-input name="guest_phone" label="Phone" :value="old('guest_phone', request('guest_phone'))" />
                         </div>
                     </div>
 
