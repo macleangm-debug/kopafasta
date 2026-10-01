@@ -419,6 +419,18 @@ class GuarantorSupplementService
         ]);
     }
 
+    /** Edit current nomination in the apply guarantor wizard (same person — not Choose another). */
+    public function borrowerEditGuarantorUrl(LoanApplication $application): string
+    {
+        return route('site.borrower.apply', [
+            'product'         => $application->loan_product_id,
+            'guarantor_edit'  => 1,
+            'application'     => $application->id,
+            'resume'          => 1,
+            'step_key'        => 'guarantor',
+        ]);
+    }
+
     /**
      * Staff reminder only — borrower chooses the replacement. Does not pick or invite a guarantor.
      */

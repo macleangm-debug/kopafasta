@@ -129,7 +129,25 @@ class ApplyController extends Controller
         $supplementApplication = null;
         $supplementMode = false;
         $supplementKind = null;
-        if ($request->boolean('guarantor_supplement') && $request->filled('application') && $customer) {
+        $guarantorEditMode = false;
+        if ($request->boolean('guarantor_edit') && $request->filled('application') && $customer) {
+            $supplementApplication = LoanApplication::query()
+                ->where('customer_id', $customer->id)
+                ->find($request->query('application'));
+
+            $supplements = app(GuarantorSupplementService::class);
+            if ($supplementApplication && $supplements->hasCurrentActionableNomination($supplementApplication)) {
+                $supplementMode = true;
+                $guarantorEditMode = true;
+                $supplementKind = 'edit';
+                $preselect = $supplementApplication->loan_product_id;
+                $request->merge(['resume' => 1, 'step_key' => 'guarantor']);
+            } elseif ($supplementApplication) {
+                return redirect()
+                    ->route('site.borrower.application', $supplementApplication)
+                    ->with('error', __('borrower.guarantor_invite.no_longer_active'));
+            }
+        } elseif ($request->boolean('guarantor_supplement') && $request->filled('application') && $customer) {
             $supplementApplication = LoanApplication::query()
                 ->where('customer_id', $customer->id)
                 ->find($request->query('application'));
@@ -158,7 +176,7 @@ class ApplyController extends Controller
                     $query->where('id', $preselect)
                         ->orWhere('code', $preselect);
                 })
-                ->when(! $request->boolean('resume') && ! $request->boolean('guarantor_supplement'), function ($query) {
+                ->when(! $request->boolean('resume') && ! $request->boolean('guarantor_supplement') && ! $request->boolean('guarantor_edit'), function ($query) {
                     $query->where('is_active', true);
                 })
                 ->orderByDesc('is_active')
@@ -166,7 +184,7 @@ class ApplyController extends Controller
 
             // Non-resume still requires an active product.
             if ($preselectedProduct && ! $preselectedProduct->is_active
-                && ! $request->boolean('resume') && ! $request->boolean('guarantor_supplement')) {
+                && ! $request->boolean('resume') && ! $request->boolean('guarantor_supplement') && ! $request->boolean('guarantor_edit')) {
                 $preselectedProduct = null;
             }
 
@@ -328,28 +346,57 @@ class ApplyController extends Controller
         if ($supplementMode && $supplementApplication) {
             $feeStatus = (string) ($supplementApplication->application_fee_status ?? '');
             $feePaid = in_array($feeStatus, ['paid', 'waived'], true);
+            $formSeed = [
+                'loan_product_id' => $supplementApplication->loan_product_id,
+                'requested_amount' => (float) $supplementApplication->requested_amount,
+                'requested_tenure_months' => (int) $supplementApplication->requested_tenure_months,
+                'purpose' => $supplementApplication->purpose ?? 'business',
+            ];
+            $externalGuarantorSeed = null;
+            if ($guarantorEditMode) {
+                $invite = \App\Models\GuarantorInvitation::query()
+                    ->where('loan_application_id', $supplementApplication->id)
+                    ->where('customer_id', $customer->id)
+                    ->where('type', 'external')
+                    ->whereIn('status', ['pending', 'accepted', 'opened', 'sent'])
+                    ->with(['customerGuarantor.guarantor'])
+                    ->latest('id')
+                    ->first();
+                if ($invite) {
+                    $nameParts = preg_split('/\s+/', trim((string) ($invite->invitee_name ?? '')), 2) ?: ['', ''];
+                    $relationship = $invite->customerGuarantor?->guarantor?->relationship ?? '';
+                    $formSeed = array_merge($formSeed, [
+                        'guarantor_mode' => 'external',
+                        'external_first_name' => $nameParts[0] ?? '',
+                        'external_last_name' => $nameParts[1] ?? '',
+                        'external_phone' => (string) ($invite->contact ?? ''),
+                        'external_email' => (string) ($invite->customerGuarantor?->guarantor?->email ?? ''),
+                        'external_relationship' => (string) $relationship,
+                        'external_invitation_id' => $invite->id,
+                    ]);
+                    $externalGuarantorSeed = app(GuarantorInvitationService::class)
+                        ->sharePayload($invite->loadMissing(['application.product', 'product', 'borrower', 'customerGuarantor.guarantor']), $customer);
+                }
+            }
             // Always mark fee satisfied with a stable reference so the client cannot
             // clear waived state and bounce the borrower back to payment.
             $savedDraft = [
                 'loan_product_id' => $supplementApplication->loan_product_id,
                 'phase' => 'application',
                 'step_key' => 'guarantor',
-                'form' => [
-                    'loan_product_id' => $supplementApplication->loan_product_id,
-                    'requested_amount' => (float) $supplementApplication->requested_amount,
-                    'requested_tenure_months' => (int) $supplementApplication->requested_tenure_months,
-                    'purpose' => $supplementApplication->purpose ?? 'business',
-                ],
+                'form' => $formSeed,
                 'resume_target' => [
                     'phase' => 'application',
                     'step_key' => 'guarantor',
                 ],
                 'supplement_mode' => true,
+                'guarantor_edit_mode' => $guarantorEditMode,
                 'supplement_application_id' => $supplementApplication->id,
+                'external_guarantor' => $externalGuarantorSeed,
                 'application_fee' => [
                     'status' => $feePaid ? $feeStatus : 'waived',
                     'reference' => $supplementApplication->application_fee_reference
-                        ?: ('supplement-fee:'.$supplementApplication->id),
+                        ?: (($guarantorEditMode ? 'edit-guarantor-fee:' : 'supplement-fee:').$supplementApplication->id),
                     'amount' => (float) ($supplementApplication->application_fee_amount ?? 0),
                     'paid_at' => optional($supplementApplication->application_fee_paid_at)?->toIso8601String()
                         ?: now()->toIso8601String(),
@@ -572,6 +619,7 @@ class ApplyController extends Controller
             'supplementMode',
             'supplementKind',
             'supplementApplication',
+            'guarantorEditMode',
             'repeatJourney',
         ))->with('paymentGatewayDummy', payment_gateway_is_dummy())
             ->with('loanPurposes', loan_purpose_options())
@@ -2806,8 +2854,40 @@ class ApplyController extends Controller
         $data = $request->all();
         $mode = $data['guarantor_mode'] ?? 'none';
         $attachedInvitation = null;
+        $isEdit = $request->boolean('guarantor_edit') || ! empty($data['guarantor_edit']);
+        if ($isEdit) {
+            $returnUrl = $supplements->borrowerEditGuarantorUrl($application);
+        }
 
         try {
+            if ($isEdit && $mode === 'external') {
+                $inviteId = (int) ($data['external_invitation_id'] ?? 0);
+                $first = trim($data['external_first_name'] ?? '');
+                $last = trim($data['external_last_name'] ?? '');
+                if ($inviteId <= 0 || $first === '' || $last === '' || blank($data['external_phone'] ?? null)) {
+                    throw new \InvalidArgumentException(__('borrower.apply.alerts.select_guarantor'));
+                }
+                $guarantors->updateCurrentExternalInvitationDetails(
+                    $customer,
+                    $application,
+                    $inviteId,
+                    $first,
+                    trim($data['external_middle_name'] ?? '') ?: null,
+                    $last,
+                    $data['external_phone'],
+                    $data['external_email'] ?? null,
+                    $data['external_relationship'] ?? null,
+                );
+
+                $this->auditBorrower('loan_application.guarantor_invitation_edited', $application, [
+                    'invitation_id' => $inviteId,
+                ]);
+
+                return redirect()
+                    ->route('site.borrower.application', $application)
+                    ->with('status', __('borrower.loan_profile.actions.edit_guarantor_saved'));
+            }
+
             if ($mode === 'internal' || $mode === 'previous') {
                 $memberKey = MemberNumberFormatter::lookupKey($data['internal_member_no'] ?? '');
                 if (! $memberKey || blank($data['internal_guarantor_name'] ?? null)) {

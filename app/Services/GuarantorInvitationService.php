@@ -1605,6 +1605,47 @@ class GuarantorInvitationService
         }
     }
 
+    /** In-app notice when a guarantor accepts the invitation. */
+    public function notifyBorrowerAccepted(GuarantorInvitation $invitation): void
+    {
+        $invitation->loadMissing(['borrower', 'customerGuarantor.guarantor']);
+        $borrower = $invitation->borrower;
+        if (! $borrower) {
+            return;
+        }
+
+        $guarantorName = trim((string) (
+            $invitation->invitee_name
+            ?: trim(($invitation->customerGuarantor?->guarantor?->first_name ?? '').' '.($invitation->customerGuarantor?->guarantor?->last_name ?? ''))
+        ));
+        if ($guarantorName === '') {
+            $guarantorName = 'Guarantor';
+        }
+
+        $actionUrl = $invitation->loan_application_id
+            ? route('site.borrower.application', $invitation->loan_application_id)
+            : route('site.borrower.loans', ['tab' => 'applications']);
+
+        try {
+            app(NotificationService::class)->notifyInApp(
+                $borrower,
+                __('borrower.guarantor_invite.borrower_accepted', ['guarantor' => $guarantorName]),
+                'guarantor',
+                'guarantor_accepted',
+                __('borrower.guarantor_invite.notify_accepted_title'),
+                $actionUrl,
+                __('borrower.notifications.view_application'),
+                [
+                    'title_key' => 'borrower.guarantor_invite.notify_accepted_title',
+                    'body_key' => 'borrower.guarantor_invite.borrower_accepted',
+                    'params' => ['guarantor' => $guarantorName],
+                ],
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     public function notifyExternalInvitation(Customer $borrower, GuarantorInvitation $invitation, string $inviteeName): void
     {
         $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
@@ -1648,6 +1689,14 @@ class GuarantorInvitationService
         });
 
         app(NotificationCtaService::class)->consumeGuarantorRequestCtas($link);
+
+        $invitation = GuarantorInvitation::query()
+            ->where('customer_guarantor_id', $link->id)
+            ->latest('id')
+            ->first();
+        if ($invitation) {
+            $this->notifyBorrowerAccepted($invitation);
+        }
     }
 
     /**

@@ -312,65 +312,32 @@
                 @endif
 
                 @if ($showInviteActions)
-                    <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-none">
                         @if (! empty($share['whatsapp_url']))
                             <a href="{{ $share['whatsapp_url'] }}" target="_blank" rel="noopener"
-                               class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm">
+                               class="inline-flex shrink-0 items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">
                                 {{ __('borrower.loan_profile.guarantor_nudge_whatsapp') }}
                             </a>
                         @endif
                         @if (! empty($share['invitation_url']) || ! empty($share['short_url']))
                             <button type="button"
                                     @click="navigator.clipboard.writeText(@js($share['short_url'] ?? $share['invitation_url'])); copied = true; setTimeout(() => copied = false, 2000)"
-                                    class="inline-flex items-center gap-2 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
+                                    class="inline-flex shrink-0 items-center gap-1.5 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">
                                 <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.loan_profile.guarantor_nudge_copy'))"></span>
                             </button>
                         @endif
                         @if ($application && $primary?->invite && in_array((string) ($primary->invite->status ?? ''), ['pending', 'accepted'], true)
                             && ($primary->invite->type ?? '') === 'external')
-                            <div class="w-full" x-data="{ editOpen: false }">
-                                <button type="button" @click="editOpen = true"
-                                        class="inline-flex items-center gap-2 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-4 py-2.5 rounded-xl text-sm">
-                                    {{ __('borrower.loan_profile.actions.edit_guarantor') }}
-                                </button>
-                                <x-site.action-panel :title="__('borrower.loan_profile.actions.edit_guarantor')" open="editOpen">
-                                    <p class="text-xs text-gray-500 mb-3">{{ __('borrower.loan_profile.actions.edit_guarantor_hint') }}</p>
-                                    <form method="POST" action="{{ route('site.borrower.application.edit-guarantor', $application) }}" class="space-y-3"
-                                          @submit.prevent="window.confirmForm($el, {
-                                              title: @js(__('borrower.loan_profile.actions.edit_guarantor')),
-                                              message: @js(__('borrower.loan_profile.actions.edit_guarantor_confirm')),
-                                              confirmLabel: @js(__('borrower.loan_profile.actions.edit_guarantor_save')),
-                                              confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
-                                          })">
-                                        @csrf
-                                        <input type="hidden" name="invitation_id" value="{{ $primary->invite->id }}">
-                                        @php
-                                            $nameParts = preg_split('/\s+/', trim((string) ($primary->invite->invitee_name ?? '')), 2) ?: ['', ''];
-                                        @endphp
-                                        <label class="block text-xs font-semibold text-gray-700">{{ __('borrower.apply.guarantor_fields.first_name') }}
-                                            <input name="first_name" required maxlength="60" value="{{ old('first_name', $nameParts[0] ?? '') }}"
-                                                   class="mt-1 w-full rounded-xl border-gray-200 text-sm">
-                                        </label>
-                                        <label class="block text-xs font-semibold text-gray-700">{{ __('borrower.apply.guarantor_fields.last_name') }}
-                                            <input name="last_name" required maxlength="60" value="{{ old('last_name', $nameParts[1] ?? '') }}"
-                                                   class="mt-1 w-full rounded-xl border-gray-200 text-sm">
-                                        </label>
-                                        <label class="block text-xs font-semibold text-gray-700">{{ __('borrower.apply.guarantor_fields.phone') }}
-                                            <input name="phone" required maxlength="20" value="{{ old('phone', $primary->invite->contact) }}"
-                                                   class="mt-1 w-full rounded-xl border-gray-200 text-sm" inputmode="tel">
-                                        </label>
-                                        <button type="submit" class="w-full inline-flex justify-center bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm">
-                                            {{ __('borrower.loan_profile.actions.edit_guarantor_save') }}
-                                        </button>
-                                    </form>
-                                </x-site.action-panel>
-                            </div>
+                            <a href="{{ app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application) }}"
+                               class="inline-flex shrink-0 items-center gap-1.5 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">
+                                {{ __('borrower.loan_profile.actions.edit_guarantor') }}
+                            </a>
                         @endif
                     </div>
                 @endif
             </div>
 
-            {{-- Current guarantor progress (Profile-style step ticks) --}}
+            {{-- Current guarantor progress — premium journey (not form boxes) --}}
             @if ($currentRows->isNotEmpty() && ! $allReady)
                 <div class="px-5 sm:px-6 py-5 border-t border-gray-100/80 space-y-4">
                     @foreach ($currentRows as $row)
@@ -380,56 +347,116 @@
                             $steps = $row->status['steps'] ?? [];
                             $percent = $row->status['profile_percent'] ?? null;
                         @endphp
-                        <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
-                            <div class="h-1 w-full bg-gradient-to-r from-brand via-brand to-brand-gold/80" aria-hidden="true"></div>
-                            <div class="px-4 py-4 space-y-3">
-                                <div class="flex flex-wrap items-start justify-between gap-3">
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-bold text-gray-900 truncate">{{ $row->name }}</p>
-                                        <p class="text-xs text-gray-500 mt-0.5">{{ $row->type }}</p>
-                                    </div>
-                                    <span @class([
-                                        'shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1',
-                                        'bg-emerald-50 text-emerald-800 ring-emerald-200' => $done,
-                                        'bg-amber-50 text-amber-900 ring-amber-200' => ! $done && $code === 'pending_profile',
-                                        'bg-sky-50 text-sky-800 ring-sky-200' => ! $done && $code !== 'pending_profile',
-                                    ])>
-                                        @if ($done)
-                                            {{ __('borrower.apply.guarantor_status.ready') }}
-                                        @elseif ($code === 'pending_profile' && $percent !== null)
-                                            {{ __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $percent]) }}
-                                        @else
-                                            {{ $row->status['label'] ?? '—' }}
-                                        @endif
-                                    </span>
+                        <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-gradient-to-br from-white via-white to-brand-muted/25">
+                            <div class="px-4 sm:px-5 pt-4 pb-3 flex flex-wrap items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
+                                    <p class="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight mt-1 truncate">{{ $row->name }}</p>
                                 </div>
-                                @if (! empty($steps))
-                                    <ol class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                        @foreach ($steps as $step)
-                                            <li @class([
-                                                'rounded-xl px-3 py-2.5 ring-1',
-                                                'bg-emerald-50 ring-emerald-200' => $step['complete'] ?? false,
-                                                'bg-brand-muted/60 ring-brand/30' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
-                                                'bg-white ring-gray-200' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
-                                            ])>
-                                                <p @class([
-                                                    'text-[10px] uppercase tracking-widest font-bold',
-                                                    'text-emerald-700' => $step['complete'] ?? false,
-                                                    'text-brand' => ! ($step['complete'] ?? false) && ($step['current'] ?? false),
-                                                    'text-gray-400' => ! ($step['complete'] ?? false) && ! ($step['current'] ?? false),
-                                                ])>
-                                                    {{ ($step['complete'] ?? false) ? '✓' : (($step['current'] ?? false) ? '●' : '○') }}
-                                                </p>
-                                                <p @class([
-                                                    'text-xs font-semibold mt-0.5 leading-snug',
-                                                    'text-gray-900' => ($step['current'] ?? false) || ($step['complete'] ?? false),
-                                                    'text-gray-500' => ! ($step['current'] ?? false) && ! ($step['complete'] ?? false),
-                                                ])>{{ $step['label'] ?? '' }}</p>
-                                            </li>
-                                        @endforeach
-                                    </ol>
-                                @endif
+                                <span @class([
+                                    'shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1',
+                                    'bg-emerald-50 text-emerald-800 ring-emerald-200' => $done,
+                                    'bg-amber-50 text-amber-900 ring-amber-200' => ! $done && in_array($code, ['pending_profile', 'registration_in_progress', 'kyc_in_progress'], true),
+                                    'bg-sky-50 text-sky-800 ring-sky-200' => ! $done && ! in_array($code, ['pending_profile', 'registration_in_progress', 'kyc_in_progress'], true),
+                                ])>
+                                    {{ $row->status['label'] ?? '—' }}
+                                </span>
                             </div>
+                            @if (! empty($steps))
+                                {{-- Desktop: horizontal connected journey --}}
+                                <ol class="hidden sm:flex items-stretch gap-0 px-4 sm:px-5 pb-5" aria-label="{{ __('borrower.loan_profile.application_progress') }}">
+                                    @foreach ($steps as $index => $step)
+                                        @php
+                                            $isComplete = (bool) ($step['complete'] ?? false);
+                                            $isCurrent = (bool) ($step['current'] ?? false);
+                                            $isProfile = ($step['key'] ?? '') === 'profile';
+                                        @endphp
+                                        <li class="flex items-center min-w-0 {{ $loop->last ? '' : 'flex-1' }}">
+                                            <div @class([
+                                                'flex items-center gap-2 min-w-0 rounded-xl px-2 py-2',
+                                                'bg-brand/10 ring-1 ring-brand/25' => $isCurrent,
+                                            ])>
+                                                <span @class([
+                                                    'size-8 rounded-full grid place-items-center text-xs font-bold shrink-0 ring-2',
+                                                    'bg-emerald-500 text-white ring-emerald-200' => $isComplete,
+                                                    'bg-brand text-white ring-brand/30 shadow-sm' => ! $isComplete && $isCurrent,
+                                                    'bg-white text-gray-300 ring-gray-200' => ! $isComplete && ! $isCurrent,
+                                                ])>
+                                                    @if ($isComplete)
+                                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 10l3 3 7-7"/></svg>
+                                                    @elseif ($isCurrent)
+                                                        <span class="size-2 rounded-full bg-brand-gold" aria-hidden="true"></span>
+                                                    @else
+                                                        <span class="size-1.5 rounded-full bg-gray-300" aria-hidden="true"></span>
+                                                    @endif
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <p @class([
+                                                        'text-xs font-semibold leading-snug truncate',
+                                                        'text-emerald-800' => $isComplete,
+                                                        'text-brand' => ! $isComplete && $isCurrent,
+                                                        'text-gray-400' => ! $isComplete && ! $isCurrent,
+                                                    ])>{{ $step['label'] ?? '' }}</p>
+                                                </div>
+                                            </div>
+                                            @unless ($loop->last)
+                                                <span @class([
+                                                    'mx-1.5 h-0.5 flex-1 min-w-[0.75rem] rounded-full',
+                                                    'bg-emerald-400' => $isComplete,
+                                                    'bg-brand/30' => ! $isComplete && $isCurrent,
+                                                    'bg-gray-200' => ! $isComplete && ! $isCurrent,
+                                                ]) aria-hidden="true"></span>
+                                            @endunless
+                                        </li>
+                                    @endforeach
+                                </ol>
+                                {{-- Mobile: compact vertical stepped journey --}}
+                                <ol class="sm:hidden space-y-0 px-4 pb-4" aria-label="{{ __('borrower.loan_profile.application_progress') }}">
+                                    @foreach ($steps as $index => $step)
+                                        @php
+                                            $isComplete = (bool) ($step['complete'] ?? false);
+                                            $isCurrent = (bool) ($step['current'] ?? false);
+                                            $isProfile = ($step['key'] ?? '') === 'profile';
+                                        @endphp
+                                        <li class="flex gap-3">
+                                            <div class="flex flex-col items-center shrink-0">
+                                                <span @class([
+                                                    'size-7 rounded-full grid place-items-center text-[10px] font-bold ring-2',
+                                                    'bg-emerald-500 text-white ring-emerald-200' => $isComplete,
+                                                    'bg-brand text-white ring-brand/30' => ! $isComplete && $isCurrent,
+                                                    'bg-white text-gray-300 ring-gray-200' => ! $isComplete && ! $isCurrent,
+                                                ])>
+                                                    @if ($isComplete)
+                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 20 20" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 10l3 3 7-7"/></svg>
+                                                    @elseif ($isCurrent)
+                                                        ●
+                                                    @else
+                                                        ○
+                                                    @endif
+                                                </span>
+                                                @unless ($loop->last)
+                                                    <span @class([
+                                                        'w-0.5 flex-1 min-h-[1rem] my-1 rounded-full',
+                                                        'bg-emerald-400' => $isComplete,
+                                                        'bg-gray-200' => ! $isComplete,
+                                                    ]) aria-hidden="true"></span>
+                                                @endunless
+                                            </div>
+                                            <div @class(['pb-3 min-w-0 pt-0.5', 'pb-0' => $loop->last])>
+                                                <p @class([
+                                                    'text-sm font-semibold',
+                                                    'text-emerald-800' => $isComplete,
+                                                    'text-brand' => ! $isComplete && $isCurrent,
+                                                    'text-gray-400' => ! $isComplete && ! $isCurrent,
+                                                ])>{{ $step['label'] ?? '' }}</p>
+                                                @if ($isProfile && $isCurrent && $percent !== null)
+                                                    <p class="text-xs font-bold text-brand tabular-nums mt-0.5">{{ (int) $percent }}%</p>
+                                                @endif
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ol>
+                            @endif
                         </div>
                     @endforeach
                 </div>

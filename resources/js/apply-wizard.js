@@ -257,6 +257,7 @@ export function applyWizard(config) {
                 reviewPageCount: 2,
                 assetSubstep: 1,
                 supplementMode: !!config.supplementMode,
+                guarantorEditMode: !!config.guarantorEditMode,
                 supplementKind: config.supplementKind || null,
                 draftBlocked: false,
                 supplementApplicationId: config.supplementApplicationId || null,
@@ -4964,6 +4965,15 @@ export function applyWizard(config) {
                         ensureHidden('loan_product_id', this.form.loan_product_id);
                         ensureHidden('requested_amount', this.form.requested_amount);
                         ensureHidden('requested_tenure_months', this.form.requested_tenure_months);
+                        if (this.guarantorEditMode) {
+                            ensureHidden('guarantor_edit', '1');
+                            ensureHidden('external_first_name', this.form.external_first_name);
+                            ensureHidden('external_last_name', this.form.external_last_name);
+                            ensureHidden('external_phone', this.form.external_phone);
+                            ensureHidden('external_middle_name', this.form.external_middle_name);
+                            ensureHidden('external_email', this.form.external_email);
+                            ensureHidden('external_relationship', this.form.external_relationship);
+                        }
                         // Finish: attach replacement and leave — never confirm-as-resubmit.
                         this.submitting = true;
                         this.advancing = true;

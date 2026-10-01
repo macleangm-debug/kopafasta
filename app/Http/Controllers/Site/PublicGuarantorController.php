@@ -139,6 +139,7 @@ class PublicGuarantorController extends Controller
             'responded_at' => now(),
         ]);
         $service->recordConsentSnapshot($invitation->fresh());
+        $service->notifyBorrowerAccepted($invitation->fresh(['borrower', 'customerGuarantor.guarantor']));
 
         $this->auditBorrower('guarantor_invitation.accepted', $invitation, [
             'application_id' => $invitation->loan_application_id,

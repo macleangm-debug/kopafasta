@@ -14,9 +14,7 @@
         </div>
     </section>
 
-    <p class="text-sm text-gray-600 mb-6 text-center sm:text-left">{{ __('borrower.guarantor_invite.declined_result_body') }}</p>
-
-    {{-- 2) Optional membership invitation — separate from the decline confirmation. --}}
+    {{-- Optional membership invitation — immediately under the decline confirmation. --}}
     <section class="rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 px-4 sm:px-5 py-5 mb-4 text-left">
         <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">KopaFasta</p>
         <h2 class="text-base sm:text-lg font-bold text-brand mt-1">{{ __('borrower.guarantor_invite.declined_upsell_lede') }}</h2>
