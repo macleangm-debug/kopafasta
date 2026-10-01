@@ -2086,8 +2086,102 @@ class GuarantorInvitationService
     }
 
     /**
+     * Current external invitation shown on Application View (latest non-history).
+     */
+    public function currentExternalInvitationForApplication(LoanApplication $application): ?GuarantorInvitation
+    {
+        return GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->where('type', 'external')
+            ->whereNotIn('status', ['rejected', 'declined', 'expired', 'cancelled', 'replaced'])
+            ->with(['customerGuarantor.guarantor'])
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Invitation the borrower may still edit (before acceptance/consent only).
+     */
+    public function currentBorrowerEditableExternalInvitation(LoanApplication $application): ?GuarantorInvitation
+    {
+        return GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->where('type', 'external')
+            ->whereIn('status', ['pending', 'opened', 'sent'])
+            ->with(['customerGuarantor.guarantor'])
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Form seed for Hariri mdhamini — same identity Application View displays (invitee_name + contact).
+     *
+     * @return array{
+     *     external_first_name: string,
+     *     external_middle_name: string,
+     *     external_last_name: string,
+     *     external_phone: string,
+     *     external_email: string,
+     *     external_relationship: string,
+     *     external_region: string,
+     *     external_district: string,
+     *     external_invitation_id: int,
+     *     invitee_name: string
+     * }
+     */
+    public function borrowerEditFieldSeed(GuarantorInvitation $invitation): array
+    {
+        $g = $invitation->customerGuarantor?->guarantor;
+        $displayName = trim((string) ($invitation->invitee_name ?? ''));
+        if ($displayName === '') {
+            $displayName = trim(collect([$g?->first_name, $g?->last_name])->filter()->implode(' '));
+        }
+
+        $parts = preg_split('/\s+/', $displayName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $first = (string) ($parts[0] ?? '');
+        $middle = '';
+        $last = '';
+        if (count($parts) === 2) {
+            $last = (string) $parts[1];
+        } elseif (count($parts) >= 3) {
+            $last = (string) array_pop($parts);
+            array_shift($parts);
+            $middle = trim(implode(' ', $parts));
+        }
+
+        $phone = (string) ($invitation->contact ?: ($g?->phone ?? ''));
+        $phoneDigits = preg_replace('/\D/', '', $phone) ?? '';
+        if (str_starts_with($phoneDigits, '255') && strlen($phoneDigits) >= 12) {
+            $phoneDigits = substr($phoneDigits, 3);
+        } elseif (str_starts_with($phoneDigits, '0')) {
+            $phoneDigits = substr($phoneDigits, 1);
+        }
+
+        $region = '';
+        $district = '';
+        $address = trim((string) ($g?->address ?? ''));
+        if ($address !== '' && str_contains($address, ',')) {
+            [$region, $district] = array_map('trim', explode(',', $address, 2));
+        }
+
+        return [
+            'external_first_name' => $first,
+            'external_middle_name' => $middle,
+            'external_last_name' => $last,
+            'external_phone' => $phoneDigits,
+            'external_email' => (string) ($g?->email ?? ''),
+            'external_relationship' => (string) ($g?->relationship ?? ''),
+            'external_region' => $region,
+            'external_district' => $district,
+            'external_invitation_id' => (int) $invitation->id,
+            'invitee_name' => $displayName,
+        ];
+    }
+
+    /**
      * Edit the current guarantor nomination in place (same person).
      * Regenerates the invitation token when contact identity changes so the old link dies.
+     * Borrower edits are allowed only before acceptance (pending/opened/sent).
      *
      * @return array{invitation_id: int, invitation_url: string, short_url: string, whatsapp_url: string|null, sms_url: string|null, email_url: string|null, status: string, borrower_status_code: string, borrower_status_label: string, profile_percent: int|null, accepted: bool, ready: bool, steps: list<array{key: string, label: string, complete: bool, current: bool}>}
      */
@@ -2101,20 +2195,28 @@ class GuarantorInvitationService
         string $phone,
         ?string $email,
         ?string $relationship = null,
+        ?string $region = null,
+        ?string $district = null,
     ): array {
         if ((int) $application->customer_id !== (int) $borrower->id) {
             throw new \InvalidArgumentException('Application does not belong to this borrower.');
         }
 
+        // Consent lock: after accept, borrower cannot change identity/contact.
         $invitation = GuarantorInvitation::query()
             ->where('id', $invitationId)
             ->where('customer_id', $borrower->id)
             ->where('loan_application_id', $application->id)
             ->where('type', 'external')
-            ->whereIn('status', ['pending', 'accepted'])
+            ->whereIn('status', ['pending', 'opened', 'sent'])
             ->first();
 
         if (! $invitation) {
+            throw new \InvalidArgumentException(__('borrower.guarantor_invite.no_longer_active'));
+        }
+
+        $current = $this->currentBorrowerEditableExternalInvitation($application);
+        if (! $current || (int) $current->id !== (int) $invitation->id) {
             throw new \InvalidArgumentException(__('borrower.guarantor_invite.no_longer_active'));
         }
 
@@ -2128,6 +2230,7 @@ class GuarantorInvitationService
         $displayName = trim(collect([$firstName, $middleName, $lastName])->filter()->implode(' '));
         $identityChanged = $invitation->contact !== $phone
             || $invitation->invitee_name !== $displayName;
+        $address = trim(collect([$region, $district])->filter()->implode(', '));
 
         return DB::transaction(function () use (
             $invitation,
@@ -2141,17 +2244,21 @@ class GuarantorInvitationService
             $relationship,
             $displayName,
             $identityChanged,
+            $address,
         ): array {
             $link = CustomerGuarantor::query()->find($invitation->customer_guarantor_id);
             if ($link?->guarantor_id) {
                 $guarantorUpdates = [
-                    'first_name' => trim($firstName.' '.($middleName ?: '')),
+                    'first_name' => trim($firstName.($middleName ? ' '.$middleName : '')),
                     'last_name' => $lastName,
                     'phone' => $phone,
                     'email' => $email,
                 ];
                 if ($relationship !== null && $relationship !== '') {
                     $guarantorUpdates['relationship'] = $relationship;
+                }
+                if ($address !== '') {
+                    $guarantorUpdates['address'] = $address;
                 }
                 Guarantor::query()->where('id', $link->guarantor_id)->update($guarantorUpdates);
             }

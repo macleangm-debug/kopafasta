@@ -193,7 +193,7 @@ class GuarantorSupplementFeatureTest extends TestCase
             ->assertSessionHas('error');
     }
 
-    public function test_edit_guarantor_wizard_loads_current_and_save_label(): void
+    public function test_edit_guarantor_wizard_loads_invitee_name_not_stale_guarantor_record(): void
     {
         $customer = $this->borrower();
         $application = $this->applicationFor($customer);
@@ -204,11 +204,13 @@ class GuarantorSupplementFeatureTest extends TestCase
             'application_fee_reference' => 'FEE-GS-EDIT',
         ])->save();
 
+        // Stale person record (historical name) must NOT win over current invitee_name.
         $guarantor = \App\Models\Guarantor::create([
-            'first_name' => 'Vase',
-            'last_name' => 'Vase',
+            'first_name' => 'ROGGIE JOHN',
+            'last_name' => 'MAROSO',
             'phone' => '+255780000342',
             'relationship' => 'friend',
+            'address' => 'Kagera, Bukoba Mjini',
         ]);
         $link = \App\Models\CustomerGuarantor::create([
             'customer_id' => $customer->id,
@@ -226,10 +228,17 @@ class GuarantorSupplementFeatureTest extends TestCase
             'token' => 'gs-edit-token',
             'short_code' => 'GSEDIT',
             'contact' => '+255780000342',
-            'invitee_name' => 'Vase Vase',
+            'invitee_name' => 'UAT Pending Guarantor',
             'status' => 'pending',
             'expires_at' => now()->addDays(7),
         ]);
+
+        $appHtml = $this->actingAs($customer->user)
+            ->get(route('site.borrower.application', $application))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('UAT Pending Guarantor', $appHtml);
+        $this->assertStringContainsString(__('borrower.loan_profile.actions.edit_guarantor'), $appHtml);
 
         $html = $this->actingAs($customer->user)
             ->get(app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application))
@@ -241,11 +250,15 @@ class GuarantorSupplementFeatureTest extends TestCase
             'Edit mode must be enabled'
         );
         $this->assertStringContainsString(__('borrower.loan_profile.actions.edit_guarantor_save'), $html);
-        $this->assertStringContainsString('Vase', $html);
+        $this->assertStringContainsString('UAT', $html);
+        $this->assertStringContainsString('Pending', $html);
+        $this->assertStringContainsString('Guarantor', $html);
         $this->assertStringContainsString('780000342', $html);
+        $this->assertStringNotContainsString('ROGGIE', $html);
+        $this->assertStringNotContainsString('MAROSO', $html);
     }
 
-    public function test_edit_guarantor_save_updates_and_returns_to_application_view(): void
+    public function test_edit_guarantor_json_save_returns_share_payload(): void
     {
         $customer = $this->borrower();
         $application = $this->applicationFor($customer);
@@ -282,16 +295,21 @@ class GuarantorSupplementFeatureTest extends TestCase
         ]);
         $oldToken = $invite->token;
 
-        $this->actingAs($customer->user)
-            ->post(route('site.borrower.application.edit-guarantor', $application), [
+        $response = $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.application.edit-guarantor', $application), [
                 'invitation_id' => $invite->id,
                 'first_name' => 'Vase',
                 'last_name' => 'Vase',
                 'phone' => '0780000342',
                 'relationship' => 'sibling',
+                'region' => 'Dar es Salaam',
+                'district' => 'Kinondoni',
             ])
-            ->assertRedirect(route('site.borrower.application', $application))
-            ->assertSessionHas('status');
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $response->assertJsonStructure(['share' => ['invitation_id', 'invitation_url', 'whatsapp_url']]);
+        $this->assertStringContainsString('Vase', (string) data_get($response->json(), 'share.share_text', data_get($response->json(), 'share.invitee_name', 'Vase')));
 
         $invite->refresh();
         $guarantor->refresh();
@@ -301,7 +319,67 @@ class GuarantorSupplementFeatureTest extends TestCase
         $this->assertSame('pending', $invite->status);
         $this->assertSame('Vase', $guarantor->first_name);
         $this->assertSame('sibling', $guarantor->relationship);
-        $this->assertDatabaseCount('guarantor_invitations', 1);
+    }
+
+    public function test_accepted_guarantor_cannot_be_borrower_edited(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->applicationFor($customer);
+        $application->forceFill([
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+        ])->save();
+
+        $guarantor = \App\Models\Guarantor::create([
+            'first_name' => 'Accepted',
+            'last_name' => 'Person',
+            'phone' => '+255780000555',
+            'relationship' => 'friend',
+        ]);
+        $link = \App\Models\CustomerGuarantor::create([
+            'customer_id' => $customer->id,
+            'guarantor_id' => $guarantor->id,
+            'loan_application_id' => $application->id,
+            'status' => 'approved',
+        ]);
+        $invite = \App\Models\GuarantorInvitation::create([
+            'customer_id' => $customer->id,
+            'loan_application_id' => $application->id,
+            'loan_product_id' => $application->loan_product_id,
+            'customer_guarantor_id' => $link->id,
+            'type' => 'external',
+            'channel' => 'whatsapp',
+            'token' => 'gs-accepted-token',
+            'short_code' => 'GSACPT',
+            'contact' => '+255780000555',
+            'invitee_name' => 'Accepted Person',
+            'status' => 'accepted',
+            'responded_at' => now()->subHour(),
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($customer->user)
+            ->get(app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application))
+            ->assertRedirect(route('site.borrower.application', $application));
+
+        $this->actingAs($customer->user)
+            ->postJson(route('site.borrower.application.edit-guarantor', $application), [
+                'invitation_id' => $invite->id,
+                'first_name' => 'Hacked',
+                'last_name' => 'Name',
+                'phone' => '0780000999',
+            ])
+            ->assertStatus(422);
+
+        $invite->refresh();
+        $this->assertSame('Accepted Person', $invite->invitee_name);
+        $this->assertSame('accepted', $invite->status);
+
+        $html = $this->actingAs($customer->user)
+            ->get(route('site.borrower.application', $application))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringNotContainsString(__('borrower.loan_profile.actions.edit_guarantor'), $html);
     }
 
     public function test_edit_rejected_invitation_redirects_to_application_view(): void

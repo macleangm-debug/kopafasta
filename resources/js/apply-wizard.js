@@ -69,6 +69,9 @@ export function applyWizard(config) {
                 _lastDraftInputs: {},
                 returnTo: config.returnTo || null,
                 guarantorInviteError: '',
+                guarantorEditSaved: false,
+                guarantorEditSaveUrl: config.guarantorEditSaveUrl || '',
+                supplementApplicationUrl: config.supplementApplicationUrl || '',
                 stepNotice: null,
                 purposeLabels: config.purposeLabels,
                 kinRelationshipLabels: config.kinRelationshipLabels || {},
@@ -3201,9 +3204,9 @@ export function applyWizard(config) {
                 },
 
                 isGuarantorLocked() {
-                    // Edit current guarantor: keep fields open — never show locked “Change” card.
+                    // Edit: fields stay open until Save succeeds; then show share card.
                     if (this.guarantorEditMode) {
-                        return false;
+                        return !! this.guarantorEditSaved;
                     }
                     if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
                         return this.internalGuarantorValidated();
@@ -3217,6 +3220,9 @@ export function applyWizard(config) {
 
                 canShowGuarantorContinue() {
                     if (this.guarantorEditMode) {
+                        if (this.guarantorEditSaved) {
+                            return true;
+                        }
                         return this.form.guarantor_mode === 'external'
                             && !!(this.form.external_first_name || '').toString().trim()
                             && !!(this.form.external_last_name || '').toString().trim()
@@ -4303,6 +4309,80 @@ export function applyWizard(config) {
                     await this.prepareExternalGuarantorInvite();
                 },
 
+                async saveEditGuarantor() {
+                    if (! this.guarantorEditSaveUrl) {
+                        this.guarantorInviteError = this.i18n.alerts.guarantor_invite_failed;
+                        return false;
+                    }
+                    this.syncGuarantorFormFromDom();
+                    const missing = this.externalGuarantorSaveMissingFields();
+                    if (Object.keys(missing).length) {
+                        this.setGuarantorFieldErrors(missing);
+                        this.scrollWizardIntoView();
+                        return false;
+                    }
+                    const invitationId = this.form.external_invitation_id
+                        || this.externalGuarantor?.invitation_id
+                        || this.savedDraft?.form?.external_invitation_id;
+                    if (! invitationId) {
+                        this.guarantorInviteError = this.i18n.alerts.guarantor_invite_failed;
+                        return false;
+                    }
+                    this.guarantorErrors = {};
+                    this.guarantorInviteError = '';
+                    this.guarantorInvitePreparing = true;
+                    try {
+                        const res = await fetch(this.guarantorEditSaveUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                invitation_id: invitationId,
+                                first_name: this.form.external_first_name,
+                                middle_name: this.form.external_middle_name || '',
+                                last_name: this.form.external_last_name,
+                                phone: this.form.external_phone,
+                                email: this.form.external_email || '',
+                                relationship: this.form.external_relationship || '',
+                                region: this.form.external_region || '',
+                                district: this.form.external_district || '',
+                            }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (! res.ok || ! data.ok || ! data.share) {
+                            const message = data.message || this.i18n.alerts.guarantor_invite_failed;
+                            if (data.errors?.phone?.[0] || /phone|simu|member/i.test(message)) {
+                                this.guarantorErrors = { ...this.guarantorErrors, external_phone: message };
+                            }
+                            this.guarantorInviteError = message;
+                            return false;
+                        }
+                        this.externalGuarantor = {
+                            ...data.share,
+                            _fingerprint: this.externalGuarantorFingerprint(),
+                        };
+                        this.form.external_invitation_id = data.share.invitation_id || invitationId;
+                        this.guarantorEditSaved = true;
+                        this.addGuarantorOpen = false;
+                        if (data.application_url) {
+                            this.supplementApplicationUrl = data.application_url;
+                        }
+                        this.guarantorInviteError = '';
+                        this.scrollWizardIntoView();
+                        return true;
+                    } catch {
+                        this.guarantorInviteError = this.i18n.alerts.guarantor_invite_failed;
+                        return false;
+                    } finally {
+                        this.guarantorInvitePreparing = false;
+                    }
+                },
+
                 async prepareExternalGuarantorInvite() {
                     this.guarantorInviteError = '';
                     if (! this.guarantorInviteUrl) {
@@ -4579,7 +4659,13 @@ export function applyWizard(config) {
                             return true;
                         }
                         if (this.form.guarantor_mode === 'external') {
-                            // Edit/supplement: fields only — Save & send creates/rotates the invitation.
+                            // Edit: after Save, share step is ready — Finish validates as complete.
+                            if (this.guarantorEditMode && this.guarantorEditSaved) {
+                                this.guarantorErrors = {};
+                                this.guarantorInviteError = '';
+                                return true;
+                            }
+                            // Edit/supplement: fields only — Save creates/rotates the invitation.
                             if (this.guarantorEditMode || this.supplementMode) {
                                 const missing = this.externalGuarantorSaveMissingFields();
                                 if (Object.keys(missing).length) {
@@ -4773,9 +4859,23 @@ export function applyWizard(config) {
 
                         await this.persistDraft(true);
                         if (this.supplementMode && this.stepKey === 'guarantor') {
-                            // One commit: save/send invitation, then leave — never a second Finish.
-                            if (! this.guarantorEditMode
-                                && this.form.guarantor_mode === 'external'
+                            if (this.guarantorEditMode) {
+                                // Save → share step → Done returns to Application View.
+                                if (! this.guarantorEditSaved) {
+                                    const saved = await this.saveEditGuarantor();
+                                    if (! saved) {
+                                        this.scrollWizardIntoView();
+                                        return;
+                                    }
+                                    return;
+                                }
+                                if (this.supplementApplicationUrl) {
+                                    window.location.href = this.supplementApplicationUrl;
+                                    return;
+                                }
+                            }
+                            // Replacement supplement: prepare then attach, leave.
+                            if (this.form.guarantor_mode === 'external'
                                 && ! (this.externalGuarantor?.invitation_id || this.form.external_invitation_id)) {
                                 const prepared = await this.prepareExternalGuarantorInvite();
                                 if (! prepared) {

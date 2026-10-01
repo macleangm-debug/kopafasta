@@ -135,14 +135,18 @@ class ApplyController extends Controller
                 ->where('customer_id', $customer->id)
                 ->find($request->query('application'));
 
-            $supplements = app(GuarantorSupplementService::class);
-            if ($supplementApplication && $supplements->hasCurrentActionableNomination($supplementApplication)) {
+            $inviteSvc = app(GuarantorInvitationService::class);
+            $editable = $supplementApplication
+                ? $inviteSvc->currentBorrowerEditableExternalInvitation($supplementApplication)
+                : null;
+            if ($supplementApplication && $editable) {
                 $supplementMode = true;
                 $guarantorEditMode = true;
                 $supplementKind = 'edit';
                 $preselect = $supplementApplication->loan_product_id;
                 $request->merge(['resume' => 1, 'step_key' => 'guarantor']);
             } elseif ($supplementApplication) {
+                // Accepted or no current nomination — never open edit against wrong/history person.
                 return redirect()
                     ->route('site.borrower.application', $supplementApplication)
                     ->with('kf_status_inline', true);
@@ -354,38 +358,25 @@ class ApplyController extends Controller
             ];
             $externalGuarantorSeed = null;
             if ($guarantorEditMode) {
-                $invite = \App\Models\GuarantorInvitation::query()
-                    ->where('loan_application_id', $supplementApplication->id)
-                    ->where('customer_id', $customer->id)
-                    ->where('type', 'external')
-                    ->whereIn('status', ['pending', 'accepted', 'opened', 'sent'])
-                    ->with(['customerGuarantor.guarantor'])
-                    ->latest('id')
-                    ->first();
+                $invite = app(GuarantorInvitationService::class)
+                    ->currentBorrowerEditableExternalInvitation($supplementApplication);
                 if ($invite) {
-                    $g = $invite->customerGuarantor?->guarantor;
-                    $first = trim((string) ($g?->first_name ?? ''));
-                    $last = trim((string) ($g?->last_name ?? ''));
-                    if ($first === '' && $last === '') {
-                        $nameParts = preg_split('/\s+/', trim((string) ($invite->invitee_name ?? '')), 2) ?: ['', ''];
-                        $first = $nameParts[0] ?? '';
-                        $last = $nameParts[1] ?? '';
-                    }
-                    // Guarantor.first_name may hold "First Middle" — keep editable as first + last only.
-                    $relationship = $g?->relationship ?? '';
+                    $seed = app(GuarantorInvitationService::class)->borrowerEditFieldSeed($invite);
                     $formSeed = array_merge($formSeed, [
                         'guarantor_mode' => 'external',
-                        'external_first_name' => $first,
-                        'external_last_name' => $last,
-                        'external_phone' => (string) ($invite->contact ?? $g?->phone ?? ''),
-                        'external_email' => (string) ($g?->email ?? ''),
-                        'external_relationship' => (string) $relationship,
-                        'external_invitation_id' => $invite->id,
+                        'external_first_name' => $seed['external_first_name'],
+                        'external_middle_name' => $seed['external_middle_name'],
+                        'external_last_name' => $seed['external_last_name'],
+                        'external_phone' => $seed['external_phone'],
+                        'external_email' => $seed['external_email'],
+                        'external_relationship' => $seed['external_relationship'],
+                        'external_region' => $seed['external_region'],
+                        'external_district' => $seed['external_district'],
+                        'external_invitation_id' => $seed['external_invitation_id'],
                     ]);
                     $externalGuarantorSeed = app(GuarantorInvitationService::class)
                         ->sharePayload($invite->loadMissing(['application.product', 'product', 'borrower', 'customerGuarantor.guarantor']), $customer);
                 } else {
-                    // Dead token / race: never open edit against a missing current invitation.
                     return redirect()
                         ->route('site.borrower.application', $supplementApplication);
                 }
@@ -2889,11 +2880,30 @@ class ApplyController extends Controller
                     $data['external_phone'],
                     $data['external_email'] ?? null,
                     $data['external_relationship'] ?? null,
+                    $data['external_region'] ?? null,
+                    $data['external_district'] ?? null,
                 );
 
                 $this->auditBorrower('loan_application.guarantor_invitation_edited', $application, [
                     'invitation_id' => $inviteId,
                 ]);
+
+                if ($request->expectsJson() || $request->ajax()) {
+                    $invite = GuarantorInvitation::query()->find($inviteId);
+                    $share = $invite
+                        ? $guarantors->sharePayload(
+                            $invite->loadMissing(['application.product', 'product', 'borrower', 'customerGuarantor.guarantor']),
+                            $customer,
+                        )
+                        : null;
+
+                    return response()->json([
+                        'ok' => true,
+                        'share' => $share,
+                        'message' => __('borrower.loan_profile.actions.edit_guarantor_saved'),
+                        'application_url' => route('site.borrower.application', $application),
+                    ]);
+                }
 
                 return redirect()
                     ->route('site.borrower.application', $application)

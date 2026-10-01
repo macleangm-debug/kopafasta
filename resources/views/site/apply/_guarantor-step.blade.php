@@ -61,6 +61,7 @@
             </x-slot:details>
             <x-slot:actions>
                 <button type="button"
+                        x-show="!guarantorEditMode"
                         @click="changeGuarantor()"
                         :disabled="guarantorChanging"
                         class="inline-flex items-center justify-center bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">

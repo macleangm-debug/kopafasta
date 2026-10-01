@@ -311,7 +311,8 @@
                                 <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.loan_profile.guarantor_nudge_copy'))"></span>
                             </button>
                         @endif
-                        @if ($application && $primary?->invite && in_array((string) ($primary->invite->status ?? ''), ['pending', 'accepted'], true)
+                        @if ($application && $primary?->invite
+                            && (string) ($primary->invite->status ?? '') === 'pending'
                             && ($primary->invite->type ?? '') === 'external')
                             <a href="{{ app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application) }}"
                                class="inline-flex shrink-0 items-center gap-1.5 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">

@@ -439,7 +439,7 @@ class BorrowerController extends Controller
             ->with('status', __('borrower.guarantor_supplement.borrower_change_started'));
     }
 
-    public function editGuarantorInvitation(Request $request, LoanApplication $application): RedirectResponse
+    public function editGuarantorInvitation(Request $request, LoanApplication $application): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $customer = $this->customer();
         abort_if($application->customer_id !== $customer->id, 404);
@@ -452,6 +452,8 @@ class BorrowerController extends Controller
             'middle_name' => ['nullable', 'string', 'max:60'],
             'email' => ['nullable', 'email', 'max:120'],
             'relationship' => ['nullable', 'string', 'max:40'],
+            'region' => ['nullable', 'string', 'max:80'],
+            'district' => ['nullable', 'string', 'max:80'],
         ]);
 
         try {
@@ -466,23 +468,48 @@ class BorrowerController extends Controller
                     $data['phone'],
                     $data['email'] ?? null,
                     $data['relationship'] ?? null,
+                    $data['region'] ?? null,
+                    $data['district'] ?? null,
                 );
         } catch (\InvalidArgumentException $e) {
-            return redirect()
-                ->route('site.borrower.application', $application)
-                ->with('error', $e->getMessage());
-        } catch (\Throwable $e) {
-            report($e);
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
 
             return redirect()
                 ->route('site.borrower.application', $application)
-                ->with('error', __('borrower.apply.alerts.guarantor_invite_failed'));
+                ->with('error', $e->getMessage())
+                ->with('kf_status_inline', true);
+        } catch (\Throwable $e) {
+            report($e);
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => __('borrower.apply.alerts.guarantor_invite_failed'),
+                ], 422);
+            }
+
+            return redirect()
+                ->route('site.borrower.application', $application)
+                ->with('error', __('borrower.apply.alerts.guarantor_invite_failed'))
+                ->with('kf_status_inline', true);
         }
 
         $this->auditBorrower('loan_application.guarantor_invitation_edited', $application, [
             'invitation_id' => $share['invitation_id'] ?? null,
         ]);
 
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'share' => $share,
+                'message' => __('borrower.loan_profile.actions.edit_guarantor_saved'),
+                'application_url' => route('site.borrower.application', $application),
+            ]);
+        }
+
+        // Non-AJAX: return to Application View (share already available there).
         return redirect()
             ->route('site.borrower.application', $application)
             ->with('status', __('borrower.loan_profile.actions.edit_guarantor_saved'));

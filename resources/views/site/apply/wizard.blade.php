@@ -75,6 +75,16 @@
                   leaderPhone: @js($leaderPhone ?? $customer->phone),
                   leaderAvatarUrl: @js($leaderAvatarUrl ?? null),
                   guarantorInviteUrl: @js(route('site.borrower.apply.guarantor-invite')),
+                  guarantorEditSaveUrl: @js(
+                      ($guarantorEditMode ?? false) && ($supplementApplication ?? null)
+                          ? route('site.borrower.application.edit-guarantor', $supplementApplication)
+                          : null
+                  ),
+                  supplementApplicationUrl: @js(
+                      ($supplementApplication ?? null)
+                          ? route('site.borrower.application', $supplementApplication)
+                          : null
+                  ),
                   previousGuarantorsUrl: @js(route('site.borrower.apply.previous-guarantors')),
                   selectPreviousGuarantorUrl: @js(route('site.borrower.apply.previous-guarantor')),
                   guarantorStatusUrl: @js(route('site.borrower.apply.guarantor-status')),
