@@ -11,7 +11,6 @@ use App\Services\UserAccountService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -36,14 +35,14 @@ class UserController extends ResourceController
 
         return [
             'name'            => ['required', 'string', 'max:150'],
-            'email'           => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($id)],
+            'email'           => ['nullable', 'email', 'max:150', Rule::unique('users', 'email')->ignore($id)],
             'phone'           => ['nullable', 'string', 'max:30'],
             'roles'           => ['required', 'array', 'min:1'],
             'roles.*'         => ['string', Rule::in($allowedRoles)],
             'department_ids'  => ['nullable', 'array'],
             'department_ids.*'=> ['integer', 'exists:departments,id'],
             'is_active'       => ['nullable', 'boolean'],
-            'password'        => [$id ? 'nullable' : 'required', 'string', 'min:6'],
+            'password'        => [$id ? 'nullable' : 'nullable', 'string', 'min:6', 'confirmed'],
         ];
     }
 
@@ -76,7 +75,9 @@ class UserController extends ResourceController
     protected function transform(array $data, ?Model $existing = null): array
     {
         if (! empty($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
+            // Plain value — User casts password as hashed (Hash::isHashed prevents double-hash).
+            $data['password'] = (string) $data['password'];
+            $data['password_changed_at'] = null;
         } else {
             unset($data['password']);
         }
@@ -140,6 +141,14 @@ class UserController extends ResourceController
         abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
 
         $validated = $request->validate($this->rules());
+        if (blank($validated['email'] ?? null) && blank($validated['password'] ?? null)) {
+            throw ValidationException::withMessages([
+                'password' => 'Set a temporary password, or add an email and issue a password setup link after create.',
+            ]);
+        }
+        if (blank($validated['email'] ?? null)) {
+            $validated['email'] = null;
+        }
         [$primary, $roleCodes] = $this->resolveRoleSelection($validated);
         $desks = app(CreditDeskAssignmentService::class);
         $departmentIds = $desks->ensureDesks($roleCodes, $this->resolvedDepartmentIds($request));
@@ -148,6 +157,9 @@ class UserController extends ResourceController
         $desks->assertCompatible($primary, $departmentIds);
         $validated['role'] = $primary;
         $validated['roles'] = $roleCodes;
+        if (blank($validated['password'] ?? null)) {
+            $validated['password'] = \Illuminate\Support\Str::password(32);
+        }
         $data = $this->transform($validated);
         $record = User::create($data);
         $record->departments()->sync($departmentIds);
@@ -199,6 +211,9 @@ class UserController extends ResourceController
         $desks->assertCompatible($primary, $departmentIds, $record);
         $validated['role'] = $primary;
         $validated['roles'] = $roleCodes;
+        if (blank($validated['email'] ?? null)) {
+            $validated['email'] = null;
+        }
         $data = $this->transform($validated, $record);
         $record->update($data);
         $record->departments()->sync($departmentIds);
@@ -284,8 +299,23 @@ class UserController extends ResourceController
         );
 
         return redirect()
-            ->route("{$this->routePrefix}.edit", $user)
+            ->route("{$this->routePrefix}.show", $user)
             ->with('status', 'Password reset. Temporary password: '.$result['temporary_password'])
             ->with('temporary_password', $result['temporary_password']);
+    }
+
+    public function issuePasswordSetupLink(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        $result = $this->accounts->issuePasswordSetupLink(auth()->user(), $user, $request);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $user)
+            ->with('status', $result['emailed']
+                ? 'Password setup link emailed (also copied below for sharing).'
+                : 'Password setup link ready — copy and share securely (no email on file).')
+            ->with('password_setup_url', $result['url'])
+            ->with('password_setup_expires', $result['expires_at']);
     }
 }

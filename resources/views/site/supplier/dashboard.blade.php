@@ -49,6 +49,24 @@
         </div>
     </section>
 
+    @php
+        $dashSupportConversation = auth()->user()
+            ? \App\Models\SupportConversation::query()
+                ->where('user_id', auth()->id())
+                ->whereNull('customer_id')
+                ->whereNotIn('status', ['closed', 'resolved'])
+                ->latest('id')
+                ->first(['id', 'status', 'conversation_number'])
+            : null;
+        $supplierSupportUrl = \Illuminate\Support\Facades\Route::has('site.partner.support')
+            ? route('site.partner.support')
+            : route('site.support');
+    @endphp
+    <x-site.support-need-help-card
+        :support-url="$supplierSupportUrl"
+        :active-conversation="$dashSupportConversation"
+    />
+
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         @foreach ([
             [__('site.supplier_portal.stat_assets'), (int) $stats['assets'], route('site.supplier.assets')],

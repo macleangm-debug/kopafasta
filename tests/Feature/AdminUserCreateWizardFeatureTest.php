@@ -51,6 +51,7 @@ class AdminUserCreateWizardFeatureTest extends TestCase
                 'email' => 'rogathe.support@example.com',
                 'phone' => '255653924624',
                 'password' => 'secret12',
+                'password_confirmation' => 'secret12',
                 'roles' => ['partner_support'],
                 'is_active' => '1',
             ])

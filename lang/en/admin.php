@@ -256,7 +256,7 @@ return [
         'enter_workspace' => 'Enter workspace',
         'enter_as' => 'Enter as :role',
         'staff_filter' => 'Staff / Account',
-        'staff_all' => 'All Support',
+        'staff_all' => 'Team',
         'filter_updated' => 'Workspace staff filter updated.',
         'viewing' => 'Viewing',
         'exit' => 'Exit',

@@ -74,7 +74,8 @@ class UserAccountService
     {
         $temporaryPassword = $temporaryPassword ?: \Illuminate\Support\Str::password(12);
         $target->forceFill([
-            'password' => \Illuminate\Support\Facades\Hash::make($temporaryPassword),
+            // Plaintext — User `password` cast hashes once (never pre-hash here).
+            'password' => $temporaryPassword,
             'password_changed_at' => null,
         ])->save();
 
@@ -93,6 +94,80 @@ class UserAccountService
             'user' => $target->fresh(),
             'temporary_password' => $temporaryPassword,
         ];
+    }
+
+    /**
+     * Issue a single-use expiring password setup/reset link (Laravel password broker).
+     * When the user has no real email, returns a copyable URL for Admin to share out-of-band.
+     *
+     * @return array{url: string, expires_at: string, emailed: bool}
+     */
+    public function issuePasswordSetupLink(User $actor, User $target, ?Request $request = null): array
+    {
+        $brokerKey = $this->passwordBrokerKey($target);
+        $plainToken = \Illuminate\Support\Str::random(64);
+        $table = config('auth.passwords.users.table', 'password_reset_tokens');
+        \Illuminate\Support\Facades\DB::table($table)->updateOrInsert(
+            ['email' => $brokerKey],
+            [
+                'token' => \Illuminate\Support\Facades\Hash::make($plainToken),
+                'created_at' => now(),
+            ]
+        );
+
+        $expiresAt = now()->addMinutes((int) config('auth.passwords.users.expire', 60));
+        $url = route('staff.password-setup', [
+            'token' => $plainToken,
+            'uid' => $target->id,
+            'email' => $brokerKey,
+        ]);
+
+        $emailed = false;
+        $email = trim((string) $target->email);
+        if ($email !== ''
+            && ! str_contains(strtolower($email), '@kopafasta.local')
+            && ! str_contains(strtolower($email), '@partners.kopafasta.local')) {
+            try {
+                \Illuminate\Support\Facades\Password::broker()->sendResetLink(['email' => $email]);
+                $emailed = true;
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        AuditLog::create([
+            'user_id'        => $actor->id,
+            'event'          => 'admin.user_password_setup_link',
+            'auditable_type' => User::class,
+            'auditable_id'   => $target->id,
+            'old_values'     => null,
+            'new_values'     => json_encode([
+                'issued_by' => $actor->id,
+                'emailed' => $emailed,
+                'expires_at' => $expiresAt->toIso8601String(),
+            ]),
+            'ip_address'     => $request?->ip(),
+            'user_agent'     => substr((string) ($request?->userAgent() ?? ''), 0, 1000),
+        ]);
+
+        return [
+            'url' => $url,
+            'expires_at' => $expiresAt->toIso8601String(),
+            'emailed' => $emailed,
+        ];
+    }
+
+    /** Broker table key — real email when present, otherwise uid:{id} (not a mailbox). */
+    public function passwordBrokerKey(User $user): string
+    {
+        $email = trim((string) $user->email);
+        if ($email !== ''
+            && ! str_contains(strtolower($email), '@kopafasta.local')
+            && ! str_contains(strtolower($email), '@partners.kopafasta.local')) {
+            return $email;
+        }
+
+        return 'uid:'.$user->id;
     }
 
     public function isLocked(User $user): bool

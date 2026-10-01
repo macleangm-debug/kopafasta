@@ -35,6 +35,18 @@
 
     <x-site.borrower-dashboard-hero :hero="$hero" />
 
+    @php
+        $dashSupportConversation = \App\Models\SupportConversation::query()
+            ->where('customer_id', $customer->id ?? 0)
+            ->whereNotIn('status', ['closed', 'resolved'])
+            ->latest('id')
+            ->first(['id', 'status', 'conversation_number']);
+    @endphp
+    <x-site.support-need-help-card
+        :support-url="route('site.borrower.support')"
+        :active-conversation="$dashSupportConversation"
+    />
+
     <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
 
     @if (! empty($financialSnapshot['next_payment']) || ! empty($financialSnapshot['outstanding']))

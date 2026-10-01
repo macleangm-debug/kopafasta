@@ -77,6 +77,7 @@ class AdminUsersMembersPassFeatureTest extends TestCase
                 'email' => 'analyst.support@example.com',
                 'phone' => '255700000099',
                 'password' => 'secret12',
+                'password_confirmation' => 'secret12',
                 'roles' => ['credit_analyst', 'agent'],
                 'is_active' => '1',
             ])

@@ -125,11 +125,11 @@
                 <template x-for="cat in groups" :key="cat.key">
                     <button type="button"
                             @click="selectCategory(cat.key)"
-                            class="snap-start shrink-0 w-[10.5rem] sm:w-[11.5rem] rounded-2xl bg-white ring-1 shadow-sm px-4 py-5 transition text-left"
+                            class="snap-start shrink-0 w-[12.5rem] sm:w-[13.5rem] rounded-2xl bg-white ring-1 shadow-sm px-5 py-6 transition text-left"
                             :class="selectedKey === cat.key ? 'ring-brand/50 bg-brand-muted/30' : 'ring-brand/10 hover:ring-brand/30'">
-                        <span class="text-2xl sm:text-3xl" aria-hidden="true" x-text="cat.icon"></span>
-                        <p class="mt-3 text-sm font-bold text-gray-900 leading-snug" x-text="cat.label"></p>
-                        <p class="mt-1 text-[11px] font-semibold text-brand/80"
+                        <span class="text-3xl sm:text-4xl" aria-hidden="true" x-text="cat.icon"></span>
+                        <p class="mt-3.5 text-[15px] font-bold text-gray-900 leading-snug" x-text="cat.label"></p>
+                        <p class="mt-1.5 text-xs font-semibold text-brand/80"
                            x-text="topicCountPrefix + cat.topic_count + topicCountSuffix"></p>
                     </button>
                 </template>

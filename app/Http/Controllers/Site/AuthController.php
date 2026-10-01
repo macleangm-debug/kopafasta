@@ -1256,20 +1256,18 @@ class AuthController extends Controller
             }
         }
 
-        $digits = preg_replace('/\D/', '', $data['phone']) ?: Str::random(8);
-        $email = $digits.'@phone.kopafasta.local';
-
         try {
-            $user = DB::transaction(function () use ($data, $email, $referrals, $request) {
+            $user = DB::transaction(function () use ($data, $referrals, $request) {
                 $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
 
                 // Pending until PIN + security questions complete (finalizeBorrowerRegistration).
                 // Password is never collected — placeholder hash only; auth is phone + 4-digit PIN.
+                // Never invent @phone.kopafasta.local — email stays null until the member supplies one.
                 $user = User::create([
                     'name' => $fullName,
-                    'email' => $email,
+                    'email' => null,
                     'phone' => $data['phone'],
-                    'password' => Hash::make(Str::password(32)),
+                    'password' => Str::password(32),
                     'role' => 'borrower',
                     'is_active' => false,
                 ]);

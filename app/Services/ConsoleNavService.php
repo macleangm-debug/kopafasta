@@ -54,6 +54,40 @@ class ConsoleNavService
             ];
         }
 
+        // While viewing a staff desk, Home must land on that desk — not Credit Admin dashboard.
+        $viewing = $this->viewingStaffRoleKey();
+        if ($viewing !== null) {
+            $deskHome = app(AdminRoleViewService::class)->workspaceHomeUrl($viewing);
+            $deskRoute = null;
+            foreach ([
+                'marketer' => 'admin.growth.index',
+                'asset_manager' => 'admin.marketplace-assets.index',
+                'officer' => 'admin.teams.screening',
+                'credit_analyst' => 'admin.teams.screening',
+                'credit_committee' => 'admin.teams.committee',
+                'manager' => 'admin.teams.management',
+                'collector' => 'admin.reports.collections-performance',
+                'auditor' => 'admin.audit-logs.index',
+            ] as $role => $routeName) {
+                if ($viewing === $role && \Illuminate\Support\Facades\Route::has($routeName)) {
+                    $deskRoute = $routeName;
+                    break;
+                }
+            }
+            if ($deskRoute) {
+                foreach ($visible as &$section) {
+                    if (($section['label'] ?? '') === 'Home') {
+                        $section['targetRoute'] = $deskRoute;
+                        $section['items'] = [['Home', $deskRoute]];
+                        $section['isActive'] = $currentRoute === $deskRoute
+                            || (is_string($currentRoute) && str_starts_with($currentRoute, str_replace('.index', '.', $deskRoute)));
+                    }
+                }
+                unset($section);
+            }
+            unset($deskHome);
+        }
+
         return $visible;
     }
 
@@ -124,7 +158,7 @@ class ConsoleNavService
                     ['Credit teams',        'admin.credit-team.index', 'applications.view', null, ['roles' => ['admin', 'super_admin', 'manager']]],
                 ],
                 'perms' => ['applications.view', 'loans.view'],
-                'hide_from' => ['partner_support', 'asset_manager'],
+                'hide_from' => ['partner_support', 'asset_manager', 'marketer'],
             ],
             [
                 'label' => 'Money',
@@ -286,7 +320,14 @@ class ConsoleNavService
         }
 
         $hideFrom = $section['hide_from'] ?? [];
-        if ($hideFrom !== [] && ! $this->roles->hasPermissionBypass($user)) {
+        $viewingRole = $this->viewingStaffRoleKey();
+
+        // Account/Role viewing: filter nav as the viewed workspace, even for Admin bypass.
+        if ($viewingRole !== null && $hideFrom !== [] && in_array($viewingRole, $hideFrom, true)) {
+            return false;
+        }
+
+        if ($hideFrom !== [] && ! $this->roles->hasPermissionBypass($user) && $viewingRole === null) {
             // Hide only when every capability is listed — multi-capability users keep
             // sections their other roles are allowed to open (perms still apply).
             $codes = $user->roleCodes();
@@ -300,7 +341,30 @@ class ConsoleNavService
             return true;
         }
 
+        // While viewing a staff workspace, Admin still has permissions — that is intentional
+        // so they can act. hide_from above already constrains the chrome to the desk.
         return $this->permissions->hasAny($user, $perms);
+    }
+
+    /**
+     * Active Account/Role staff workspace key (not Support — Support uses its own shell).
+     */
+    private function viewingStaffRoleKey(): ?string
+    {
+        $ctx = app(AdminRoleViewService::class)->active();
+        if (! $ctx) {
+            return null;
+        }
+
+        $key = (string) ($ctx['workspace_key'] ?? $ctx['role_key'] ?? '');
+        if ($key === '' || $key === AdminRoleViewService::WORKSPACE_SUPPORT) {
+            return null;
+        }
+        if (in_array($key, AdminRoleViewService::SUPPORT_ROLE_KEYS, true)) {
+            return null;
+        }
+
+        return $key;
     }
 
     /**

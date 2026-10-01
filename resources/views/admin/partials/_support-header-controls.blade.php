@@ -9,7 +9,7 @@
     $availability = $supportWorkspace->availability($agent);
     $selectedStaffId = (! $teamView && ! empty($ctx['subject_id'])) ? (int) $ctx['subject_id'] : null;
     $viewingLabel = $teamView
-        ? 'Team'
+        ? __('admin.role_view.staff_all')
         : (collect($staffOptions)->firstWhere('id', $selectedStaffId)['name'] ?? ($agent?->name ?? 'Staff'));
 @endphp
 <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto pl-2">
@@ -21,8 +21,8 @@
                     onchange="this.form.submit()"
                     class="rounded-lg border-0 bg-white/15 text-white text-xs font-semibold px-2.5 py-1.5 focus:ring-2 focus:ring-brand-gold/50 max-w-[9.5rem]"
                     title="Filters Support workload and performance. Does not impersonate — actions still record as you."
-                    aria-label="{{ __('admin.role_view.viewing') }}: Team">
-                <option value="0" @selected($teamView) class="text-gray-900">Team ▾</option>
+                    aria-label="{{ __('admin.role_view.viewing') }}: {{ __('admin.role_view.staff_all') }}">
+                <option value="0" @selected($teamView) class="text-gray-900">{{ __('admin.role_view.staff_all') }} ▾</option>
                 @foreach ($staffOptions as $person)
                     <option value="{{ $person['id'] }}" @selected((int) $selectedStaffId === (int) $person['id']) class="text-gray-900">
                         {{ $person['name'] }}
@@ -41,7 +41,7 @@
                 @csrf
                 <button type="submit" name="staff_id" value="0"
                         class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ $teamView ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
-                    Team
+                    {{ __('admin.role_view.staff_all') }}
                 </button>
                 @foreach ($staffOptions as $person)
                     <button type="submit" name="staff_id" value="{{ $person['id'] }}"

@@ -109,7 +109,7 @@ class AdminRoleViewService
                 $byRole[$code][$user->id] = [
                     'id' => (int) $user->id,
                     'name' => (string) $user->name,
-                    'subtitle' => (string) ($user->email ?: $user->phone ?: ''),
+                    'subtitle' => $this->staffSubtitle($user),
                     'profile_url' => route('admin.users.show', $user),
                 ];
             }
@@ -295,7 +295,22 @@ class AdminRoleViewService
             return app(\App\Services\Support\CustomerSupportWorkspaceService::class)->homeUrl();
         }
 
-        // Other role workspaces: temporary Console landing until each desk is built.
+        $route = match ($workspaceKey) {
+            'marketer' => 'admin.growth.index',
+            'asset_manager' => 'admin.marketplace-assets.index',
+            'officer', 'credit_analyst' => 'admin.teams.screening',
+            'credit_committee' => 'admin.teams.committee',
+            'manager' => 'admin.teams.management',
+            'partner_support' => 'admin.teams.partners',
+            'collector' => 'admin.reports.collections-performance',
+            'auditor' => 'admin.audit-logs.index',
+            default => 'admin.dashboard',
+        };
+
+        if (\Illuminate\Support\Facades\Route::has($route)) {
+            return route($route);
+        }
+
         return route('admin.dashboard');
     }
 
@@ -558,10 +573,20 @@ class AdminRoleViewService
             'subject_type' => 'staff',
             'subject_id' => $user->id,
             'name' => (string) $user->name,
-            'subtitle' => (string) ($user->email ?: $user->phone ?: ''),
+            'subtitle' => $this->staffSubtitle($user),
             'roles' => $roles,
             'profile_url' => route('admin.users.show', $user),
         ];
+    }
+
+    private function staffSubtitle(User $user): string
+    {
+        $email = operator_email_display($user->email);
+        if ($email !== '—') {
+            return $email;
+        }
+
+        return (string) ($user->phone ?: '');
     }
 
     /** @return array<string, mixed> */

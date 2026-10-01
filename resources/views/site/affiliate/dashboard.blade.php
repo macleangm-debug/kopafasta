@@ -59,6 +59,24 @@
         </div>
     </section>
 
+    @php
+        $dashSupportConversation = auth()->user()
+            ? \App\Models\SupportConversation::query()
+                ->where('user_id', auth()->id())
+                ->whereNull('customer_id')
+                ->whereNotIn('status', ['closed', 'resolved'])
+                ->latest('id')
+                ->first(['id', 'status', 'conversation_number'])
+            : null;
+        $partnerSupportUrl = \Illuminate\Support\Facades\Route::has('site.affiliate.support')
+            ? route('site.affiliate.support')
+            : route('site.partner.support');
+    @endphp
+    <x-site.support-need-help-card
+        :support-url="$partnerSupportUrl"
+        :active-conversation="$dashSupportConversation"
+    />
+
     @if (($attention ?? null) && ! in_array(($attention['kind'] ?? ''), ['profile', 'terms', 'agreement'], true) && empty($attention['hero_only']))
         <section class="glass-card p-5 mb-6 ring-1 ring-amber-200 bg-amber-50/70">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

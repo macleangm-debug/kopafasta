@@ -83,12 +83,12 @@
 >
     <x-admin.step title="Person">
         <x-admin.input name="name" label="Full name" :value="$r?->name" required autocomplete="name" />
-        <x-admin.input name="email" label="Email" :value="$emailValue" type="email" required autocomplete="off" />
+        <x-admin.input name="email" label="Email (optional)" :value="$emailValue" type="email" autocomplete="off" />
         <div class="md:col-span-2">
             <x-admin.phone-input name="phone" label="Phone" :value="$r?->phone" />
         </div>
         <p class="md:col-span-2 text-xs text-gray-500">
-            This is a staff console account (email + password), not a borrower or partner PIN.
+            Staff console sign-in uses email + password when email is set. Never invent placeholder emails — leave blank if none.
         </p>
     </x-admin.step>
 
@@ -153,66 +153,49 @@
 
     <x-admin.step title="Access">
         <div class="md:col-span-2 rounded-xl bg-gray-50 ring-1 ring-gray-200 p-4 space-y-4">
-            {{-- Absorb browser autofill so the real password stays empty --}}
             <input type="text" name="fake_username" autocomplete="username" class="hidden" tabindex="-1" aria-hidden="true">
             <input type="password" name="fake_password" autocomplete="current-password" class="hidden" tabindex="-1" aria-hidden="true">
 
             @if ($creating)
-                <x-admin.input
-                    name="password"
-                    label="Password for this person"
-                    type="password"
-                    required
-                    autocomplete="new-password"
-                    data-lpignore="true"
-                    data-1p-ignore="true"
-                    readonly
-                    onfocus="this.removeAttribute('readonly')"
-                    :value="''"
-                    help="Type a new password here. Your browser may try to fill your own login — ignore that."
-                />
-            @else
-                <div class="rounded-xl bg-white ring-1 ring-brand/10 p-4 space-y-3">
-                    <p class="text-sm font-semibold text-gray-900">Password</p>
-                    <p class="text-xs text-gray-500">Current password is never shown. Use Reset password to issue a temporary password.</p>
-                    @if (session('temporary_password'))
-                        <p class="text-sm text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200 rounded-lg px-3 py-2">
-                            Temporary password (show once): <span class="font-mono font-bold">{{ session('temporary_password') }}</span>
-                        </p>
-                    @endif
-                    <form method="POST" action="{{ route('admin.users.reset-password', $r) }}" class="space-y-3"
-                          x-data
-                          @submit.prevent="window.confirmForm($el, {
-                              title: 'Reset staff password?',
-                              message: 'This replaces the current password with a temporary password you can share securely. The previous password is not revealed.',
-                              confirmLabel: 'Reset password',
-                              confirmClass: 'bg-brand hover:brightness-95 text-white',
-                          })">
-                        @csrf
-                        <x-admin.input
+                <div x-data="{ show: false, show2: false }" class="space-y-3">
+                    <label class="block text-sm font-medium text-gray-700">Password for this person</label>
+                    <div class="relative">
+                        <input
+                            :type="show ? 'text' : 'password'"
                             name="password"
-                            label="Optional temporary password"
-                            type="password"
                             autocomplete="new-password"
                             data-lpignore="true"
                             data-1p-ignore="true"
-                            :value="''"
-                            help="Leave blank to auto-generate a strong temporary password."
-                        />
-                        <x-admin.input
-                            name="password_confirmation"
-                            label="Confirm temporary password"
-                            type="password"
-                            autocomplete="new-password"
-                            data-lpignore="true"
-                            data-1p-ignore="true"
-                            :value="''"
-                        />
-                        <button type="submit" class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:brightness-95">
-                            Reset password
+                            class="w-full rounded-xl border-gray-200 text-sm pr-11"
+                            placeholder="Temporary password"
+                        >
+                        <button type="button" @click="show = !show"
+                                class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-brand"
+                                :aria-label="show ? 'Hide password' : 'Show password'">
+                            <span x-text="show ? 'Hide' : 'Show'" class="text-xs font-semibold"></span>
                         </button>
-                    </form>
+                    </div>
+                    <div class="relative">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Confirm password</label>
+                        <input
+                            :type="show2 ? 'text' : 'password'"
+                            name="password_confirmation"
+                            autocomplete="new-password"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            class="w-full rounded-xl border-gray-200 text-sm pr-11"
+                            placeholder="Confirm temporary password"
+                        >
+                        <button type="button" @click="show2 = !show2"
+                                class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-brand"
+                                :aria-label="show2 ? 'Hide password' : 'Show password'">
+                            <span x-text="show2 ? 'Hide' : 'Show'" class="text-xs font-semibold"></span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500">Or create without password and issue a setup link from the user profile.</p>
                 </div>
+            @else
+                <p class="text-sm text-gray-600">Password changes and setup links are managed on the <a href="{{ route('admin.users.show', $r) }}" class="font-semibold text-brand hover:underline">user profile</a> (avoids nested forms).</p>
             @endif
             <x-admin.select name="is_active" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" :value="(string) ($r?->is_active ?? '1')" required />
         </div>

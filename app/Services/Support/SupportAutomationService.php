@@ -8,7 +8,6 @@ use App\Models\SupportConversation;
 use App\Models\SupportTicket;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-
 /**
  * Deterministic first-line support driven by SupportHelpLibraryService.
  * No external generative AI — answers come only from published Help content.
@@ -227,6 +226,7 @@ class SupportAutomationService
             'issue' => $this->selectIssue($conversation, (string) ($input['slug'] ?? ''), $customer, $user, $audience, $workspace, $locale),
             'resolved_yes' => $this->resolveAutomated($conversation, $locale),
             'no_other_issue' => $this->resolveAutomated($conversation, $locale, doneLabel: true),
+            'another_issue' => $this->restartIssuePath($conversation, $locale),
             'resolved_no' => $this->continueOrEscalate($conversation, $customer, $user, $audience, $workspace, $locale),
             'escalate' => $this->escalateToHuman($conversation, $customer, $user, $input, $locale),
             'start' => $this->start(
@@ -284,9 +284,17 @@ class SupportAutomationService
                     ['action' => 'resolved_yes', 'key' => 'yes', 'label' => $this->isSw($locale) ? 'Ndiyo' : 'Yes'],
                     ['action' => 'resolved_no', 'key' => 'no', 'label' => $this->isSw($locale) ? 'Hapana' : 'No'],
                 ];
+                if (! blank($conversation->customer_id) || ! blank($conversation->user_id)) {
+                    $choices[] = [
+                        'action' => 'another_issue',
+                        'key' => 'another',
+                        'label' => $this->isSw($locale) ? 'Nina tatizo jingine' : 'I have another issue',
+                    ];
+                }
             } elseif ($phase === 'escalate_offer') {
                 $choices = [
                     ['action' => 'escalate', 'key' => 'human', 'label' => $this->humanOfferLabel($locale)],
+                    ['action' => 'another_issue', 'key' => 'another', 'label' => $this->isSw($locale) ? 'Nina tatizo jingine' : 'I have another issue'],
                     ['action' => 'no_other_issue', 'key' => 'done', 'label' => $this->isSw($locale) ? 'Hakuna tatizo lingine' : 'No other issue'],
                     ['action' => 'category', 'key' => '__restart__', 'label' => $this->isSw($locale) ? 'Anza upya' : 'Start over'],
                 ];
@@ -502,6 +510,16 @@ class SupportAutomationService
         $thanks = $this->closeResolvedCopy($locale, $firstName !== '' ? $firstName : null, $isGuest);
         $this->conversations->appendMessage($conversation, 'bot', $thanks, null, true, false);
 
+        if ($isGuest && filled($conversation->guest_phone)) {
+            $parts = preg_split('/\s+/', trim((string) $conversation->guest_name), 2) ?: [];
+            app(SupportGuestService::class)->touchGuest(
+                (string) ($meta['customer_first_name'] ?? $parts[0] ?? 'Guest'),
+                (string) ($parts[1] ?? ''),
+                (string) $conversation->guest_phone,
+                SupportGuestService::SOURCE_GUEST_CHAT,
+            );
+        }
+
         $conversation->update([
             'handling_state' => self::STATE_RESOLVED_AUTOMATED,
             'resolution_kind' => 'msaidizi',
@@ -526,6 +544,37 @@ class SupportAutomationService
         }
 
         return $payload;
+    }
+
+    /**
+     * Authenticated Member/Partner: start a new Category → Issue path inside the same open conversation.
+     *
+     * @return array<string, mixed>
+     */
+    private function restartIssuePath(SupportConversation $conversation, ?string $locale): array
+    {
+        $meta = $this->meta($conversation);
+        $audience = (string) ($meta['audience'] ?? 'member');
+        $workspace = $meta['workspace'] ?? null;
+        $label = $this->isSw($locale) ? 'Nina tatizo jingine' : 'I have another issue';
+        $this->conversations->appendMessage($conversation, 'customer', $label, null, false, false);
+
+        $meta['phase'] = 'category';
+        $meta['category_key'] = null;
+        $meta['issue_slug'] = null;
+        $meta['tried_slugs'] = [];
+        $firstName = (string) ($meta['customer_first_name'] ?? '');
+        $prompt = $this->isSw($locale)
+            ? ($firstName !== ''
+                ? "Sawa {$firstName}. Chagua mada mpya ya msaada."
+                : 'Sawa. Chagua mada mpya ya msaada.')
+            : ($firstName !== ''
+                ? "Alright {$firstName}. Choose a new help topic."
+                : 'Alright. Choose a new help topic.');
+        $this->conversations->appendMessage($conversation, 'bot', $prompt, null, true, false);
+        $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
+
+        return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
     }
 
     /**

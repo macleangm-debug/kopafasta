@@ -718,6 +718,8 @@ Route::prefix('staff')->name('staff.')->middleware(SetLocale::class)->group(func
     Route::middleware('guest:admin')->group(function () {
         Route::get('login', [StaffAuthController::class, 'showLogin'])->name('login');
         Route::post('login', [StaffAuthController::class, 'login']);
+        Route::get('password-setup', [\App\Http\Controllers\Staff\PasswordSetupController::class, 'show'])->name('password-setup');
+        Route::post('password-setup', [\App\Http\Controllers\Staff\PasswordSetupController::class, 'store'])->name('password-setup.store');
     });
 
     Route::middleware(['auth:admin', 'staff', 'two_factor:staff'])->group(function () {
@@ -1294,6 +1296,7 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
         Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock');
         Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active');
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+        Route::post('users/{user}/password-setup-link', [UserController::class, 'issuePasswordSetupLink'])->name('users.password-setup-link');
 
         // ========== FINANCE (extended) ==========
         Route::middleware('permission:finance.accounts')->group(function () use ($registerResource): void {

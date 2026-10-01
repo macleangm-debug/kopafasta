@@ -76,8 +76,8 @@ class RoleService
     }
 
     /**
-     * Console Users list: internal staff + partner portal accounts.
-     * Excludes borrower/customer member roles.
+     * Console Users list historically mixed staff + partner portals.
+     * Prefer staffRoles() for More → Users (partners live in Partners hub).
      *
      * @return list<string>
      */
@@ -205,6 +205,29 @@ class RoleService
      */
     public function homeRoute(?User $user): string
     {
+        if (! $user) {
+            return 'admin.dashboard';
+        }
+
+        $codes = $user->roleCodes();
+        foreach (['admin', 'super_admin', 'manager', 'credit_committee', 'credit_analyst', 'officer', 'marketer', 'asset_manager', 'agent', 'partner_support', 'collector', 'auditor'] as $code) {
+            if (! in_array($code, $codes, true)) {
+                continue;
+            }
+
+            return match ($code) {
+                'marketer' => 'admin.growth.index',
+                'asset_manager' => 'admin.marketplace-assets.index',
+                'officer', 'credit_analyst' => 'admin.teams.screening',
+                'credit_committee' => 'admin.teams.committee',
+                'manager' => 'admin.teams.management',
+                'agent', 'partner_support' => 'admin.support.home',
+                'collector' => 'admin.reports.collections-performance',
+                'auditor' => 'admin.audit-logs.index',
+                default => 'admin.dashboard',
+            };
+        }
+
         return 'admin.dashboard';
     }
 

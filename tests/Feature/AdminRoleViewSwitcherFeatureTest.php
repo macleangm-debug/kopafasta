@@ -110,12 +110,15 @@ class AdminRoleViewSwitcherFeatureTest extends TestCase
             ->post(route('admin.role-view.enter'), [
                 'workspace_key' => 'marketer',
             ])
-            ->assertRedirect(route('admin.dashboard'));
+            ->assertRedirect(route('admin.growth.index'));
 
         $ctx = app(AdminRoleViewService::class)->active();
         $this->assertSame('marketer', $ctx['role_key']);
         $this->assertSame('all', $ctx['filter_mode']);
         $this->assertSame('Marketer', app(AdminRoleViewService::class)->bannerLabel());
+
+        $this->assertStringContainsString('/growth', app(AdminRoleViewService::class)->workspaceHomeUrl('marketer'));
+        $this->assertStringContainsString('/support', app(AdminRoleViewService::class)->workspaceHomeUrl('support'));
     }
 
     public function test_staff_selector_inside_support_filters_to_person(): void

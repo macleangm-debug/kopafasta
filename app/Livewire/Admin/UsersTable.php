@@ -31,10 +31,20 @@ class UsersTable extends Component
 
     public function render(RoleService $roles)
     {
-        $operational = $roles->operationalRoles();
+        $staffRoles = $roles->staffRoles();
 
         $rows = User::query()
-            ->whereIn('role', $operational)
+            ->where(function ($q) use ($staffRoles) {
+                $q->whereIn('role', $staffRoles)
+                    ->orWhere(function ($inner) use ($staffRoles) {
+                        // Multi-role JSON may list staff even when primary role drifted.
+                        foreach ($staffRoles as $code) {
+                            $inner->orWhereJsonContains('roles', $code);
+                        }
+                    });
+            })
+            // Never list borrower/partner portal identities in Staff Users.
+            ->whereNotIn('role', ['borrower', 'customer', 'vendor', 'investor'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($q) use ($term) {
@@ -47,7 +57,7 @@ class UsersTable extends Component
             ->orderBy($this->sort, $this->direction)
             ->paginate($this->perPage);
 
-        $filterRoles = $roles->usersFilterRoles();
+        $filterRoles = $staffRoles;
         $roleLabels = collect($filterRoles)
             ->mapWithKeys(fn (string $code) => [
                 $code => $code === 'agent' ? 'Customer Support' : $roles->label($code),

@@ -273,7 +273,7 @@ class PartnerActivationService
             'name' => $vendor->name,
             'email' => $this->portalEmailFor($vendor),
             'phone' => $vendor->phone,
-            'password' => Hash::make($password),
+            'password' => $password,
             'role' => 'vendor',
             'is_active' => true,
         ]);
@@ -396,16 +396,15 @@ class PartnerActivationService
         return $claimedByOther ? $user : null;
     }
 
-    private function portalEmailFor(Vendor $vendor): string
+    private function portalEmailFor(Vendor $vendor): ?string
     {
         $email = trim((string) $vendor->email);
         if ($email !== '' && ! User::query()->where('email', $email)->exists()) {
             return $email;
         }
 
-        $digits = preg_replace('/\D/', '', (string) $vendor->phone) ?: Str::random(8);
-
-        return 'partner-'.$vendor->id.'-'.$digits.'@partners.kopafasta.local';
+        // Never invent @partners.kopafasta.local — phone + PIN is the Partner identity.
+        return null;
     }
 
     private function placeWaitingValuerJobs(Vendor $vendor): void

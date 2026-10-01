@@ -127,7 +127,7 @@ return [
         'enter_workspace' => 'Ingia kwenye nafasi',
         'enter_as' => 'Ingia kama :role',
         'staff_filter' => 'Mfanyakazi / Akaunti',
-        'staff_all' => 'Support wote',
+        'staff_all' => 'Timu',
         'filter_updated' => 'Kichujio cha mfanyakazi kimesasishwa.',
         'viewing' => 'Unaangalia',
         'exit' => 'Toka',
