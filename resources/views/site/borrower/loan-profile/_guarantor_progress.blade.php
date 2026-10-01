@@ -179,14 +179,7 @@
 
         $showChangeGuarantor = ($isDraft && $editGuarantorUrl) || ($guarantorSupplementOpen && $editGuarantorUrl);
         $canChangeWhileHeld = ! $isDraft && ! $showChangeGuarantor && (bool) ($profile['can_change_guarantor_while_held'] ?? false);
-        $useDeferredConfirm = $deferredReplacement
-            || ($canChangeWhileHeld && $application && $supplementSvc->borrowerMayStartDeferredReplacement($application)
-                && ! $supplementSvc->borrowerMayReplaceIncompleteGuarantor($application));
-        $changeConfirmBody = $useDeferredConfirm
-            ? __('borrower.guarantor_supplement.borrower_change_confirm_body')
-            : (__('borrower.guarantor_supplement.borrower_change_confirm_pending_body') !== 'borrower.guarantor_supplement.borrower_change_confirm_pending_body'
-                ? __('borrower.guarantor_supplement.borrower_change_confirm_pending_body')
-                : __('borrower.guarantor_supplement.borrower_change_confirm_body'));
+        $changeConfirmBody = __('borrower.guarantor_supplement.borrower_change_confirm_body');
         $changeCtaLabel = __('borrower.guarantor_supplement.borrower_change_cta');
         if ($changeCtaLabel === 'borrower.guarantor_supplement.borrower_change_cta') {
             $changeCtaLabel = __('borrower.guarantor_supplement.change_cta');
