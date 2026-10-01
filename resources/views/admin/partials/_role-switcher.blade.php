@@ -6,21 +6,12 @@
     $canReturnToAdmin = $adminActor
         && app(\App\Services\RoleService::class)->hasPermissionBypass($adminActor);
     $viewingActive = $roleViewService->isActive();
+    $activeRoleKey = (string) (($roleViewService->active()['role_key'] ?? '') ?: '');
 @endphp
 <div class="relative"
      x-data="{
         open: false,
         filter: '',
-        roles: @js($staffRoleDirectory),
-        enterUrl: @js(route('admin.role-view.enter')),
-        exitUrl: @js(route('admin.role-view.exit')),
-        csrf: @js(csrf_token()),
-        filteredRoles() {
-            if (! this.filter) {
-                return this.roles;
-            }
-            return this.roles.filter((role) => role.key === this.filter);
-        }
      }">
     <button type="button"
             @click="open = true"
@@ -37,7 +28,7 @@
         <p class="text-xs text-gray-500 mb-3">{{ __('admin.role_view.hint') }}</p>
 
         @if ($canReturnToAdmin)
-            <form method="POST" action="{{ route('admin.role-view.exit') }}" class="mb-4">
+            <form method="POST" action="{{ route('admin.role-view.exit') }}" class="mb-4" data-skip-loading="1">
                 @csrf
                 <button type="submit"
                         class="w-full text-left rounded-2xl ring-1 {{ $viewingActive ? 'ring-brand/40 bg-brand-muted/30' : 'ring-gray-200 bg-white' }} px-4 py-3 hover:ring-brand/40 hover:bg-brand-muted/20 transition">
@@ -58,35 +49,37 @@
             <select x-model="filter"
                     class="w-full rounded-xl border-0 ring-1 ring-gray-200 px-3 py-2.5 text-sm focus:ring-brand/40 bg-white">
                 <option value="">{{ __('admin.role_view.filter_all') }}</option>
-                <template x-for="role in roles" :key="'filter-' + role.key">
-                    <option :value="role.key" x-text="role.label"></option>
-                </template>
+                @foreach ($staffRoleDirectory as $role)
+                    <option value="{{ $role['key'] }}">{{ $role['label'] }}</option>
+                @endforeach
             </select>
         </label>
 
+        {{-- Server-rendered forms: Alpine x-for + :value was dropping workspace_key on role→role switch. --}}
         <ul class="space-y-2 max-h-[60vh] overflow-y-auto pr-0.5">
-            <template x-for="role in filteredRoles()" :key="role.key">
-                <li>
-                    <form method="POST" :action="enterUrl" class="block">
-                        <input type="hidden" name="_token" :value="csrf">
+            @foreach ($staffRoleDirectory as $role)
+                <li x-show="!filter || filter === @js($role['key'])">
+                    <form method="POST" action="{{ route('admin.role-view.enter') }}" class="block" data-skip-loading="1">
+                        @csrf
                         <input type="hidden" name="subject_type" value="workspace">
-                        <input type="hidden" name="workspace_key" :value="role.key">
+                        <input type="hidden" name="workspace_key" value="{{ $role['key'] }}">
                         <button type="submit"
-                                class="w-full text-left rounded-2xl ring-1 ring-gray-200 px-4 py-3 hover:ring-brand/40 hover:bg-brand-muted/20 transition">
+                                class="w-full text-left rounded-2xl ring-1 px-4 py-3 hover:ring-brand/40 hover:bg-brand-muted/20 transition {{ $activeRoleKey === $role['key'] ? 'ring-brand/40 bg-brand-muted/25' : 'ring-gray-200' }}">
                             <span class="flex items-center justify-between gap-3">
                                 <span>
-                                    <span class="block text-sm font-bold text-gray-900" x-text="role.label"></span>
-                                    <span class="block text-xs text-gray-500 mt-0.5"
-                                          x-text="role.staff_count === 0
-                                            ? @js(__('admin.role_view.no_staff'))
-                                            : (role.staff_count + ' ' + @js(__('admin.role_view.staff_assigned')))"></span>
+                                    <span class="block text-sm font-bold text-gray-900">{{ $role['label'] }}</span>
+                                    <span class="block text-xs text-gray-500 mt-0.5">
+                                        {{ ($role['staff_count'] ?? 0) === 0
+                                            ? __('admin.role_view.no_staff')
+                                            : (($role['staff_count'] ?? 0).' '.__('admin.role_view.staff_assigned')) }}
+                                    </span>
                                 </span>
                                 <span class="shrink-0 text-xs font-semibold text-brand">{{ __('admin.role_view.enter_workspace') }} →</span>
                             </span>
                         </button>
                     </form>
                 </li>
-            </template>
+            @endforeach
         </ul>
     </x-site.action-panel>
 </div>

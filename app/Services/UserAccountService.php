@@ -128,7 +128,15 @@ class UserAccountService
             && ! str_contains(strtolower($email), '@kopafasta.local')
             && ! str_contains(strtolower($email), '@partners.kopafasta.local')) {
             try {
-                \Illuminate\Support\Facades\Password::broker()->sendResetLink(['email' => $email]);
+                // Send OUR setup URL — do not call Password::broker()->sendResetLink
+                // (that overwrites this token with Laravel's reset URL).
+                \Illuminate\Support\Facades\Mail::raw(
+                    "Set your Kopafasta staff password using this single-use link (expires soon):\n\n{$url}\n",
+                    function ($message) use ($email, $target) {
+                        $message->to($email, (string) $target->name)
+                            ->subject('Kopafasta — set your password');
+                    }
+                );
                 $emailed = true;
             } catch (\Throwable $e) {
                 report($e);

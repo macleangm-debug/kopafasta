@@ -124,6 +124,28 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
         ])->assertSessionHasErrors('password');
     }
 
+    public function test_admin_password_setup_link_cta_route_returns_copyable_url_without_inventing_email(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+        $staff = User::factory()->create([
+            'role' => 'officer',
+            'roles' => ['officer'],
+            'email' => null,
+            'phone' => '255711000099',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.users.password-setup-link', $staff))
+            ->assertRedirect(route('admin.users.show', $staff))
+            ->assertSessionHas('password_setup_url')
+            ->assertSessionHas('status');
+
+        $url = (string) session('password_setup_url');
+        $this->assertStringContainsString('password-setup', $url);
+        $this->assertNull($staff->fresh()->email);
+    }
+
     public function test_another_issue_restarts_category_inside_same_conversation(): void
     {
         $member = User::factory()->create([

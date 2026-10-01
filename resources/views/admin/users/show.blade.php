@@ -132,14 +132,10 @@
                 Set password
             </button>
         </form>
-        <form method="POST" action="{{ route('admin.users.password-setup-link', $record) }}" class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4"
-              x-data
-              @submit.prevent="window.confirmForm($el, {
-                  title: 'Issue password setup link?',
-                  message: 'Creates a single-use link that expires. Share it securely. Never invent an email address.',
-                  confirmLabel: 'Create link',
-                  confirmClass: 'bg-brand-gold text-brand hover:brightness-95',
-              })">
+        <form method="POST"
+              action="{{ route('admin.users.password-setup-link', $record) }}"
+              class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4"
+              onsubmit="event.preventDefault(); confirmForm(this, { title: 'Issue password setup link?', message: 'Creates a single-use link that expires. Share it securely. Never invent an email address.', confirmLabel: 'Create link', confirmClass: 'bg-brand-gold text-brand hover:brightness-95' })">
             @csrf
             <p class="text-sm font-semibold text-gray-900">Secure setup link</p>
             <p class="text-xs text-gray-500">User chooses their own password. Link is single-use and expires.</p>

@@ -105,7 +105,7 @@
     {{-- Category carousel (no “Chagua mada” heading — self-explanatory) --}}
     <section>
         <div class="flex items-center justify-end gap-2 mb-3">
-            <div class="hidden sm:flex items-center gap-2">
+            <div class="flex items-center gap-2">
                 <button type="button" @click="scrollCarousel(-1)"
                         class="size-9 rounded-full bg-white ring-1 ring-brand/15 text-brand hover:bg-brand-muted/40 grid place-items-center"
                         aria-label="{{ $isSw ? 'Nyuma' : 'Previous' }}">
@@ -121,11 +121,12 @@
         <div x-ref="carousel"
              class="overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-none"
              style="-webkit-overflow-scrolling: touch;">
-            <div class="flex gap-3.5 w-max mx-auto sm:mx-0 lg:grid lg:grid-cols-3 lg:w-full lg:gap-4">
+            {{-- Desktop + mobile: horizontal carousel (not a stretched grid). --}}
+            <div class="flex gap-3.5 w-max">
                 <template x-for="cat in groups" :key="cat.key">
                     <button type="button"
                             @click="selectCategory(cat.key)"
-                            class="snap-start shrink-0 w-[13rem] sm:w-[14rem] lg:w-auto min-h-[9.5rem] rounded-2xl bg-white ring-1 shadow-sm px-5 py-5 transition text-left flex flex-col"
+                            class="snap-start shrink-0 w-[14.5rem] sm:w-[15.5rem] min-h-[10.5rem] rounded-2xl bg-white ring-1 shadow-sm px-5 py-5 transition text-left flex flex-col"
                             :class="selectedKey === cat.key ? 'ring-brand/50 bg-brand-muted/30' : 'ring-brand/10 hover:ring-brand/30'">
                         <span class="inline-flex size-12 items-center justify-center rounded-2xl bg-brand-muted/50 text-3xl" aria-hidden="true" x-text="cat.icon"></span>
                         <p class="mt-3.5 text-[15px] font-bold text-gray-900 leading-snug flex-1" x-text="cat.label"></p>
