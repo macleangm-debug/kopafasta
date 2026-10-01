@@ -140,9 +140,15 @@
     {{-- Premium content surface under carousel --}}
     <section x-show="selectedGroup" x-cloak>
         <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
-            <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-br from-brand-muted/40 via-white to-white">
-                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $isSw ? 'Mada' : 'Topic' }}</p>
-                <h3 class="text-lg sm:text-xl font-bold text-gray-900 mt-1" x-text="selectedGroup?.label"></h3>
+            <div class="relative overflow-hidden px-5 sm:px-6 py-5 bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27] text-white">
+                <div class="absolute -right-10 -top-10 size-36 rounded-full bg-brand-gold/15 pointer-events-none"></div>
+                <div class="absolute -left-8 -bottom-12 size-28 rounded-full bg-white/5 pointer-events-none"></div>
+                <div class="relative">
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">{{ $isSw ? 'Mada' : 'Topic' }}</p>
+                    <h3 class="text-lg sm:text-xl font-bold tracking-tight mt-1" x-text="selectedGroup?.label"></h3>
+                    <p class="text-xs text-white/70 mt-1"
+                       x-text="topicCountPrefix + (selectedGroup?.topic_count || 0) + topicCountSuffix"></p>
+                </div>
             </div>
             <ul class="divide-y divide-gray-100">
                 <template x-for="article in (selectedGroup?.articles || [])" :key="article.slug">
@@ -155,21 +161,18 @@
                             <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="openSlug === article.slug ? 'rotate-90' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
                         </button>
                         <div x-show="openSlug === article.slug" x-cloak class="px-5 sm:px-6 pb-5 pt-1">
-                            <template x-if="article.kind === 'howto' && article.steps?.length">
-                                <div class="rounded-xl bg-brand-muted/25 ring-1 ring-brand/10 px-4 py-4">
-                                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold" x-text="howtoLabel"></p>
-                                    <p class="text-base font-bold text-gray-900 mt-1" x-text="article.howto_title || article.title"></p>
-                                    <p class="text-sm text-gray-600 mt-1" x-show="article.body" x-text="article.body"></p>
-                                    <ol class="mt-3 list-decimal ml-5 text-sm text-gray-800 space-y-1.5">
-                                        <template x-for="(step, i) in article.steps" :key="i">
-                                            <li x-text="step"></li>
-                                        </template>
-                                    </ol>
-                                </div>
-                            </template>
-                            <template x-if="!(article.kind === 'howto' && article.steps?.length)">
-                                <p class="text-sm text-gray-700 leading-relaxed" x-text="article.body"></p>
-                            </template>
+                            {{-- One expanded-card format for howto + Q&A --}}
+                            <div class="rounded-xl bg-brand-muted/25 ring-1 ring-brand/10 px-4 py-4">
+                                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold"
+                                   x-text="article.kind === 'howto' && article.steps?.length ? howtoLabel : (article.kind === 'howto' ? howtoLabel : @js($isSw ? 'JIBU' : 'ANSWER'))"></p>
+                                <p class="text-base font-bold text-gray-900 mt-1" x-text="article.howto_title || article.title"></p>
+                                <p class="text-sm text-gray-600 mt-1" x-show="article.body" x-text="article.body"></p>
+                                <ol class="mt-3 list-decimal ml-5 text-sm text-gray-800 space-y-1.5" x-show="article.steps?.length">
+                                    <template x-for="(step, i) in (article.steps || [])" :key="i">
+                                        <li x-text="step"></li>
+                                    </template>
+                                </ol>
+                            </div>
                             <div class="flex flex-wrap items-center gap-3 mt-4">
                                 <template x-if="article.cta_url && article.cta_label">
                                     <a :href="article.cta_url"

@@ -4195,7 +4195,10 @@ return [
         'borrower_change_hint' => 'Ikiwa hakuna kinachoendelea, unaweza kubadilisha mdhamini kabla ya muda kuisha.',
         'borrower_change_started' => 'Chagua mdhamini mpya. Ukaguzi bado unasubiri hadi akubali na akamilishe wasifu.',
         'borrower_change_confirm_title' => 'Badilisha mdhamini?',
-        'borrower_change_confirm_body' => 'Ombi la sasa la mdhamini litafutwa kwa ombi hili. Utachagua mtu mwingine. Ombi linabaki likisubiri wasifu wa mdhamini — haliendi kwenye ukaguzi bado.',
+        'borrower_change_confirm_body' => 'Mdhamini wa sasa atabaki hai hadi mbadala akubali. Baada ya kukubali, mdhamini wa awali atakuwa “Replaced” katika historia na hatapata tena ombi hili. Ikiwa mwaliko wa mbadala utafutwa au utaisha, mdhamini wa sasa atabaki bila kubadilika.',
+        'borrower_change_confirm_pending_body' => 'Ombi la sasa la mdhamini litafutwa kwa ombi hili. Utachagua mtu mwingine. Ombi linabaki likisubiri wasifu wa mdhamini — haliendi kwenye ukaguzi bado.',
+        'borrower_change_cta' => 'Badilisha mdhamini',
+        'replacement_pending_label' => 'Mbadala anasubiri',
         'change_locked_body' => 'Huwezi kubadilisha mdhamini huyu hapa. Wasiliana na Support au subiri Return for correction ikiwa ukaguzi utahitaji badilisho.',
     ],
     'collateral_secure' => [

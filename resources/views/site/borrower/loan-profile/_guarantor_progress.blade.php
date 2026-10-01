@@ -148,6 +148,19 @@
 
         $showChangeGuarantor = ($isDraft && $editGuarantorUrl) || ($guarantorSupplementOpen && $editGuarantorUrl);
         $canChangeWhileHeld = ! $isDraft && ! $showChangeGuarantor && (bool) ($profile['can_change_guarantor_while_held'] ?? false);
+        $deferredReplacement = $application && $supplementSvc->deferredReplacementPending($application);
+        $useDeferredConfirm = $deferredReplacement
+            || ($canChangeWhileHeld && $application && $supplementSvc->borrowerMayStartDeferredReplacement($application)
+                && ! $supplementSvc->borrowerMayReplaceIncompleteGuarantor($application));
+        $changeConfirmBody = $useDeferredConfirm
+            ? __('borrower.guarantor_supplement.borrower_change_confirm_body')
+            : (__('borrower.guarantor_supplement.borrower_change_confirm_pending_body') !== 'borrower.guarantor_supplement.borrower_change_confirm_pending_body'
+                ? __('borrower.guarantor_supplement.borrower_change_confirm_pending_body')
+                : __('borrower.guarantor_supplement.borrower_change_confirm_body'));
+        $changeCtaLabel = __('borrower.guarantor_supplement.borrower_change_cta');
+        if ($changeCtaLabel === 'borrower.guarantor_supplement.borrower_change_cta') {
+            $changeCtaLabel = __('borrower.guarantor_supplement.change_cta');
+        }
         $isHeld = $application && (
             ($application->status ?? '') === 'awaiting_guarantor'
             || ($application->current_stage ?? '') === 'awaiting_guarantor'
@@ -172,7 +185,7 @@
             && $share
             && empty($share['ready']);
         $showCountdown = $isHeld && $showInviteActions && (! empty($deadline['label']) || isset($deadline['days_left']));
-        $showChangeSecondary = in_array($uiState, ['pending', 'accepted_incomplete'], true)
+        $showChangeSecondary = in_array($uiState, ['pending', 'accepted_incomplete', 'completed', 'ready_before_submit'], true)
             && ($showChangeGuarantor || $canChangeWhileHeld);
         $showPrimaryChoose = in_array($uiState, ['needs_replacement', 'required_empty'], true)
             && ($showChangeGuarantor || $canChangeWhileHeld || ($isDraft && $editGuarantorUrl));
@@ -221,6 +234,20 @@
                                class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
                                 {{ __('borrower.guarantor_supplement.cta') }}
                             </a>
+                        @elseif ($canChangeWhileHeld && $application)
+                            <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
+                                  @submit.prevent="window.confirmForm($el, {
+                                      title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
+                                      message: @js($changeConfirmBody),
+                                      confirmLabel: @js($changeCtaLabel),
+                                      confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
+                                  })">
+                                @csrf
+                                <button type="submit"
+                                        class="inline-flex bg-white/15 hover:bg-white/25 ring-1 ring-white/30 text-white font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
+                                    {{ $changeCtaLabel }}
+                                </button>
+                            </form>
                         @endif
                     </div>
                     @if ($isAdditionalSupplement && $supplementBanner)
@@ -279,14 +306,14 @@
                             <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
                                   @submit.prevent="window.confirmForm($el, {
                                       title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
-                                      message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
-                                      confirmLabel: @js(__('borrower.guarantor_supplement.change_cta')),
+                                      message: @js($changeConfirmBody),
+                                      confirmLabel: @js($changeCtaLabel),
                                       confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
                                   })">
                                 @csrf
                                 <button type="submit"
                                         class="inline-flex bg-brand-gold hover:bg-yellow-400 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
-                                    {{ __('borrower.guarantor_supplement.change_cta') }}
+                                    {{ $changeCtaLabel }}
                                 </button>
                             </form>
                         @endif
@@ -296,20 +323,20 @@
                                class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
                                 {{ $isAdditionalSupplement
                                     ? __('borrower.guarantor_supplement.cta')
-                                    : __('borrower.guarantor_supplement.change_cta') }}
+                                    : $changeCtaLabel }}
                             </a>
                         @elseif ($canChangeWhileHeld && $application)
                             <form method="POST" action="{{ route('site.borrower.application.change-guarantor', $application) }}"
                                   @submit.prevent="window.confirmForm($el, {
                                       title: @js(__('borrower.guarantor_supplement.borrower_change_confirm_title')),
-                                      message: @js(__('borrower.guarantor_supplement.borrower_change_confirm_body')),
-                                      confirmLabel: @js(__('borrower.guarantor_supplement.change_cta')),
+                                      message: @js($changeConfirmBody),
+                                      confirmLabel: @js($changeCtaLabel),
                                       confirmClass: 'bg-brand-gold hover:bg-yellow-400 text-brand'
                                   })">
                                 @csrf
                                 <button type="submit"
                                         class="inline-flex bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-bold px-4 py-2.5 rounded-xl text-sm shrink-0 shadow-sm">
-                                    {{ __('borrower.guarantor_supplement.change_cta') }}
+                                    {{ $changeCtaLabel }}
                                 </button>
                             </form>
                         @endif

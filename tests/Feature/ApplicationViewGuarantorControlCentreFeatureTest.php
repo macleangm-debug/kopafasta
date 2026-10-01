@@ -111,16 +111,26 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
         );
     }
 
-    public function test_completed_guarantor_cannot_be_silently_replaced(): void
+    public function test_completed_guarantor_change_keeps_current_until_replacement_accepts(): void
     {
-        [$borrower, $application] = $this->awaitingGuarantorPair(incomplete: false);
+        [$borrower, $application, $link] = $this->awaitingGuarantorPair(incomplete: false);
 
         $this->assertFalse(
             app(GuarantorSupplementService::class)->borrowerMayReplaceIncompleteGuarantor($application)
         );
+        $this->assertTrue(
+            app(GuarantorSupplementService::class)->borrowerMayStartDeferredReplacement($application)
+        );
 
-        $this->expectException(\InvalidArgumentException::class);
-        app(GuarantorSupplementService::class)->startBorrowerChangeWhileHeld($application, $borrower);
+        $url = app(GuarantorSupplementService::class)->startBorrowerChangeWhileHeld($application, $borrower);
+
+        $this->assertStringContainsString('guarantor_supplement=1', $url);
+        $this->assertSame('awaiting_guarantor', $application->fresh()->status);
+        // Current accepted guarantor stays active while replacement is invited.
+        $this->assertSame('approved', $link->fresh()->status);
+        $this->assertTrue(
+            app(GuarantorSupplementService::class)->deferredReplacementPending($application->fresh())
+        );
     }
 
     /**

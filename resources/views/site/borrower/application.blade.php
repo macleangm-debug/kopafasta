@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.application.page_title', ['number' => $application->application_number]))" active="loans" content-width="wide">
+<x-site.borrower-layout :title="brand_title(__('borrower.application.page_title', ['number' => $application->application_number]))" active="loans" content-width="detail">
 
     @php
         $statusBadge = match (true) {

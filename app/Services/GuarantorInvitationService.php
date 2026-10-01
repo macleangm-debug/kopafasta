@@ -1734,6 +1734,7 @@ class GuarantorInvitationService
         });
 
         app(NotificationCtaService::class)->consumeGuarantorRequestCtas($link);
+        app(GuarantorSupplementService::class)->completeDeferredReplacementIfNeeded($link->fresh(['application']));
 
         if (! $notifyBorrower || $alreadyAccepted) {
             return;

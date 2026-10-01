@@ -4,7 +4,11 @@
     $pageTitle = $title ?? brand_title('My account');
     $seoDocument = app(\App\Services\SeoService::class)->privateDocument(request(), $pageTitle);
     $contentMax = match ($contentWidth) {
-        'narrow' => 'max-w-3xl mx-auto',
+        // Focused wizards/forms — readable centered column.
+        'narrow', 'focused' => 'max-w-3xl mx-auto',
+        // Application/loan/guarantor detail — medium-wide.
+        'detail' => 'max-w-5xl mx-auto',
+        // Dashboards, tables, dense grids.
         'wide'   => 'max-w-7xl mx-auto',
         // Full shell width for the page column; pages that need a narrow card constrain themselves.
         'full'   => '',

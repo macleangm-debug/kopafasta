@@ -239,7 +239,8 @@ class LoanApplicationProfileService
                 ? app(GuarantorSupplementService::class)->borrowerWizardUrl($application)
                 : null,
             'can_change_guarantor_while_held' => app(GuarantorSupplementService::class)
-                ->borrowerMayReplaceIncompleteGuarantor($application),
+                ->borrowerMayReplaceIncompleteGuarantor($application)
+                || app(GuarantorSupplementService::class)->borrowerMayStartDeferredReplacement($application),
             'document_requests' => $requestsForCustomer,
             'document_request_groups' => $this->borrowerStatus->groupedDocumentRequests(
                 $requestsForCustomer

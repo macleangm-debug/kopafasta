@@ -1,7 +1,7 @@
 <x-site.borrower-layout
     :title="brand_title(__('borrower.guarantor.detail_title'))"
     active="loans"
-    content-width="wide">
+    content-width="focused">
 
     @php
         $loanContext = $loanContext ?? app(\App\Services\GuarantorInvitationService::class)->invitationLoanContext($invitation);

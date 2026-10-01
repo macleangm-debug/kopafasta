@@ -4172,7 +4172,10 @@ return [
         'borrower_change_hint' => 'If nothing is happening, you can replace this guarantor before the deadline.',
         'borrower_change_started' => 'Choose a new guarantor. Screening still waits until they accept and finish their profile.',
         'borrower_change_confirm_title' => 'Change guarantor?',
-        'borrower_change_confirm_body' => 'The current guarantor request will be cancelled for this application. You will pick someone else. Your application stays waiting for guarantor profile — it will not enter screening yet.',
+        'borrower_change_confirm_body' => 'The current guarantor stays active until the replacement accepts. After acceptance, the previous guarantor becomes Replaced in history and loses access to this request. If the replacement invite is cancelled or expires, the current guarantor remains unchanged.',
+        'borrower_change_confirm_pending_body' => 'The current guarantor request will be cancelled for this application. You will pick someone else. Your application stays waiting for guarantor profile — it will not enter screening yet.',
+        'borrower_change_cta' => 'Change guarantor',
+        'replacement_pending_label' => 'Replacement pending',
         'change_locked_body' => 'This guarantor can no longer be changed here. Contact Support or wait for a Return for correction if underwriting needs a replacement.',
     ],
 
