@@ -46,9 +46,14 @@ class SupportGuestService
 
         if ($guest) {
             if ($guest->isActiveGuest()) {
+                $incomingFirst = trim($firstName);
+                $incomingLast = trim($lastName);
+                $storedFirst = trim((string) $guest->first_name);
+                $storedLast = trim((string) $guest->last_name);
+
                 $guest->fill([
-                    'first_name' => trim($firstName) !== '' ? trim($firstName) : $guest->first_name,
-                    'last_name' => trim($lastName) !== '' ? trim($lastName) : $guest->last_name,
+                    'first_name' => $this->safeGuestName($storedFirst, $incomingFirst),
+                    'last_name' => $this->safeGuestName($storedLast, $incomingLast),
                     'last_contact_at' => $now,
                     'contact_count' => (int) $guest->contact_count + 1,
                 ]);
@@ -219,5 +224,31 @@ class SupportGuestService
         }
 
         return strlen($da) >= 9 && strlen($db) >= 9 && substr($da, -9) === substr($db, -9);
+    }
+
+    /**
+     * Preserve phone-owned Guest CRM identity. Fill blanks; keep stored when names differ materially.
+     */
+    private function safeGuestName(string $stored, string $incoming): string
+    {
+        if ($stored === '') {
+            return $incoming;
+        }
+        if ($incoming === '') {
+            return $stored;
+        }
+        if ($this->namesMateriallyDiffer($stored, $incoming)) {
+            return $stored;
+        }
+
+        return $incoming;
+    }
+
+    private function namesMateriallyDiffer(string $a, string $b): bool
+    {
+        $na = mb_strtolower(preg_replace('/\s+/', ' ', trim($a)) ?? '');
+        $nb = mb_strtolower(preg_replace('/\s+/', ' ', trim($b)) ?? '');
+
+        return $na !== '' && $nb !== '' && $na !== $nb;
     }
 }

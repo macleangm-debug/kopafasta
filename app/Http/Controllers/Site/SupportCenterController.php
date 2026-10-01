@@ -38,14 +38,15 @@ class SupportCenterController extends Controller
     public function chat(Request $request, SupportConversationService $service): View
     {
         $isSw = str_starts_with(app()->getLocale(), 'sw');
-        $guest = $this->guestIdentity($request);
+        $sessionGuest = $this->guestIdentity($request);
         $conversation = null;
 
-        if ($guest['phone'] !== '') {
+        // Only resume an active unresolved conversation — never reopen resolved by phone/session.
+        if ($sessionGuest['phone'] !== '') {
             $conversation = SupportConversation::query()
                 ->whereNull('customer_id')
                 ->whereNull('user_id')
-                ->where('guest_phone', $guest['phone'])
+                ->where('guest_phone', $sessionGuest['phone'])
                 ->whereNotIn('status', [
                     SupportConversationService::STATUS_CLOSED,
                     SupportConversationService::STATUS_RESOLVED,
@@ -59,11 +60,20 @@ class SupportCenterController extends Controller
             }
         }
 
+        // Fresh visit / resolved thread: require First + Last + Phone again (phone is durable ID, not tab identity).
+        $prefill = $conversation
+            ? $sessionGuest
+            : ['first_name' => '', 'last_name' => '', 'name' => '', 'phone' => ''];
+
+        if (! $conversation && $sessionGuest['phone'] !== '') {
+            $this->forgetGuestIdentity($request);
+        }
+
         return view('site.support.chat', [
             'isSw' => $isSw,
-            'guestFirstName' => $guest['first_name'],
-            'guestLastName' => $guest['last_name'],
-            'guestPhone' => $guest['phone'],
+            'guestFirstName' => $prefill['first_name'],
+            'guestLastName' => $prefill['last_name'],
+            'guestPhone' => $prefill['phone'],
             'conversation' => $conversation,
             'phones' => support_phones(),
             'primaryPhone' => support_phones()[0] ?? null,
@@ -202,5 +212,16 @@ class SupportCenterController extends Controller
         $request->session()->put('support_guest_last_name', $last);
         $request->session()->put('support_guest_name', $name);
         $request->session()->put('support_guest_phone', $phone);
+    }
+
+    private function forgetGuestIdentity(Request $request): void
+    {
+        $request->session()->forget([
+            'support_guest_first_name',
+            'support_guest_last_name',
+            'support_guest_name',
+            'support_guest_phone',
+            'support_automation_conversation_id',
+        ]);
     }
 }

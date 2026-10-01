@@ -2609,12 +2609,24 @@ class SettingsController extends Controller
             $priorityDefaults[$priority] = \App\Support\SupportTaxonomy::priorityMinutesFor($priority);
         }
 
+        $automation = app(\App\Services\Support\SupportAutomationService::class);
+        $storedClosings = Setting::get('support.msaidizi.guest_conversion_closings');
+        $guestConversionClosings = [
+            'sw' => is_array($storedClosings['sw'] ?? null) && $storedClosings['sw'] !== []
+                ? array_values($storedClosings['sw'])
+                : $automation->defaultGuestConversionVariants(true),
+            'en' => is_array($storedClosings['en'] ?? null) && $storedClosings['en'] !== []
+                ? array_values($storedClosings['en'])
+                : $automation->defaultGuestConversionVariants(false),
+        ];
+
         return view('admin.settings.support', [
             'taxonomy' => $taxonomy,
             'priorityDefaults' => $priorityDefaults,
             'warningPercent' => \App\Support\SupportTaxonomy::warningPercent(),
             'recurringCount' => \App\Support\SupportTaxonomy::recurringIssueCount(),
             'recurringWindowHours' => \App\Support\SupportTaxonomy::recurringWindowHours(),
+            'guestConversionClosings' => $guestConversionClosings,
         ]);
     }
 
@@ -2633,6 +2645,10 @@ class SettingsController extends Controller
             'approaching_pct' => ['required', 'array'],
             'recurring_count' => ['required', 'integer', 'min:2', 'max:100'],
             'recurring_window_hours' => ['required', 'integer', 'min:1', 'max:720'],
+            'conversion_sw' => ['nullable', 'array', 'max:5'],
+            'conversion_sw.*' => ['nullable', 'string', 'max:500'],
+            'conversion_en' => ['nullable', 'array', 'max:5'],
+            'conversion_en.*' => ['nullable', 'string', 'max:500'],
         ];
         foreach ($categories as $key) {
             $rules["default_priority.{$key}"] = ['required', 'in:low,normal,high,urgent'];
@@ -2664,6 +2680,19 @@ class SettingsController extends Controller
         Setting::set('support.recurring.issue_count', (int) $data['recurring_count']);
         Setting::set('support.recurring.window_hours', (int) $data['recurring_window_hours']);
 
-        return back()->with('status', 'Support SLA & Priorities saved. New tickets use these targets; open tickets keep their snapshotted SLA.');
+        $swLines = array_values(array_filter(array_map(
+            fn ($line) => trim((string) $line),
+            array_slice($data['conversion_sw'] ?? [], 0, 5)
+        )));
+        $enLines = array_values(array_filter(array_map(
+            fn ($line) => trim((string) $line),
+            array_slice($data['conversion_en'] ?? [], 0, 5)
+        )));
+        Setting::set('support.msaidizi.guest_conversion_closings', [
+            'sw' => $swLines,
+            'en' => $enLines,
+        ]);
+
+        return back()->with('status', 'Support settings saved. New tickets use SLA targets; Guest conversion closings rotate on resolve.');
     }
 }

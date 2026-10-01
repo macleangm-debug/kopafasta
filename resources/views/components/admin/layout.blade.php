@@ -294,6 +294,9 @@
                         @endif
                     </a>
                 @endforeach
+                @if ($supportShell)
+                    @include('admin.partials._support-header-controls', ['supportWorkspace' => $supportWorkspace])
+                @endif
             </div>
         </nav>
         @php

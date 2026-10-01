@@ -30,6 +30,9 @@ class CustomerSupportWorkspaceService
 
     public const AVAILABILITY_STATES = ['online', 'away', 'offline'];
 
+    /** Sticky Support shell until Exit/Switch role — survives Tickets → admin.support-tickets.*. */
+    public const SHELL_SESSION_KEY = 'support_shell_active';
+
     public function __construct(
         private readonly AdminRoleViewService $roleView,
         private readonly RoleService $roles,
@@ -48,10 +51,22 @@ class CustomerSupportWorkspaceService
     {
         $ctx = $this->roleView->active();
         if ($ctx && $this->isSupportRoleKey($ctx['role_key'] ?? null)) {
+            $this->markSupportShell();
+
             return true;
         }
 
         if (request()->routeIs('admin.support.*')) {
+            $this->markSupportShell();
+            $this->ensureSupportWorkspaceContext($viewer);
+
+            return true;
+        }
+
+        // Sticky Support context across Tickets / Members / conversations that reuse Admin routes.
+        if ($this->isSupportShellSticky() && $this->isSupportRelatedRoute()) {
+            $this->ensureSupportWorkspaceContext($viewer);
+
             return true;
         }
 
@@ -65,6 +80,67 @@ class CustomerSupportWorkspaceService
         }
 
         return $viewer->hasRole(self::ROLE_KEY) || $viewer->hasRole('partner_support');
+    }
+
+    public function markSupportShell(): void
+    {
+        if (request()->hasSession()) {
+            request()->session()->put(self::SHELL_SESSION_KEY, true);
+        }
+    }
+
+    public function clearSupportShell(): void
+    {
+        if (request()->hasSession()) {
+            request()->session()->forget(self::SHELL_SESSION_KEY);
+        }
+    }
+
+    public function isSupportShellSticky(): bool
+    {
+        return request()->hasSession() && (bool) request()->session()->get(self::SHELL_SESSION_KEY, false);
+    }
+
+    public function isSupportRelatedRoute(): bool
+    {
+        return request()->routeIs(
+            'admin.support.*',
+            'admin.support-tickets.*',
+            'admin.support-chats.*',
+            'admin.customers.*',
+        );
+    }
+
+    /**
+     * Ensure Support role-view context so Team selector + actingAgent work.
+     * Reuses AdminRoleViewService — does not invent a second switcher.
+     */
+    public function ensureSupportWorkspaceContext(?User $viewer = null): void
+    {
+        $viewer ??= auth('admin')->user() ?? auth()->user();
+        if (! $viewer) {
+            return;
+        }
+
+        $ctx = $this->roleView->active();
+        if ($ctx && $this->isSupportRoleKey($ctx['role_key'] ?? null)) {
+            return;
+        }
+
+        // Quietly open Support workspace (same session shape as enterWorkspace).
+        session()->put(AdminRoleViewService::SESSION_KEY, [
+            'admin_id' => $viewer->id,
+            'subject_type' => 'workspace',
+            'subject_id' => null,
+            'subject_name' => null,
+            'filter_mode' => 'all',
+            'workspace_key' => self::WORKSPACE_KEY,
+            'role_key' => self::WORKSPACE_KEY,
+            'role_label' => 'Support',
+            'underlying_roles' => AdminRoleViewService::SUPPORT_ROLE_KEYS,
+            'entered_at' => now()->toIso8601String(),
+        ]);
+        $this->markSupportShell();
     }
 
     public function homeUrl(): string
@@ -127,13 +203,20 @@ class CustomerSupportWorkspaceService
     /** @return list<array{id: int, name: string, subtitle: string}> */
     public function staffOptions(): array
     {
-        return $this->roleView->workspaceStaffOptions();
+        $options = $this->roleView->workspaceStaffOptions();
+        if ($options !== []) {
+            return $options;
+        }
+
+        // Fallback when role-view staff directory is empty — list Support agents directly.
+        return collect($this->roleView->staffRoleDirectory())
+            ->firstWhere('key', self::WORKSPACE_KEY)['staff'] ?? [];
     }
 
     /** @return list<array{id: int, name: string, subtitle: string, active_count: int, label: string}> */
     public function assignableAgentsWithWorkload(): array
     {
-        $agents = $this->roleView->workspaceStaffOptions();
+        $agents = $this->staffOptions();
         $rows = [];
         foreach ($agents as $opt) {
             $id = (int) ($opt['id'] ?? 0);

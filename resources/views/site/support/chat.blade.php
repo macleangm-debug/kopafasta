@@ -32,7 +32,7 @@
             :guest-last-name="$guestLastName"
             :guest-phone="$guestPhone"
             :agent-label="$isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant'"
-            :agent-subtitle="$isSw ? 'Msaada otomatiki saa 24' : 'Automated help 24/7'"
+            :agent-subtitle="$isSw ? 'Msaada saa 24' : 'Help available 24/7'"
         />
     </section>
 </x-site.layout>

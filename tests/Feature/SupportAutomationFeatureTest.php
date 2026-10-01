@@ -100,11 +100,22 @@ class SupportAutomationFeatureTest extends TestCase
 
         $conversation = SupportConversation::query()->findOrFail($conversationId);
         $this->assertSame(SupportAutomationService::STATE_RESOLVED_AUTOMATED, $conversation->handling_state);
-        $this->assertSame('closed', $conversation->status);
+        $this->assertSame('resolved', $conversation->status);
         $this->assertFalse((bool) $conversation->needs_human);
         $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
         $this->assertSame($persona, $meta['persona_name'] ?? null);
         $this->assertSame('Resolved by Msaidizi', $conversation->resolution_note);
+        $this->assertNotEmpty($yes->json('join_cta.url'));
+        $this->assertStringContainsString('register', (string) $yes->json('join_cta.url'));
+        $closing = collect($yes->json('messages') ?? [])->last()['text'] ?? '';
+        $this->assertTrue(
+            str_contains(mb_strtolower((string) $closing), 'kopafasta')
+            || str_contains(mb_strtolower((string) $closing), 'jiunge')
+            || str_contains(mb_strtolower((string) $closing), 'join')
+            || str_contains(mb_strtolower((string) $closing), 'akaunti')
+            || str_contains(mb_strtolower((string) $closing), 'account'),
+            'Guest closing should invite registration'
+        );
     }
 
     public function test_no_other_issue_resolves_immediately(): void
@@ -127,8 +138,9 @@ class SupportAutomationFeatureTest extends TestCase
         $this->assertStringNotContainsString('automated', strtolower((string) $closing));
 
         $conversation = SupportConversation::query()->findOrFail($conversationId);
-        $this->assertSame('closed', $conversation->status);
+        $this->assertSame('resolved', $conversation->status);
         $this->assertSame('Resolved by Msaidizi', $conversation->resolution_note);
+        $this->assertNotEmpty($done->json('join_cta.url'));
     }
 
     public function test_registration_help_has_no_otp_or_sms_code_fiction(): void

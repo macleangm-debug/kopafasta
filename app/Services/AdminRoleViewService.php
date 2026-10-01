@@ -224,6 +224,10 @@ class AdminRoleViewService
             'entered_at' => now()->toIso8601String(),
         ]);
 
+        if (in_array($canonical, [self::WORKSPACE_SUPPORT, ...self::SUPPORT_ROLE_KEYS], true)) {
+            app(\App\Services\Support\CustomerSupportWorkspaceService::class)->markSupportShell();
+        }
+
         $this->audit->logAdminAction($admin, 'admin.role_view.enter', null, [
             'subject_type' => 'workspace',
             'role_key' => $canonical,
@@ -408,6 +412,7 @@ class AdminRoleViewService
         $this->clearWebPartnerSessionIfViewing($ctx);
         Session::forget(self::SESSION_KEY);
         Session::forget(PartnerWorkspaceService::SESSION_KEY);
+        app(\App\Services\Support\CustomerSupportWorkspaceService::class)->clearSupportShell();
 
         return route('admin.dashboard');
     }

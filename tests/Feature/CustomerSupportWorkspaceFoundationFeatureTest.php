@@ -191,5 +191,44 @@ class CustomerSupportWorkspaceFoundationFeatureTest extends TestCase
             ->assertRedirect(route('admin.dashboard'));
 
         $this->assertFalse(app(AdminRoleViewService::class)->isActive());
+        $this->assertFalse(app(CustomerSupportWorkspaceService::class)->isSupportShellSticky());
+    }
+
+    public function test_support_shell_persists_on_tickets_route(): void
+    {
+        $admin = $this->admin();
+        $this->agent();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
+
+        $html = $this->get(route('admin.support-tickets.index'))->assertOk()->getContent();
+        $navChunk = Str::before(Str::after($html, 'aria-label="Main navigation"'), '</nav>');
+
+        foreach (['Home', 'Inbox', 'Tickets', 'Members', 'Reports'] as $label) {
+            $this->assertMatchesRegularExpression('/>\s*'.preg_quote($label, '/').'\s*</', $navChunk);
+        }
+        $this->assertStringNotContainsString('Lending', $navChunk);
+        $this->assertStringContainsString('Team', $navChunk);
+        $this->assertTrue(
+            str_contains($navChunk, 'Online') || str_contains($navChunk, 'Offline'),
+            'Presence control must appear in Support header'
+        );
+    }
+
+    public function test_team_selector_lists_staff_while_in_support_shell(): void
+    {
+        $admin = $this->admin();
+        $agent = $this->agent('Neema Support');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.support.home'))
+            ->assertOk()
+            ->assertSee('Team', false)
+            ->assertSee('Neema Support', false);
+
+        $options = app(CustomerSupportWorkspaceService::class)->staffOptions();
+        $this->assertNotEmpty($options);
+        $this->assertTrue(collect($options)->contains(fn ($o) => (int) ($o['id'] ?? 0) === $agent->id));
     }
 }

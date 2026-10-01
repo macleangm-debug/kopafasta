@@ -148,6 +148,24 @@ class SupportAutomationController extends Controller
                 return response()->json(['ok' => false, 'message' => 'Conversation not found.'], 404);
             }
 
+            if (in_array((string) $conversation->status, [
+                \App\Services\Support\SupportConversationService::STATUS_CLOSED,
+                \App\Services\Support\SupportConversationService::STATUS_RESOLVED,
+            ], true)
+                || in_array((string) $conversation->handling_state, [
+                    SupportAutomationService::STATE_RESOLVED_AUTOMATED,
+                    SupportAutomationService::STATE_RESOLVED_SUPPORT,
+                ], true)
+            ) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => str_starts_with(app()->getLocale(), 'sw')
+                        ? 'Mazungumzo haya yametatuliwa. Anza mazungumzo mapya kwa msaada mpya.'
+                        : 'This conversation is resolved. Start a new conversation for new help.',
+                    'composer_locked' => true,
+                ], 422);
+            }
+
             $input = [
                 'key' => $data['key'] ?? $data['slug'] ?? null,
                 'slug' => $data['slug'] ?? $data['key'] ?? null,
@@ -165,6 +183,24 @@ class SupportAutomationController extends Controller
                 $requireAuth ? $user : null,
                 app()->getLocale(),
             );
+
+            // Resolved Guest thread is final — clear session so next visit starts a new conversation.
+            if (
+                ! $requireAuth
+                && $request->hasSession()
+                && in_array((string) ($payload['handling_state'] ?? ''), [
+                    SupportAutomationService::STATE_RESOLVED_AUTOMATED,
+                    SupportAutomationService::STATE_RESOLVED_SUPPORT,
+                ], true)
+            ) {
+                $request->session()->forget([
+                    'support_guest_first_name',
+                    'support_guest_last_name',
+                    'support_guest_name',
+                    'support_guest_phone',
+                    'support_automation_conversation_id',
+                ]);
+            }
 
             return response()->json($payload);
         } catch (\InvalidArgumentException $e) {

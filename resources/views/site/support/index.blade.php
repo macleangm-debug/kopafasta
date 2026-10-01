@@ -10,7 +10,7 @@
         <div class="absolute inset-0 opacity-[0.18] pointer-events-none" style="background-image:url(&quot;data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.55' stroke-width='2'/%3E%3C/svg%3E&quot;); background-size:72px 48px;"></div>
         <div class="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-gold/15 pointer-events-none"></div>
         <div class="absolute -left-20 bottom-0 h-52 w-52 rounded-full bg-white/5 pointer-events-none"></div>
-        <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+        <div class="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
             <p class="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand-gold">
                 <span class="text-lg tracking-[-0.18em] leading-none" aria-hidden="true">›››</span>
                 {{ $isSw ? 'Msaada' : 'Support' }}
@@ -32,7 +32,7 @@
         </div>
     </section>
 
-    <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6">
+    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6">
         @include('site.help._landing-body', [
             'isSw' => $isSw,
             'helpCategories' => $helpCategories ?? [],
@@ -46,6 +46,7 @@
             'showChatCard' => true,
             'phones' => $phones,
             'primaryPhone' => $primaryPhone,
+            'premiumGetHelp' => true,
         ])
     </section>
 

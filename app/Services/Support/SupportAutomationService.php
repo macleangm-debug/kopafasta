@@ -3,6 +3,7 @@
 namespace App\Services\Support;
 
 use App\Models\Customer;
+use App\Models\Setting;
 use App\Models\SupportConversation;
 use App\Models\SupportTicket;
 use App\Models\User;
@@ -497,14 +498,15 @@ class SupportAutomationService
             : ($this->isSw($locale) ? 'Ndiyo' : 'Yes');
         $this->conversations->appendMessage($conversation, 'customer', $customerLabel, null, false, false);
         $firstName = (string) ($meta['customer_first_name'] ?? '');
-        $thanks = $this->closeResolvedCopy($locale, $firstName !== '' ? $firstName : null);
+        $isGuest = blank($conversation->customer_id) && blank($conversation->user_id);
+        $thanks = $this->closeResolvedCopy($locale, $firstName !== '' ? $firstName : null, $isGuest);
         $this->conversations->appendMessage($conversation, 'bot', $thanks, null, true, false);
 
         $conversation->update([
             'handling_state' => self::STATE_RESOLVED_AUTOMATED,
             'resolution_kind' => 'msaidizi',
             'automation_meta' => $meta,
-            'status' => SupportConversationService::STATUS_CLOSED,
+            'status' => SupportConversationService::STATUS_RESOLVED,
             'needs_human' => false,
             'resolved_at' => now(),
             'closed_at' => now(),
@@ -512,7 +514,18 @@ class SupportAutomationService
             'resolution_note' => 'Resolved by Msaidizi',
         ]);
 
-        return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
+        $payload = $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
+        if ($isGuest) {
+            $payload['join_cta'] = [
+                'label' => $this->isSw($locale) ? 'Anza Sasa' : 'Get started',
+                'url' => route('site.register.borrower'),
+                'prompt' => $this->isSw($locale)
+                    ? 'Jiunge na Kopafasta ili upate huduma zote kwenye akaunti yako.'
+                    : 'Join Kopafasta to access every member service in one place.',
+            ];
+        }
+
+        return $payload;
     }
 
     /**
@@ -762,7 +775,7 @@ class SupportAutomationService
             'automation_meta' => $meta,
             'needs_human' => in_array($state, [self::STATE_ESCALATED, self::STATE_HUMAN], true),
             'status' => match ($state) {
-                self::STATE_RESOLVED_AUTOMATED, self::STATE_RESOLVED_SUPPORT => SupportConversationService::STATUS_CLOSED,
+                self::STATE_RESOLVED_AUTOMATED, self::STATE_RESOLVED_SUPPORT => SupportConversationService::STATUS_RESOLVED,
                 self::STATE_ESCALATED => SupportConversationService::STATUS_WAITING,
                 self::STATE_HUMAN => $conversation->assigned_to
                     ? SupportConversationService::STATUS_ASSIGNED
@@ -960,10 +973,16 @@ class SupportAutomationService
             : 'Alright. This needs more help. I’ll connect you with one of our support agents.';
     }
 
-    private function closeResolvedCopy(?string $locale, ?string $firstName): string
+    private function closeResolvedCopy(?string $locale, ?string $firstName, bool $guestConversion = false): string
     {
         $name = trim((string) $firstName);
-        if ($this->isSw($locale)) {
+        $sw = $this->isSw($locale);
+
+        if ($guestConversion) {
+            return $this->guestConversionClosing($locale, $name !== '' ? $name : null);
+        }
+
+        if ($sw) {
             return $name !== ''
                 ? "Sawa {$name}, nimefurahi kusaidia."
                 : 'Sawa, nimefurahi kusaidia.';
@@ -972,5 +991,63 @@ class SupportAutomationService
         return $name !== ''
             ? "Alright {$name}, glad I could help."
             : 'Alright, glad I could help.';
+    }
+
+    /**
+     * Guest-only post-resolve invitation. Settings Hub is source of truth (up to 5 SW/EN variants).
+     */
+    public function guestConversionClosing(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        $sw = $this->isSw($locale);
+        $variants = $this->guestConversionVariants($locale);
+        $template = $variants[array_rand($variants)];
+
+        return str_replace(['{name}', '{Name}'], [$name !== '' ? $name : ($sw ? 'rafiki' : 'friend'), $name], $template);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function guestConversionVariants(?string $locale = null): array
+    {
+        $sw = $this->isSw($locale);
+        $stored = Setting::get('support.msaidizi.guest_conversion_closings');
+        $key = $sw ? 'sw' : 'en';
+        if (is_array($stored) && ! empty($stored[$key]) && is_array($stored[$key])) {
+            $lines = array_values(array_filter(array_map(
+                fn ($line) => trim((string) $line),
+                array_slice($stored[$key], 0, 5)
+            )));
+            if ($lines !== []) {
+                return $lines;
+            }
+        }
+
+        return $this->defaultGuestConversionVariants($sw);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function defaultGuestConversionVariants(bool $sw): array
+    {
+        if ($sw) {
+            return [
+                'Nimefurahi kukusaidia, {name}. Ukiwa tayari, jiunge na Kopafasta ili upate huduma zote moja kwa moja kwenye akaunti yako.',
+                'Asante {name}. Unaweza pia kufungua akaunti ya Kopafasta na kupata huduma zote za mwanachama sehemu moja.',
+                'Sawa {name}, nimefurahi kusaidia. Jiunge na Kopafasta ukiwa tayari — utapata mikopo, malipo na msaada kwenye akaunti yako.',
+                'Asante kwa kuwasiliana nasi, {name}. Fungua akaunti ya Kopafasta ili uendelee kwa urahisi kila unapohitaji.',
+                'Nimefurahi kukusaidia. {name}, Anza Sasa ujisajili na upate huduma zote za Kopafasta katika akaunti moja.',
+            ];
+        }
+
+        return [
+            'Glad I could help, {name}. When you are ready, join Kopafasta to access every service directly in your account.',
+            'Thank you, {name}. You can also open a Kopafasta account and find every member service in one place.',
+            'Alright {name}, glad I could help. Join Kopafasta when you are ready — loans, repayments and support live in your account.',
+            'Thanks for reaching out, {name}. Open a Kopafasta account so help stays easy whenever you need it.',
+            'Glad I could help. {name}, Get started and register to access every Kopafasta service in one account.',
+        ];
     }
 }

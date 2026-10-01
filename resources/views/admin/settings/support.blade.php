@@ -3,6 +3,15 @@
     $defaultPriority = $taxonomy['default_priority'] ?? [];
     $targets = $taxonomy['target_resolution_minutes'] ?? [];
     $approaching = $taxonomy['approaching_threshold_percent'] ?? [];
+    $conversion = $guestConversionClosings ?? ['sw' => [], 'en' => []];
+    $swClosings = old('conversion_sw', $conversion['sw'] ?? []);
+    $enClosings = old('conversion_en', $conversion['en'] ?? []);
+    while (count($swClosings) < 5) {
+        $swClosings[] = '';
+    }
+    while (count($enClosings) < 5) {
+        $enClosings[] = '';
+    }
 @endphp
 
 <x-admin.layout title="Support SLA & Priorities" heading="Support SLA & Priorities" subheading="Issue → default priority → target resolution → approaching threshold. Snapshotted onto each ticket at create.">
@@ -17,8 +26,8 @@
 
     <x-admin.settings-editor
         action="{{ route('admin.settings.support.save') }}"
-        submit-label="Save Support SLA"
-        :tabs="['issues' => 'Issues & SLA', 'priority' => 'Priority fallbacks', 'recurring' => 'Recurring flags']"
+        submit-label="Save Support settings"
+        :tabs="['issues' => 'Issues & SLA', 'priority' => 'Priority fallbacks', 'recurring' => 'Recurring flags', 'msaidizi' => 'Msaidizi closings']"
         default-tab="issues"
     >
         <div x-show="tab === 'issues'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
@@ -114,6 +123,35 @@
                            value="{{ old('recurring_window_hours', $recurringWindowHours) }}"
                            class="mt-1 w-full rounded-lg border-gray-200 text-sm tabular-nums">
                 </label>
+            </div>
+        </div>
+
+        <div x-show="tab === 'msaidizi'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
+            <div>
+                <p class="text-xs uppercase tracking-widest text-brand font-semibold">Guest conversion closings</p>
+                <p class="text-sm text-gray-600 mt-1">
+                    After a Guest resolves with <strong>Ndiyo</strong>, one of these variants rotates naturally.
+                    Use <code class="text-xs bg-gray-100 px-1 rounded">{name}</code> for the first name.
+                    Leave blank to use built-in defaults. Members/Partners never see these Join invitations.
+                </p>
+            </div>
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <p class="text-sm font-semibold text-gray-800">Swahili (up to 5)</p>
+                    @foreach ($swClosings as $i => $line)
+                        <textarea name="conversion_sw[{{ $i }}]" rows="2"
+                                  class="w-full rounded-lg border-gray-200 text-sm"
+                                  placeholder="Variant {{ $i + 1 }}">{{ $line }}</textarea>
+                    @endforeach
+                </div>
+                <div class="space-y-3">
+                    <p class="text-sm font-semibold text-gray-800">English (up to 5)</p>
+                    @foreach ($enClosings as $i => $line)
+                        <textarea name="conversion_en[{{ $i }}]" rows="2"
+                                  class="w-full rounded-lg border-gray-200 text-sm"
+                                  placeholder="Variant {{ $i + 1 }}">{{ $line }}</textarea>
+                    @endforeach
+                </div>
             </div>
         </div>
     </x-admin.settings-editor>
