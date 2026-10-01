@@ -99,7 +99,11 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
 
         $this->assertStringContainsString('guarantor_supplement=1', $url);
         $this->assertSame('awaiting_guarantor', $application->fresh()->status);
-        $this->assertSame('rejected', $link->fresh()->status);
+        // Before Finish, original pending guarantor stays current.
+        $this->assertSame('pending', $link->fresh()->status);
+        $this->assertTrue(
+            app(GuarantorSupplementService::class)->deferredReplacementPending($application->fresh())
+        );
         $this->assertSame('paid', $application->fresh()->application_fee_status);
         $this->assertSame(
             1,
@@ -111,7 +115,7 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
         );
     }
 
-    public function test_completed_guarantor_change_keeps_current_until_replacement_accepts(): void
+    public function test_completed_guarantor_change_keeps_current_until_finish_then_replaces(): void
     {
         [$borrower, $application, $link] = $this->awaitingGuarantorPair(incomplete: false);
 
@@ -126,11 +130,35 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
 
         $this->assertStringContainsString('guarantor_supplement=1', $url);
         $this->assertSame('awaiting_guarantor', $application->fresh()->status);
-        // Current accepted guarantor stays active while replacement is invited.
+        // Before Finish, current accepted guarantor stays active.
         $this->assertSame('approved', $link->fresh()->status);
         $this->assertTrue(
             app(GuarantorSupplementService::class)->deferredReplacementPending($application->fresh())
         );
+
+        // Simulate Finish attaching a replacement link.
+        $replacement = CustomerGuarantor::create([
+            'customer_id' => $borrower->id,
+            'guarantor_id' => Guarantor::create([
+                'first_name' => 'New',
+                'last_name' => 'Guarantor',
+                'phone' => '255700'.random_int(100000, 999999),
+                'relationship' => 'friend',
+            ])->id,
+            'loan_application_id' => $application->id,
+            'status' => 'pending',
+        ]);
+
+        app(GuarantorSupplementService::class)->completeDeferredReplacementIfNeeded($replacement->fresh(['application']));
+
+        $this->assertSame('replaced', $link->fresh()->status);
+        $this->assertFalse(
+            app(GuarantorSupplementService::class)->deferredReplacementPending($application->fresh())
+        );
+        $this->assertSame(1, CustomerGuarantor::query()
+            ->where('loan_application_id', $application->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->count());
     }
 
     /**

@@ -94,7 +94,9 @@ class GuarantorDeadlineFeatureTest extends TestCase
 
         $this->assertStringContainsString('guarantor_supplement=1', $url);
         $this->assertSame('awaiting_guarantor', $application->fresh()->status);
-        $this->assertSame('rejected', $link->fresh()->status);
+        // Finish replaces; Start only opens the wizard and keeps current link until then.
+        $this->assertSame('pending', $link->fresh()->status);
+        $this->assertTrue(app(GuarantorSupplementService::class)->deferredReplacementPending($application->fresh()));
         $this->assertTrue(app(GuarantorSupplementService::class)->hasOpenRequest($application->fresh()));
         $this->assertNotNull($application->fresh()->guarantor_deadline_at);
         unset($guarantorCustomer);

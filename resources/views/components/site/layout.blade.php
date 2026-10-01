@@ -293,9 +293,9 @@
                         <li><a href="{{ route('site.about') }}" class="hover:text-brand-gold transition">{{ __('site.footer.about') }}</a></li>
                         <li><a href="{{ route('site.how-it-works') }}" class="hover:text-brand-gold transition">{{ __('site.how_it_works.title') }}</a></li>
                         <li><a href="{{ route('site.learn') }}" class="hover:text-brand-gold transition">{{ __('seo.footer_learn') }}</a></li>
-                        <li><a href="{{ route('site.faq') }}" class="hover:text-brand-gold transition">{{ __('site.footer.faq') }}</a></li>
+                        <li><a href="{{ route('site.support') }}" class="hover:text-brand-gold transition">{{ __('site.footer.faq') }}</a></li>
                         <li><a href="{{ route('site.support') }}" class="hover:text-brand-gold transition">{{ __('site.footer.support') }}</a></li>
-                        <li><a href="{{ route('site.feedback', ['open' => 1]) }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>
+                        <li><a href="{{ route('site.support', ['feedback' => 1]) }}" class="hover:text-brand-gold transition">{{ __('site.footer.feedback') }}</a></li>
                     </ul>
                 </div>
                 <div>

@@ -16,9 +16,8 @@
             $ctaUrl = null;
         }
     }
-    $supportHome = auth()->user()?->customer
-        ? route('site.borrower.support')
-        : (auth()->check() ? route('site.partner.support') : route('site.faq'));
+    $supportHome = route('site.support');
+    $chatUrl = route('site.support.chat');
     $howtoLabel = $howtoLabel ?? (str_starts_with(app()->getLocale(), 'sw') ? 'JINSI YA' : 'HOW TO');
 @endphp
 
@@ -89,10 +88,10 @@
         </div>
         @if (session('help_feedback_vote') === 'no')
             <div class="mt-4 grid sm:grid-cols-2 gap-3">
-                <a href="{{ $supportHome }}?chat=1" class="rounded-xl bg-brand-gold text-brand font-bold text-sm px-4 py-3 text-center">
+                <a href="{{ $chatUrl }}" data-kf-support-action="chat" class="rounded-xl bg-brand-gold text-brand font-bold text-sm px-4 py-3 text-center">
                     {{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}
                 </a>
-                <button type="button" @click="$dispatch('open-feedback')" class="rounded-xl ring-1 ring-brand/20 text-brand font-bold text-sm px-4 py-3">
+                <button type="button" data-kf-support-action="feedback" @click.stop="$dispatch('open-feedback')" class="rounded-xl ring-1 ring-brand/20 text-brand font-bold text-sm px-4 py-3">
                     {{ $isSw ? 'Tuma maoni' : 'Send feedback' }}
                 </button>
             </div>

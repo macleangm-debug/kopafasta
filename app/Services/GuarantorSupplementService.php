@@ -293,9 +293,9 @@ class GuarantorSupplementService
      * Borrower self-service: while the application is held awaiting guarantor completion,
      * open Change guarantor.
      *
-     * - Pending (not yet accepted): cancel current invite and open Add New Guarantor (existing).
-     * - Accepted/approved: keep current active, open Add New Guarantor for a replacement invite;
-     *   atomic replace only when the replacement accepts.
+     * - Pending (not yet accepted): cancel current invite and open Add New Guarantor.
+     * - Accepted/approved: open Add New Guarantor for a replacement; previous stays until Finish,
+     *   then Finish atomically replaces (previous → history/replaced; replacement becomes current).
      */
     public function startBorrowerChangeWhileHeld(LoanApplication $application, Customer $borrower): string
     {
@@ -307,11 +307,9 @@ class GuarantorSupplementService
             return $this->borrowerWizardUrl($application);
         }
 
-        if ($this->borrowerMayReplaceIncompleteGuarantor($application)) {
-            return $this->startImmediateChangeWhileHeld($application, $borrower);
-        }
-
-        if ($this->borrowerMayStartDeferredReplacement($application)) {
+        // Always defer until Finish — cancel before Finish leaves the current guarantor unchanged.
+        if ($this->borrowerMayReplaceIncompleteGuarantor($application)
+            || $this->borrowerMayStartDeferredReplacement($application)) {
             return $this->startDeferredReplacementWhileHeld($application, $borrower);
         }
 
@@ -321,46 +319,11 @@ class GuarantorSupplementService
     }
 
     /**
-     * Pending invite only — cancel current and open Add New Guarantor.
+     * @deprecated Kept for call sites that still expect immediate cancel; prefer deferred Finish.
      */
     private function startImmediateChangeWhileHeld(LoanApplication $application, Customer $borrower): string
     {
-        if ($this->hasOpenRequest($application)) {
-            return $this->borrowerWizardUrl($application);
-        }
-
-        $inviteSvc = app(GuarantorInvitationService::class);
-        $activeLinks = \App\Models\CustomerGuarantor::query()
-            ->where('loan_application_id', $application->id)
-            ->whereIn('status', ['pending', 'approved'])
-            ->get();
-
-        foreach ($activeLinks as $link) {
-            $inviteSvc->rejectByUnderwriting(
-                $link,
-                'Replaced by borrower while awaiting guarantor completion'
-            );
-        }
-
-        DB::transaction(function () use ($application, $borrower): void {
-            $payload = $application->screening_payload ?? [];
-            $payload['guarantor_supplement'] = [
-                'requested_at' => now()->toIso8601String(),
-                'requested_by' => $borrower->user_id,
-                'notes'        => 'Borrower-initiated change while awaiting guarantor profile',
-                'satisfied_at' => null,
-                'kind'         => 'change',
-                'initiated_by' => 'borrower',
-            ];
-            unset($payload['guarantor_deferred_replacement']);
-            $application->update([
-                'screening_payload' => $payload,
-                'status'            => 'awaiting_guarantor',
-                'current_stage'     => 'awaiting_guarantor',
-            ]);
-        });
-
-        return $this->borrowerWizardUrl($application);
+        return $this->startDeferredReplacementWhileHeld($application, $borrower);
     }
 
     /**
@@ -426,7 +389,8 @@ class GuarantorSupplementService
 
     private function startDeferredReplacementWhileHeld(LoanApplication $application, Customer $borrower): string
     {
-        $previous = $this->activeAcceptedGuarantorLink($application);
+        $previous = $this->activeAcceptedGuarantorLink($application)
+            ?? $this->currentActiveGuarantorLink($application);
         if (! $previous && ! $this->deferredReplacementPending($application)) {
             throw new \InvalidArgumentException(
                 __('borrower.guarantor_supplement.change_locked_body')
@@ -447,7 +411,7 @@ class GuarantorSupplementService
             $payload['guarantor_supplement'] = [
                 'requested_at' => now()->toIso8601String(),
                 'requested_by' => $borrower->user_id,
-                'notes'        => 'Borrower-initiated deferred replacement — current guarantor remains active',
+                'notes'        => 'Borrower-initiated replacement — previous stays until Finish',
                 'satisfied_at' => null,
                 'kind'         => 'change',
                 'initiated_by' => 'borrower',
@@ -464,7 +428,19 @@ class GuarantorSupplementService
     }
 
     /**
-     * When a replacement guarantor accepts, atomically retire the previous accepted guarantor.
+     * Any pending/approved link currently attached to the application (for Finish-based replace).
+     */
+    public function currentActiveGuarantorLink(LoanApplication $application): ?\App\Models\CustomerGuarantor
+    {
+        $application->loadMissing(['customerGuarantors.invitation']);
+
+        return $application->customerGuarantors
+            ->first(fn ($link) => in_array((string) $link->status, ['pending', 'approved'], true));
+    }
+
+    /**
+     * Finish completed the replacement: previous → replaced (history), new link is the sole current.
+     * Does not wait for replacement acceptance.
      */
     public function completeDeferredReplacementIfNeeded(\App\Models\CustomerGuarantor $newLink): void
     {
@@ -506,9 +482,17 @@ class GuarantorSupplementService
                 $invitation->update([
                     'status' => 'replaced',
                     'responded_at' => $invitation->responded_at ?? now(),
-                    'response_notes' => 'Replaced after borrower nominated a successor who accepted',
+                    'response_notes' => 'Replaced when borrower finished nominating a successor',
                 ]);
             }
+
+            // Any other active links besides the new replacement become history too.
+            \App\Models\CustomerGuarantor::query()
+                ->where('loan_application_id', $application->id)
+                ->where('id', '!=', $newLink->id)
+                ->where('id', '!=', $previous->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->update(['status' => 'replaced']);
 
             $deferred['status'] = 'completed';
             $deferred['completed_at'] = now()->toIso8601String();
@@ -518,7 +502,7 @@ class GuarantorSupplementService
             $payload['guarantor_replacements'][] = [
                 'previous_link_id' => $previous->id,
                 'new_link_id' => $newLink->id,
-                'reason' => 'borrower_deferred_replacement',
+                'reason' => 'borrower_finish_replacement',
                 'at' => now()->toIso8601String(),
                 'status' => 'replaced',
             ];

@@ -1,8 +1,10 @@
 <x-site.layout :title="brand_title($isSw ? 'Ongea na timu' : 'Talk to Support')">
     @php
         $isSw = $isSw ?? str_starts_with(app()->getLocale(), 'sw');
-        $guestName = $guestName ?? '';
+        $guestFirstName = $guestFirstName ?? '';
+        $guestLastName = $guestLastName ?? '';
         $guestPhone = $guestPhone ?? '';
+        $guestName = trim($guestFirstName.' '.$guestLastName);
         $conversation = $conversation ?? null;
     @endphp
 
@@ -24,9 +26,9 @@
             :conversation="$conversation"
             :existing-messages="$conversation?->messages"
             :guest-name="$guestName"
+            :guest-first-name="$guestFirstName"
+            :guest-last-name="$guestLastName"
             :guest-phone="$guestPhone"
         />
     </section>
-
-    <x-site.feedback-form-panel :show-trigger="false" :show-faq-link="false" from="public" />
 </x-site.layout>

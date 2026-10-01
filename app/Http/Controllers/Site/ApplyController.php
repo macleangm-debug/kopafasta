@@ -2987,6 +2987,23 @@ class ApplyController extends Controller
             $guarantors->notifyBorrowerInvitationSent($customer, $attachedInvitation, $invitee);
         }
 
+        // Finish = replace previous with this nomination (one current guarantor only).
+        if ($attachedInvitation?->customer_guarantor_id) {
+            $newLink = \App\Models\CustomerGuarantor::query()->find($attachedInvitation->customer_guarantor_id);
+            if ($newLink) {
+                $supplements->completeDeferredReplacementIfNeeded($newLink->fresh(['application', 'invitation']));
+            }
+        } elseif ($mode === 'internal' || $mode === 'previous') {
+            $newLink = \App\Models\CustomerGuarantor::query()
+                ->where('loan_application_id', $application->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->latest('id')
+                ->first();
+            if ($newLink) {
+                $supplements->completeDeferredReplacementIfNeeded($newLink->fresh(['application', 'invitation']));
+            }
+        }
+
         $supplements->markSatisfied($application);
 
         $this->auditBorrower('application.guarantor_supplement_submitted', $application, [

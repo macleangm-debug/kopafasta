@@ -195,25 +195,18 @@
         </div>
     </section>
 
-    {{-- Three support cards --}}
+    {{-- Three support cards — Chat and Feedback never share routing/state. --}}
     <section class="grid grid-cols-3 gap-2 sm:gap-4">
-        @if ($showChatCard)
-            <a href="{{ $chatUrl }}"
-               class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
-                <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
-                <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}</p>
-                <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Pata msaada kutoka kwa timu yetu.' : 'Get help from our team.' }}</p>
-            </a>
-        @else
-            <a href="{{ route('site.feedback', ['open' => 1]) }}"
-               class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
-                <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
-                <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}</p>
-                <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Tuma ujumbe kwa timu yetu.' : 'Send a message to our team.' }}</p>
-            </a>
-        @endif
+        <a href="{{ $chatUrl }}"
+           data-kf-support-action="chat"
+           class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
+            <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
+            <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}</p>
+            <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Pata msaada kutoka kwa timu yetu.' : 'Get help from our team.' }}</p>
+        </a>
         <button type="button"
-                @click="$dispatch('open-feedback')"
+                data-kf-support-action="feedback"
+                @click.stop="$dispatch('open-feedback')"
                 class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
             <p class="text-lg sm:text-xl" aria-hidden="true">✉️</p>
             <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</p>

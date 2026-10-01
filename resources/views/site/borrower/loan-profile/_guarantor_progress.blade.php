@@ -137,6 +137,37 @@
             })
             ->values();
 
+        // During an open replacement (before Finish), Application View keeps showing only the
+        // previous current guarantor — never two progress trackers side by side.
+        $deferredReplacement = $application && $supplementSvc->deferredReplacementPending($application);
+        if ($deferredReplacement) {
+            $previousLinkId = (int) ($application->screening_payload['guarantor_deferred_replacement']['previous_link_id'] ?? 0);
+            if ($previousLinkId > 0) {
+                $onlyPrevious = $currentRows->filter(function ($row) use ($previousLinkId) {
+                    $linkId = (int) ($row->invite?->customer_guarantor_id ?? 0);
+
+                    return $linkId === $previousLinkId;
+                })->values();
+                if ($onlyPrevious->isNotEmpty()) {
+                    $currentRows = $onlyPrevious;
+                } else {
+                    // Finish already replaced previous — keep newest single current only.
+                    $currentRows = $currentRows->sortByDesc(fn ($row) => (int) ($row->invite?->id ?? 0))->take(1)->values();
+                }
+            }
+        }
+
+        // Hard rule: one current guarantor progress tracker on Application View.
+        if ($currentRows->count() > 1) {
+            $currentRows = $currentRows
+                ->sortByDesc(fn ($row) => [
+                    $rank($row),
+                    (int) ($row->invite?->id ?? 0),
+                ])
+                ->take(1)
+                ->values();
+        }
+
         $readyCount = $currentRows->filter(fn ($row) => ($row->status['ready'] ?? false) || ($row->status['code'] ?? '') === 'ready')->count();
         $allReady = $currentRows->isNotEmpty() && $readyCount >= $currentRows->count();
         $primary = $currentRows->first();
@@ -148,7 +179,6 @@
 
         $showChangeGuarantor = ($isDraft && $editGuarantorUrl) || ($guarantorSupplementOpen && $editGuarantorUrl);
         $canChangeWhileHeld = ! $isDraft && ! $showChangeGuarantor && (bool) ($profile['can_change_guarantor_while_held'] ?? false);
-        $deferredReplacement = $application && $supplementSvc->deferredReplacementPending($application);
         $useDeferredConfirm = $deferredReplacement
             || ($canChangeWhileHeld && $application && $supplementSvc->borrowerMayStartDeferredReplacement($application)
                 && ! $supplementSvc->borrowerMayReplaceIncompleteGuarantor($application));

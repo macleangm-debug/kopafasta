@@ -70,6 +70,7 @@ export function applyWizard(config) {
                 returnTo: config.returnTo || null,
                 guarantorInviteError: '',
                 guarantorEditSaved: false,
+                supplementShareReady: false,
                 guarantorEditSaveUrl: config.guarantorEditSaveUrl || '',
                 supplementApplicationUrl: config.supplementApplicationUrl || '',
                 stepNotice: null,
@@ -458,6 +459,7 @@ export function applyWizard(config) {
                         this.form.guarantor_mode = this.form.guarantor_mode || '';
                         this.externalGuarantor = null;
                         this.form.external_invitation_id = null;
+                        this.supplementShareReady = false;
                     }
                     this.syncFeePaidState();
                     this.syncValuationFeePaidState();
@@ -4885,14 +4887,26 @@ export function applyWizard(config) {
                                     return;
                                 }
                             }
-                            // Replacement supplement: prepare then attach, leave.
-                            if (this.form.guarantor_mode === 'external'
-                                && ! (this.externalGuarantor?.invitation_id || this.form.external_invitation_id)) {
-                                const prepared = await this.prepareExternalGuarantorInvite();
-                                if (! prepared) {
-                                    this.scrollWizardIntoView();
-                                    return;
+                            // Replacement: Continue prepares invitation and stays for Finish.
+                            // Finish (supplementShareReady) is the only submit that returns to Application View.
+                            if (! this.supplementShareReady) {
+                                if (this.form.guarantor_mode === 'external'
+                                    && ! (this.externalGuarantor?.invitation_id || this.form.external_invitation_id)) {
+                                    const prepared = await this.prepareExternalGuarantorInvite();
+                                    if (! prepared) {
+                                        this.scrollWizardIntoView();
+                                        return;
+                                    }
+                                } else if (this.form.guarantor_mode === 'internal' || this.form.guarantor_mode === 'previous') {
+                                    if (! this.internalGuarantorValidated()) {
+                                        this.scrollWizardIntoView();
+                                        return;
+                                    }
                                 }
+                                this.supplementShareReady = true;
+                                this.addGuarantorOpen = false;
+                                this.scrollWizardIntoView();
+                                return;
                             }
                             this.onSubmit({ target: this.formRoot(), preventDefault() {} });
                             return;

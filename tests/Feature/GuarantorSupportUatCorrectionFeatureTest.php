@@ -22,6 +22,9 @@ class GuarantorSupportUatCorrectionFeatureTest extends TestCase
         $chatHtml = $chat->getContent();
         $this->assertTrue(str_contains($chatHtml, 'speakUrl'), 'guest chat missing speakUrl config');
         $this->assertTrue(str_contains($chatHtml, 'needsGuestIdentity'), 'guest chat missing identity gate config');
+        $this->assertTrue(str_contains($chatHtml, 'guestFirstName'), 'guest chat missing first name field');
+        $this->assertTrue(str_contains($chatHtml, 'guestLastName'), 'guest chat missing last name field');
+        $this->assertTrue(str_contains($chatHtml, 'name="guest_phone"'), 'guest chat missing phone component');
         $this->assertTrue(
             str_contains($chatHtml, 'support') && str_contains($chatHtml, 'chat') && str_contains($chatHtml, 'speak'),
             'guest chat speak endpoint not wired'
@@ -32,7 +35,8 @@ class GuarantorSupportUatCorrectionFeatureTest extends TestCase
     {
         $response = $this->postJson(route('site.support.chat.speak'), [
             'body' => 'Habari, nahitaji msaada kuhusu usajili.',
-            'guest_name' => 'UAT Guest',
+            'guest_first_name' => 'UAT',
+            'guest_last_name' => 'Guest',
             'guest_phone' => '0715222132',
         ]);
 
@@ -88,12 +92,23 @@ class GuarantorSupportUatCorrectionFeatureTest extends TestCase
         $this->assertStringContainsString('max-w-3xl mx-auto w-full', $partner);
     }
 
-    public function test_feedback_panel_desktop_centered_modal_classes(): void
+    public function test_footer_and_public_support_cta_routing_are_separated(): void
     {
-        $blade = file_get_contents(resource_path('views/components/site/feedback-form-panel.blade.php'));
-        $this->assertIsString($blade);
-        $this->assertStringContainsString('lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2', $blade);
-        $this->assertStringContainsString('lg:rounded-3xl', $blade);
-        $this->assertStringContainsString('lg:hidden', $blade);
+        $layout = file_get_contents(resource_path('views/components/site/layout.blade.php'));
+        $this->assertIsString($layout);
+        $this->assertStringContainsString("route('site.support')", $layout);
+        $this->assertStringContainsString("route('site.support', ['feedback' => 1])", $layout);
+        $this->assertStringNotContainsString("route('site.feedback', ['open' => 1])", $layout);
+
+        $landing = file_get_contents(resource_path('views/site/help/_landing-body.blade.php'));
+        $this->assertIsString($landing);
+        $this->assertStringContainsString('data-kf-support-action="chat"', $landing);
+        $this->assertStringContainsString('data-kf-support-action="feedback"', $landing);
+        $this->assertStringNotContainsString("route('site.feedback', ['open' => 1])", $landing);
+
+        $wizard = file_get_contents(resource_path('js/apply-wizard.js'));
+        $this->assertIsString($wizard);
+        $this->assertStringContainsString('supplementShareReady', $wizard);
+        $this->assertStringContainsString('// Finish (supplementShareReady) is the only submit', $wizard);
     }
 }

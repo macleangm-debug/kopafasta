@@ -12,6 +12,8 @@
     'showRating' => false,
     'ratingUrl' => null,
     'guestName' => null,
+    'guestFirstName' => null,
+    'guestLastName' => null,
     'guestPhone' => null,
 ])
 
@@ -45,6 +47,13 @@
     $composerLocked = $conversation instanceof \App\Models\SupportConversation
         && in_array((string) $conversation->status, ['closed', 'resolved'], true);
     $needsGuestIdentity = ! $memberMode && $forceHuman;
+    $guestFirstName = trim((string) ($guestFirstName ?? ''));
+    $guestLastName = trim((string) ($guestLastName ?? ''));
+    if ($guestFirstName === '' && $guestLastName === '' && filled($guestName)) {
+        $parts = preg_split('/\s+/', trim((string) $guestName), 2) ?: [];
+        $guestFirstName = (string) ($parts[0] ?? '');
+        $guestLastName = (string) ($parts[1] ?? '');
+    }
 @endphp
 
 <div {{ $attributes->merge(['class' => $shellClass]) }}
@@ -60,13 +69,16 @@
          'memberMode' => $memberMode,
          'forceHuman' => (bool) $forceHuman,
          'needsGuestIdentity' => (bool) $needsGuestIdentity,
-         'guestName' => (string) ($guestName ?? ''),
+         'guestFirstName' => $guestFirstName,
+         'guestLastName' => $guestLastName,
+         'guestName' => trim($guestFirstName.' '.$guestLastName),
          'guestPhone' => (string) ($guestPhone ?? ''),
          'guestIdentityHint' => $isSw
-             ? 'Andika jina na namba ya simu ili timu iweze kukujibu (si usajili).'
-             : 'Enter your name and phone so the team can reply (not registration).',
-         'guestNameLabel' => $isSw ? 'Jina' : 'Name',
-         'guestPhoneLabel' => $isSw ? 'Simu' : 'Phone',
+             ? 'Andika jina la kwanza, jina la mwisho na namba ya simu ili timu iweze kukujibu (si usajili).'
+             : 'Enter your first name, last name and phone so the team can reply (not registration).',
+         'guestFirstNameLabel' => $isSw ? 'Jina la kwanza' : 'First name',
+         'guestLastNameLabel' => $isSw ? 'Jina la mwisho' : 'Last name',
+         'guestPhoneLabel' => $isSw ? 'Namba ya simu' : 'Phone number',
          'guestContinue' => $isSw ? 'Anza mazungumzo' : 'Start chat',
          'registerPrompt' => $registerPrompt,
          'registerUrl' => $registerUrl,
@@ -128,24 +140,34 @@
             </div>
         </div>
         <div class="px-3.5 sm:px-4 pt-3 pb-4">
-            <div x-show="needsGuestGate" x-cloak class="mb-4 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-3">
+            <div x-show="needsGuestGate" x-cloak class="mb-4 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-3" x-ref="guestGate">
                 <p class="text-sm text-gray-700" x-text="config.guestIdentityHint"></p>
                 <div class="grid sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1" x-text="config.guestNameLabel"></label>
-                        <input type="text" x-model="guestName" maxlength="120"
+                        <label class="block text-xs font-semibold text-gray-700 mb-1" x-text="config.guestFirstNameLabel"></label>
+                        <input type="text" x-model="guestFirstName" maxlength="60" autocomplete="given-name"
                                class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1" x-text="config.guestPhoneLabel"></label>
-                        <input type="tel" x-model="guestPhone" maxlength="32"
-                               class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10"
-                               placeholder="+255…">
+                        <label class="block text-xs font-semibold text-gray-700 mb-1" x-text="config.guestLastNameLabel"></label>
+                        <input type="text" x-model="guestLastName" maxlength="60" autocomplete="family-name"
+                               class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
                     </div>
+                </div>
+                <div>
+                    <x-site.phone-input
+                        name="guest_phone"
+                        :label="$isSw ? 'Namba ya simu' : 'Phone number'"
+                        :value="$guestPhone"
+                        variant="rounded"
+                        :allow-country-change="false"
+                        :help="false"
+                        :required="true"
+                    />
                 </div>
                 <button type="button" @click="confirmGuestIdentity()"
                         class="w-full rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
-                        :disabled="!guestName.trim() || !guestPhone.trim()"
+                        :disabled="!guestFirstName.trim() || !guestLastName.trim()"
                         x-text="config.guestContinue"></button>
             </div>
     @else
@@ -264,9 +286,15 @@
                         ratingComment: '',
                         ratingSending: false,
                         ratingDone: false,
+                        guestFirstName: config.guestFirstName || '',
+                        guestLastName: config.guestLastName || '',
                         guestName: config.guestName || '',
                         guestPhone: config.guestPhone || '',
-                        guestReady: !config.needsGuestIdentity || (!!(config.guestName || '').trim() && !!(config.guestPhone || '').trim()),
+                        guestReady: !config.needsGuestIdentity || (
+                            !!(config.guestFirstName || '').trim()
+                            && !!(config.guestLastName || '').trim()
+                            && !!(config.guestPhone || '').trim()
+                        ),
                         get needsGuestGate() {
                             return !!config.needsGuestIdentity && !this.guestReady;
                         },
@@ -301,7 +329,20 @@
                             this.ask();
                         },
                         confirmGuestIdentity() {
-                            if (!this.guestName.trim() || !this.guestPhone.trim()) return;
+                            var first = (this.guestFirstName || '').trim();
+                            var last = (this.guestLastName || '').trim();
+                            var phoneEl = this.$refs.guestGate
+                                ? this.$refs.guestGate.querySelector('input[name="guest_phone"]')
+                                : null;
+                            var phone = phoneEl ? String(phoneEl.value || '').trim() : (this.guestPhone || '').trim();
+                            if (! first || ! last || ! phone) {
+                                this.sendError = config.guestIdentityHint || '';
+                                return;
+                            }
+                            this.guestFirstName = first;
+                            this.guestLastName = last;
+                            this.guestName = (first + ' ' + last).trim();
+                            this.guestPhone = phone;
                             this.guestReady = true;
                             this.sendError = '';
                             this.$nextTick(function () {
@@ -444,7 +485,10 @@
                             if (this.humanMode && config.speakUrl) {
                                 var payload = { body: q };
                                 if (config.needsGuestIdentity) {
-                                    payload.guest_name = (this.guestName || '').trim();
+                                    payload.guest_first_name = (this.guestFirstName || '').trim();
+                                    payload.guest_last_name = (this.guestLastName || '').trim();
+                                    payload.guest_name = (this.guestName || '').trim()
+                                        || (payload.guest_first_name + ' ' + payload.guest_last_name).trim();
                                     payload.guest_phone = (this.guestPhone || '').trim();
                                 }
                                 fetch(config.speakUrl, {
