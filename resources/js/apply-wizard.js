@@ -452,6 +452,12 @@ export function applyWizard(config) {
                         if (this.savedDraft?.form?.external_invitation_id) {
                             this.form.external_invitation_id = this.savedDraft.form.external_invitation_id;
                         }
+                    } else if (this.supplementMode) {
+                        // Change / add-guarantor supplement: open the same form immediately with a working Continue CTA.
+                        this.addGuarantorOpen = true;
+                        this.form.guarantor_mode = this.form.guarantor_mode || '';
+                        this.externalGuarantor = null;
+                        this.form.external_invitation_id = null;
                     }
                     this.syncFeePaidState();
                     this.syncValuationFeePaidState();

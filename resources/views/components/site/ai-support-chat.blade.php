@@ -11,6 +11,8 @@
     'backToFaqsLabel' => null,
     'showRating' => false,
     'ratingUrl' => null,
+    'guestName' => null,
+    'guestPhone' => null,
 ])
 
 @php
@@ -35,12 +37,14 @@
     $startHuman = $forceHuman || count($seedMessages) > 0;
     $presence = app(\App\Services\Support\SupportConversationService::class)
         ->memberChatPresence($conversation instanceof \App\Models\SupportConversation ? $conversation : null);
+    // Parent provides focused/centered width; chat fills that container (not a left-aligned max-w-2xl island).
     $shellClass = $forceHuman
-        ? 'overflow-hidden rounded-2xl ring-1 ring-brand/15 shadow-sm bg-white max-w-2xl'
-        : 'glass-card p-5 sm:p-6 max-w-2xl';
+        ? 'overflow-hidden rounded-2xl ring-1 ring-brand/15 shadow-sm bg-white w-full'
+        : 'glass-card p-5 sm:p-6 w-full';
     $isSw = str_starts_with(app()->getLocale(), 'sw');
     $composerLocked = $conversation instanceof \App\Models\SupportConversation
         && in_array((string) $conversation->status, ['closed', 'resolved'], true);
+    $needsGuestIdentity = ! $memberMode && $forceHuman;
 @endphp
 
 <div {{ $attributes->merge(['class' => $shellClass]) }}
@@ -55,6 +59,15 @@
          'chooseProductPrompt' => $chat['choose_product_prompt'],
          'memberMode' => $memberMode,
          'forceHuman' => (bool) $forceHuman,
+         'needsGuestIdentity' => (bool) $needsGuestIdentity,
+         'guestName' => (string) ($guestName ?? ''),
+         'guestPhone' => (string) ($guestPhone ?? ''),
+         'guestIdentityHint' => $isSw
+             ? 'Andika jina na namba ya simu ili timu iweze kukujibu (si usajili).'
+             : 'Enter your name and phone so the team can reply (not registration).',
+         'guestNameLabel' => $isSw ? 'Jina' : 'Name',
+         'guestPhoneLabel' => $isSw ? 'Simu' : 'Phone',
+         'guestContinue' => $isSw ? 'Anza mazungumzo' : 'Start chat',
          'registerPrompt' => $registerPrompt,
          'registerUrl' => $registerUrl,
          'typingLabel' => __('site.support.chat.typing'),
@@ -115,6 +128,26 @@
             </div>
         </div>
         <div class="px-3.5 sm:px-4 pt-3 pb-4">
+            <div x-show="needsGuestGate" x-cloak class="mb-4 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-3">
+                <p class="text-sm text-gray-700" x-text="config.guestIdentityHint"></p>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1" x-text="config.guestNameLabel"></label>
+                        <input type="text" x-model="guestName" maxlength="120"
+                               class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1" x-text="config.guestPhoneLabel"></label>
+                        <input type="tel" x-model="guestPhone" maxlength="32"
+                               class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:ring-2 focus:ring-brand/10"
+                               placeholder="+255…">
+                    </div>
+                </div>
+                <button type="button" @click="confirmGuestIdentity()"
+                        class="w-full rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
+                        :disabled="!guestName.trim() || !guestPhone.trim()"
+                        x-text="config.guestContinue"></button>
+            </div>
     @else
         <div class="flex items-center gap-3 mb-4">
             <div class="relative size-11 rounded-xl bg-brand text-white grid place-items-center font-bold text-sm shrink-0">
@@ -183,7 +216,7 @@
         </div>
     </div>
 
-    <form @submit.prevent="ask" class="flex gap-2 items-end" x-show="!(showRating || ratingDone || composerLocked)">
+    <form @submit.prevent="ask" class="flex gap-2 items-end" x-show="!(showRating || ratingDone || composerLocked || needsGuestGate)">
         <textarea x-model="input" :disabled="typing" x-ref="composer" rows="1"
                @input="growComposer()"
                placeholder="{{ __('site.support.chat_placeholder') }}"
@@ -195,7 +228,7 @@
     </form>
 
     @unless ($memberMode)
-        <p class="mt-3 text-sm text-gray-500">
+        <p class="mt-3 text-sm text-gray-500" x-show="!needsGuestGate">
             {{ __('site.support.chat.guest_hint') }}
             <a href="{{ $registerUrl }}" class="font-semibold text-brand hover:underline">{{ __('site.hero.get_started') }}</a>
         </p>
@@ -231,6 +264,12 @@
                         ratingComment: '',
                         ratingSending: false,
                         ratingDone: false,
+                        guestName: config.guestName || '',
+                        guestPhone: config.guestPhone || '',
+                        guestReady: !config.needsGuestIdentity || (!!(config.guestName || '').trim() && !!(config.guestPhone || '').trim()),
+                        get needsGuestGate() {
+                            return !!config.needsGuestIdentity && !this.guestReady;
+                        },
                         _timer: null,
                         csrfToken() {
                             var meta = document.querySelector('meta[name="csrf-token"]');
@@ -260,6 +299,18 @@
                         askSuggestion(suggestion) {
                             this.input = suggestion;
                             this.ask();
+                        },
+                        confirmGuestIdentity() {
+                            if (!this.guestName.trim() || !this.guestPhone.trim()) return;
+                            this.guestReady = true;
+                            this.sendError = '';
+                            this.$nextTick(function () {
+                                var self = this;
+                                if (self.humanMode && config.threadUrl && !self._timer) {
+                                    self.pollThread();
+                                    self._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2000);
+                                }
+                            }.bind(this));
                         },
                         applyPresence(data) {
                             if (!data) return;
@@ -378,6 +429,10 @@
                         ask() {
                             var q = this.input.trim();
                             if (!q || this.typing) return;
+                            if (this.needsGuestGate) {
+                                this.sendError = config.guestIdentityHint || '';
+                                return;
+                            }
                             this.sendError = '';
                             var optimistic = { id: 'local-' + Date.now(), role: 'user', text: q, time: new Date().toTimeString().slice(0, 5) };
                             this.messages.push(optimistic);
@@ -387,6 +442,11 @@
                             var self = this;
 
                             if (this.humanMode && config.speakUrl) {
+                                var payload = { body: q };
+                                if (config.needsGuestIdentity) {
+                                    payload.guest_name = (this.guestName || '').trim();
+                                    payload.guest_phone = (this.guestPhone || '').trim();
+                                }
                                 fetch(config.speakUrl, {
                                     method: 'POST',
                                     headers: {
@@ -396,7 +456,7 @@
                                         'X-Requested-With': 'XMLHttpRequest',
                                     },
                                     credentials: 'same-origin',
-                                    body: JSON.stringify({ body: q }),
+                                    body: JSON.stringify(payload),
                                 }).then(async function (r) {
                                     var data = {};
                                     try { data = await r.json(); } catch (e) { data = {}; }
@@ -441,7 +501,7 @@
                             var self = this;
                             this.scrollBottom();
                             this.$nextTick(function () { self.growComposer(); });
-                            if (this.humanMode && config.threadUrl) {
+                            if (this.humanMode && config.threadUrl && !this.needsGuestGate) {
                                 this.pollThread();
                                 this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2000);
                             }

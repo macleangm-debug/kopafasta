@@ -179,7 +179,7 @@
             </div>
         </div>
 
-        <div x-show="human" x-cloak class="max-w-2xl">
+        <div x-show="human" x-cloak class="max-w-3xl mx-auto w-full">
             <div class="mb-3">
                 <a href="{{ $homeUrl }}" class="text-sm font-semibold text-brand hover:underline">← {{ $isSw ? 'Rudi Kituo cha Usaidizi' : 'Back to Help Center' }}</a>
             </div>

@@ -205,11 +205,11 @@
             </div>
         </div>
 
-        {{-- LIVE CHAT (explicit entry only) --}}
+        {{-- LIVE CHAT — centered focused column (wizard width), not left-aligned under wide shell --}}
         <div id="support-human-chat"
              x-show="human"
              x-cloak
-             class="scroll-mt-24 mb-8 max-w-2xl"
+             class="scroll-mt-24 mb-8 max-w-3xl mx-auto w-full"
              @support-back-to-faqs.window="human = false; window.location = @js(route('site.borrower.support'))">
             <div class="mb-3">
                 <a href="{{ route('site.borrower.support') }}" class="text-sm font-semibold text-brand hover:underline">← {{ $isSw ? 'Rudi Kituo cha Usaidizi' : 'Back to Help Center' }}</a>

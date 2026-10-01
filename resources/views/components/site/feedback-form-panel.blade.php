@@ -83,8 +83,9 @@
     <template x-teleport="body">
         <div x-show="open" class="fixed inset-0 z-[10050]" role="dialog" aria-modal="true" style="display: none;">
             <div class="absolute inset-0 bg-black/40" @click="closePanel()" x-transition.opacity></div>
+            {{-- Desktop: centered modal. Mobile: bottom sheet. Same rule as x-site.action-panel. --}}
             <div class="absolute inset-x-0 bottom-0 lg:inset-auto lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2
-                        w-full lg:max-w-xl max-h-[min(92dvh,760px)] flex flex-col rounded-t-2xl lg:rounded-3xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] lg:shadow-2xl lg:ring-1 lg:ring-gray-200"
+                        w-full lg:w-[32rem] lg:max-w-[calc(100vw-2rem)] max-h-[min(92dvh,760px)] flex flex-col rounded-t-2xl lg:rounded-3xl bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] lg:shadow-2xl lg:ring-1 lg:ring-gray-200"
                  style="padding-bottom: env(safe-area-inset-bottom, 0px)"
                  @click.stop
                  x-show="open"
@@ -92,9 +93,9 @@
                  x-transition:enter-start="translate-y-full lg:translate-y-0 lg:opacity-0 lg:scale-95"
                  x-transition:enter-end="translate-y-0 lg:opacity-100 lg:scale-100"
                  x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="translate-y-0 lg:opacity-100"
+                 x-transition:leave-start="translate-y-0 lg:opacity-100 lg:scale-100"
                  x-transition:leave-end="translate-y-full lg:opacity-0 lg:scale-95">
-                <div class="flex justify-center pt-3 pb-1 shrink-0 lg:hidden">
+                <div class="flex justify-center pt-3 pb-1 shrink-0 lg:hidden" aria-hidden="true">
                     <div class="w-10 h-1 rounded-full bg-gray-300"></div>
                 </div>
                 <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">

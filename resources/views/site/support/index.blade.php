@@ -42,10 +42,17 @@
             'helpTopic' => $helpTopic ?? '',
             'helpArticle' => $helpArticle ?? '',
             'homeUrl' => route('site.support'),
-            'chatUrl' => route('site.feedback', ['open' => 1]),
-            'showChatCard' => false,
+            'chatUrl' => route('site.support.chat'),
+            'showChatCard' => true,
             'phones' => $phones,
             'primaryPhone' => $primaryPhone,
         ])
     </section>
+
+    <x-site.feedback-form-panel
+        :show-trigger="false"
+        :show-faq-link="false"
+        :open-on-load="request()->boolean('feedback')"
+        from="public"
+    />
 </x-site.layout>

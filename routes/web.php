@@ -187,6 +187,9 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::get('/legal/cookies', fn (PublicPolicyController $c) => $c->show('cookies'))->name('legal.cookies');
     Route::get('/responsible-lending', fn (PublicPolicyController $c) => $c->show('responsible_lending'))->name('responsible-lending');
     Route::get('/support', [SupportCenterController::class, 'index'])->name('support');
+    Route::get('/support/chat', [SupportCenterController::class, 'chat'])->name('support.chat');
+    Route::post('/support/chat/speak', [SupportCenterController::class, 'speak'])->name('support.chat.speak');
+    Route::get('/support/chat/thread', [SupportCenterController::class, 'thread'])->name('support.chat.thread');
     Route::get('/feedback', [FeedbackController::class, 'index'])->name('feedback');
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.post');
     Route::get('/contact', fn () => redirect()->route('site.support'))->name('contact');

@@ -1,7 +1,10 @@
+{{-- Focused task: same centered max-w-3xl principle as the loan/application wizard (not wide Loans shell). --}}
 <x-site.borrower-layout
     :title="brand_title(__('borrower.guarantor.detail_title'))"
     active="loans"
-    content-width="focused">
+    content-width="full">
+
+    <div class="max-w-3xl mx-auto w-full min-w-0">
 
     @php
         $loanContext = $loanContext ?? app(\App\Services\GuarantorInvitationService::class)->invitationLoanContext($invitation);
@@ -169,4 +172,5 @@
         </div>
     @endif
 
+    </div>
 </x-site.borrower-layout>
