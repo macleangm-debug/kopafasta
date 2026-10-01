@@ -449,6 +449,16 @@ class AuthController extends Controller
         $membershipAllowed = app(MembershipService::class)->isRequiredForCountry($customer->country_code ?? 'TZ');
 
         try {
+            $welcomeTemplate = $membershipAllowed ? 'membership_welcome' : 'registration_welcome';
+            $alreadyWelcomed = \App\Models\NotificationLog::query()
+                ->where('customer_id', $customer->id)
+                ->whereIn('template', ['membership_welcome', 'registration_welcome'])
+                ->exists();
+
+            if ($alreadyWelcomed) {
+                return;
+            }
+
             if ($membershipAllowed) {
                 app(NotificationService::class)->notifyInApp(
                     $customer,

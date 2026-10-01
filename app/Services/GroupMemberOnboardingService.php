@@ -211,7 +211,47 @@ class GroupMemberOnboardingService
             throw new \InvalidArgumentException(__('borrower.apply.group.invite_phone_mismatch'));
         }
 
+        $wasLinked = (int) ($invitation->customer_id ?? 0) === (int) $customer->id;
+
         $invitation->update(['customer_id' => $customer->id]);
+
+        if (! $wasLinked) {
+            $this->notifyLinkedInvitation($invitation->fresh(['leader', 'product']), $customer);
+        }
+    }
+
+    public function notifyLinkedInvitation(GroupMemberInvitation $invitation, Customer $customer): void
+    {
+        $already = \App\Models\NotificationLog::query()
+            ->where('customer_id', $customer->id)
+            ->where('template', 'group_loan_invitation')
+            ->whereNull('read_at')
+            ->where('recipient', 'like', '%group-member/application%')
+            ->exists();
+
+        if ($already) {
+            return;
+        }
+
+        $leaderName = trim((string) ($invitation->leader?->full_name ?? ''));
+        $reference = $invitation->draft_reference
+            ?: ($invitation->group_name ?: __('borrower.apply.group.loan_label'));
+
+        app(NotificationService::class)->notifyInApp(
+            $customer,
+            __('borrower.apply.group.notify_request_body', [
+                'leader' => $leaderName !== '' ? $leaderName : brand_name(),
+                'reference' => $reference,
+            ]),
+            'group_loan',
+            'group_loan_invitation',
+            __('borrower.apply.group.notify_request_title'),
+            route('site.group-member.application'),
+            __('borrower.apply.group.notify_request_cta'),
+            [
+                'group_member_invitation_id' => $invitation->id,
+            ],
+        );
     }
 
     public function memberRequirementsMet(Customer $customer): bool
@@ -279,15 +319,23 @@ class GroupMemberOnboardingService
                 ->with('status', __('borrower.apply.group.continue_after_membership'));
         }
 
-        if ($request->routeIs('site.borrower.dashboard', 'site.group-member.application', 'site.group-member.onboarding', 'site.borrower.profile', 'site.borrower.profile.*')) {
+        if ($request->routeIs(
+            'site.borrower.dashboard',
+            'site.account-welcome.show',
+            'site.account-welcome.complete',
+            'site.group-member.application',
+            'site.group-member.onboarding',
+            'site.borrower.profile',
+            'site.borrower.profile.*',
+            'site.borrower.loans',
+            'site.borrower.loans.*',
+        )) {
             return null;
         }
 
         if (! $this->memberRequirementsMet($customer)) {
-            $status = app(ProfileCompletionService::class)->calculate($customer);
-
-            return redirect()->route('site.group-member.application')
-                ->with('status', __('borrower.apply.group.continue_after_profile', ['percent' => $status['percent'] ?? 0]));
+            return redirect()->route('site.borrower.dashboard')
+                ->with('status', __('borrower.apply.group.continue_in_portal'));
         }
 
         if ($this->canFinalize($customer, $invitation->fresh())) {

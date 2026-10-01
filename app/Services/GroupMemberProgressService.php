@@ -348,6 +348,31 @@ class GroupMemberProgressService
             'invitation_sent',
             'link_opened',
         ], true);
+        $accountDone = $acceptedDone && ! in_array($statusKey, [
+            'pending_invitation',
+            'invitation_sent',
+            'link_opened',
+        ], true) && in_array($statusKey, [
+            'registration_started',
+            'account_registered',
+            'registration_complete',
+            'profile_incomplete',
+            'profile_complete',
+            'awaiting_signature',
+            'kyc_complete',
+        ], true);
+        // Existing member path: accept/link means account already open.
+        if ($acceptedDone && in_array($statusKey, [
+            'profile_incomplete',
+            'profile_complete',
+            'awaiting_signature',
+            'kyc_complete',
+            'account_registered',
+            'registration_complete',
+            'registration_started',
+        ], true)) {
+            $accountDone = true;
+        }
         $profileDone = in_array($statusKey, [
             'profile_complete',
             'awaiting_signature',
@@ -356,23 +381,11 @@ class GroupMemberProgressService
         // “Tayari” once profile requirements are complete (signature may still be pending).
         $readyDone = in_array($statusKey, ['kyc_complete', 'profile_complete', 'awaiting_signature'], true);
 
-        $current = match (true) {
-            ! $acceptedDone => 'accepted',
-            ! $profileDone => 'profile',
-            ! $readyDone => 'ready',
-            default => 'ready',
-        };
-
-        $badge = match (true) {
-            ! $acceptedDone => __('borrower.apply.guarantor_status.invitation_sent'),
-            ! $profileDone && $profilePercent <= 0 && in_array($statusKey, [
-                'registration_started',
-                'account_registered',
-                'registration_complete',
-            ], true) => __('borrower.apply.guarantor_status.invitation_accepted'),
-            ! $profileDone => __('borrower.apply.guarantor_status.profile_in_progress'),
-            default => __('borrower.apply.group.status_badge_ready'),
-        };
+        $presenter = app(InviteeProgressPresenter::class);
+        $badge = $presenter->badgeLabel($acceptedDone, $accountDone, $profileDone, $readyDone, $profilePercent);
+        if ($readyDone) {
+            $badge = __('borrower.apply.group.status_badge_ready');
+        }
 
         $tone = match (true) {
             $readyDone => 'emerald',
@@ -380,34 +393,7 @@ class GroupMemberProgressService
             default => 'sky',
         };
 
-        $steps = [
-            [
-                'key' => 'invited',
-                'label' => __('borrower.apply.guarantor_progress.invited'),
-                'complete' => $invitedDone,
-                'current' => false,
-            ],
-            [
-                'key' => 'accepted',
-                'label' => __('borrower.apply.guarantor_progress.accepted'),
-                'complete' => $acceptedDone,
-                'current' => $current === 'accepted',
-            ],
-            [
-                'key' => 'profile',
-                'label' => $profilePercent > 0 && ! $profileDone
-                    ? __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $profilePercent])
-                    : __('borrower.apply.guarantor_progress.profile'),
-                'complete' => $profileDone,
-                'current' => $current === 'profile',
-            ],
-            [
-                'key' => 'ready',
-                'label' => __('borrower.apply.group.progress_step_ready'),
-                'complete' => $readyDone,
-                'current' => $current === 'ready',
-            ],
-        ];
+        $steps = $presenter->steps($acceptedDone, $accountDone, $profileDone, $readyDone, $profilePercent);
 
         return [
             'badge' => $badge,

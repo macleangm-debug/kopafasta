@@ -188,6 +188,19 @@ class GuarantorOnboardingService
                 'national_id'=> $customer->national_id ?? $guarantor->national_id,
             ]);
         }
+
+        // In-app invitation for the linked borrower account (Welcome is separate, registration-only).
+        $link = $invitation->fresh(['customerGuarantor', 'borrower', 'application', 'product'])?->customerGuarantor;
+        $borrower = $invitation->borrower;
+        if ($link && $borrower) {
+            app(GuarantorInvitationService::class)->notifyInternalGuarantorRequest(
+                $borrower,
+                $customer,
+                $link,
+                $invitation->fresh(['product', 'application']),
+                $invitation->application,
+            );
+        }
     }
 
     public function coreRequirementsMet(Customer $customer): bool

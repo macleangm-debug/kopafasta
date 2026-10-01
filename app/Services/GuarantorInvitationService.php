@@ -655,11 +655,11 @@ class GuarantorInvitationService
             : null;
 
         if ($invitation->status === 'rejected' || $link?->status === 'rejected') {
-            return $this->borrowerStatusPayload('rejected', null, false, false);
+            return $this->borrowerStatusPayload('rejected', null, false, false, (bool) $guarantorCustomer);
         }
 
         if ($invitation->status === 'expired') {
-            return $this->borrowerStatusPayload('expired', null, false, false);
+            return $this->borrowerStatusPayload('expired', null, false, false, (bool) $guarantorCustomer);
         }
 
         if ($invitation->needsQuoteReconfirmation()) {
@@ -669,11 +669,12 @@ class GuarantorInvitationService
                 $profilePercent = (int) ($profile['percent'] ?? 0);
             }
 
-            return $this->borrowerStatusPayload('pending_reconfirmation', $profilePercent, true, false);
+            return $this->borrowerStatusPayload('pending_reconfirmation', $profilePercent, true, false, (bool) $guarantorCustomer);
         }
 
         $accepted = $link?->status === 'approved'
             || in_array((string) $invitation->status, ['accepted'], true);
+        $accountOpened = $guarantorCustomer !== null;
 
         $profilePercent = null;
         $profileMet = false;
@@ -686,10 +687,10 @@ class GuarantorInvitationService
         // Accepted guarantee — profile is the next gate (internal + external).
         if ($link?->status === 'approved') {
             if (! $profileMet) {
-                return $this->borrowerStatusPayload('pending_profile', $profilePercent, true, false);
+                return $this->borrowerStatusPayload('pending_profile', $profilePercent, true, false, true);
             }
 
-            return $this->borrowerStatusPayload('ready', $profilePercent ?? 100, true, true);
+            return $this->borrowerStatusPayload('ready', $profilePercent ?? 100, true, true, true);
         }
 
         // Still waiting for Accept / Decline.
@@ -699,29 +700,30 @@ class GuarantorInvitationService
                 $profilePercent,
                 false,
                 false,
+                $accountOpened,
             );
         }
 
         // External (or rare) mid-flow: invitation accepted but link not approved yet.
         if ($invitation->status === 'accepted') {
             if (! $guarantorCustomer) {
-                return $this->borrowerStatusPayload('registration_in_progress', null, true, false);
+                return $this->borrowerStatusPayload('registration_in_progress', null, true, false, false);
             }
 
             if (MembershipService::isRequiredForCountry($guarantorCustomer->country_code ?? null)
                 && ! $guarantorCustomer->isMembershipActive()
                 && ! $guarantorCustomer->isMembershipInGrace()) {
-                return $this->borrowerStatusPayload('registration_in_progress', $profilePercent, true, false);
+                return $this->borrowerStatusPayload('registration_in_progress', $profilePercent, true, false, true);
             }
 
             if (! $profileMet) {
-                return $this->borrowerStatusPayload('pending_profile', $profilePercent, true, false);
+                return $this->borrowerStatusPayload('pending_profile', $profilePercent, true, false, true);
             }
 
-            return $this->borrowerStatusPayload('guarantee_pending', $profilePercent, true, false);
+            return $this->borrowerStatusPayload('guarantee_pending', $profilePercent, true, false, true);
         }
 
-        return $this->borrowerStatusPayload('invitation_sent', $profilePercent, $accepted, false);
+        return $this->borrowerStatusPayload('invitation_sent', $profilePercent, $accepted, false, $accountOpened);
     }
 
     /**
@@ -734,12 +736,12 @@ class GuarantorInvitationService
      *   steps: list<array{key: string, label: string, complete: bool, current: bool}>
      * }
      */
-    private function borrowerStatusPayload(string $code, ?int $profilePercent, bool $accepted, bool $ready): array
+    private function borrowerStatusPayload(string $code, ?int $profilePercent, bool $accepted, bool $ready, bool $accountOpened = false): array
     {
         // Badge follows furthest achieved/action state — never stay on “invitation sent” after accept.
         $labelKey = match ($code) {
             'pending_acceptance', 'invitation_sent' => 'invitation_sent',
-            'accepted', 'registration_in_progress' => 'invitation_accepted',
+            'accepted', 'registration_in_progress' => $accountOpened ? 'account_opened' : 'invitation_accepted',
             'pending_profile', 'kyc_in_progress', 'guarantee_pending', 'pending_reconfirmation' => 'profile_in_progress',
             'ready' => 'ready_for_review',
             'rejected' => 'rejected',
@@ -753,7 +755,6 @@ class GuarantorInvitationService
             $labelKey = 'profile_in_progress';
         }
 
-        $invitedDone = true;
         $acceptedDone = $accepted || $ready || in_array($code, [
             'pending_profile',
             'guarantee_pending',
@@ -763,56 +764,47 @@ class GuarantorInvitationService
             'kyc_in_progress',
             'accepted',
         ], true);
-        $profileDone = $ready || ($acceptedDone && $profilePercent !== null && $profilePercent >= 100 && $code === 'ready');
+        $accountDone = $accountOpened || $ready || in_array($code, [
+            'pending_profile',
+            'guarantee_pending',
+            'ready',
+            'pending_reconfirmation',
+            'kyc_in_progress',
+        ], true);
+        // Linked customer without accept still counts as account opened.
+        if ($accountOpened) {
+            $accountDone = true;
+        }
+        $profileDone = $ready || ($acceptedDone && $accountDone && $profilePercent !== null && $profilePercent >= 100 && $code === 'ready');
         if ($code === 'ready') {
             $profileDone = true;
+            $accountDone = true;
+            $acceptedDone = true;
         }
         if ($code === 'pending_profile' || $code === 'pending_reconfirmation') {
             $profileDone = $code === 'pending_reconfirmation';
+            $accountDone = true;
+            $acceptedDone = true;
         }
-
-        $current = match ($code) {
-            'pending_acceptance', 'invitation_sent' => 'accepted',
-            'registration_in_progress', 'kyc_in_progress', 'pending_profile', 'guarantee_pending', 'pending_reconfirmation', 'accepted' => 'profile',
-            'ready' => 'ready',
-            'rejected', 'expired' => 'accepted',
-            default => 'accepted',
-        };
 
         if (in_array($code, ['pending_acceptance', 'invitation_sent'], true)) {
-            $current = 'accepted';
             $acceptedDone = false;
             $profileDone = false;
+            // Existing members already have an account even before they accept.
+            // Keep $accountDone as passed via $accountOpened.
         }
 
-        $steps = [
-            [
-                'key' => 'invited',
-                'label' => __('borrower.apply.guarantor_progress.invited'),
-                'complete' => $invitedDone,
-                'current' => false,
-            ],
-            [
-                'key' => 'accepted',
-                'label' => __('borrower.apply.guarantor_progress.accepted'),
-                'complete' => $acceptedDone,
-                'current' => $current === 'accepted',
-            ],
-            [
-                'key' => 'profile',
-                'label' => $profilePercent !== null
-                    ? __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $profilePercent])
-                    : __('borrower.apply.guarantor_progress.profile'),
-                'complete' => $profileDone || $ready,
-                'current' => $current === 'profile',
-            ],
-            [
-                'key' => 'ready',
-                'label' => __('borrower.apply.guarantor_progress.ready'),
-                'complete' => $ready,
-                'current' => $current === 'ready',
-            ],
-        ];
+        if (in_array($code, ['registration_in_progress', 'accepted'], true) && ! $accountOpened) {
+            $accountDone = false;
+        }
+
+        $steps = app(InviteeProgressPresenter::class)->steps(
+            $acceptedDone,
+            $accountDone,
+            $profileDone,
+            $ready,
+            $profilePercent,
+        );
 
         return [
             'code' => $code,
@@ -820,6 +812,7 @@ class GuarantorInvitationService
             'profile_percent' => $profilePercent,
             'accepted' => $acceptedDone,
             'ready' => $ready,
+            'account_opened' => $accountDone,
             'steps' => $steps,
         ];
     }

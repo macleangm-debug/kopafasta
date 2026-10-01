@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" content-width="wide" :portalMode="($isGuarantorPortal ?? false) ? 'guarantor' : 'borrower'">
+<x-site.borrower-layout :title="brand_title(__('borrower.loans_page.title'))" active="loans" content-width="wide">
 
     @php
         $closedClassifier = app(\App\Services\BorrowerApplicationsDashboardService::class);

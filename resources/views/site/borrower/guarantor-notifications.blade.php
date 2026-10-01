@@ -1,4 +1,4 @@
-<x-site.borrower-layout :title="brand_title(__('borrower.guarantor_notifications.title'))" active="guarantor-notifications" portalMode="guarantor" content-width="wide">
+<x-site.borrower-layout :title="brand_title(__('borrower.guarantor_notifications.title'))" active="notifications" content-width="wide">
 
     <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>

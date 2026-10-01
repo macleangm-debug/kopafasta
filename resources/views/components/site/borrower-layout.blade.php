@@ -17,14 +17,7 @@
         ->values()
         ->all();
 
-    $nav = $portalMode === 'guarantor'
-        ? [
-            ['key' => 'loans', 'label' => __('borrower.loans_page.tab_guarantor_requests'), 'route' => 'site.borrower.loans', 'route_params' => ['tab' => 'guarantor'], 'icon' => 'users'],
-            ['key' => 'guarantor-notifications', 'label' => __('borrower.nav.guarantor_notifications'), 'route' => 'site.borrower.guarantor-notifications', 'icon' => 'bell'],
-            ['key' => 'profile', 'label' => __('borrower.nav.profile'), 'route' => 'site.borrower.profile', 'icon' => 'user'],
-            ['key' => 'support', 'label' => __('borrower.nav.support'), 'route' => 'site.borrower.support', 'icon' => 'help'],
-        ]
-        : [
+    $nav = [
             ['key' => 'dashboard',     'label' => __('borrower.nav.dashboard'),     'route' => 'site.borrower.dashboard',     'icon' => 'home'],
             ['key' => 'plus',          'label' => __('borrower.nav.plus'),          'route' => 'site.borrower.plus.home',     'icon' => 'plus'],
             ['key' => 'engagement',    'label' => __('borrower.nav.engagement'),    'route' => 'site.borrower.engagement',    'icon' => 'users'],
@@ -39,12 +32,12 @@
     $borrowerCustomer = auth()->user()?->customer;
     $portalContext = app(\App\Services\PortalContextService::class);
     $displayName = $portalContext->displayName($borrowerCustomer);
-    $plusActive = $portalMode !== 'guarantor' && $borrowerCustomer
+    $plusActive = $borrowerCustomer
         ? app(\App\Services\Plus\PlusService::class)->isActive($borrowerCustomer)
         : false;
-    $notificationQuery = $portalMode === 'guarantor' && $borrowerCustomer
-        ? $portalContext->guarantorNotificationsQuery($borrowerCustomer)
-        : ($borrowerCustomer ? $portalContext->borrowerNotificationsQuery($borrowerCustomer) : null);
+    $notificationQuery = $borrowerCustomer
+        ? $portalContext->borrowerNotificationsQuery($borrowerCustomer)
+        : null;
     $unreadNotifications = $notificationQuery
         ? $notificationQuery->whereNull('read_at')->count()
         : 0;
@@ -77,12 +70,9 @@
     $routeName = \Illuminate\Support\Facades\Route::currentRouteName();
     $mobileNavService = app(\App\Services\BorrowerMobileNavService::class);
     $mobileNavService->rememberPlusRoom($routeName);
-    $plusWorkspace = $portalMode !== 'guarantor'
-        && $mobileNavService->showsPlusWorkspaceNav($plusActive, $routeName);
-    $hideMobileNav = $portalMode !== 'guarantor' && $mobileNavService->hidesMobileNav($routeName);
-    $mobileNav = $portalMode === 'guarantor'
-        ? array_slice($nav, 0, 5)
-        : ($plusWorkspace ? $mobileNavService->plusWorkspaceNav() : $mobileNavService->mobilePrimaryNav());
+    $plusWorkspace = $mobileNavService->showsPlusWorkspaceNav($plusActive, $routeName);
+    $hideMobileNav = $mobileNavService->hidesMobileNav($routeName);
+    $mobileNav = $plusWorkspace ? $mobileNavService->plusWorkspaceNav() : $mobileNavService->mobilePrimaryNav();
     $mobileActive = $plusWorkspace
         ? $mobileNavService->plusActiveKey($routeName)
         : ($mobileNavService->isPlusWorkspace($routeName) ? 'plus' : $active);
@@ -357,97 +347,8 @@
                         {{ strtoupper(substr($displayName, 0, 1)) }}
                     </div>
                 </a>
-                @if ($portalMode === 'guarantor')
-                <button @click="open = true" class="p-2 text-gray-700" aria-label="{{ __('borrower.layout.menu') }}">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
-                @endif
             </div>
         </header>
-
-        @if ($portalMode === 'guarantor')
-        {{-- Mobile menu: horizontal tabs in a bottom sheet --}}
-        <template x-teleport="body">
-            <div x-show="open" x-cloak class="fixed inset-0 z-[10055] lg:hidden" role="dialog" aria-modal="true">
-                <div class="absolute inset-0 bg-black/40" @click="open = false" x-transition.opacity></div>
-                <div class="absolute inset-x-0 bottom-0 bg-brand text-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] rounded-t-2xl flex flex-col"
-                     style="padding-bottom: env(safe-area-inset-bottom, 0px)"
-                     @click.stop
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="translate-y-full"
-                     x-transition:enter-end="translate-y-0"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="translate-y-0"
-                     x-transition:leave-end="translate-y-full">
-                    <div class="flex justify-center pt-3 pb-1 shrink-0">
-                        <div class="w-10 h-1 rounded-full bg-white/40"></div>
-                    </div>
-                    <div class="px-5 py-3 border-b border-white/15 flex items-start justify-between gap-3">
-                        <x-site.brand-mark size="sm" variant="light" :portal="__('borrower.portal')" />
-                        <button type="button" @click="open = false" class="p-1 text-white/80 shrink-0" aria-label="Close">
-                            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
-                        </button>
-                    </div>
-                    <nav class="flex gap-2 overflow-x-auto overscroll-x-contain snap-x snap-mandatory px-4 py-4 scrollbar-none" aria-label="{{ __('borrower.layout.menu') }}">
-                        @foreach ($nav as $item)
-                            @php $isActive = $active === $item['key']; @endphp
-                            <a href="{{ route($item['route'], $item['route_params'] ?? []) }}"
-                               data-kf-motion="tab"
-                               class="snap-start shrink-0 w-[4.75rem] flex flex-col items-center gap-2 px-2 py-3 rounded-2xl text-center transition
-                                      {{ $isActive ? 'bg-brand-gold text-brand font-bold shadow-sm' : 'text-white/90 hover:bg-white/10' }}">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">{!! $icon($item['icon']) !!}</svg>
-                                <span class="text-[11px] leading-tight">{{ $item['label'] }}</span>
-                            </a>
-                        @endforeach
-                    </nav>
-                    <div class="px-4 pb-4 pt-1 border-t border-white/15 space-y-3">
-                        <x-site.theme-toggle variant="mobile" />
-                        <x-site.locale-switcher variant="mobile" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
-                        <form method="POST" action="{{ route('site.logout') }}">
-                            @csrf
-                            <button type="submit" class="w-full rounded-xl bg-white/10 text-red-200 text-sm font-semibold py-3">{{ __('borrower.layout.sign_out') }}</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </template>
-
-        <template x-teleport="body">
-            <div x-show="profileSheet" x-cloak class="fixed inset-0 z-[10056] lg:hidden" role="dialog" aria-modal="true">
-                <div class="absolute inset-0 bg-black/40" @click="profileSheet = false" x-transition.opacity></div>
-                <div class="absolute inset-x-0 bottom-0 bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] rounded-t-2xl flex flex-col"
-                     style="padding-bottom: env(safe-area-inset-bottom, 0px)"
-                     @click.stop
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="translate-y-full"
-                     x-transition:enter-end="translate-y-0"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="translate-y-0"
-                     x-transition:leave-end="translate-y-full">
-                    <div class="flex justify-center pt-3 pb-1 shrink-0">
-                        <div class="w-10 h-1 rounded-full bg-gray-300"></div>
-                    </div>
-                    <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                        <h2 class="text-base font-bold text-gray-900">{{ $displayName }}</h2>
-                        <button type="button" @click="profileSheet = false" class="p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Close">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
-                        </button>
-                    </div>
-                    <nav class="px-2 py-2">
-                        <a href="{{ route('site.borrower.profile') }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ __('borrower.layout.my_profile') }}</a>
-                        <a href="{{ route('site.borrower.settings') }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ __('borrower.nav.settings') }}</a>
-                        <a href="{{ route('site.borrower.support') }}" data-kf-motion="tab" class="block px-4 py-3.5 text-sm font-medium text-gray-800 rounded-xl hover:bg-brand-muted">{{ __('borrower.layout.help_center') }}</a>
-                    </nav>
-                    <div class="px-4 pb-4 pt-1 border-t border-gray-100">
-                        <form method="POST" action="{{ route('site.logout') }}">
-                            @csrf
-                            <button type="submit" class="w-full rounded-xl bg-red-50 text-red-600 text-sm font-semibold py-3.5">{{ __('borrower.layout.sign_out') }}</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </template>
-        @endif
 
         {{-- Validation feedback uses modal (not inline error walls) --}}
         @if ($errors->any())

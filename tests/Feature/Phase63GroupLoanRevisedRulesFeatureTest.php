@@ -108,7 +108,8 @@ class Phase63GroupLoanRevisedRulesFeatureTest extends TestCase
         $pendingMember = collect($progress['members'])->firstWhere('status_key', 'invitation_sent');
         $this->assertNotEmpty($pendingMember['progress_steps'] ?? []);
         $this->assertSame(__('borrower.apply.guarantor_status.invitation_sent'), $pendingMember['status_label']);
-        $this->assertCount(4, $pendingMember['progress_steps']);
+        $this->assertCount(5, $pendingMember['progress_steps']);
+        $this->assertSame('account', $pendingMember['progress_steps'][2]['key']);
     }
 
     public function test_group_application_fee_always_multiplies_by_members(): void

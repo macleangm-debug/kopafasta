@@ -81,16 +81,24 @@ class PortalContextService
 
     public function pendingGuarantorInvitations(Customer $customer)
     {
+        $phoneDigits = preg_replace('/\D+/', '', (string) ($customer->phone ?? '')) ?: null;
+        $phoneSuffix = $phoneDigits && strlen($phoneDigits) >= 9 ? substr($phoneDigits, -9) : null;
+
         return GuarantorInvitation::query()
             ->with(['borrower', 'application.product', 'customerGuarantor'])
-            ->where(function ($query) use ($customer) {
+            ->where(function ($query) use ($customer, $phoneDigits, $phoneSuffix) {
                 $query->where('guarantor_customer_id', $customer->id)
-                    ->orWhere(function ($inner) use ($customer) {
+                    ->orWhere(function ($inner) use ($customer, $phoneDigits, $phoneSuffix) {
                         $inner->whereNull('guarantor_customer_id')
                             ->where('contact', '!=', '')
-                            ->where(function ($contactQuery) use ($customer) {
-                                if ($customer->phone) {
-                                    $contactQuery->where('contact', $customer->phone);
+                            ->where(function ($contactQuery) use ($customer, $phoneDigits, $phoneSuffix) {
+                                if ($phoneDigits) {
+                                    $contactQuery->where('contact', $customer->phone)
+                                        ->orWhere('contact', $phoneDigits)
+                                        ->orWhere('contact', '+'.$phoneDigits);
+                                    if ($phoneSuffix) {
+                                        $contactQuery->orWhere('contact', 'like', '%'.$phoneSuffix);
+                                    }
                                 }
                                 if ($customer->email) {
                                     $contactQuery->orWhere('contact', $customer->email);
