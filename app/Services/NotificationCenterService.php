@@ -23,6 +23,8 @@ class NotificationCenterService
     /** @return array<string, Collection<int, NotificationLog>> */
     public function groupedForCustomer(Customer $customer, ?string $category = null): array
     {
+        app(NotificationInboxService::class)->ensureInvitationNotifications($customer);
+
         $query = $this->portal->borrowerNotificationsQuery($customer)->latest();
 
         if ($category && $category !== 'all') {

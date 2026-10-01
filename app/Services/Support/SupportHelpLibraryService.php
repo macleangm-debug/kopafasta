@@ -17,7 +17,7 @@ class SupportHelpLibraryService
     /**
      * @return list<array<string, mixed>>
      */
-    public function groups(string $audience = 'member'): array
+    public function groups(string $audience = 'member', ?string $workspace = null): array
     {
         $stored = Setting::get(self::SETTING_KEY);
         $groups = $this->defaults();
@@ -37,25 +37,46 @@ class SupportHelpLibraryService
             }
         }
 
-        return collect($groups)
+        $groups = collect($groups)
             ->map(fn (array $g) => $this->normalizeGroup($g))
             ->filter(function (array $g) use ($audience) {
                 $aud = (string) ($g['audience'] ?? 'both');
 
-                return $aud === 'both' || $aud === $audience;
+                return $aud === 'both' || $aud === $audience || $aud === 'public';
             })
             ->values()
             ->all();
+
+        // Always resolve Products from the live active catalogue (never a second hard-coded store).
+        $groups = $this->injectProductsCategory($groups, $audience);
+
+        if ($audience === 'partner' && filled($workspace)) {
+            $groups = collect($groups)
+                ->filter(function (array $g) use ($workspace) {
+                    $workspaces = $g['workspaces'] ?? null;
+                    if (! is_array($workspaces) || $workspaces === []) {
+                        // Shared/common partner topics (account, registration, etc.).
+                        return in_array((string) ($g['audience'] ?? 'both'), ['both', 'partner', 'public'], true)
+                            && ! in_array((string) ($g['key'] ?? ''), ['apply-loan', 'guarantors', 'group-loans', 'repayments', 'collateral', 'marketplace', 'plus', 'rewards'], true);
+                    }
+
+                    return in_array($workspace, $workspaces, true);
+                })
+                ->values()
+                ->all();
+        }
+
+        return $groups;
     }
 
     /**
      * @return list<array{key:string,label:string,icon:string,topic_count:int,audience:string}>
      */
-    public function categories(string $audience = 'member', ?string $locale = null): array
+    public function categories(string $audience = 'member', ?string $locale = null, ?string $workspace = null): array
     {
         $isSw = $this->isSw($locale);
 
-        return collect($this->groups($audience))
+        return collect($this->groups($audience, $workspace))
             ->map(function (array $g) use ($isSw) {
                 $articles = $g['articles'] ?? [];
 
@@ -74,15 +95,15 @@ class SupportHelpLibraryService
             ->all();
     }
 
-    public function category(string $key, string $audience = 'member'): ?array
+    public function category(string $key, string $audience = 'member', ?string $workspace = null): ?array
     {
-        return collect($this->groups($audience))
+        return collect($this->groups($audience, $workspace))
             ->first(fn (array $g) => ($g['key'] ?? '') === $key);
     }
 
-    public function article(string $categoryKey, string $slug, string $audience = 'member'): ?array
+    public function article(string $categoryKey, string $slug, string $audience = 'member', ?string $workspace = null): ?array
     {
-        $group = $this->category($categoryKey, $audience);
+        $group = $this->category($categoryKey, $audience, $workspace);
         if (! $group) {
             return null;
         }
@@ -255,10 +276,10 @@ class SupportHelpLibraryService
     public function defaults(): array
     {
         return [
-            $this->cat('getting-started', 'Getting started / Registration', 'Jinsi ya kujisajili', 'both', '🆕', [
+            $this->cat('getting-started', 'Registration', 'Kujisajili', 'both', '🆕', [
                 $this->howto('open-account', 'Registration', 'Usajili',
-                    'How do I open an account?', 'Ninawezaje kufungua akaunti?',
-                    'Open an account', 'Kufungua akaunti',
+                    'How do I open an account?', 'Jinsi ya kujisajili',
+                    'Open an account', 'Kujisajili',
                     'Use your mobile number to register, set a PIN, then complete your first details.',
                     'Tumia namba yako ya simu kujisajili, weka PIN, kisha kamilisha taarifa za mwanzo.',
                     ['Open Register / Jiunge', 'Enter your mobile number', 'Confirm the SMS code', 'Create a 4-digit PIN', 'Complete the first personal details'],
@@ -267,6 +288,10 @@ class SupportHelpLibraryService
                     'Which phone number should I use?', 'Namba ya simu gani inayotumika?',
                     'Use a Tanzanian mobile number you can receive SMS on. This number is your login identity.',
                     'Tumia namba ya simu ya Tanzania unayoweza kupokea SMS. Namba hii ni utambulisho wako wa kuingia.'),
+                $this->answer('phone-already-used', 'Registration', 'Usajili',
+                    'My phone number is already in use', 'Namba ya simu tayari imetumika',
+                    'Sign in with that number, or use Forgot PIN if you cannot access it. Talk to Support if the number belongs to you but you never registered.',
+                    'Ingia kwa namba hiyo, au tumia Nimesahau PIN ikiwa huwezi kufikia. Ongea na Usaidizi ikiwa namba ni yako lakini hukujisajili.'),
                 $this->howto('set-pin', 'Registration', 'Usajili',
                     'How do I set a PIN?', 'Ninawezaje kuweka PIN?',
                     'Set a PIN', 'Kuweka PIN',
@@ -275,21 +300,21 @@ class SupportHelpLibraryService
                     ['Enter a 4-digit PIN', 'Confirm the same PIN', 'Do not share it with anyone'],
                     ['Weka PIN ya tarakimu 4', 'Thibitisha PIN ile ile', 'Usishiriki na mtu yeyote']),
                 $this->howto('sign-in', 'Login', 'Kuingia',
-                    'How do I sign in?', 'Ninawezaje kuingia?',
+                    'How do I sign in after registering?', 'Jinsi ya kuingia baada ya kujisajili',
                     'Sign in', 'Kuingia',
                     'Use the same phone number and PIN from registration.',
                     'Tumia namba ile ile ya simu na PIN kutoka usajili.',
                     ['Open Sign in / Ingia', 'Enter your registered phone number', 'Enter your PIN', 'Continue to your account'],
                     ['Fungua Ingia', 'Weka namba ya simu iliyosajiliwa', 'Weka PIN yako', 'Endelea kwenye akaunti yako']),
                 $this->howto('forgot-pin', 'Login', 'Kuingia',
-                    'I forgot my PIN', 'Nimesahau PIN',
+                    'I forgot my PIN / access help', 'Nimesahau PIN / msaada wa kuingia',
                     'Reset a forgotten PIN', 'Kuweka upya PIN uliyosahau',
                     'Reset from the login screen with an SMS code.',
                     'Weka upya kutoka skrini ya kuingia kwa msimbo wa SMS.',
                     ['Open Sign in', 'Tap Forgot PIN / Nimesahau PIN', 'Enter the SMS code', 'Choose a new 4-digit PIN'],
                     ['Fungua Ingia', 'Gusa Nimesahau PIN', 'Weka msimbo wa SMS', 'Chagua PIN mpya ya tarakimu 4']),
                 $this->howto('first-details', 'Registration', 'Usajili',
-                    'How do I complete my first details?', 'Ninawezaje kukamilisha taarifa za mwanzo?',
+                    'How do I complete initial account setup?', 'Ninawezaje kukamilisha taarifa za mwanzo?',
                     'Complete first details', 'Kukamilisha taarifa za mwanzo',
                     'After PIN, add the basic profile information so you can apply and help others.',
                     'Baada ya PIN, ongeza taarifa za msingi za wasifu ili uweze kuomba na kusaidia wengine.',
@@ -565,8 +590,142 @@ class SupportHelpLibraryService
                     'Where is my Partner wallet?', 'Pochi yangu ya Mshirika iko wapi?',
                     'Open your Partner workspace wallet for available / pending balance and withdrawal history.',
                     'Fungua pochi ya nafasi yako ya Mshirika kwa salio linalopatikana / linalosubiri na historia ya uondoaji.'),
-            ]),
+                $this->answer('affiliate-referrals', 'Affiliate', 'Affiliate',
+                    'How do referrals and commissions work?', 'Rufaa na kamisheni zinafanyaje kazi?',
+                    'Open your Affiliate workspace for referrals, campaigns, and commission tracking. Withdrawal follows wallet rules.',
+                    'Fungua nafasi yako ya Affiliate kwa rufaa, kampeni, na ufuatiliaji wa kamisheni. Uondoaji unafuata sheria za pochi.'),
+                $this->answer('insurance-partner', 'Insurance', 'Bima',
+                    'How do insurance partner assignments work?', 'Kazi za mshirika wa bima zinafanyaje?',
+                    'Open your Insurance workspace for assigned journeys, policies, and next actions.',
+                    'Fungua nafasi yako ya Bima kwa kazi zilizokabidhiwa, sera, na hatua zinazofuata.'),
+                $this->answer('recovery-partner', 'Recovery', 'Urejesho',
+                    'How do recovery assignments work?', 'Kazi za urejesho zinafanyaje?',
+                    'Open your Recovery workspace for assignments, process steps, and earnings/withdrawal.',
+                    'Fungua nafasi yako ya Urejesho kwa kazi, hatua za mchakato, na mapato/uondoaji.'),
+                $this->answer('supplier-partner', 'Supplier', 'Msambazaji',
+                    'How do supplier marketplace orders work?', 'Oda za soko la msambazaji zinafanyaje?',
+                    'Open your Supplier workspace for marketplace orders and payments.',
+                    'Fungua nafasi yako ya Msambazaji kwa oda za soko na malipo.'),
+            ], ['affiliate', 'insurance', 'recovery', 'supplier', 'service', 'valuer', 'capital']),
         ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $groups
+     * @return list<array<string, mixed>>
+     */
+    private function injectProductsCategory(array $groups, string $audience): array
+    {
+        if ($audience === 'partner') {
+            return $groups;
+        }
+
+        $productsCat = $this->buildProductsCategory();
+        if ($productsCat === null) {
+            return $groups;
+        }
+
+        if (collect($groups)->contains(fn (array $g) => ($g['key'] ?? '') === 'products')) {
+            return collect($groups)
+                ->map(fn (array $g) => ($g['key'] ?? '') === 'products' ? $productsCat : $g)
+                ->values()
+                ->all();
+        }
+
+        $out = [];
+        $inserted = false;
+        foreach ($groups as $g) {
+            $out[] = $g;
+            if (($g['key'] ?? '') === 'getting-started') {
+                $out[] = $productsCat;
+                $inserted = true;
+            }
+        }
+        if (! $inserted) {
+            array_unshift($out, $productsCat);
+        }
+
+        return $out;
+    }
+
+    private function buildProductsCategory(): ?array
+    {
+        if (! class_exists(\App\Models\LoanProduct::class)) {
+            return null;
+        }
+
+        $query = \App\Models\LoanProduct::query()->where('is_active', true);
+        if (\Illuminate\Support\Facades\Schema::hasColumn('loan_products', 'status')) {
+            $query->where(function ($q) {
+                $q->where('status', 'active')->orWhereNull('status')->orWhere('status', '');
+            });
+        }
+        $products = $query->orderBy('name')->limit(40)->get();
+        if ($products->isEmpty()) {
+            return $this->cat('products', 'Products', 'Bidhaa', 'member', '📦', [
+                $this->answer('no-products', 'Products', 'Bidhaa',
+                    'Which products are available?', 'Bidhaa zipi zinapatikana?',
+                    'Open Loans to see products currently offered. Availability follows Admin configuration.',
+                    'Fungua Mikopo kuona bidhaa zinazotolewa sasa. Upatikanaji unafuata usanidi wa Admin.'),
+            ]);
+        }
+
+        $articles = [];
+        foreach ($products as $product) {
+            $name = method_exists($product, 'localizedName')
+                ? (string) $product->localizedName()
+                : (string) ($product->name ?? 'Product');
+            $slug = 'product-'.(string) ($product->code ?? $product->id);
+            $min = $product->min_amount ?? null;
+            $max = $product->max_amount ?? null;
+            $needsG = (bool) ($product->requires_guarantor ?? false);
+            $needsC = (bool) ($product->requires_collateral ?? false);
+            $rangeEn = ($min !== null && $max !== null)
+                ? 'Typical amount range: '.format_money((float) $min).' – '.format_money((float) $max).'.'
+                : 'Open the product card in Loans for current amount and tenure limits.';
+            $rangeSw = ($min !== null && $max !== null)
+                ? 'Kiasi cha kawaida: '.format_money((float) $min).' – '.format_money((float) $max).'.'
+                : 'Fungua kadi ya bidhaa kwenye Mikopo kwa mipaka ya sasa ya kiasi na muda.';
+            $reqEn = collect([
+                $needsG ? 'May require a guarantor.' : null,
+                $needsC ? 'May require collateral.' : null,
+            ])->filter()->implode(' ') ?: 'Requirements follow the product card and Screening steps.';
+            $reqSw = collect([
+                $needsG ? 'Inaweza kuhitaji mdhamini.' : null,
+                $needsC ? 'Inaweza kuhitaji dhamana.' : null,
+            ])->filter()->implode(' ') ?: 'Mahitaji yanafuata kadi ya bidhaa na hatua za Uchunguzi.';
+
+            $articles[] = $this->howto(
+                $slug,
+                'Products',
+                'Bidhaa',
+                'How does '.$name.' work?',
+                $name.' inafanyaje kazi?',
+                $name,
+                $name,
+                $rangeEn.' '.$reqEn.' Apply from Loans, complete required steps, then submit.',
+                $rangeSw.' '.$reqSw.' Omba kutoka Mikopo, kamilisha hatua zinazohitajika, kisha wasilisha.',
+                [
+                    'Open Loans',
+                    'Select '.$name,
+                    'Review eligibility, amount and tenure on the product card',
+                    'Tap Apply and complete required steps',
+                    'Submit — Application View shows what happens next',
+                ],
+                [
+                    'Fungua Mikopo',
+                    'Chagua '.$name,
+                    'Hakiki stahiki, kiasi na muda kwenye kadi ya bidhaa',
+                    'Gusa Omba na kamilisha hatua zinazohitajika',
+                    'Wasilisha — Muonekano wa Ombi unaonyesha kinachofuata',
+                ],
+                'site.borrower.loan-products',
+                'Browse products',
+                'Angalia bidhaa'
+            );
+        }
+
+        return $this->cat('products', 'Products', 'Bidhaa', 'member', '📦', $articles);
     }
 
     /**
@@ -617,9 +776,10 @@ class SupportHelpLibraryService
 
     /**
      * @param  list<array<string, mixed>>  $articles
+     * @param  list<string>  $workspaces
      * @return array<string, mixed>
      */
-    private function cat(string $key, string $en, string $sw, string $audience, string $icon, array $articles): array
+    private function cat(string $key, string $en, string $sw, string $audience, string $icon, array $articles, array $workspaces = []): array
     {
         return [
             'key' => $key,
@@ -628,6 +788,7 @@ class SupportHelpLibraryService
             'audience' => $audience,
             'icon' => $icon,
             'articles' => $articles,
+            'workspaces' => $workspaces,
         ];
     }
 

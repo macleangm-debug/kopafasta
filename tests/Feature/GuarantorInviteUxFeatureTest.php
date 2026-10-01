@@ -338,7 +338,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
             'guarantor',
             'guarantor_request',
             __('borrower.guarantor_invite.notify_request_title'),
-            route('site.borrower.loans', ['tab' => 'guarantor']),
+            route('site.borrower.loans', ['tab' => 'guarantor', 'section' => 'requests']),
             __('borrower.guarantor_notifications.view_request'),
             [
                 'title_key' => 'borrower.guarantor_invite.notify_request_title',
@@ -370,7 +370,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
 
         $this->actingAs($member->user)
             ->get(route('site.borrower.notifications.go', $log))
-            ->assertRedirect(route('site.borrower.loans', ['tab' => 'guarantor']));
+            ->assertRedirect(route('site.borrower.loans', ['tab' => 'guarantor', 'section' => 'requests']));
 
         $log->refresh();
         $this->assertNotNull($log->read_at);
@@ -380,6 +380,69 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $ctas = app(\App\Services\NotificationCtaService::class)->resolve($log->fresh());
         $this->assertSame(__('borrower.guarantor_notifications.view_request'), $ctas['action_label']);
         $this->assertNotNull($ctas['action_url']);
+    }
+
+    public function test_bell_preview_ensures_pending_guarantor_request_notification(): void
+    {
+        $borrower = $this->makeCustomer('42', [
+            'first_name' => 'Borrow',
+            'last_name'  => 'Bell',
+        ]);
+        $member = $this->makeCustomer('43', [
+            'first_name' => 'Vase',
+            'last_name'  => 'Bell',
+        ]);
+        $product = $this->loanProduct();
+        $application = LoanApplication::create([
+            'customer_id'             => $borrower->id,
+            'loan_product_id'         => $product->id,
+            'application_number'      => 'APP-GUX-BELL',
+            'requested_amount'        => 600_000,
+            'requested_tenure_months' => 6,
+            'status'                  => 'submitted',
+        ]);
+        $guarantor = Guarantor::create([
+            'first_name'   => $member->first_name,
+            'last_name'    => $member->last_name,
+            'phone'        => $member->phone,
+            'relationship' => 'member',
+        ]);
+        $link = CustomerGuarantor::create([
+            'customer_id'         => $borrower->id,
+            'guarantor_id'        => $guarantor->id,
+            'loan_application_id' => $application->id,
+            'status'              => 'pending',
+        ]);
+        GuarantorInvitation::create([
+            'customer_id'             => $borrower->id,
+            'loan_application_id'     => $application->id,
+            'loan_product_id'         => $product->id,
+            'customer_guarantor_id'   => $link->id,
+            'guarantor_customer_id'   => $member->id,
+            'type'                    => 'internal',
+            'channel'                 => 'in_app',
+            'token'                   => 'gux-bell-token',
+            'short_code'              => 'GUXBEL',
+            'contact'                 => $member->phone,
+            'status'                  => 'pending',
+            'expires_at'              => now()->addDays(7),
+        ]);
+
+        $this->assertSame(0, NotificationLog::query()
+            ->where('customer_id', $member->id)
+            ->where('template', 'guarantor_request')
+            ->count());
+
+        $preview = $this->actingAs($member->user)
+            ->getJson(route('site.borrower.notifications.preview'))
+            ->assertOk()
+            ->json('items');
+
+        $this->assertNotEmpty($preview);
+        $match = collect($preview)->firstWhere('template', 'guarantor_request');
+        $this->assertNotNull($match);
+        $this->assertSame(__('borrower.guarantor_notifications.view_request'), $match['action_label']);
+        $this->assertNotNull($match['action_url']);
     }
 
     public function test_approved_guarantee_tracks_on_guarantor_tab_until_disbursed(): void

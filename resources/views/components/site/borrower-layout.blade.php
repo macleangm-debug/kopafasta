@@ -39,8 +39,11 @@
         ? $portalContext->borrowerNotificationsQuery($borrowerCustomer)
         : null;
     $unreadNotifications = $notificationQuery
-        ? $notificationQuery->whereNull('read_at')->count()
+        ? (clone $notificationQuery)->whereNull('read_at')->count()
         : 0;
+    $bellPreviewItems = $borrowerCustomer
+        ? app(\App\Services\NotificationInboxService::class)->previewItems($borrowerCustomer)
+        : [];
     $pendingGuarantorPopup = collect();
 
     $icon = function (string $name) {
@@ -468,9 +471,9 @@ document.addEventListener('alpine:init', () => {
 
     Alpine.data('notificationBell', () => ({
         sheetOpen: false,
-        unread: {{ $unreadNotifications }},
-        items: [],
-        loading: true,
+        unread: {{ (int) $unreadNotifications }},
+        items: @js($bellPreviewItems),
+        loading: false,
         async load() {
             this.loading = this.items.length === 0;
             try {
@@ -481,7 +484,7 @@ document.addEventListener('alpine:init', () => {
                 if (!res.ok) return;
                 const data = await res.json();
                 this.unread = data.unread ?? 0;
-                this.items = data.items ?? [];
+                this.items = Array.isArray(data.items) ? data.items : [];
             } catch (e) {}
             this.loading = false;
         },

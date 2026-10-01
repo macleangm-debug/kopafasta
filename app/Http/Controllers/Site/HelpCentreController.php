@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\HelpArticleFeedback;
+use App\Services\PartnerWorkspaceService;
 use App\Services\Support\SupportHelpLibraryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,14 +15,15 @@ class HelpCentreController extends Controller
     public function category(string $category, SupportHelpLibraryService $help): View|RedirectResponse
     {
         $audience = $this->audience();
-        $group = $help->category($category, $audience)
-            ?? $help->category($category, 'both');
+        $workspace = $this->workspace();
+        $group = $help->category($category, $audience, $workspace)
+            ?? $help->category($category, 'both')
+            ?? $help->category($category, 'member');
 
         if (! $group) {
             abort(404);
         }
 
-        // Logged-in borrowers stay on the single Help Centre surface.
         if (auth()->user()?->customer) {
             return redirect()->route('site.borrower.support', [
                 'section' => 'help',
@@ -30,33 +32,35 @@ class HelpCentreController extends Controller
         }
 
         if (auth()->check() && ! auth()->user()?->customer) {
-            return redirect()->route('site.partner.support', [
+            $route = request()->routeIs('site.vendor.*')
+                ? 'site.vendor.support'
+                : 'site.partner.support';
+
+            return redirect()->route($route, [
                 'section' => 'help',
                 'topic' => $category,
             ]);
         }
 
-        return view('site.help.category', [
-            'group' => $group,
-            'categoryKey' => $category,
-            'howtoLabel' => $help->howtoLabel(),
-            'audience' => $audience,
-            'isSw' => str_starts_with(app()->getLocale(), 'sw'),
+        // Public: single Help Centre surface (same engine).
+        return redirect()->route('site.support', [
+            'topic' => $category,
         ]);
     }
 
     public function article(string $category, string $slug, SupportHelpLibraryService $help): View|RedirectResponse
     {
         $audience = $this->audience();
-        $article = $help->article($category, $slug, $audience)
+        $workspace = $this->workspace();
+        $article = $help->article($category, $slug, $audience, $workspace)
             ?? $help->article($category, $slug, 'member')
-            ?? $help->article($category, $slug, 'partner');
+            ?? $help->article($category, $slug, 'partner')
+            ?? $help->article($category, $slug, 'both');
 
         if (! $article) {
             abort(404);
         }
 
-        // Deep/shareable links restore carousel + open topic on the same Help Centre surface.
         if (auth()->user()?->customer) {
             return redirect()->route('site.borrower.support', [
                 'section' => 'help',
@@ -66,21 +70,21 @@ class HelpCentreController extends Controller
         }
 
         if (auth()->check() && ! auth()->user()?->customer) {
-            return redirect()->route('site.partner.support', [
+            $route = request()->routeIs('site.vendor.*')
+                ? 'site.vendor.support'
+                : 'site.partner.support';
+
+            return redirect()->route($route, [
                 'section' => 'help',
                 'topic' => $category,
                 'article' => $slug,
             ]);
         }
 
-        return view('site.help.article', [
-            'article' => $article,
-            'categoryKey' => $category,
-            'slug' => $slug,
-            'howtoLabel' => $help->howtoLabel(),
-            'shareUrl' => route('site.help.article', ['category' => $category, 'slug' => $slug]),
-            'audience' => $audience,
-            'isSw' => str_starts_with(app()->getLocale(), 'sw'),
+        // Public deep link — exact article, same engine, no login required to read.
+        return redirect()->route('site.support', [
+            'topic' => $category,
+            'article' => $slug,
         ]);
     }
 
@@ -110,7 +114,7 @@ class HelpCentreController extends Controller
     {
         $user = auth()->user();
         if (! $user) {
-            return 'member';
+            return 'member'; // public uses member/public shared content
         }
 
         $role = (string) ($user->role ?? '');
@@ -119,5 +123,16 @@ class HelpCentreController extends Controller
         }
 
         return 'partner';
+    }
+
+    private function workspace(): ?string
+    {
+        $user = auth()->user();
+        $partner = $user?->partner;
+        if (! $partner) {
+            return null;
+        }
+
+        return app(PartnerWorkspaceService::class)->currentKey($partner);
     }
 }

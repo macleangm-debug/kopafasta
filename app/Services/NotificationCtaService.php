@@ -31,7 +31,7 @@ class NotificationCtaService
         $template = (string) ($notification->template ?? '');
 
         // Invitation list CTAs stay visible after read/accept — mark ≠ hide.
-        // Destination remains Mikopo list (never deep-link into the request).
+        // Destination: Mikopo → Mdhamini request list (contextual). Nav Mikopo stays landing.
         if ($template === 'guarantor_request') {
             return [
                 'accept_url'    => null,

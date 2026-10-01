@@ -1602,42 +1602,14 @@ class BorrowerController extends Controller
     public function notificationPreview(): JsonResponse
     {
         $customer = $this->customer();
-        $portal = app(PortalContextService::class);
-        $ctaService = app(NotificationCtaService::class);
-        $center = app(NotificationCenterService::class);
-        $base = $portal->borrowerNotificationsQuery($customer);
-
-        // Same eligible set as the full Notifications page. Pin invitation rows so a busy
-        // inbox never hides guarantor/group CTAs from the compact bell dropdown.
-        $inviteTemplates = ['guarantor_request', 'group_loan_invitation'];
-        $pinned = (clone $base)->whereIn('template', $inviteTemplates)->latest()->limit(6)->get();
-        $recent = (clone $base)->latest()->limit(12)->get();
-        $items = $pinned->concat($recent)->unique('id')->take(12)->values()
-            ->map(function (NotificationLog $n) use ($ctaService, $center) {
-                $category = $center->normalizeCategory((string) ($n->category ?: 'general'));
-                $ctas = $ctaService->resolve($n);
-
-                return [
-                    'id' => $n->id,
-                    'title' => $n->displayTitle(),
-                    'body' => $n->displayBody(),
-                    'message' => trim($n->displayTitle().' '.$n->displayBody()),
-                    'category' => $category,
-                    'category_label' => $center->categoryLabel($category),
-                    'template' => $n->template,
-                    'read' => (bool) $n->read_at,
-                    'when' => $n->created_at?->diffForHumans(),
-                    'action_url' => $ctas['action_url'],
-                    'action_label' => $ctas['action_label'],
-                    'accept_url' => $ctas['accept_url'],
-                    'decline_url' => $ctas['decline_url'],
-                    'decline_label' => $ctas['decline_label'],
-                ];
-            });
+        $inbox = app(\App\Services\NotificationInboxService::class);
 
         return response()->json([
-            'unread' => $portal->borrowerNotificationsQuery($customer)->whereNull('read_at')->count(),
-            'items' => $items,
+            'unread' => app(PortalContextService::class)
+                ->borrowerNotificationsQuery($customer)
+                ->whereNull('read_at')
+                ->count(),
+            'items' => $inbox->previewItems($customer),
         ]);
     }
 
@@ -1648,9 +1620,9 @@ class BorrowerController extends Controller
 
         $template = (string) ($notification->template ?? '');
 
-        // Invitation CTAs always enter Mikopo list first — never deep-link a stored request URL.
+        // Invitation CTAs enter Mikopo → Mdhamini request list (not the general Loans landing).
         if ($template === 'guarantor_request') {
-            $target = route('site.borrower.loans', ['tab' => 'guarantor']);
+            $target = route('site.borrower.loans', ['tab' => 'guarantor', 'section' => 'requests']);
         } elseif ($template === 'group_loan_invitation') {
             $target = route('site.borrower.loans', ['tab' => 'applications']);
         } else {

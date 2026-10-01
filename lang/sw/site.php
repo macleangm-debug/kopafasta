@@ -849,7 +849,7 @@ return [
         'company' => 'Kampuni',
         'about' => 'Kuhusu sisi',
         'faq' => 'Maswali',
-        'support' => 'Kituo cha Usaidizi',
+        'support' => 'Msaada',
         'feedback' => 'Tuma maoni',
         'terms' => 'Masharti',
         'responsible_lending' => 'Ukopaji wenye uwajibikaji',

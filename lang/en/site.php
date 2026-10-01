@@ -851,7 +851,7 @@ return [
         'company' => 'Company',
         'about' => 'About us',
         'faq' => 'FAQ',
-        'support' => 'Help Center',
+        'support' => 'Support',
         'feedback' => 'Send feedback',
         'terms' => 'Terms',
         'responsible_lending' => 'Responsible lending',

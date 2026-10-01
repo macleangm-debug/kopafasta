@@ -1094,6 +1094,7 @@ class VendorController extends Controller
         $section = in_array(request('section'), ['help', 'active', 'history'], true)
             ? (string) request('section')
             : 'help';
+        $workspace = app(\App\Services\PartnerWorkspaceService::class)->currentKey($vendor);
 
         return view('site.vendor.support', [
             'vendor' => $vendor,
@@ -1105,8 +1106,8 @@ class VendorController extends Controller
             'supportHistory' => $history,
             'openTickets' => $openTickets,
             'resolvedTickets' => $resolvedTickets,
-            'helpGroups' => $help->groups('partner'),
-            'helpCategories' => $help->categories('partner'),
+            'helpGroups' => $help->groups('partner', $workspace),
+            'helpCategories' => $help->categories('partner', null, $workspace),
             'helpResults' => $q !== '' ? $help->search($q, 'partner') : [],
             'helpQuery' => $q,
             'helpTopic' => (string) request('topic', ''),

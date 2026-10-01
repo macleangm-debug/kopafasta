@@ -159,18 +159,23 @@ class PortalContextService
     public function borrowerNotificationsQuery(Customer $customer): Builder
     {
         // Bell dropdown and full Notifications page share this exact query.
-        // In-app only — SMS/email delivery logs must not crowd (or diverge) the inbox.
-        // Guarantor/group invitation templates are included (same person is often borrower + guarantor).
+        // Prefer in_app; also include invitation templates if a legacy row used another channel label.
         return NotificationLog::query()
             ->where('customer_id', $customer->id)
-            ->where('channel', 'in_app');
+            ->where(function ($q) {
+                $q->where('channel', 'in_app')
+                    ->orWhereIn('template', ['guarantor_request', 'group_loan_invitation']);
+            });
     }
 
     public function guarantorNotificationsQuery(Customer $customer): Builder
     {
         return NotificationLog::query()
             ->where('customer_id', $customer->id)
-            ->where('channel', 'in_app')
+            ->where(function ($q) {
+                $q->where('channel', 'in_app')
+                    ->orWhereIn('template', self::GUARANTOR_INBOX_TEMPLATES);
+            })
             ->whereIn('template', array_merge(self::GUARANTOR_INBOX_TEMPLATES, ['guarantor_action']));
     }
 

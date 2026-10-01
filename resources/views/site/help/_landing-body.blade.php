@@ -1,4 +1,4 @@
-{{-- Shared Help Centre landing body (borrower + partner). Single surface: carousel → topics → article. --}}
+{{-- Shared Help Centre landing body (borrower + partner + public). Single surface. --}}
 @php
     $isSw = $isSw ?? str_starts_with(app()->getLocale(), 'sw');
     $helpCategories = $helpCategories ?? [];
@@ -15,6 +15,7 @@
     $howtoLabel = $isSw ? 'JINSI YA' : 'HOW TO';
     $initialTopic = (string) ($helpTopic ?? request('topic', ''));
     $initialArticle = (string) ($helpArticle ?? request('article', ''));
+    $showChatCard = $showChatCard ?? true;
 
     $surfaceGroups = collect($helpGroups)->map(function (array $g) use ($isSw) {
         $key = (string) ($g['key'] ?? '');
@@ -67,15 +68,6 @@
             'articles' => $articles,
         ];
     })->filter(fn ($g) => ($g['key'] ?? '') !== '')->values()->all();
-
-    if ($helpCategories === [] && $surfaceGroups !== []) {
-        $helpCategories = collect($surfaceGroups)->map(fn ($g) => [
-            'key' => $g['key'],
-            'label' => $g['label'],
-            'icon' => $g['icon'],
-            'topic_count' => $g['topic_count'],
-        ])->all();
-    }
 @endphp
 
 <div
@@ -85,10 +77,10 @@
         initialArticle: @js($initialArticle),
         howtoLabel: @js($howtoLabel),
         copyLabel: @js($isSw ? 'Nakili kiungo' : 'Copy link'),
-        copiedLabel: @js($isSw ? 'Imenakiliwa' : 'Copied'),
+        copiedLabel: @js($isSw ? 'Imenakili ✓' : 'Copied ✓'),
         topicCountPrefix: @js($isSw ? 'Mada ' : ''),
         topicCountSuffix: @js($isSw ? '' : ' topics'),
-        homePath: @js(parse_url($homeUrl, PHP_URL_PATH) ?: '/borrower/support'),
+        homePath: @js(parse_url($homeUrl, PHP_URL_PATH) ?: '/support'),
     })"
     x-init="init()"
     class="space-y-6"
@@ -110,10 +102,9 @@
         </section>
     @endif
 
-    {{-- Category carousel stays visible after selection --}}
+    {{-- Category carousel (no “Chagua mada” heading — self-explanatory) --}}
     <section>
-        <div class="flex items-end justify-between gap-3 mb-3">
-            <h2 class="font-semibold text-lg text-gray-900">{{ $isSw ? 'Chagua mada' : 'Browse topics' }}</h2>
+        <div class="flex items-center justify-end gap-2 mb-3">
             <div class="hidden sm:flex items-center gap-2">
                 <button type="button" @click="scrollCarousel(-1)"
                         class="size-9 rounded-full bg-white ring-1 ring-brand/15 text-brand hover:bg-brand-muted/40 grid place-items-center"
@@ -146,23 +137,26 @@
         </div>
     </section>
 
-    {{-- Topics + article under carousel (same surface) --}}
-    <section x-show="selectedGroup" x-cloak class="space-y-4">
-        <div class="rounded-2xl bg-white ring-1 ring-brand/10 p-5">
-            <h3 class="text-lg font-bold text-gray-900" x-text="selectedGroup?.label"></h3>
-            <ul class="mt-4 space-y-1">
+    {{-- Premium content surface under carousel --}}
+    <section x-show="selectedGroup" x-cloak>
+        <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
+            <div class="px-5 sm:px-6 py-4 border-b border-brand/10 bg-gradient-to-br from-brand-muted/40 via-white to-white">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ $isSw ? 'Mada' : 'Topic' }}</p>
+                <h3 class="text-lg sm:text-xl font-bold text-gray-900 mt-1" x-text="selectedGroup?.label"></h3>
+            </div>
+            <ul class="divide-y divide-gray-100">
                 <template x-for="article in (selectedGroup?.articles || [])" :key="article.slug">
                     <li>
                         <button type="button"
                                 @click="selectArticle(article.slug)"
-                                class="w-full text-left flex items-center justify-between gap-3 rounded-xl px-3 py-3 transition"
-                                :class="openSlug === article.slug ? 'bg-brand-muted/40' : 'hover:bg-slate-50'">
+                                class="w-full text-left flex items-center justify-between gap-3 px-5 sm:px-6 py-3.5 transition"
+                                :class="openSlug === article.slug ? 'bg-brand-muted/30' : 'hover:bg-slate-50'">
                             <span class="text-sm font-semibold text-gray-900" x-text="article.title"></span>
                             <svg class="w-4 h-4 text-gray-400 shrink-0 transition" :class="openSlug === article.slug ? 'rotate-90' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
                         </button>
-                        <div x-show="openSlug === article.slug" x-cloak class="px-3 pb-4 pt-1">
+                        <div x-show="openSlug === article.slug" x-cloak class="px-5 sm:px-6 pb-5 pt-1">
                             <template x-if="article.kind === 'howto' && article.steps?.length">
-                                <div class="rounded-xl bg-brand-muted/30 px-4 py-4">
+                                <div class="rounded-xl bg-brand-muted/25 ring-1 ring-brand/10 px-4 py-4">
                                     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold" x-text="howtoLabel"></p>
                                     <p class="text-base font-bold text-gray-900 mt-1" x-text="article.howto_title || article.title"></p>
                                     <p class="text-sm text-gray-600 mt-1" x-show="article.body" x-text="article.body"></p>
@@ -176,7 +170,7 @@
                             <template x-if="!(article.kind === 'howto' && article.steps?.length)">
                                 <p class="text-sm text-gray-700 leading-relaxed" x-text="article.body"></p>
                             </template>
-                            <div class="flex flex-wrap items-center gap-3 mt-3">
+                            <div class="flex flex-wrap items-center gap-3 mt-4">
                                 <template x-if="article.cta_url && article.cta_label">
                                     <a :href="article.cta_url"
                                        class="inline-flex items-center justify-center font-bold px-5 py-2.5 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm"
@@ -184,7 +178,10 @@
                                 </template>
                                 <button type="button"
                                         @click="copyLink(article)"
-                                        class="inline-flex items-center text-xs font-semibold text-brand hover:underline">
+                                        class="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-bold ring-1 transition"
+                                        :class="copiedSlug === article.slug
+                                            ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+                                            : 'bg-white text-brand ring-brand/20 hover:bg-brand-muted/40'">
                                     <span x-text="copiedSlug === article.slug ? copiedLabel : copyLabel"></span>
                                 </button>
                             </div>
@@ -197,12 +194,21 @@
 
     {{-- Three support cards --}}
     <section class="grid grid-cols-3 gap-2 sm:gap-4">
-        <a href="{{ $chatUrl }}"
-           class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
-            <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
-            <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}</p>
-            <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Pata msaada kutoka kwa timu yetu.' : 'Get help from our team.' }}</p>
-        </a>
+        @if ($showChatCard)
+            <a href="{{ $chatUrl }}"
+               class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
+                <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
+                <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}</p>
+                <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Pata msaada kutoka kwa timu yetu.' : 'Get help from our team.' }}</p>
+            </a>
+        @else
+            <a href="{{ route('site.feedback', ['open' => 1]) }}"
+               class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
+                <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
+                <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}</p>
+                <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Tuma ujumbe kwa timu yetu.' : 'Send a message to our team.' }}</p>
+            </a>
+        @endif
         <button type="button"
                 @click="$dispatch('open-feedback')"
                 class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
@@ -242,13 +248,15 @@ document.addEventListener('alpine:init', () => {
         topicCountPrefix: cfg.topicCountPrefix || '',
         topicCountSuffix: cfg.topicCountSuffix || '',
         copiedSlug: null,
-        homePath: cfg.homePath || '/borrower/support',
+        homePath: cfg.homePath || '/support',
         get selectedGroup() {
             return this.groups.find((g) => g.key === this.selectedKey) || null;
         },
         init() {
-            if (!this.selectedKey && this.groups.length) {
-                // No auto-select — wait for user, unless deep-linked.
+            if (this.selectedKey && this.openSlug) {
+                // deep link already set
+            } else if (this.selectedKey && ! this.openSlug) {
+                // category only
             }
             if (this.selectedKey) {
                 this.$nextTick(() => this.scrollSelectedIntoView());
@@ -280,8 +288,6 @@ document.addEventListener('alpine:init', () => {
         scrollSelectedIntoView() {
             const el = this.$refs.carousel;
             if (!el || !this.selectedKey) return;
-            const btn = el.querySelector(`button`);
-            // Prefer matching selected card
             const cards = el.querySelectorAll('button');
             const idx = this.groups.findIndex((g) => g.key === this.selectedKey);
             if (idx >= 0 && cards[idx]) {
@@ -289,6 +295,7 @@ document.addEventListener('alpine:init', () => {
             }
         },
         shareUrlFor(article) {
+            // Exact article deep link — never category-only when slug exists.
             if (article?.share_url) return article.share_url;
             if (!this.selectedKey || !article?.slug) return window.location.href;
             return `${window.location.origin}/help/${this.selectedKey}/${article.slug}`;
@@ -301,13 +308,14 @@ document.addEventListener('alpine:init', () => {
             });
         },
         pushState() {
-            let url = this.homePath + '?section=help';
+            let url = this.homePath + (this.homePath.includes('?') ? '&' : '?') + 'section=help';
             if (this.selectedKey && this.openSlug) {
                 url = `/help/${this.selectedKey}/${this.openSlug}`;
             } else if (this.selectedKey) {
                 url = `/help/${this.selectedKey}`;
             }
-            if (window.location.pathname + window.location.search !== url) {
+            const current = window.location.pathname + window.location.search;
+            if (current !== url) {
                 history.pushState({ help: true, topic: this.selectedKey, article: this.openSlug }, '', url);
             }
         },

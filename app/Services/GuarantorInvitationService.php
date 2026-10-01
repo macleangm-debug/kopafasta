@@ -1501,7 +1501,7 @@ class GuarantorInvitationService
             ?? '—';
         $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
 
-        $listUrl = route('site.borrower.loans', ['tab' => 'guarantor']);
+        $listUrl = route('site.borrower.loans', ['tab' => 'guarantor', 'section' => 'requests']);
 
         // Avoid duplicate unread guarantor_request rows for the same link.
         $alreadyNotified = NotificationLog::query()
