@@ -104,7 +104,107 @@ class GuestCrmAndGuarantorStateFeatureTest extends TestCase
             ->get(route('admin.customers.guests.index'))
             ->assertOk()
             ->assertSee('Active Guest')
+            ->assertSee('+ Add Guest')
             ->assertDontSee('Old Guest');
+    }
+
+    public function test_add_guest_saves_identity_without_support_records(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.customers.guests.store'), [
+                'first_name' => 'Neema',
+                'last_name' => 'Dial',
+                'guest_phone' => '0715000999',
+            ]);
+
+        $guest = SupportGuest::query()->where('phone', '255715000999')->first();
+        $this->assertNotNull($guest);
+        $response->assertRedirect(route('admin.customers.guests.show', $guest));
+
+        $this->assertDatabaseCount('support_conversations', 0);
+        $this->assertDatabaseCount('support_tickets', 0);
+
+        // Same phone upserts — no duplicate Guest.
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.customers.guests.store'), [
+                'first_name' => 'Neema',
+                'last_name' => 'Updated',
+                'guest_phone' => '0715000999',
+            ])
+            ->assertRedirect(route('admin.customers.guests.show', $guest));
+
+        $this->assertSame(1, SupportGuest::query()->count());
+        $this->assertSame('Updated', $guest->fresh()->last_name);
+        $this->assertDatabaseCount('support_conversations', 0);
+        $this->assertDatabaseCount('support_tickets', 0);
+    }
+
+    public function test_staff_cannot_start_guest_conversation_from_new_support(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.support.interactions.store'), [
+                'party' => 'non_member',
+                'support_action' => 'conversation',
+                'guest_first_name' => 'Juma',
+                'guest_last_name' => 'Caller',
+                'guest_phone' => '0715000888',
+                'channel' => 'web_chat',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseCount('support_conversations', 0);
+        $this->assertSame(0, SupportGuest::query()->count());
+    }
+
+    public function test_new_support_save_guest_creates_contact_only(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->post(route('admin.support.interactions.store'), [
+                'party' => 'non_member',
+                'support_action' => 'save_guest',
+                'guest_first_name' => 'Asha',
+                'guest_last_name' => 'Contact',
+                'guest_phone' => '0715000777',
+                'channel' => 'web_chat',
+            ]);
+
+        $guest = SupportGuest::query()->where('phone', '255715000777')->first();
+        $this->assertNotNull($guest);
+        $response->assertRedirect(route('admin.customers.guests.show', $guest));
+        $this->assertDatabaseCount('support_conversations', 0);
+        $this->assertDatabaseCount('support_tickets', 0);
+    }
+
+    public function test_guest_360_has_no_start_conversation_cta(): void
+    {
+        $guest = SupportGuest::create([
+            'phone' => '255715000666',
+            'first_name' => 'Only',
+            'last_name' => 'Identity',
+            'source' => SupportGuestService::SOURCE_OTHER,
+            'first_contact_at' => now(),
+            'last_contact_at' => now(),
+            'contact_count' => 1,
+            'registration_status' => 'guest',
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.customers.guests.show', $guest))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Record phone call', $html);
+        $this->assertStringContainsString('Create ticket', $html);
+        $this->assertStringNotContainsString('Start conversation', $html);
+        $this->assertStringNotContainsString('Anza mazungumzo', $html);
     }
 
     public function test_guarantor_invite_actions_hidden_after_accept_and_change_started_flash_removed(): void

@@ -928,6 +928,8 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             Route::get('customers/guests/create', [\App\Http\Controllers\Admin\SupportGuestController::class, 'create'])->name('customers.guests.create');
             Route::post('customers/guests', [\App\Http\Controllers\Admin\SupportGuestController::class, 'store'])->name('customers.guests.store');
             Route::get('customers/guests/{guest}', [\App\Http\Controllers\Admin\SupportGuestController::class, 'show'])->name('customers.guests.show');
+            Route::get('customers/guests/{guest}/edit', [\App\Http\Controllers\Admin\SupportGuestController::class, 'edit'])->name('customers.guests.edit');
+            Route::put('customers/guests/{guest}', [\App\Http\Controllers\Admin\SupportGuestController::class, 'update'])->name('customers.guests.update');
         });
         $registerResource('customers', 'customer', CustomerController::class);
         $registerResource('customer-kycs', 'customer_kyc', CustomerKycController::class);

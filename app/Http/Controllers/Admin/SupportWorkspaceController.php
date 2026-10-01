@@ -665,7 +665,7 @@ class SupportWorkspaceController extends Controller
 
         $data = $request->validate([
             'party' => ['required', 'in:registered,non_member'],
-            'support_action' => ['required', 'in:conversation,interaction,ticket'],
+            'support_action' => ['required', 'in:conversation,interaction,ticket,save_guest'],
             'channel' => ['nullable', 'in:phone,walk_in,other,web_chat'],
             'customer_id' => ['nullable', 'exists:customers,id'],
             'partner_id' => ['nullable', 'integer'],
@@ -679,7 +679,12 @@ class SupportWorkspaceController extends Controller
         ]);
 
         $action = (string) $data['support_action'];
-        if ($action !== 'conversation') {
+
+        if ($data['party'] === 'non_member' && $action === 'conversation') {
+            return back()->withInput()->with('error', __('admin.support.errors.guest_no_outbound_chat'));
+        }
+
+        if (! in_array($action, ['conversation', 'save_guest'], true)) {
             $request->validate([
                 'subject_key' => ['required', 'string', Rule::in(array_keys($subjects))],
                 'body' => ['required', 'string', 'max:5000'],
@@ -702,6 +707,7 @@ class SupportWorkspaceController extends Controller
         $partnerUser = null;
         $guestName = null;
         $guestPhone = null;
+        $guestRecord = null;
 
         if ($data['party'] === 'registered') {
             if (! empty($data['customer_id'])) {
@@ -728,17 +734,35 @@ class SupportWorkspaceController extends Controller
             ])->filter()->implode(' '));
             $guestPhone = \App\Support\PhoneNumber::digits($data['guest_phone']);
 
-            app(\App\Services\Support\SupportGuestService::class)->touchGuest(
+            $guestRecord = app(\App\Services\Support\SupportGuestService::class)->touchGuest(
                 (string) ($data['guest_first_name'] ?? ''),
                 (string) ($data['guest_last_name'] ?? ''),
                 (string) $data['guest_phone'],
-                match ($data['channel'] ?? 'phone') {
-                    'walk_in' => \App\Services\Support\SupportGuestService::SOURCE_WALK_IN,
-                    'other' => \App\Services\Support\SupportGuestService::SOURCE_OTHER,
-                    'web_chat' => \App\Services\Support\SupportGuestService::SOURCE_GUEST_CHAT,
-                    default => \App\Services\Support\SupportGuestService::SOURCE_PHONE_CALL,
-                },
+                $action === 'save_guest'
+                    ? \App\Services\Support\SupportGuestService::SOURCE_OTHER
+                    : match ($data['channel'] ?? 'phone') {
+                        'walk_in' => \App\Services\Support\SupportGuestService::SOURCE_WALK_IN,
+                        'web_chat' => \App\Services\Support\SupportGuestService::SOURCE_GUEST_CHAT,
+                        'other' => \App\Services\Support\SupportGuestService::SOURCE_OTHER,
+                        default => \App\Services\Support\SupportGuestService::SOURCE_PHONE_CALL,
+                    },
             );
+        }
+
+        if ($action === 'save_guest') {
+            if (! $guestRecord) {
+                return back()->withInput()->with('error', __('admin.support.errors.guest_save_failed'));
+            }
+
+            if ($actor) {
+                $this->audit->logAdminAction($actor, 'admin.support.guest.save', $guestRecord, [
+                    'phone' => $guestRecord->phone,
+                ]);
+            }
+
+            return redirect()
+                ->route('admin.customers.guests.show', $guestRecord)
+                ->with('status', __('admin.support.status.guest_saved'));
         }
 
         $subject = $subjects[$data['subject_key'] ?? ''] ?? null;

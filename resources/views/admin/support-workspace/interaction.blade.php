@@ -2,8 +2,23 @@
     $party = old('party', ($customer || ! empty($partner))
         ? 'registered'
         : (request()->filled('guest_phone') || request('party') === 'non_member' ? 'non_member' : request('party', 'registered')));
-    $channel = old('channel', $channel ?? 'phone');
-    $action = old('support_action', request('support_action', 'conversation'));
+    $channel = old('channel', $channel ?? request('channel', 'phone'));
+    $requestedAction = old('support_action', request('support_action'));
+    if ($party === 'non_member') {
+        if (in_array($requestedAction, ['interaction', 'ticket', 'save_guest'], true)) {
+            $action = $requestedAction;
+        } elseif (request('support_action') === 'ticket') {
+            $action = 'ticket';
+        } elseif (request()->filled('guest_phone') && filled(request('channel'))) {
+            $action = 'interaction';
+        } else {
+            $action = 'save_guest';
+        }
+    } else {
+        $action = in_array($requestedAction, ['conversation', 'interaction', 'ticket'], true)
+            ? $requestedAction
+            : 'conversation';
+    }
     $subjects = [
         'how_to_join' => __('admin.support.subjects.how_to_join'),
         'loan_application' => __('admin.support.subjects.loan_application'),
@@ -39,6 +54,15 @@
             q: '',
             results: [],
             searching: false,
+            setParty(next) {
+                this.party = next;
+                if (next === 'non_member' && this.action === 'conversation') {
+                    this.action = 'save_guest';
+                }
+                if (next === 'registered' && this.action === 'save_guest') {
+                    this.action = 'conversation';
+                }
+            },
             search() {
                 if (this.q.trim().length < 2) { this.results = []; return; }
                 this.searching = true;
@@ -55,10 +79,10 @@
                 <div>
                     <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500 mb-2">{{ __('admin.support.who_helping') }}</p>
                     <div class="flex flex-wrap gap-2">
-                        <button type="button" @click="party = 'registered'"
+                        <button type="button" @click="setParty('registered')"
                                 :class="party === 'registered' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'"
                                 class="text-xs font-semibold px-3 py-1.5 rounded-full">{{ __('admin.support.party_registered') }}</button>
-                        <button type="button" @click="party = 'non_member'"
+                        <button type="button" @click="setParty('non_member')"
                                 :class="party === 'non_member' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'"
                                 class="text-xs font-semibold px-3 py-1.5 rounded-full">{{ __('admin.support.party_guest') }}</button>
                     </div>
@@ -116,24 +140,35 @@
                             </label>
                         </div>
                         <x-admin.phone-input name="guest_phone" :label="__('admin.support.guest_phone')" :value="old('guest_phone', request('guest_phone'))" :required="false" />
+                        <p class="text-xs text-slate-500">{{ __('admin.support.hint_guest_no_outbound_chat') }}</p>
                     </div>
 
                     <div>
                         <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500 mb-2">{{ __('admin.support.choose_action') }}</p>
                         <div class="flex flex-wrap gap-2">
-                            @foreach ([
-                                'conversation' => __('admin.support.action_conversation'),
-                                'interaction' => __('admin.support.action_interaction'),
-                                'ticket' => __('admin.support.action_ticket'),
-                            ] as $key => $label)
-                                <label class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer"
-                                       :class="action === '{{ $key }}' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'">
-                                    <input type="radio" name="support_action" value="{{ $key }}" class="sr-only" x-model="action" @checked($action === $key)>
-                                    {{ $label }}
-                                </label>
-                            @endforeach
+                            <label x-show="party === 'registered'" class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer"
+                                   :class="action === 'conversation' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'">
+                                <input type="radio" name="support_action" value="conversation" class="sr-only" x-model="action">
+                                {{ __('admin.support.action_conversation') }}
+                            </label>
+                            <label x-show="party === 'non_member'" class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer"
+                                   :class="action === 'save_guest' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'">
+                                <input type="radio" name="support_action" value="save_guest" class="sr-only" x-model="action">
+                                {{ __('admin.support.action_save_guest') }}
+                            </label>
+                            <label class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer"
+                                   :class="action === 'interaction' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'">
+                                <input type="radio" name="support_action" value="interaction" class="sr-only" x-model="action">
+                                {{ __('admin.support.action_interaction') }}
+                            </label>
+                            <label class="text-xs font-semibold px-3 py-1.5 rounded-full cursor-pointer"
+                                   :class="action === 'ticket' ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700'">
+                                <input type="radio" name="support_action" value="ticket" class="sr-only" x-model="action">
+                                {{ __('admin.support.action_ticket') }}
+                            </label>
                         </div>
                         <p class="text-xs text-slate-500 mt-2" x-show="action === 'conversation'" x-cloak>{{ __('admin.support.hint_conversation') }}</p>
+                        <p class="text-xs text-slate-500 mt-2" x-show="action === 'save_guest'" x-cloak>{{ __('admin.support.hint_save_guest') }}</p>
                         <p class="text-xs text-slate-500 mt-2" x-show="action === 'interaction'" x-cloak>{{ __('admin.support.hint_interaction') }}</p>
                         <p class="text-xs text-slate-500 mt-2" x-show="action === 'ticket'" x-cloak>{{ __('admin.support.hint_ticket') }}</p>
                     </div>
@@ -154,10 +189,10 @@
                         <input type="hidden" name="channel" value="web_chat">
                     </template>
 
-                    <div x-show="action !== 'conversation'" x-cloak class="space-y-3">
+                    <div x-show="action !== 'conversation' && action !== 'save_guest'" x-cloak class="space-y-3">
                         <label class="block text-xs font-semibold text-gray-700">{{ __('admin.support.subject') }}
                             <select name="subject_key" x-model="subjectKey" class="mt-1 w-full rounded-xl border-gray-200 text-sm"
-                                    :required="action !== 'conversation'">
+                                    :required="action !== 'conversation' && action !== 'save_guest'">
                                 <option value="">{{ __('admin.support.subject_select') }}</option>
                                 @foreach ($subjects as $key => $label)
                                     <option value="{{ $key }}">{{ $label }}</option>
@@ -169,13 +204,14 @@
                         </label>
                         <label class="block text-xs font-semibold text-gray-700">
                             <span x-text="action === 'ticket' ? @js(__('admin.support.ticket_description')) : @js(__('admin.support.internal_notes'))"></span>
-                            <textarea name="body" rows="4" class="mt-1 w-full rounded-xl border-gray-200 text-sm" :required="action !== 'conversation'"
+                            <textarea name="body" rows="4" class="mt-1 w-full rounded-xl border-gray-200 text-sm" :required="action !== 'conversation' && action !== 'save_guest'"
                                       placeholder="{{ __('admin.support.internal_notes_placeholder') }}">{{ old('body') }}</textarea>
                         </label>
                     </div>
 
                     <button type="submit" class="w-full sm:w-auto rounded-xl bg-brand text-white text-sm font-semibold px-5 py-2.5">
                         <span x-show="action === 'conversation'">{{ __('admin.support.submit_conversation') }}</span>
+                        <span x-show="action === 'save_guest'" x-cloak>{{ __('admin.support.submit_save_guest') }}</span>
                         <span x-show="action === 'interaction'" x-cloak>{{ __('admin.support.submit_interaction') }}</span>
                         <span x-show="action === 'ticket'" x-cloak>{{ __('admin.support.submit_ticket') }}</span>
                     </button>

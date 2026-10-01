@@ -255,6 +255,7 @@ class SupportOpsUxFeatureTest extends TestCase
 
         $this->post(route('admin.support.interactions.store'), [
             'party' => 'registered',
+            'support_action' => 'interaction',
             'channel' => 'phone',
             'customer_id' => $customer->id,
             'subject_key' => 'guarantor',
@@ -272,6 +273,7 @@ class SupportOpsUxFeatureTest extends TestCase
 
         $this->post(route('admin.support.interactions.store'), [
             'party' => 'non_member',
+            'support_action' => 'interaction',
             'channel' => 'phone',
             'guest_first_name' => 'Juma',
             'guest_last_name' => 'Guest',

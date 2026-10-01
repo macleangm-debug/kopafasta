@@ -19,7 +19,7 @@
                 </p>
                 <a href="{{ route('admin.customers.guests.create') }}"
                    class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-bold text-sm px-5 py-2.5 rounded-xl shadow-sm ring-1 ring-brand/15">
-                    New Guest / Record Call
+                    {{ str_starts_with(app()->getLocale(), 'sw') ? '+ Ongeza mgeni' : '+ Add Guest' }}
                 </a>
             </div>
         </div>
