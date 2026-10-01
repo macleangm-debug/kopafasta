@@ -127,7 +127,7 @@
          "></div>
 @endif
 
-<div class="min-h-screen flex">
+<div class="kf-account-shell-frame min-h-screen">
 
     <aside class="kf-chrome-sidebar hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
@@ -156,7 +156,7 @@
 
     <div class="flex-1 flex flex-col min-h-screen min-w-0">
 
-        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-[100] glass-nav items-center justify-between gap-4 px-6 lg:px-8 h-16">
+        <header class="kf-chrome-topbar-desktop hidden lg:flex sticky top-0 z-[100] glass-nav items-center justify-between gap-4 px-4 lg:px-8 h-16">
             <a href="{{ route('site.home') }}" class="text-xs font-medium text-gray-500 hover:text-brand transition">
                 ← {{ brand_name() }}
             </a>
@@ -173,7 +173,7 @@
                             <span class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">{{ $partnerUnread > 9 ? '9+' : $partnerUnread }}</span>
                         @endif
                     </button>
-                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50 bg-white/95 shadow-xl">
+                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100%-2rem)] rounded-2xl glass-card overflow-hidden z-50 bg-white/95 shadow-xl">
                         <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                             <p class="text-sm font-semibold text-gray-900">{{ __('site.partner_portal.nav_notifications') }}</p>
                             <a href="{{ $notificationsHref }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('site.partner_portal.view_all') }}</a>

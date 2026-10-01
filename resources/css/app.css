@@ -834,7 +834,33 @@ html.kf-account-shell {
     --kf-accent-muted: rgba(0, 77, 64, 0.72);
     --kf-skeleton: rgba(17, 24, 39, 0.08);
     --kf-skeleton-shine: rgba(255, 255, 255, 0.55);
+    /* Same viewport width across Chrome/Safari/Firefox/Edge — do not let classic vs overlay
+       scrollbars shift the sidebar→content gutter or hero alignment. */
+    scrollbar-gutter: stable;
     color-scheme: light;
+}
+
+html.kf-account-shell,
+html.kf-account-shell body {
+    overflow-x: clip;
+}
+
+/* Canonical desktop account chrome: fixed 16rem sidebar + fluid main column. */
+html.kf-account-shell .kf-account-shell-frame {
+    min-height: 100vh;
+    display: flex;
+}
+
+@media (min-width: 1024px) {
+    html.kf-account-shell .kf-account-shell-frame {
+        display: grid;
+        grid-template-columns: 16rem minmax(0, 1fr);
+    }
+
+    html.kf-account-shell .kf-chrome-sidebar {
+        width: 16rem;
+        max-width: 16rem;
+    }
 }
 
 html.kf-account-shell[data-theme="dark"] {

@@ -52,32 +52,44 @@
         </div>
     </section>
 
-    <div class="glass-card p-5 mb-6 ring-1 ring-brand/15">
-        <h2 class="font-semibold mb-4">{{ $needsReconfirm ? __('borrower.guarantor_invite.revised_terms') : __('borrower.guarantor.request_overview') }}</h2>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.amount_label') }}</p>
-                <p class="font-semibold mt-1">{{ $loanContext['amount_label'] }}</p>
+    <div class="glass-card mb-6 overflow-hidden ring-1 ring-brand/15">
+        <div class="relative overflow-hidden bg-gradient-to-br from-brand-muted/60 via-white to-white px-5 py-5">
+            <div class="absolute -right-8 -top-8 size-28 rounded-full bg-brand/5 pointer-events-none"></div>
+            <div class="relative">
+                <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">
+                    {{ $needsReconfirm ? __('borrower.guarantor_invite.revised_terms') : __('borrower.guarantor.request_overview') }}
+                </p>
+                <p class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 tabular-nums">
+                    {{ $loanContext['amount_label'] }}
+                </p>
+                <p class="mt-1.5 text-sm text-gray-600">
+                    {{ $productName }}
+                    <span class="text-gray-300 mx-1.5">·</span>{{ $loanContext['duration_label'] }}
+                </p>
             </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.duration_label') }}</p>
-                <p class="font-semibold mt-1">{{ $loanContext['duration_label'] }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.frequency_label') }}</p>
-                <p class="font-semibold mt-1">{{ $loanContext['repayment_frequency_label'] }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.installment_label') }}</p>
-                <p class="font-semibold mt-1 text-brand">{{ $loanContext['installment_label'] }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.borrower') }}</p>
-                <p class="font-semibold mt-1">{{ $borrowerName }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.reference') }}</p>
-                <p class="font-semibold mt-1 font-mono">{{ $reference }}</p>
+            <div class="relative mt-4 grid grid-cols-2 gap-2.5">
+                <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.borrower') }}</p>
+                    <p class="mt-0.5 text-sm font-bold text-gray-900 truncate">{{ $borrowerName }}</p>
+                </div>
+                <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.reference') }}</p>
+                    <p class="mt-0.5 text-sm font-bold text-gray-900 font-mono truncate">{{ $reference }}</p>
+                </div>
+                <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.frequency_label') }}</p>
+                    <p class="mt-0.5 text-sm font-bold text-gray-900">{{ $loanContext['repayment_frequency_label'] }}</p>
+                </div>
+                <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor_invite.installment_label') }}</p>
+                    <p class="mt-0.5 text-sm font-bold text-brand">{{ $loanContext['installment_label'] }}</p>
+                </div>
+                @if ($hasCollateral && filled($collateralLabel))
+                    <div class="rounded-xl bg-white/80 ring-1 ring-brand/10 px-3 py-2.5 col-span-2">
+                        <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guarantor.loan_collateral_title') }}</p>
+                        <p class="mt-0.5 text-sm font-bold text-gray-900">{{ $collateralLabel }}</p>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
@@ -98,12 +110,6 @@
                 <h2 class="text-lg font-bold text-gray-900 mt-1">{{ __('borrower.guarantor.liability_title') }}</h2>
                 <p class="mt-2 text-sm text-gray-700 leading-relaxed">{{ __('borrower.guarantor.liability_body') }}</p>
             </div>
-            @if ($hasCollateral && filled($collateralLabel))
-                <div class="rounded-xl bg-brand-muted/30 ring-1 ring-brand/10 px-4 py-3 text-sm">
-                    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">{{ __('borrower.guarantor.loan_collateral_title') }}</p>
-                    <p class="mt-1 text-gray-800 font-medium">{{ $collateralLabel }}</p>
-                </div>
-            @endif
         </div>
     </div>
 

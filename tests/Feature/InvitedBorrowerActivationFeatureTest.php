@@ -308,4 +308,22 @@ class InvitedBorrowerActivationFeatureTest extends TestCase
             ->assertDontSee('guarantor-invite-popup-title', false)
             ->assertDontSee('x-site.guarantor-request-popup', false);
     }
+
+    public function test_guarantor_and_group_request_notification_ctas_are_actionable(): void
+    {
+        $this->assertSame('Angalia ombi la udhamini', __('borrower.guarantor_notifications.view_request', [], 'sw'));
+        $this->assertSame('View guarantor request', __('borrower.guarantor_notifications.view_request', [], 'en'));
+        $this->assertSame('Angalia ombi la kikundi', __('borrower.apply.group.notify_request_cta', [], 'sw'));
+        $this->assertSame('View group request', __('borrower.apply.group.notify_request_cta', [], 'en'));
+    }
+
+    public function test_application_view_guarantor_actions_follow_progress(): void
+    {
+        $progress = file_get_contents(resource_path('views/site/borrower/loan-profile/_guarantor_progress.blade.php'));
+        $progressPos = strpos($progress, 'x-site.invitee-progress');
+        $whatsappPos = strpos($progress, 'guarantor_nudge_whatsapp');
+        $this->assertNotFalse($progressPos);
+        $this->assertNotFalse($whatsappPos);
+        $this->assertGreaterThan($progressPos, $whatsappPos);
+    }
 }

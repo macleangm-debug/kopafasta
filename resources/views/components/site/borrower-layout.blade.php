@@ -141,10 +141,10 @@
          "></div>
 @endif
 
-<div class="min-h-screen flex lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
+<div class="kf-account-shell-frame min-h-screen">
 
     {{-- Sidebar (desktop) --}}
-    <aside class="kf-chrome-sidebar hidden lg:flex w-64 lg:w-auto shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
+    <aside class="kf-chrome-sidebar hidden lg:flex w-64 shrink-0 flex-col bg-brand text-white sticky top-0 h-screen shadow-xl">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         <a href="{{ route('site.borrower.dashboard') }}" data-kf-motion="tab" class="relative block px-5 py-4 border-b border-white/15">
             <x-site.brand-mark size="md" variant="light" :portal="__('borrower.portal')" />
@@ -197,7 +197,7 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
                             <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
                         </button>
-                        <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl glass-card overflow-hidden z-50">
+                        <div x-show="sheetOpen" @click.outside="sheetOpen = false" x-cloak class="absolute right-0 mt-2 w-96 max-w-[calc(100%-2rem)] rounded-2xl glass-card overflow-hidden z-50">
                             <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-white/80">
                                 <p class="text-sm font-semibold text-gray-900">{{ __('borrower.layout.notifications') }}</p>
                                 <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>

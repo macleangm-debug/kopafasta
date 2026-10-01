@@ -335,8 +335,59 @@
                 @elseif ($canChangeWhileHeld && $uiState === 'pending')
                     <p class="text-xs text-gray-500">{{ __('borrower.guarantor_supplement.borrower_change_hint') }}</p>
                 @endif
+            </div>
 
-                @if ($showInviteActions)
+            {{-- Current guarantor progress — journey first, then state-aware actions. --}}
+            @if ($currentRows->isNotEmpty() && ! $allReady)
+                <div class="px-5 sm:px-6 py-5 border-t border-gray-100/80 space-y-4">
+                    @foreach ($currentRows as $row)
+                        @php
+                            $code = (string) ($row->status['code'] ?? '');
+                            $done = ($row->status['ready'] ?? false) || $code === 'ready';
+                            $steps = $row->status['steps'] ?? [];
+                            $badgeTone = match (true) {
+                                $done => 'emerald',
+                                in_array($code, ['pending_profile', 'registration_in_progress', 'kyc_in_progress', 'guarantee_pending', 'pending_reconfirmation'], true) => 'amber',
+                                default => 'sky',
+                            };
+                        @endphp
+                        {{-- Journey/status only — name lives in the header above. --}}
+                        <x-site.invitee-progress
+                            :name="''"
+                            :badge="$row->status['label'] ?? null"
+                            :badge-tone="$badgeTone"
+                            :steps="$steps"
+                        />
+                    @endforeach
+
+                    @if ($showInviteActions)
+                        <div class="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-none pt-1">
+                            @if (! empty($share['whatsapp_url']))
+                                <a href="{{ $share['whatsapp_url'] }}" target="_blank" rel="noopener"
+                                   class="inline-flex shrink-0 items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">
+                                    {{ __('borrower.loan_profile.guarantor_nudge_whatsapp') }}
+                                </a>
+                            @endif
+                            @if (! empty($share['invitation_url']) || ! empty($share['short_url']))
+                                <button type="button"
+                                        @click="navigator.clipboard.writeText(@js($share['short_url'] ?? $share['invitation_url'])); copied = true; setTimeout(() => copied = false, 2000)"
+                                        class="inline-flex shrink-0 items-center gap-1.5 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">
+                                    <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.loan_profile.guarantor_nudge_copy'))"></span>
+                                </button>
+                            @endif
+                            @if ($application && $primary?->invite
+                                && (string) ($primary->invite->status ?? '') === 'pending'
+                                && ($primary->invite->type ?? '') === 'external')
+                                <a href="{{ app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application) }}"
+                                   class="inline-flex shrink-0 items-center gap-1.5 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">
+                                    {{ __('borrower.loan_profile.actions.edit_guarantor') }}
+                                </a>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @elseif ($showInviteActions)
+                <div class="px-5 sm:px-6 py-4 border-t border-gray-100/80">
                     <div class="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-none">
                         @if (! empty($share['whatsapp_url']))
                             <a href="{{ $share['whatsapp_url'] }}" target="_blank" rel="noopener"
@@ -360,31 +411,6 @@
                             </a>
                         @endif
                     </div>
-                @endif
-            </div>
-
-            {{-- Current guarantor progress — single visual source of truth --}}
-            @if ($currentRows->isNotEmpty() && ! $allReady)
-                <div class="px-5 sm:px-6 py-5 border-t border-gray-100/80 space-y-4">
-                    @foreach ($currentRows as $row)
-                        @php
-                            $code = (string) ($row->status['code'] ?? '');
-                            $done = ($row->status['ready'] ?? false) || $code === 'ready';
-                            $steps = $row->status['steps'] ?? [];
-                            $badgeTone = match (true) {
-                                $done => 'emerald',
-                                in_array($code, ['pending_profile', 'registration_in_progress', 'kyc_in_progress', 'guarantee_pending', 'pending_reconfirmation'], true) => 'amber',
-                                default => 'sky',
-                            };
-                        @endphp
-                        {{-- Journey/status only — name lives in the header above. --}}
-                        <x-site.invitee-progress
-                            :name="''"
-                            :badge="$row->status['label'] ?? null"
-                            :badge-tone="$badgeTone"
-                            :steps="$steps"
-                        />
-                    @endforeach
                 </div>
             @endif
 
