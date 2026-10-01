@@ -66,8 +66,28 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
         $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_nudge_copy'), $html);
         $this->assertStringNotContainsString(__('borrower.guarantor_supplement.borrower_banner'), $html);
         $this->assertStringNotContainsString(__('borrower.apply.guarantor_status.pending_acceptance'), $html);
+        // Previous guarantors are Admin/audit only — never on borrower Application View.
+        $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_history_title'), $html);
         // Duplicate bottom waiting card removed.
         $this->assertEquals(1, substr_count($html, 'id="guarantor-progress"'));
+    }
+
+    public function test_current_guarantor_header_stacks_name_above_muted_phone(): void
+    {
+        [$borrower, $application] = $this->awaitingGuarantorPair(incomplete: true);
+
+        $html = $this->actingAs($borrower->user)
+            ->get(route('site.borrower.application', $application))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Old Guarantor', $html);
+        // Name and phone must not share one large "Name · Phone" line.
+        $this->assertDoesNotMatchRegularExpression(
+            '/Old Guarantor[^<]*·[^<]*255/',
+            $html
+        );
+        $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_history_title'), $html);
     }
 
     public function test_incomplete_awaiting_guarantor_can_be_replaced_without_new_fee(): void

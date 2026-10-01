@@ -22,7 +22,8 @@
         </button>
     </div>
 
-    {{-- Field-level errors stay inline; summary feedback opens as modal via setGuarantorFieldErrors() --}}
+    {{-- Guarantor validation stays inline (field errors + invite notice). No blocking modals. --}}
+    <div x-show="guarantorEditMode && stepNotice" x-cloak class="mb-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-950" x-text="stepNotice"></div>
 
     <div x-show="isGuarantorLocked()" x-cloak class="mb-5">
         <x-site.invitee-card>
@@ -92,11 +93,15 @@
     <div x-show="addGuarantorOpen && !isGuarantorLocked()" x-cloak
          class="rounded-2xl ring-1 ring-brand/15 bg-white p-5 sm:p-6 space-y-5 mb-5">
             <div class="flex items-start justify-between gap-3">
-                <h3 class="text-lg font-bold text-gray-900">{{ __('borrower.apply.guarantor_fields.add_cta') }}</h3>
-                <button type="button" @click="addGuarantorOpen = false" class="text-gray-400 hover:text-gray-700 text-2xl leading-none px-1" aria-label="{{ __('borrower.profile.cancel') }}">×</button>
+                <h3 class="text-lg font-bold text-gray-900" x-text="guarantorEditMode
+                    ? @js(__('borrower.loan_profile.actions.edit_guarantor'))
+                    : @js(__('borrower.apply.guarantor_fields.add_cta'))"></h3>
+                <button type="button" x-show="!guarantorEditMode && !supplementMode" @click="addGuarantorOpen = false" class="text-gray-400 hover:text-gray-700 text-2xl leading-none px-1" aria-label="{{ __('borrower.profile.cancel') }}">×</button>
             </div>
 
-            <div>
+            <p x-show="guarantorEditMode" x-cloak class="text-sm text-gray-600">{{ __('borrower.loan_profile.actions.edit_guarantor_hint') }}</p>
+
+            <div x-show="!guarantorEditMode" x-cloak>
                 <p class="text-sm font-semibold text-gray-900">{{ __('borrower.apply.guarantor_fields.choose_type_title') }}</p>
                 <div class="mt-2 grid grid-cols-2 gap-2">
                     <button type="button"
@@ -323,7 +328,8 @@
                         <p class="mt-1" x-text="guarantorInviteError"></p>
                     </div>
                 </div>
-                <div class="sm:col-span-2" x-show="form.guarantor_mode === 'external' && (!externalGuarantor || !externalGuarantor.invitation_url)">
+                {{-- Draft apply only: generate link then Continue. Supplement/edit uses footer Save & send. --}}
+                <div class="sm:col-span-2" x-show="!supplementMode && !guarantorEditMode && form.guarantor_mode === 'external' && (!externalGuarantor || !externalGuarantor.invitation_url)">
                     <button type="button"
                             @click="generateExternalInvite()"
                             :disabled="guarantorInvitePreparing || !isExternalGuarantorComplete()"

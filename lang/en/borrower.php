@@ -3026,7 +3026,7 @@ return [
             'edit_guarantor' => 'Edit guarantor',
             'edit_guarantor_hint' => 'Correct this person’s details. A new invite link is generated — the old link stops working. To choose a different person, use Choose another guarantor.',
             'edit_guarantor_confirm' => 'Save the corrected details and regenerate the invitation link for this same guarantor?',
-            'edit_guarantor_save' => 'Save & resend link',
+            'edit_guarantor_save' => 'Save & send invitation',
             'edit_guarantor_saved' => 'Guarantor details updated. Share the new invitation link.',
             'withdraw' => 'Cancel application',
         ],

@@ -3853,7 +3853,7 @@ return [
             'edit_guarantor' => 'Hariri mdhamini',
             'edit_guarantor_hint' => 'Sahihisha maelezo ya mtu huyu. Kiungo kipya cha mwaliko kitatolewa — kiungo cha zamani hakitafanya kazi. Kuchagua mtu mwingine, tumia Chagua mdhamini mwingine.',
             'edit_guarantor_confirm' => 'Hifadhi maelezo yaliyosahihishwa na toa upya kiungo cha mwaliko kwa mdhamini huyu huyu?',
-            'edit_guarantor_save' => 'Hifadhi na tuma kiungo upya',
+            'edit_guarantor_save' => 'Hifadhi na tuma mwaliko',
             'edit_guarantor_saved' => 'Maelezo ya mdhamini yamesasishwa. Shiriki kiungo kipya cha mwaliko.',
             'withdraw' => 'Ghairi ombi',
         ],

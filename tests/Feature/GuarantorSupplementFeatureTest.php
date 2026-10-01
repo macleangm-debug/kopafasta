@@ -192,4 +192,143 @@ class GuarantorSupplementFeatureTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('error');
     }
+
+    public function test_edit_guarantor_wizard_loads_current_and_save_label(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->applicationFor($customer);
+        $application->forceFill([
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+            'application_fee_status' => 'paid',
+            'application_fee_reference' => 'FEE-GS-EDIT',
+        ])->save();
+
+        $guarantor = \App\Models\Guarantor::create([
+            'first_name' => 'Vase',
+            'last_name' => 'Vase',
+            'phone' => '+255780000342',
+            'relationship' => 'friend',
+        ]);
+        $link = \App\Models\CustomerGuarantor::create([
+            'customer_id' => $customer->id,
+            'guarantor_id' => $guarantor->id,
+            'loan_application_id' => $application->id,
+            'status' => 'pending',
+        ]);
+        \App\Models\GuarantorInvitation::create([
+            'customer_id' => $customer->id,
+            'loan_application_id' => $application->id,
+            'loan_product_id' => $application->loan_product_id,
+            'customer_guarantor_id' => $link->id,
+            'type' => 'external',
+            'channel' => 'whatsapp',
+            'token' => 'gs-edit-token',
+            'short_code' => 'GSEDIT',
+            'contact' => '+255780000342',
+            'invitee_name' => 'Vase Vase',
+            'status' => 'pending',
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $html = $this->actingAs($customer->user)
+            ->get(app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertTrue(
+            str_contains($html, 'guarantorEditMode: true') || str_contains($html, 'guarantorEditMode:true'),
+            'Edit mode must be enabled'
+        );
+        $this->assertStringContainsString(__('borrower.loan_profile.actions.edit_guarantor_save'), $html);
+        $this->assertStringContainsString('Vase', $html);
+        $this->assertStringContainsString('780000342', $html);
+    }
+
+    public function test_edit_guarantor_save_updates_and_returns_to_application_view(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->applicationFor($customer);
+        $application->forceFill([
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+        ])->save();
+
+        $guarantor = \App\Models\Guarantor::create([
+            'first_name' => 'ROGGIE',
+            'last_name' => 'Old',
+            'phone' => '+255780000111',
+            'relationship' => 'friend',
+        ]);
+        $link = \App\Models\CustomerGuarantor::create([
+            'customer_id' => $customer->id,
+            'guarantor_id' => $guarantor->id,
+            'loan_application_id' => $application->id,
+            'status' => 'pending',
+        ]);
+        $invite = \App\Models\GuarantorInvitation::create([
+            'customer_id' => $customer->id,
+            'loan_application_id' => $application->id,
+            'loan_product_id' => $application->loan_product_id,
+            'customer_guarantor_id' => $link->id,
+            'type' => 'external',
+            'channel' => 'whatsapp',
+            'token' => 'gs-edit-save-token',
+            'short_code' => 'GSSAVE',
+            'contact' => '+255780000111',
+            'invitee_name' => 'ROGGIE Old',
+            'status' => 'pending',
+            'expires_at' => now()->addDays(7),
+        ]);
+        $oldToken = $invite->token;
+
+        $this->actingAs($customer->user)
+            ->post(route('site.borrower.application.edit-guarantor', $application), [
+                'invitation_id' => $invite->id,
+                'first_name' => 'Vase',
+                'last_name' => 'Vase',
+                'phone' => '0780000342',
+                'relationship' => 'sibling',
+            ])
+            ->assertRedirect(route('site.borrower.application', $application))
+            ->assertSessionHas('status');
+
+        $invite->refresh();
+        $guarantor->refresh();
+        $this->assertSame('Vase Vase', $invite->invitee_name);
+        $this->assertSame('+255780000342', $invite->contact);
+        $this->assertNotSame($oldToken, $invite->token);
+        $this->assertSame('pending', $invite->status);
+        $this->assertSame('Vase', $guarantor->first_name);
+        $this->assertSame('sibling', $guarantor->relationship);
+        $this->assertDatabaseCount('guarantor_invitations', 1);
+    }
+
+    public function test_edit_rejected_invitation_redirects_to_application_view(): void
+    {
+        $customer = $this->borrower();
+        $application = $this->applicationFor($customer);
+        $application->forceFill([
+            'status' => 'awaiting_guarantor',
+            'current_stage' => 'awaiting_guarantor',
+        ])->save();
+
+        \App\Models\GuarantorInvitation::create([
+            'customer_id' => $customer->id,
+            'loan_application_id' => $application->id,
+            'loan_product_id' => $application->loan_product_id,
+            'type' => 'external',
+            'channel' => 'whatsapp',
+            'token' => 'gs-dead-token',
+            'short_code' => 'GSDEAD',
+            'contact' => '+255780000999',
+            'invitee_name' => 'Rejected Person',
+            'status' => 'rejected',
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($customer->user)
+            ->get(app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application))
+            ->assertRedirect(route('site.borrower.application', $application));
+    }
 }

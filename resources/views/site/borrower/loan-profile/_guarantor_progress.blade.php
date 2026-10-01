@@ -213,13 +213,11 @@
                                 @endif
                             </p>
                         @elseif ($primary)
-                            {{-- Progress component is the single status source of truth — name/phone only here. --}}
-                            <p class="text-lg sm:text-xl font-bold text-gray-900 mt-1 truncate">
-                                {{ $primary->name }}
-                                @if (! empty($primary->phone) && $uiState !== 'ready_before_submit')
-                                    <span class="font-semibold text-gray-600">· {{ $primary->phone }}</span>
-                                @endif
-                            </p>
+                            {{-- Name prominent; phone muted underneath — progress is the status source. --}}
+                            <p class="text-lg sm:text-xl font-bold text-gray-900 mt-1 truncate">{{ $primary->name }}</p>
+                            @if (! empty($primary->phone) && $uiState !== 'ready_before_submit')
+                                <p class="text-sm text-gray-500 mt-0.5 tabular-nums">{{ $primary->phone }}</p>
+                            @endif
                             @if ($uiState === 'ready_before_submit')
                                 <p class="text-sm text-gray-600 mt-1">{{ $primary->type }}</p>
                             @endif
@@ -338,33 +336,18 @@
                                 default => 'sky',
                             };
                         @endphp
+                        {{-- Journey/status only — name lives in the header above. --}}
                         <x-site.invitee-progress
-                            :name="$row->name"
+                            :name="''"
                             :badge="$row->status['label'] ?? null"
                             :badge-tone="$badgeTone"
                             :steps="$steps"
-                        >
-                            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">{{ __('borrower.application.guarantor_section') }}</p>
-                            <p class="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight mt-1 truncate">{{ $row->name }}</p>
-                        </x-site.invitee-progress>
+                        />
                     @endforeach
                 </div>
             @endif
 
-            {{-- Previous guarantors — compact history only --}}
-            @if ($historyRows->isNotEmpty())
-                <div class="px-5 sm:px-6 py-4 border-t border-gray-100/80 space-y-2">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loan_profile.guarantor_history_title') }}</p>
-                    @foreach ($historyRows as $row)
-                        <div class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
-                            <p class="text-sm text-gray-700 truncate">{{ $row->name }}</p>
-                            <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-gray-500">
-                                {{ $row->status['label'] ?? __('borrower.apply.guarantor_status.rejected') }}
-                            </span>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
+            {{-- Previous guarantors stay in Admin/audit only — not borrower Application View. --}}
         @endif
     </div>
 @endif

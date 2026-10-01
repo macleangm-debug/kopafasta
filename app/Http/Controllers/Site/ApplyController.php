@@ -145,7 +145,7 @@ class ApplyController extends Controller
             } elseif ($supplementApplication) {
                 return redirect()
                     ->route('site.borrower.application', $supplementApplication)
-                    ->with('error', __('borrower.guarantor_invite.no_longer_active'));
+                    ->with('kf_status_inline', true);
             }
         } elseif ($request->boolean('guarantor_supplement') && $request->filled('application') && $customer) {
             $supplementApplication = LoanApplication::query()
@@ -363,19 +363,31 @@ class ApplyController extends Controller
                     ->latest('id')
                     ->first();
                 if ($invite) {
-                    $nameParts = preg_split('/\s+/', trim((string) ($invite->invitee_name ?? '')), 2) ?: ['', ''];
-                    $relationship = $invite->customerGuarantor?->guarantor?->relationship ?? '';
+                    $g = $invite->customerGuarantor?->guarantor;
+                    $first = trim((string) ($g?->first_name ?? ''));
+                    $last = trim((string) ($g?->last_name ?? ''));
+                    if ($first === '' && $last === '') {
+                        $nameParts = preg_split('/\s+/', trim((string) ($invite->invitee_name ?? '')), 2) ?: ['', ''];
+                        $first = $nameParts[0] ?? '';
+                        $last = $nameParts[1] ?? '';
+                    }
+                    // Guarantor.first_name may hold "First Middle" — keep editable as first + last only.
+                    $relationship = $g?->relationship ?? '';
                     $formSeed = array_merge($formSeed, [
                         'guarantor_mode' => 'external',
-                        'external_first_name' => $nameParts[0] ?? '',
-                        'external_last_name' => $nameParts[1] ?? '',
-                        'external_phone' => (string) ($invite->contact ?? ''),
-                        'external_email' => (string) ($invite->customerGuarantor?->guarantor?->email ?? ''),
+                        'external_first_name' => $first,
+                        'external_last_name' => $last,
+                        'external_phone' => (string) ($invite->contact ?? $g?->phone ?? ''),
+                        'external_email' => (string) ($g?->email ?? ''),
                         'external_relationship' => (string) $relationship,
                         'external_invitation_id' => $invite->id,
                     ]);
                     $externalGuarantorSeed = app(GuarantorInvitationService::class)
                         ->sharePayload($invite->loadMissing(['application.product', 'product', 'borrower', 'customerGuarantor.guarantor']), $customer);
+                } else {
+                    // Dead token / race: never open edit against a missing current invitation.
+                    return redirect()
+                        ->route('site.borrower.application', $supplementApplication);
                 }
             }
             // Always mark fee satisfied with a stable reference so the client cannot
@@ -2928,11 +2940,35 @@ class ApplyController extends Controller
                 throw new \InvalidArgumentException(__('borrower.apply.alerts.select_guarantor'));
             }
         } catch (\InvalidArgumentException $e) {
-            return redirect()->to($returnUrl)->withInput()->with('error', $e->getMessage());
+            if ($isEdit) {
+                $dead = $e->getMessage() === __('borrower.guarantor_invite.no_longer_active');
+                if ($dead) {
+                    // Invitation rejected/expired while editing — reconcile on Application View.
+                    return redirect()
+                        ->route('site.borrower.application', $application)
+                        ->with('kf_status_inline', true);
+                }
+
+                return redirect()
+                    ->to($returnUrl)
+                    ->withInput()
+                    ->with('error', $e->getMessage())
+                    ->with('kf_status_inline', true);
+            }
+
+            return redirect()
+                ->to($returnUrl)
+                ->withInput()
+                ->with('error', $e->getMessage())
+                ->with('kf_status_inline', true);
         } catch (\Throwable $e) {
             report($e);
 
-            return redirect()->to($returnUrl)->withInput()->with('error', __('borrower.apply.alerts.guarantor_lookup_failed'));
+            return redirect()
+                ->to($returnUrl)
+                ->withInput()
+                ->with('error', __('borrower.apply.alerts.guarantor_lookup_failed'))
+                ->with('kf_status_inline', true);
         }
 
         if ($attachedInvitation && $attachedInvitation->type === 'external') {

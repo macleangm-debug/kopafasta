@@ -18,13 +18,17 @@
 
 <div {{ $attributes->class(['rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm bg-gradient-to-br from-white via-white to-brand-muted/25']) }}>
     <div class="px-4 sm:px-5 pt-4 pb-3 flex flex-wrap items-start justify-between gap-2">
-        <div class="min-w-0">
-            @if ($slot->isNotEmpty())
-                {{ $slot }}
-            @else
-                <p class="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight truncate">{{ $name }}</p>
-            @endif
-        </div>
+        @if ($slot->isNotEmpty() || filled($name))
+            <div class="min-w-0">
+                @if ($slot->isNotEmpty())
+                    {{ $slot }}
+                @else
+                    <p class="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight truncate">{{ $name }}</p>
+                @endif
+            </div>
+        @else
+            <div class="min-w-0"></div>
+        @endif
         @if ($terminal && $terminalLabel)
             <span class="shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1 bg-rose-50 text-rose-800 ring-rose-200">
                 {{ $terminalLabel }}

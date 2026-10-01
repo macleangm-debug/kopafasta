@@ -19,15 +19,17 @@
         </button>
         <button type="button"
                 @click.prevent="next()"
-                :disabled="advancing || feeNavigating || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor')"
-                x-show="advancing || feeNavigating || (!feeGateOpen && !['signature', 'submit', 'application_fee'].includes(stepKey) && isCurrentStepReady())"
+                :disabled="advancing || submitting || feeNavigating || resumeLoading || (guarantorInvitePreparing && stepKey === 'guarantor')"
+                x-show="advancing || submitting || feeNavigating || (!feeGateOpen && !['signature', 'submit', 'application_fee'].includes(stepKey) && isCurrentStepReady())"
                 class="inline-flex items-center gap-2 bg-brand-gold hover:bg-yellow-400 disabled:opacity-60 text-brand font-bold px-6 py-2.5 rounded-xl text-sm shadow-sm transition">
-            <span x-text="(advancing || feeNavigating)
+            <span x-text="(advancing || feeNavigating || submitting)
                 ? @js(__('borrower.apply.loading'))
                 : ((guarantorInvitePreparing && stepKey === 'guarantor')
-                ? @js(__('borrower.apply.application_fee.processing'))
+                ? @js(__('borrower.apply.guarantor_fields.generating_link'))
                 : (supplementMode
-                    ? @js(__('borrower.apply.finish'))
+                    ? (guarantorEditMode
+                        ? @js(__('borrower.loan_profile.actions.edit_guarantor_save'))
+                        : @js(__('borrower.loan_profile.actions.edit_guarantor_save')))
                     : (isEditHop()
                     ? @js(__('borrower.apply.complete_editing'))
                     : (stepKey === 'review' && reviewPage < reviewPageCount
