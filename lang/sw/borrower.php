@@ -4402,6 +4402,8 @@ return [
         'register_phone_locked' => 'Simu kutoka mwaliko',
         'register_phone_mismatch' => 'Tumia nambari ya simu iliyopokea mwaliko.',
         'register_phone_taken' => 'Nambari hii ya simu tayari imesajiliwa. Ingia kwa akaunti yako iliyopo badala yake.',
+        'invite_linked_other' => 'Mwaliko huu umeunganishwa na akaunti nyingine. Ingia kwa akaunti hiyo, au muombe mkopaji atume mwaliko mpya.',
+        'cannot_guarantee_own' => 'Huwezi kudhamini ombi lako mwenyewe la mkopo.',
         'login_different_account' => 'Ingia kwa akaunti tofauti',
         'register_welcome' => 'Unda akaunti yako ya KopaFasta ili kuendelee.',
         'register_welcome_hint' => 'Thibitisha jina na simu, ongeza tarehe ya kuzaliwa, na unda nenosiri. Unakuwa mwanachama — unaweza pia kuomba mikopo baadaye.',

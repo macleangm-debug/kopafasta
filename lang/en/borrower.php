@@ -4374,6 +4374,8 @@ return [
         'register_phone_locked' => 'Phone from invitation',
         'register_phone_mismatch' => 'Use the same phone number that received the guarantor invitation.',
         'register_phone_taken' => 'This phone number is already registered. Log in with your existing account instead.',
+        'invite_linked_other' => 'This invitation is linked to another account. Sign in with that account, or ask the borrower for a new invitation.',
+        'cannot_guarantee_own' => 'You cannot guarantee your own loan application.',
         'login_different_account' => 'Sign in with a different account',
         'register_welcome' => 'Create your account.',
         'register_welcome_hint' => 'Confirm your details and set a password to continue.',

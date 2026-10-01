@@ -1249,75 +1249,82 @@ class AuthController extends Controller
         $digits = preg_replace('/\D/', '', $data['phone']) ?: Str::random(8);
         $email = $digits.'@phone.kopafasta.local';
 
-        $user = DB::transaction(function () use ($data, $email, $referrals, $request) {
-            $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
+        try {
+            $user = DB::transaction(function () use ($data, $email, $referrals, $request) {
+                $fullName = trim(collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' '));
 
-            // Pending until PIN + security questions complete (finalizeBorrowerRegistration).
-            // Password is never collected — placeholder hash only; auth is phone + 4-digit PIN.
-            $user = User::create([
-                'name' => $fullName,
-                'email' => $email,
-                'phone' => $data['phone'],
-                'password' => Hash::make(Str::password(32)),
-                'role' => 'borrower',
-                'is_active' => false,
-            ]);
+                // Pending until PIN + security questions complete (finalizeBorrowerRegistration).
+                // Password is never collected — placeholder hash only; auth is phone + 4-digit PIN.
+                $user = User::create([
+                    'name' => $fullName,
+                    'email' => $email,
+                    'phone' => $data['phone'],
+                    'password' => Hash::make(Str::password(32)),
+                    'role' => 'borrower',
+                    'is_active' => false,
+                ]);
 
-            $customer = Customer::create([
-                'user_id' => $user->id,
-                'customer_number' => 'C-'.strtoupper(Str::random(6)),
-                'type' => 'individual',
-                'status' => 'pending',
-                'branch_id' => app(BranchService::class)->headOfficeId(),
-                'country_code' => strtoupper($data['country']),
-                'first_name' => $data['first_name'],
-                'middle_name' => $data['middle_name'] ?? null,
-                'last_name' => $data['last_name'],
-                'gender' => $data['gender'],
-                'national_id' => filled($data['national_id'] ?? null)
-                    ? (NationalIdValidator::format($data['national_id'], $data['country']) ?? NidaNumber::format($data['national_id']))
-                    : null,
-                'date_of_birth' => null,
-                'email' => null,
-                'phone' => $data['phone'],
-                'onboarded_at' => null,
-            ]);
+                $customer = Customer::create([
+                    'user_id' => $user->id,
+                    'customer_number' => 'C-'.strtoupper(Str::random(6)),
+                    'type' => 'individual',
+                    'status' => 'pending',
+                    'branch_id' => app(BranchService::class)->headOfficeId(),
+                    'country_code' => strtoupper($data['country']),
+                    'first_name' => $data['first_name'],
+                    'middle_name' => $data['middle_name'] ?? null,
+                    'last_name' => $data['last_name'],
+                    'gender' => $data['gender'],
+                    'national_id' => filled($data['national_id'] ?? null)
+                        ? (NationalIdValidator::format($data['national_id'], $data['country']) ?? NidaNumber::format($data['national_id']))
+                        : null,
+                    'date_of_birth' => null,
+                    'email' => null,
+                    'phone' => $data['phone'],
+                    'onboarded_at' => null,
+                ]);
 
-            app(BranchService::class)->assignDefault($customer);
-            app(MembershipService::class)->ensureMemberNumber($customer);
+                app(BranchService::class)->assignDefault($customer);
+                app(MembershipService::class)->ensureMemberNumber($customer);
 
-            $referrals->attachReferrerFromSession($customer, $request);
-            if (blank($customer->fresh()->referred_by_customer_id)) {
-                $referrals->attachReferrer($customer, $data['referral_code'] ?? null);
-            }
-            $referrals->ensureCode($customer);
-            app(AffiliateService::class)->attachAffiliate(
-                $customer,
-                $data['affiliate_code'] ?? session('affiliate_code'),
-                $request
-            );
-            if (blank($customer->fresh()->affiliate_vendor_id)) {
-                app(AffiliateService::class)->connectFromPendingClaim($customer, $request);
-            }
-
-            $guarantorOnboarding = app(GuarantorOnboardingService::class);
-            if ($token = request()->session()->get('guarantor_invite_token')) {
-                $invitation = $guarantorOnboarding->findByToken($token);
-                if ($invitation) {
-                    $guarantorOnboarding->linkInvitee($invitation, $customer, fromTrustedSession: true);
+                $referrals->attachReferrerFromSession($customer, $request);
+                if (blank($customer->fresh()->referred_by_customer_id)) {
+                    $referrals->attachReferrer($customer, $data['referral_code'] ?? null);
                 }
-            }
-
-            $groupOnboarding = app(GroupMemberOnboardingService::class);
-            if ($token = request()->session()->get('group_member_invite_token')) {
-                $invitation = $groupOnboarding->findByToken($token);
-                if ($invitation) {
-                    $groupOnboarding->linkInvitee($invitation, $customer, fromTrustedSession: true);
+                $referrals->ensureCode($customer);
+                app(AffiliateService::class)->attachAffiliate(
+                    $customer,
+                    $data['affiliate_code'] ?? session('affiliate_code'),
+                    $request
+                );
+                if (blank($customer->fresh()->affiliate_vendor_id)) {
+                    app(AffiliateService::class)->connectFromPendingClaim($customer, $request);
                 }
-            }
 
-            return $user;
-        });
+                $guarantorOnboarding = app(GuarantorOnboardingService::class);
+                if ($token = request()->session()->get('guarantor_invite_token')) {
+                    $invitation = $guarantorOnboarding->findByToken($token);
+                    if ($invitation) {
+                        $guarantorOnboarding->linkInvitee($invitation, $customer, fromTrustedSession: true);
+                    }
+                }
+
+                $groupOnboarding = app(GroupMemberOnboardingService::class);
+                if ($token = request()->session()->get('group_member_invite_token')) {
+                    $invitation = $groupOnboarding->findByToken($token);
+                    if ($invitation) {
+                        $groupOnboarding->linkInvitee($invitation, $customer, fromTrustedSession: true);
+                    }
+                }
+
+                return $user;
+            });
+        } catch (\InvalidArgumentException $e) {
+            return back()
+                ->withInput()
+                ->with('error', $e->getMessage())
+                ->with('kf_status_inline', true);
+        }
 
         Auth::login($user);
         $request->session()->regenerate();

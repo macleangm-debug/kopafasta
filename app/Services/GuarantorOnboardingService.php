@@ -141,21 +141,43 @@ class GuarantorOnboardingService
 
         $portal = app(PortalContextService::class);
         if ($portal->isBorrowerForInvitation($invitation, $customer)) {
-            throw new \InvalidArgumentException('You cannot guarantee your own loan application.');
+            throw new \InvalidArgumentException(__('borrower.guarantor_invite.cannot_guarantee_own'));
         }
 
         if ($invitation->guarantor_customer_id
             && (int) $invitation->guarantor_customer_id !== (int) $customer->id) {
-            throw new \InvalidArgumentException('This invitation is linked to another account.');
+            $linked = Customer::query()->find($invitation->guarantor_customer_id);
+            // Trusted invite registration: reclaim when this phone matches the invite but the
+            // previously linked account does not (stale link after edit/replace UAT).
+            $canReclaim = $fromTrustedSession
+                && $this->phoneMatchesInvitation($invitation, (string) ($customer->phone ?? ''))
+                && (
+                    ! $linked
+                    || ! $this->phoneMatchesInvitation($invitation, (string) ($linked->phone ?? ''))
+                );
+
+            if (! $canReclaim) {
+                throw new \InvalidArgumentException(__('borrower.guarantor_invite.invite_linked_other'));
+            }
         }
 
         if (! $fromTrustedSession
             && ! $invitation->guarantor_customer_id
             && ! $portal->canActAsGuarantorFor($invitation, $customer)) {
-            throw new \InvalidArgumentException('This invitation does not match your account details.');
+            throw new \InvalidArgumentException(__('borrower.guarantor_invite.register_phone_mismatch'));
         }
 
-        $invitation->update(['guarantor_customer_id' => $customer->id]);
+        $updates = ['guarantor_customer_id' => $customer->id];
+        // Invites wrongly left "accepted" under a stale linked account must return to pending
+        // so the correct invitee can accept after registering.
+        if (in_array((string) $invitation->status, ['accepted', 'opened', 'sent'], true)
+            && (int) ($invitation->guarantor_customer_id ?? 0) !== (int) $customer->id) {
+            $updates['status'] = 'pending';
+            $updates['responded_at'] = null;
+            $updates['response_notes'] = null;
+        }
+
+        $invitation->update($updates);
 
         if ($guarantor = $invitation->customerGuarantor?->guarantor) {
             $guarantor->update([
