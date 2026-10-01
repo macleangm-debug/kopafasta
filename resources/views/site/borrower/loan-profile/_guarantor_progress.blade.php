@@ -449,9 +449,6 @@
                                                     'text-brand' => ! $isComplete && $isCurrent,
                                                     'text-gray-400' => ! $isComplete && ! $isCurrent,
                                                 ])>{{ $step['label'] ?? '' }}</p>
-                                                @if ($isProfile && $isCurrent && $percent !== null)
-                                                    <p class="text-xs font-bold text-brand tabular-nums mt-0.5">{{ (int) $percent }}%</p>
-                                                @endif
                                             </div>
                                         </li>
                                     @endforeach
