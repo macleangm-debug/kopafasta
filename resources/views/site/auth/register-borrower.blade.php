@@ -148,11 +148,6 @@
                         </div>
                     </div>
                     <div class="px-5 pt-5 pb-6 sm:px-6 sm:pb-7">
-                    @if ($isGuarantorRegistration && ! empty($prefill['borrower_name']))
-                        <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">
-                            {{ __('borrower.guarantor_invite.register_banner', ['borrower' => $prefill['borrower_name']]) }}
-                        </div>
-                    @endif
                     @if (session('status'))
                         <div class="mb-6 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900">{{ session('status') }}</div>
                     @endif

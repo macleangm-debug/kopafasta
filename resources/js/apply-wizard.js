@@ -4356,10 +4356,13 @@ export function applyWizard(config) {
                         const data = await res.json().catch(() => ({}));
                         if (! res.ok || ! data.ok || ! data.share) {
                             const message = data.message || this.i18n.alerts.guarantor_invite_failed;
-                            if (data.errors?.phone?.[0] || /phone|simu|member/i.test(message)) {
+                            // Field-attached only — do not also fill the summary card for the same error.
+                            if (data.errors?.phone?.[0] || /phone|simu|member|namba|akaunti/i.test(message)) {
                                 this.guarantorErrors = { ...this.guarantorErrors, external_phone: message };
+                                this.guarantorInviteError = '';
+                            } else {
+                                this.guarantorInviteError = message;
                             }
-                            this.guarantorInviteError = message;
                             return false;
                         }
                         this.externalGuarantor = {
@@ -4870,6 +4873,8 @@ export function applyWizard(config) {
                                     return;
                                 }
                                 if (this.supplementApplicationUrl) {
+                                    // Keep advancing true through navigation (same as feeNavigating).
+                                    this.feeNavigating = true;
                                     window.location.href = this.supplementApplicationUrl;
                                     return;
                                 }

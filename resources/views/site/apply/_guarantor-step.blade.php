@@ -323,7 +323,7 @@
                         <p class="mt-1 text-sky-800">{{ __('borrower.apply.guarantor_fields.generating_link_hint') }}</p>
                     </div>
                 </div>
-                <div class="sm:col-span-2" x-show="guarantorInviteError && !guarantorInvitePreparing" x-cloak>
+                <div class="sm:col-span-2" x-show="guarantorInviteError && !guarantorInvitePreparing && Object.keys(guarantorErrors || {}).length === 0" x-cloak>
                     <div class="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-900">
                         <p class="font-semibold">{{ __('borrower.apply.guarantor_fields.invite_failed_title') }}</p>
                         <p class="mt-1" x-text="guarantorInviteError"></p>
