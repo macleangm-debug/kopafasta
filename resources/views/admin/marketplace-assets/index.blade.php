@@ -1,11 +1,11 @@
-<x-admin.layout title="Marketplace Assets" heading="" subheading="">
+<x-admin.layout :title="__('admin.marketplace.title')" heading="" subheading="">
     @php
         $canManage = auth()->user()?->hasPermission('marketplace.manage');
     @endphp
 
     <x-admin.letterhead
         kicker="Assets"
-        title="Marketplace assets"
+        :title="__('admin.marketplace.title')"
         subtitle="Listings customers can finance — keep photos, pricing, and availability current.">
         <x-slot:actions>
             @if ($canManage)
@@ -63,14 +63,14 @@
                         <td class="px-4 py-3">{{ format_money($asset->customer_deposit ?: $asset->computeCustomerDeposit()) }}</td>
                         <td class="px-4 py-3">{{ $asset->is_active ? 'Active' : 'Inactive' }}</td>
                         <td class="px-4 py-3 text-right space-x-3">
-                            <a class="text-amber-700 font-semibold" href="{{ route('admin.marketplace-assets.show', $asset) }}">View</a>
+                            <a class="text-amber-700 font-semibold" href="{{ route('admin.marketplace-assets.show', $asset) }}">{{ __('admin.marketplace.view') }}</a>
                             @if ($canManage)
                                 <a class="text-gray-600 font-semibold" href="{{ route('admin.marketplace-assets.edit', $asset) }}">Edit</a>
                             @endif
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No marketplace assets yet.</td></tr>
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">{{ __('admin.marketplace.empty') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -14,15 +14,15 @@
         $tab = 'do_now';
     }
 @endphp
-<x-admin.layout title="Credit screening" heading="" subheading="">
+<x-admin.layout :title="__('admin.screening.title')" heading="" subheading="">
 
     <section class="mb-6">
         <div class="rounded-2xl overflow-hidden ring-1 ring-brand/15 shadow-sm">
             <div class="bg-gradient-to-br from-brand via-brand to-brand-light px-6 py-7 text-white">
-                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">Credit desk</p>
-                <h1 class="text-2xl sm:text-3xl font-bold mt-1">Credit screening</h1>
+                <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">{{ __('admin.screening.kicker') }}</p>
+                <h1 class="text-2xl sm:text-3xl font-bold mt-1">{{ __('admin.screening.title') }}</h1>
                 <p class="text-sm text-white/75 mt-2 max-w-2xl">
-                    Every open file stays visible. Guided Review is the easiest way through the same Review Checklist.
+                    {{ __('admin.screening.subtitle') }}
                 </p>
             </div>
             @php $sorted = app(\App\Services\ApplicationIntakeReadinessService::class)->systemSortedCounts(); @endphp
@@ -45,9 +45,9 @@
             </div>
             <div class="bg-white px-4 sm:px-6 py-4 flex flex-wrap gap-2">
                 @foreach ([
-                    'do_now' => 'Do now · '.count($queue['do_now']),
-                    'waiting' => 'Waiting · '.count($queue['waiting']),
-                    'completed' => 'Completed · '.count($queue['completed']),
+                    'do_now' => __('admin.screening.bucket_do_now').' · '.count($queue['do_now']),
+                    'waiting' => __('admin.screening.bucket_waiting').' · '.count($queue['waiting']),
+                    'completed' => __('admin.screening.bucket_completed').' · '.count($queue['completed']),
                 ] as $key => $label)
                     <a href="{{ route('admin.teams.screening', ['bucket' => $key]) }}"
                        @class([
@@ -118,7 +118,7 @@
                 </div>
             </div>
         @empty
-            <p class="text-sm text-slate-600">Nothing in this list.</p>
+            <p class="text-sm text-slate-600">{{ __('admin.screening.empty') }}</p>
         @endforelse
     </div>
 

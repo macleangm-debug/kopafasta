@@ -90,8 +90,8 @@
          'guestName' => trim($guestFirstName.' '.$guestLastName),
          'guestPhone' => (string) ($guestPhone ?? ''),
          'guestIdentityHint' => $isSw
-             ? 'Kabla ya Ongea na mtoa huduma, andika jina la kwanza, jina la mwisho na namba ya simu (si usajili).'
-             : 'Before talking to an agent, enter your first name, last name and phone (not registration).',
+             ? 'Kabla ya kuanza mazungumzo, andika jina la kwanza, jina la mwisho na namba ya simu (si usajili).'
+             : 'Before starting the conversation, enter your first name, last name and phone (not registration).',
          'guestFirstNameLabel' => $isSw ? 'Jina la kwanza' : 'First name',
          'guestLastNameLabel' => $isSw ? 'Jina la mwisho' : 'Last name',
          'guestPhoneLabel' => $isSw ? 'Namba ya simu' : 'Phone number',
@@ -108,19 +108,24 @@
          'seedMessages' => $seedMessages,
          'startHuman' => $startHuman,
          'pollMs' => 2000,
+         'responseDelayMinMs' => 1000,
+         'responseDelayMaxMs' => 2000,
          'conversationId' => $conversation?->id,
          'conversationNumber' => $conversation instanceof \App\Models\SupportConversation ? $conversation->publicNumber() : null,
          'agentFirstName' => $presence['agent_first_name'],
          'presence' => $presence['presence'],
          'statusOnline' => 'Waiting for support',
          'statusAssigned' => 'Agent assigned',
-         'tagline' => 'Kwa ajili yako · Here to help',
+         'tagline' => $automationMode
+             ? ($isSw ? 'Msaidizi wa kidijitali · Digital assistant' : 'Digital assistant · Here to help')
+             : 'Kwa ajili yako · Here to help',
          'brandTitle' => $automationMode
              ? ($isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant')
              : 'Kopafasta Support',
          'assignedSuffix' => 'Customer Support',
          'deskLabel' => $presence['desk_label'] ?? 'Waiting for support',
-         'automationDesk' => $isSw ? 'Otomatiki' : 'Automated',
+         'automationDesk' => $isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant',
+         'personaDisplay' => null,
          'showRating' => (bool) $showRating,
          'ratingUrl' => $ratingUrl,
          'composerLocked' => (bool) $composerLocked,
@@ -143,7 +148,9 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <p class="text-[15px] sm:text-base font-bold tracking-tight truncate"
-                           x-text="agentFirstName ? (agentFirstName + ' · ' + config.assignedSuffix) : config.brandTitle"></p>
+                           x-text="agentFirstName
+                                ? (agentFirstName + ' · ' + config.assignedSuffix)
+                                : (config.personaDisplay || config.brandTitle)"></p>
                         <span class="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide">
                             <span class="size-1.5 rounded-full"
                                   :class="presence === 'assigned' ? 'bg-brand-gold' : 'bg-emerald-300'"></span>
@@ -211,7 +218,7 @@
         </div>
     @endif
 
-    <div class="rounded-xl bg-gradient-to-b from-brand-muted/30 to-white border border-gray-100/80 p-3.5 max-h-80 overflow-y-auto space-y-2.5 text-[15px] mb-3" x-ref="scroll">
+    <div x-show="!needsGuestGate" x-cloak class="rounded-xl bg-gradient-to-b from-brand-muted/30 to-white border border-gray-100/80 p-3.5 max-h-80 overflow-y-auto space-y-2.5 text-[15px] mb-3" x-ref="scroll">
         <template x-for="(msg, i) in messages" :key="msg.id || ('m-'+i)">
             <div class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
                 <div :class="msg.role === 'user' ? 'kf-support-bubble kf-support-bubble--outbound' : 'kf-support-bubble kf-support-bubble--inbound'">
@@ -301,9 +308,20 @@
         <script>
             document.addEventListener('alpine:init', function () {
                 Alpine.data('aiSupportChat', function (config) {
-                    var seeded = (config.seedMessages && config.seedMessages.length)
-                        ? config.seedMessages.slice()
-                        : [{ role: 'bot', text: config.greeting }];
+                    var guestAlreadyReady = !!(config.guestFirstName || '').trim()
+                        && !!(config.guestLastName || '').trim()
+                        && String(config.guestPhone || '').replace(/\D/g, '').length >= 9;
+                    // Guests must not see a conversation thread until identity is confirmed.
+                    var seeded;
+                    if (config.needsGuestIdentity && !guestAlreadyReady) {
+                        seeded = [];
+                    } else if (config.seedMessages && config.seedMessages.length) {
+                        seeded = config.seedMessages.slice();
+                    } else if (config.automationMode) {
+                        seeded = [];
+                    } else {
+                        seeded = [{ role: 'bot', text: config.greeting }];
+                    }
                     return {
                         config: config,
                         input: '',
@@ -416,6 +434,13 @@
                             }
                             this.choices = data.choices || [];
                             if (data.composer_locked) this.composerLocked = true;
+                            if (data.persona_display) {
+                                this.config.personaDisplay = data.persona_display;
+                                this.config.brandTitle = data.persona_display;
+                            }
+                            if (data.handling_label) {
+                                this.config.deskLabel = data.handling_label;
+                            }
                             if (data.mode === 'human' || data.needs_human) {
                                 this.humanMode = true;
                                 this.automationMode = false;
@@ -427,9 +452,6 @@
                                     this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2000);
                                 }
                             }
-                            if (data.handling_label) {
-                                this.config.deskLabel = data.handling_label;
-                            }
                             if (data.ticket_number) {
                                 this.config.conversationNumber = data.ticket_number;
                             }
@@ -437,6 +459,12 @@
                                 this.pendingEscalate = true;
                             }
                             this.scrollBottom();
+                        },
+                        paceDelay() {
+                            var min = Number(config.responseDelayMinMs || 1000);
+                            var max = Number(config.responseDelayMaxMs || 2000);
+                            if (max < min) max = min;
+                            return min + Math.floor(Math.random() * (max - min + 1));
                         },
                         async runAutomation(action, extra) {
                             if (!config.automationUrl || this.typing) return;
@@ -446,7 +474,7 @@
                                 action: action,
                                 conversation_id: this.conversationId || null,
                             }, extra || {});
-                            if (config.guestMayEscalate) {
+                            if (config.guestMayEscalate || config.needsGuestIdentity) {
                                 payload.guest_first_name = (this.guestFirstName || '').trim();
                                 payload.guest_last_name = (this.guestLastName || '').trim();
                                 payload.guest_name = (this.guestName || '').trim()
@@ -454,6 +482,7 @@
                                 payload.guest_phone = (this.guestPhone || '').trim();
                             }
                             var self = this;
+                            var startedAt = Date.now();
                             try {
                                 var res = await fetch(config.automationUrl, {
                                     method: 'POST',
@@ -473,6 +502,8 @@
                                     self.typing = false;
                                     return;
                                 }
+                                var wait = Math.max(0, self.paceDelay() - (Date.now() - startedAt));
+                                await new Promise(function (resolve) { setTimeout(resolve, wait); });
                                 self.applyAutomation(data);
                             } catch (e) {
                                 self.sendError = 'Imeshindikana. Jaribu tena.';

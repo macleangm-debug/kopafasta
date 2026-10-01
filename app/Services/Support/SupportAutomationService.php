@@ -26,6 +26,15 @@ class SupportAutomationService
 
     public const STATE_RESOLVED_SUPPORT = 'resolved_support';
 
+    /** Named digital assistants — never presented as human employees. */
+    public const PERSONAS = [
+        ['key' => 'amani', 'name' => 'Amani'],
+        ['key' => 'neema', 'name' => 'Neema'],
+        ['key' => 'baraka', 'name' => 'Baraka'],
+        ['key' => 'rehema', 'name' => 'Rehema'],
+        ['key' => 'daniel', 'name' => 'Daniel'],
+    ];
+
     public function __construct(
         private readonly SupportHelpLibraryService $help,
         private readonly SupportConversationService $conversations,
@@ -75,17 +84,67 @@ class SupportAutomationService
             ->all();
     }
 
-    public function greeting(?string $locale = null): string
+    /**
+     * @return array{key: string, name: string}
+     */
+    public function personas(): array
     {
-        return $this->isSw($locale)
-            ? 'Habari. Mimi ni Msaidizi wa Kopafasta. Ninaweza kukusaidia saa 24. Unahitaji msaada kuhusu nini?'
-            : 'Hello. I am the Kopafasta Assistant. I can help 24/7. What do you need help with?';
+        return self::PERSONAS;
     }
 
-    public function resolvedPrompt(?string $locale = null): string
+    public function personaDisplayName(string $personaName, ?string $locale = null): string
     {
         return $this->isSw($locale)
-            ? 'Je, tatizo limetatuliwa?'
+            ? $personaName.' · Msaidizi wa Kopafasta'
+            : $personaName.' · Kopafasta Assistant';
+    }
+
+    public function greeting(?string $locale = null, ?string $firstName = null, ?string $personaName = null): string
+    {
+        $personaName = $personaName ?: 'Amani';
+        $name = trim((string) $firstName);
+        $sw = $this->isSw($locale);
+
+        if ($sw) {
+            $variants = $name !== ''
+                ? [
+                    "Habari {$name}, mimi ni {$personaName}, Msaidizi wa Kopafasta. Nipo hapa kukusaidia. Unahitaji msaada kuhusu nini?",
+                    "Shikamoo {$name}. Mimi ni {$personaName}, Msaidizi wa Kopafasta. Niambie unahitaji msaada gani leo.",
+                    "Habari {$name}. Mimi ni {$personaName} · Msaidizi wa Kopafasta. Naweza kukusaidia sasa — unahitaji nini?",
+                ]
+                : [
+                    "Habari, mimi ni {$personaName}, Msaidizi wa Kopafasta. Nipo hapa kukusaidia. Unahitaji msaada kuhusu nini?",
+                    "Shikamoo. Mimi ni {$personaName}, Msaidizi wa Kopafasta. Niambie unahitaji msaada gani.",
+                    "Habari. Mimi ni {$personaName} · Msaidizi wa Kopafasta. Naweza kukusaidia — unahitaji nini?",
+                ];
+        } else {
+            $variants = $name !== ''
+                ? [
+                    "Hello {$name}, I’m {$personaName}, Kopafasta Assistant. I’m here to help. What do you need help with?",
+                    "Hi {$name}. I’m {$personaName}, Kopafasta Assistant. Tell me what you need help with today.",
+                    "Hello {$name}. I’m {$personaName} · Kopafasta Assistant. How can I help you?",
+                ]
+                : [
+                    "Hello, I’m {$personaName}, Kopafasta Assistant. I’m here to help. What do you need help with?",
+                    "Hi. I’m {$personaName}, Kopafasta Assistant. Tell me what you need help with.",
+                    "Hello. I’m {$personaName} · Kopafasta Assistant. How can I help you?",
+                ];
+        }
+
+        return $variants[array_rand($variants)];
+    }
+
+    public function resolvedPrompt(?string $locale = null, ?string $firstName = null): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            return $name !== ''
+                ? "Je, {$name}, tatizo limetatuliwa?"
+                : 'Je, tatizo limetatuliwa?';
+        }
+
+        return $name !== ''
+            ? "{$name}, was the issue resolved?"
             : 'Was the issue resolved?';
     }
 
@@ -109,6 +168,7 @@ class SupportAutomationService
         ?string $guestPhone = null,
         ?string $workspace = null,
         ?string $locale = null,
+        ?string $guestFirstName = null,
     ): array {
         $conversation = $this->openAutomated($customer, $user, $guestName, $guestPhone);
 
@@ -120,14 +180,23 @@ class SupportAutomationService
         $meta['category_key'] = null;
         $meta['issue_slug'] = null;
         $meta['steps_attempted'] = $meta['steps_attempted'] ?? [];
+        $persona = $this->ensurePersona($meta);
+        $firstName = $this->resolveFirstName($customer, $guestFirstName, $guestName, $conversation);
+        $meta['customer_first_name'] = $firstName;
 
-        $hasGreeting = $conversation->messages()
-            ->where('is_automated', true)
-            ->where('body', $this->greeting($locale))
-            ->exists();
+        $hasBot = $conversation->messages()->where('is_automated', true)->exists()
+            || $conversation->messages()->where('sender_type', 'bot')->exists();
 
-        if (! $hasGreeting && $conversation->messages()->count() === 0) {
-            $this->conversations->appendMessage($conversation, 'bot', $this->greeting($locale), null, true, false);
+        if (! $hasBot && $conversation->messages()->count() === 0) {
+            $this->conversations->appendMessage(
+                $conversation,
+                'bot',
+                $this->greeting($locale, $firstName, $persona['name']),
+                null,
+                true,
+                false,
+            );
+            $meta['greeting_sent'] = true;
         }
 
         $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
@@ -158,7 +227,16 @@ class SupportAutomationService
             'resolved_yes' => $this->resolveAutomated($conversation, $locale),
             'resolved_no' => $this->continueOrEscalate($conversation, $customer, $user, $audience, $workspace, $locale),
             'escalate' => $this->escalateToHuman($conversation, $customer, $user, $input, $locale),
-            'start' => $this->start($customer, $user, $audience, $conversation->guest_name, $conversation->guest_phone, is_string($workspace) ? $workspace : null, $locale),
+            'start' => $this->start(
+                $customer,
+                $user,
+                $audience,
+                $conversation->guest_name,
+                $conversation->guest_phone,
+                is_string($workspace) ? $workspace : null,
+                $locale,
+                isset($input['guest_first_name']) ? (string) $input['guest_first_name'] : null,
+            ),
             default => throw new \InvalidArgumentException('Unknown automation action.'),
         };
     }
@@ -213,6 +291,8 @@ class SupportAutomationService
         }
 
         $ticket = $conversation->tickets()->latest('id')->first();
+        $persona = $this->personaFromMeta($meta);
+        $firstName = (string) ($meta['customer_first_name'] ?? '');
 
         return array_merge([
             'ok' => true,
@@ -220,7 +300,11 @@ class SupportAutomationService
             'conversation_id' => $conversation->id,
             'conversation_number' => $conversation->publicNumber(),
             'handling_state' => $handling,
-            'handling_label' => $this->handlingLabel($handling, $locale),
+            'handling_label' => $this->customerFacingHandlingLabel($handling, $persona['name'], $locale),
+            'persona_key' => $persona['key'],
+            'persona_name' => $persona['name'],
+            'persona_display' => $this->personaDisplayName($persona['name'], $locale),
+            'customer_first_name' => $firstName,
             'phase' => $phase,
             'choices' => $choices,
             'composer_locked' => in_array($handling, [self::STATE_RESOLVED_AUTOMATED, self::STATE_RESOLVED_SUPPORT], true)
@@ -237,10 +321,27 @@ class SupportAutomationService
         ));
     }
 
+    /**
+     * Customer-facing desk label — never exposes “automated/bot” wording.
+     */
+    public function customerFacingHandlingLabel(string $state, string $personaName, ?string $locale = null): string
+    {
+        $sw = $this->isSw($locale);
+
+        return match ($state) {
+            self::STATE_AUTOMATED, self::STATE_WAITING_CUSTOMER => $this->personaDisplayName($personaName, $locale),
+            self::STATE_ESCALATED => $sw ? 'Inasubiri mtoa huduma' : 'Waiting for support',
+            self::STATE_HUMAN => $sw ? 'Mtoa huduma' : 'Human support',
+            self::STATE_RESOLVED_AUTOMATED, self::STATE_RESOLVED_SUPPORT => $sw ? 'Imetatuliwa' : 'Resolved',
+            default => $this->handlingLabel($state, $locale),
+        };
+    }
+
     public function handlingLabel(string $state, ?string $locale = null): string
     {
         $sw = $this->isSw($locale);
 
+        // Internal/staff metadata labels (may mention automated).
         return match ($state) {
             self::STATE_AUTOMATED => $sw ? 'Otomatiki' : 'Automated',
             self::STATE_WAITING_CUSTOMER => $sw ? 'Inasubiri mteja' : 'Waiting for customer',
@@ -269,10 +370,12 @@ class SupportAutomationService
             $meta['category_key'] = null;
             $meta['issue_slug'] = null;
             $meta['tried_slugs'] = [];
+            $persona = $this->ensurePersona($meta);
+            $firstName = (string) ($meta['customer_first_name'] ?? '');
             $this->conversations->appendMessage(
                 $conversation,
                 'bot',
-                $this->greeting($locale),
+                $this->greeting($locale, $firstName !== '' ? $firstName : null, $persona['name']),
                 null,
                 true,
                 false,
@@ -294,9 +397,8 @@ class SupportAutomationService
         $meta['phase'] = 'issue';
         $meta['steps_attempted'][] = ['type' => 'category', 'key' => $key, 'at' => now()->toIso8601String()];
 
-        $prompt = $this->isSw($locale)
-            ? 'Tatizo lako ni lipi?'
-            : 'What is your issue?';
+        $firstName = (string) ($meta['customer_first_name'] ?? '');
+        $prompt = $this->askIssuePrompt($locale, $firstName !== '' ? $firstName : null);
         $this->conversations->appendMessage($conversation, 'bot', $prompt, null, true, false);
         $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
 
@@ -374,7 +476,7 @@ class SupportAutomationService
             return $this->payload($conversation->fresh(['messages', 'tickets', 'assignedTo']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
         }
 
-        $this->conversations->appendMessage($conversation, 'bot', $this->resolvedPrompt($locale), null, true, false);
+        $this->conversations->appendMessage($conversation, 'bot', $this->resolvedPrompt($locale, (string) ($meta['customer_first_name'] ?? '') ?: null), null, true, false);
         $meta['phase'] = 'confirm';
         $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
 
@@ -390,9 +492,8 @@ class SupportAutomationService
         $meta['phase'] = 'done';
         $yes = $this->isSw($locale) ? 'Ndiyo' : 'Yes';
         $this->conversations->appendMessage($conversation, 'customer', $yes, null, false, false);
-        $thanks = $this->isSw($locale)
-            ? 'Asante. Mazungumzo yamefungwa kama Imetatuliwa — Otomatiki. Unaweza kuanza mazungumzo mapya ukihitaji msaada mwingine.'
-            : 'Thank you. This conversation is closed as Resolved — Automated. Start a new chat if you need help with something else.';
+        $firstName = (string) ($meta['customer_first_name'] ?? '');
+        $thanks = $this->closeResolvedCopy($locale, $firstName !== '' ? $firstName : null);
         $this->conversations->appendMessage($conversation, 'bot', $thanks, null, true, false);
 
         $conversation->update([
@@ -429,10 +530,10 @@ class SupportAutomationService
             ->reject(fn (array $i) => in_array($i['slug'], $meta['tried_slugs'] ?? [], true))
             ->values();
 
+        $firstName = (string) ($meta['customer_first_name'] ?? '');
+
         if ($remaining->isNotEmpty()) {
-            $prompt = $this->isSw($locale)
-                ? 'Sawa. Hebu tujaribu hatua nyingine inayohusiana. Chagua tatizo linalofuata:'
-                : 'Understood. Let’s try the next related step. Choose the next issue:';
+            $prompt = $this->continuePathCopy($locale, $firstName !== '' ? $firstName : null);
             $this->conversations->appendMessage($conversation, 'bot', $prompt, null, true, false);
             $meta['phase'] = 'issue';
             $meta['issue_slug'] = null;
@@ -441,9 +542,7 @@ class SupportAutomationService
             return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
         }
 
-        $offer = $this->isSw($locale)
-            ? 'Tumemaliza hatua za otomatiki zinazohusiana na suala hili. Unaweza Ongea na mtoa huduma — ataona historia yote.'
-            : 'We have finished the relevant automated steps for this issue. You can talk to a support agent — they will see the full history.';
+        $offer = $this->handoverOfferCopy($locale, $firstName !== '' ? $firstName : null);
         $this->conversations->appendMessage($conversation, 'bot', $offer, null, true, false);
         $meta['phase'] = 'escalate_offer';
         $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
@@ -476,8 +575,17 @@ class SupportAutomationService
             ]);
         }
 
+        $firstName = trim((string) ($input['guest_first_name'] ?? $meta['customer_first_name'] ?? ''));
+        if ($firstName === '') {
+            $firstName = $this->resolveFirstName($customer, null, $guestName, $conversation) ?? '';
+        }
+        $meta['customer_first_name'] = $firstName;
+
         $label = $this->humanOfferLabel($locale);
         $this->conversations->appendMessage($conversation, 'customer', $label, $user?->id, false, false);
+
+        $handover = $this->handoverConfirmedCopy($locale, $firstName !== '' ? $firstName : null);
+        $this->conversations->appendMessage($conversation, 'bot', $handover, null, true, false);
 
         $meta['phase'] = 'human';
         $meta['steps_attempted'][] = ['type' => 'escalate', 'at' => now()->toIso8601String()];
@@ -491,7 +599,7 @@ class SupportAutomationService
             $customer,
             $user,
             $body,
-            $meta['issue_slug'] ?? $meta['category_key'] ?? 'Automated escalation',
+            $meta['issue_slug'] ?? $meta['category_key'] ?? 'Support escalation',
             $guestName !== '' ? $guestName : null,
             $guestPhone !== '' ? $guestPhone : null,
             'web_chat',
@@ -709,5 +817,155 @@ class SupportAutomationService
         $locale = $locale ?? app()->getLocale();
 
         return str_starts_with(strtolower((string) $locale), 'sw');
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     * @return array{key: string, name: string}
+     */
+    private function ensurePersona(array &$meta): array
+    {
+        $existing = $this->personaFromMeta($meta);
+        if (($meta['persona_key'] ?? null) === $existing['key'] && filled($meta['persona_name'] ?? null)) {
+            return $existing;
+        }
+
+        $persona = self::PERSONAS[array_rand(self::PERSONAS)];
+        $meta['persona_key'] = $persona['key'];
+        $meta['persona_name'] = $persona['name'];
+
+        return $persona;
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     * @return array{key: string, name: string}
+     */
+    private function personaFromMeta(array $meta): array
+    {
+        $key = (string) ($meta['persona_key'] ?? '');
+        foreach (self::PERSONAS as $persona) {
+            if ($persona['key'] === $key) {
+                return $persona;
+            }
+        }
+
+        return self::PERSONAS[0];
+    }
+
+    private function resolveFirstName(
+        ?Customer $customer,
+        ?string $guestFirstName,
+        ?string $guestName,
+        ?SupportConversation $conversation = null,
+    ): ?string {
+        $first = trim((string) $guestFirstName);
+        if ($first !== '') {
+            return $first;
+        }
+
+        if ($customer) {
+            $fromCustomer = trim((string) ($customer->first_name ?? ''));
+            if ($fromCustomer !== '') {
+                return $fromCustomer;
+            }
+        }
+
+        $full = trim((string) ($guestName ?: $conversation?->guest_name));
+        if ($full !== '') {
+            $parts = preg_split('/\s+/', $full) ?: [];
+
+            return trim((string) ($parts[0] ?? '')) ?: null;
+        }
+
+        return null;
+    }
+
+    private function askIssuePrompt(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            $variants = $name !== ''
+                ? [
+                    "Sawa {$name}. Tatizo lako ni lipi hasa?",
+                    "Asante {$name}. Chagua suala unalotaka msaada nalo:",
+                    "Nimeelewa {$name}. Unahitaji msaada kuhusu nini kati ya hivi?",
+                ]
+                : [
+                    'Sawa. Tatizo lako ni lipi hasa?',
+                    'Asante. Chagua suala unalotaka msaada nalo:',
+                    'Nimeelewa. Unahitaji msaada kuhusu nini kati ya hivi?',
+                ];
+        } else {
+            $variants = $name !== ''
+                ? [
+                    "Got it {$name}. What is your issue?",
+                    "Thanks {$name}. Choose the issue you need help with:",
+                    "Understood {$name}. Which of these do you need help with?",
+                ]
+                : [
+                    'Got it. What is your issue?',
+                    'Thanks. Choose the issue you need help with:',
+                    'Understood. Which of these do you need help with?',
+                ];
+        }
+
+        return $variants[array_rand($variants)];
+    }
+
+    private function continuePathCopy(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            return $name !== ''
+                ? "Sawa {$name}. Hebu tujaribu njia nyingine inayohusiana. Chagua tatizo linalofuata:"
+                : 'Sawa. Hebu tujaribu njia nyingine inayohusiana. Chagua tatizo linalofuata:';
+        }
+
+        return $name !== ''
+            ? "Understood {$name}. Let’s try another related path. Choose the next issue:"
+            : 'Understood. Let’s try another related path. Choose the next issue:';
+    }
+
+    private function handoverOfferCopy(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            return $name !== ''
+                ? "Sawa {$name}. Hili linahitaji msaada zaidi. Unaweza Ongea na mtoa huduma — ataona historia yote."
+                : 'Sawa. Hili linahitaji msaada zaidi. Unaweza Ongea na mtoa huduma — ataona historia yote.';
+        }
+
+        return $name !== ''
+            ? "Alright {$name}. This needs a bit more help. You can talk to a support agent — they will see the full history."
+            : 'Alright. This needs a bit more help. You can talk to a support agent — they will see the full history.';
+    }
+
+    private function handoverConfirmedCopy(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            return $name !== ''
+                ? "Sawa {$name}. Hili linahitaji msaada zaidi. Nitakupitisha kwa mmoja wa watoa huduma wetu ili akusaidie."
+                : 'Sawa. Hili linahitaji msaada zaidi. Nitakupitisha kwa mmoja wa watoa huduma wetu ili akusaidie.';
+        }
+
+        return $name !== ''
+            ? "Alright {$name}. This needs more help. I’ll connect you with one of our support agents."
+            : 'Alright. This needs more help. I’ll connect you with one of our support agents.';
+    }
+
+    private function closeResolvedCopy(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            return $name !== ''
+                ? "Asante {$name}. Nimefunga mazungumzo haya kama yaliyotatuliwa. Anza mazungumzo mapya ukihitaji msaada mwingine."
+                : 'Asante. Nimefunga mazungumzo haya kama yaliyotatuliwa. Anza mazungumzo mapya ukihitaji msaada mwingine.';
+        }
+
+        return $name !== ''
+            ? "Thank you {$name}. I’ve closed this conversation as resolved. Start a new chat if you need help with something else."
+            : 'Thank you. I’ve closed this conversation as resolved. Start a new chat if you need help with something else.';
     }
 }

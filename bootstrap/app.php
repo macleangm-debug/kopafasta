@@ -25,6 +25,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -70,7 +71,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 return route('staff.login');
             }
 
-            if ($request->is('borrower*', 'apply*', 'login', 'register*')) {
+            if ($request->is('partner*', 'vendor*', 'vendor-portal*', 'login/partner')) {
+                return route('site.login', ['portal' => 'partner']);
+            }
+
+            if ($request->is('borrower*', 'apply*', 'login', 'register*', 'investor*')) {
                 return route('site.login');
             }
 
@@ -117,6 +122,76 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->stopIgnoring(AuthorizationException::class);
 
+        $loginFor = static function (Request $request): string {
+            if ($request->is('staff', 'staff/*')) {
+                return route('staff.login');
+            }
+            if ($request->is('partner*', 'vendor*', 'vendor-portal*', 'login/partner')) {
+                return route('site.login', ['portal' => 'partner']);
+            }
+            if ($request->is('borrower*', 'apply*', 'login', 'register*', 'investor*', 'support*', 'feedback*')) {
+                return route('site.login');
+            }
+            if ($request->is('admin*', 'ladmin*')) {
+                return route('admin.login');
+            }
+
+            return route('site.login');
+        };
+
+        // Expired/unauthenticated session → clean login redirect (preserve intended URL).
+        $exceptions->render(function (AuthenticationException $e, Request $request) use ($loginFor) {
+            $message = __('site.auth.session_expired');
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $message,
+                    'session_expired' => true,
+                ], 401);
+            }
+
+            $login = $e->redirectTo($request) ?: $loginFor($request);
+
+            return redirect()->guest($login)->with('status', $message);
+        });
+
+        $sessionExpiredRedirect = static function (Request $request) use ($loginFor) {
+            $message = __('site.auth.session_expired');
+            $protected = $request->is(
+                'borrower*', 'partner*', 'vendor*', 'vendor-portal*', 'investor*',
+                'admin*', 'ladmin*', 'staff*', 'apply*'
+            );
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $message,
+                    'session_expired' => true,
+                ], 419);
+            }
+
+            if ($protected) {
+                return redirect()->guest($loginFor($request))->with('status', $message);
+            }
+
+            return null;
+        };
+
+        // CSRF/session expiry on protected POST must not dump a raw 419 page.
+        // Laravel may wrap TokenMismatchException as HttpException(419).
+        $exceptions->render(function (TokenMismatchException $e, Request $request) use ($sessionExpiredRedirect) {
+            return $sessionExpiredRedirect($request);
+        });
+
+        $exceptions->render(function (HttpException $e, Request $request) use ($sessionExpiredRedirect) {
+            if ($e->getStatusCode() !== 419) {
+                return null;
+            }
+
+            return $sessionExpiredRedirect($request);
+        });
+
         // AJAX/fetch callers must get a short human message, never an exception page.
         $exceptions->render(function (Throwable $e, Request $request) {
             if (
@@ -125,6 +200,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 || $e instanceof AuthorizationException
                 || $e instanceof HttpException
                 || $e instanceof PostTooLargeException
+                || $e instanceof TokenMismatchException
             ) {
                 return null;
             }

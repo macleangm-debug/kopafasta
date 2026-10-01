@@ -1,8 +1,8 @@
 <x-admin.layout
-    title="Journal Entries"
+    :title="__('admin.accounting.journal.title')"
     heading=""
     subheading="">
-    <x-admin.letterhead kicker="Finance" title="Journal entries" subtitle="System-posted general ledger entries" />
+    <x-admin.letterhead :kicker="__('admin.accounting.journal.kicker')" :title="__('admin.accounting.journal.title')" :subtitle="__('admin.accounting.journal.subtitle')" />
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div class="bg-white rounded-xl ring-1 ring-gray-200 p-4">
@@ -20,16 +20,16 @@
     </div>
 
     <form method="GET" class="bg-white rounded-xl ring-1 ring-gray-200 p-4 mb-4 grid grid-cols-1 md:grid-cols-5 gap-3 text-sm">
-        <input name="q" value="{{ request('q') }}" placeholder="Search number / description" class="border border-gray-300 rounded-lg px-3 py-2">
+        <input name="q" value="{{ request('q') }}" placeholder="{{ __('admin.accounting.journal.search_placeholder') }}" class="border border-gray-300 rounded-lg px-3 py-2">
         <select name="status" class="border border-gray-300 rounded-lg px-3 py-2">
-            <option value="">All statuses</option>
+            <option value="">{{ __('admin.accounting.journal.all_statuses') }}</option>
             @foreach (['posted','draft','reversed'] as $s)
                 <option value="{{ $s }}" @selected(request('status')===$s)>{{ ucfirst($s) }}</option>
             @endforeach
         </select>
         <input type="date" name="from" value="{{ request('from') }}" class="border border-gray-300 rounded-lg px-3 py-2">
         <input type="date" name="to" value="{{ request('to') }}" class="border border-gray-300 rounded-lg px-3 py-2">
-        <button class="bg-brand-gold text-brand rounded-lg px-3 py-2 font-semibold">Filter</button>
+        <button class="bg-brand-gold text-brand rounded-lg px-3 py-2 font-semibold">{{ __('admin.accounting.journal.filter') }}</button>
     </form>
 
     <div class="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
@@ -62,11 +62,11 @@
                             'bg-gray-200 text-gray-700'       => $e->status === 'reversed',
                         ])>{{ $e->status }}</span></td>
                         <td class="px-4 py-2 text-right">
-                            <a href="{{ route('admin.journal-entries.show', $e) }}" class="text-amber-700 font-semibold hover:underline">View</a>
+                            <a href="{{ route('admin.journal-entries.show', $e) }}" class="text-amber-700 font-semibold hover:underline">{{ __('admin.accounting.journal.view') }}</a>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No journal entries yet.</td></tr>
+                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">{{ __('admin.accounting.journal.empty') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

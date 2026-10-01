@@ -115,6 +115,17 @@ class SupportAutomationController extends Controller
 
         try {
             if ($action === 'start') {
+                if (! $customer && ! $requireAuth) {
+                    if ($guestFirst === '' || $guestLast === '' || ! $guestPhone) {
+                        return response()->json([
+                            'ok' => false,
+                            'message' => str_starts_with(app()->getLocale(), 'sw')
+                                ? 'Andika jina la kwanza, jina la mwisho na namba ya simu kabla ya kuanza.'
+                                : 'Enter first name, last name and phone before starting.',
+                            'needs_guest' => true,
+                        ], 422);
+                    }
+                }
                 $payload = $this->automation->start(
                     $customer,
                     $requireAuth ? $user : null,
@@ -123,6 +134,7 @@ class SupportAutomationController extends Controller
                     $guestPhone,
                     $workspace,
                     app()->getLocale(),
+                    $guestFirst !== '' ? $guestFirst : null,
                 );
                 if (! empty($payload['conversation_id']) && $request->hasSession()) {
                     $request->session()->put('support_automation_conversation_id', (int) $payload['conversation_id']);

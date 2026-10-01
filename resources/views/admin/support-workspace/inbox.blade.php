@@ -65,19 +65,19 @@
 
     <div class="mb-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
         <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5">
-            <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">Waiting now</p>
+            <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">{{ __('admin.support.inbox.kpi_waiting_now') }}</p>
             <p class="text-xl font-bold text-amber-950">{{ (int) $queueKpis['waiting_now'] }}</p>
         </div>
         <div class="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2.5">
-            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Longest waiting</p>
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ __('admin.support.inbox.kpi_longest_waiting') }}</p>
             <p class="text-xl font-bold text-slate-900 font-mono">{{ $longestLabel }}</p>
         </div>
         <div class="rounded-xl bg-white ring-1 ring-slate-200 px-3 py-2.5">
-            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Accepted today</p>
+            <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ __('admin.support.inbox.kpi_accepted_today') }}</p>
             <p class="text-xl font-bold text-slate-900">{{ (int) $queueKpis['accepted_today'] }}</p>
         </div>
         <div class="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-3 py-2.5">
-            <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">Active now</p>
+            <p class="text-[10px] uppercase tracking-widest text-emerald-800 font-semibold">{{ __('admin.support.inbox.kpi_active_now') }}</p>
             <p class="text-xl font-bold text-emerald-950">{{ (int) $queueKpis['active_now'] }}</p>
         </div>
     </div>
@@ -105,10 +105,10 @@
             {{-- CONVERSATIONS --}}
             <aside class="bg-slate-50/90 border-b lg:border-b-0 lg:border-r border-slate-200/80 flex flex-col {{ $conversation ? 'hidden lg:flex' : 'flex' }}">
                 <div class="px-4 pt-4 pb-2 border-b border-slate-200/70 bg-white/70">
-                    <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">Conversations</p>
+                    <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">{{ __('admin.support.inbox.conversations') }}</p>
                 </div>
                 <form method="GET" action="{{ route('admin.support.inbox') }}" class="px-3 pt-3 pb-2 space-y-2">
-                    <input type="search" name="q" value="{{ $q }}" placeholder="Search name, phone, message…"
+                    <input type="search" name="q" value="{{ $q }}" placeholder="{{ __('admin.support.inbox.search_placeholder') }}"
                            class="w-full rounded-lg border-slate-200 text-sm bg-white focus:ring-brand/30">
                     <input type="hidden" name="filter" value="{{ $filter }}">
                 </form>
@@ -138,7 +138,7 @@
                                     @endif
                                 </div>
                                 <p class="text-sm text-slate-600 mt-0.5 truncate"
-                                   @if (($activeId ?? null) === $item['id']) x-text="activePreview || @js($item['preview'] ?: 'No messages yet')" @endif>{{ $item['preview'] ?: 'No messages yet' }}</p>
+                                   @if (($activeId ?? null) === $item['id']) x-text="activePreview || @js($item['preview'] ?: __('admin.support.inbox.no_messages_yet'))" @endif>{{ $item['preview'] ?: __('admin.support.inbox.no_messages_yet') }}</p>
                                 <p class="text-xs {{ ($item['waiting_label'] ?? null) ? 'text-amber-800 font-semibold' : 'text-slate-500' }} mt-0.5">
                                     <span @if (($activeId ?? null) === $item['id']) x-text="deskState || @js($item['desk_state'] ?? ucfirst($item['status']))" @endif>{{ $item['desk_state'] ?? ucfirst($item['status']) }}</span>
                                     @if ($item['waiting_label'] ?? null) · {{ $item['waiting_label'] }} @endif
@@ -147,7 +147,7 @@
                             </a>
                         </li>
                     @empty
-                        <li class="px-4 py-10 text-center text-sm text-slate-500">No conversations for this filter.</li>
+                        <li class="px-4 py-10 text-center text-sm text-slate-500">{{ __('admin.support.inbox.no_conversations_filter') }}</li>
                     @endforelse
                 </ul>
             </aside>
@@ -157,9 +157,9 @@
                 @if ($conversation)
                     <div class="px-4 py-3 border-b border-slate-200/80 flex items-start justify-between gap-3 bg-white">
                         <div class="min-w-0">
-                            <a href="{{ route('admin.support.inbox', ['filter' => $filter, 'q' => $q]) }}" class="lg:hidden text-sm font-semibold text-brand">← Conversations</a>
+                            <a href="{{ route('admin.support.inbox', ['filter' => $filter, 'q' => $q]) }}" class="lg:hidden text-sm font-semibold text-brand">{{ __('admin.support.inbox.back_conversations') }}</a>
                             <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">{{ $conversation->publicNumber() }}</p>
-                            <p class="text-base font-bold text-slate-900 truncate">{{ $serialized['name'] ?? 'Conversation' }}</p>
+                            <p class="text-base font-bold text-slate-900 truncate">{{ $serialized['name'] ?? __('admin.support.inbox.conversation_fallback') }}</p>
                             <p class="text-sm text-slate-500">
                                 <span x-text="deskState || @js($serialized['desk_state'] ?? ucfirst($conversation->status))"></span>
                                 @if (! empty($serialized['topic'])) · {{ $serialized['topic'] }} @endif
@@ -220,7 +220,7 @@
                                         </div>
                                     @endif
                                     <button type="button" @click="acceptConversation()" :disabled="sending"
-                                            class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95 disabled:opacity-60">Accept</button>
+                                            class="rounded-lg bg-brand text-white text-xs font-semibold px-3 py-1.5 hover:brightness-95 disabled:opacity-60">{{ __('admin.support.inbox.accept') }}</button>
                                 </div>
                             @else
                                 <div x-data="{ resolveOpen: false }" class="relative">
@@ -339,13 +339,13 @@
                                 </div>
                             </div>
                         </template>
-                        <p class="text-sm text-slate-500 text-center py-10" x-show="!messages.length">No messages yet.</p>
+                        <p class="text-sm text-slate-500 text-center py-10" x-show="!messages.length">{{ __('admin.support.inbox.no_messages') }}</p>
                     </div>
 
                     @if ($isWaitingDesk)
                         <div class="border-t border-amber-200/80 p-4 bg-amber-50/80">
-                            <p class="text-sm font-semibold text-amber-950">Waiting queue</p>
-                            <p class="text-xs text-amber-900/80 mt-1">Accept this conversation before reply, templates, or resolution tools appear. Customer sees staged waiting messages only — not an agent yet.</p>
+                            <p class="text-sm font-semibold text-amber-950">{{ __('admin.support.inbox.waiting_queue') }}</p>
+                            <p class="text-xs text-amber-900/80 mt-1">{{ __('admin.support.inbox.waiting_queue_hint') }}</p>
                         </div>
                     @else
                         <div class="border-t border-slate-200/80 p-4 space-y-3 bg-white">
@@ -368,19 +368,19 @@
                             @endif
                             <form @submit.prevent="sendReply()" class="flex gap-3 items-end">
                                 <textarea name="body" x-model="draft" x-ref="composer" rows="3" required maxlength="5000"
-                                          placeholder="Write a reply… templates insert here for edit before send"
+                                          placeholder="{{ __('admin.support.composer.placeholder') }}"
                                           class="flex-1 min-h-[4.5rem] rounded-xl border-slate-200 text-base focus:ring-brand/30"></textarea>
                                 <button type="submit" :disabled="sending || !draft.trim()"
-                                        class="shrink-0 rounded-xl bg-brand-gold text-brand font-semibold text-sm px-5 py-3 hover:brightness-95 disabled:opacity-60">Send</button>
+                                        class="shrink-0 rounded-xl bg-brand-gold text-brand font-semibold text-sm px-5 py-3 hover:brightness-95 disabled:opacity-60">{{ __('admin.support.composer.send') }}</button>
                             </form>
                         </div>
                     @endif
                 @else
                     <div class="flex-1 grid place-items-center px-6 py-16 text-center bg-[#f7f8fa]">
                         <div>
-                            <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">Conversation</p>
-                            <p class="text-base font-semibold text-slate-900 mt-1">Select a conversation</p>
-                            <p class="text-sm text-slate-500 mt-1 max-w-xs">Waiting and unread chats appear on the left. Select a Support staff member, then Accept before introducing yourself by name.</p>
+                            <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">{{ __('admin.support.inbox.conversation_fallback') }}</p>
+                            <p class="text-base font-semibold text-slate-900 mt-1">{{ __('admin.support.inbox.select_conversation') }}</p>
+                            <p class="text-sm text-slate-500 mt-1 max-w-xs">{{ __('admin.support.inbox.select_conversation_hint') }}</p>
                         </div>
                     </div>
                 @endif
@@ -388,7 +388,7 @@
 
             {{-- CUSTOMER DETAILS --}}
             <aside class="bg-slate-50/70 border-t lg:border-t-0 lg:border-l border-slate-200/80 p-4 space-y-3 {{ $conversation ? '' : 'hidden lg:block' }}">
-                <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">Customer details</p>
+                <p class="text-[11px] uppercase tracking-[0.16em] font-semibold text-slate-500">{{ __('admin.support.customer_details') }}</p>
                 @if ($conversation && $context)
                     <div>
                         <p class="text-base font-bold text-slate-900">{{ $context['name'] }}</p>
@@ -399,7 +399,7 @@
                                 <a href="{{ $context['member_url'] }}" class="inline-flex mt-2 text-sm font-semibold text-brand hover:underline">Open Member 360 →</a>
                             @endif
                         @else
-                            <p class="text-sm font-semibold text-amber-700 mt-0.5">Guest / Non-member</p>
+                            <p class="text-sm font-semibold text-amber-700 mt-0.5">{{ __('admin.support.guest_non_member') }}</p>
                             <p class="text-sm text-slate-600">{{ $context['phone'] ?: '—' }}</p>
                         @endif
                     </div>

@@ -133,11 +133,11 @@
             <p class="text-xs text-gray-500 mt-1">{{ __('admin.partners.profile_hint') }}</p>
             <dl class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
                 <div>
-                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Email</dt>
+                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">{{ __('admin.partners.field_email') }}</dt>
                     <dd class="mt-1 font-semibold text-gray-900">{{ $record->email ?: '—' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Created</dt>
+                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">{{ __('admin.partners.field_created') }}</dt>
                     <dd class="mt-1 font-semibold text-gray-900">{{ $record->created_at?->format('Y-m-d H:i') ?: '—' }}</dd>
                 </div>
                 @if ($record->affiliate_code)
@@ -165,7 +165,7 @@
                     </div>
                 @endif
                 <div class="sm:col-span-2">
-                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">Address</dt>
+                    <dt class="text-[10px] uppercase tracking-widest text-brand/60 font-semibold">{{ __('admin.partners.field_address') }}</dt>
                     <dd class="mt-1 font-semibold text-gray-900">{{ $record->address ?: '—' }}</dd>
                 </div>
             </dl>

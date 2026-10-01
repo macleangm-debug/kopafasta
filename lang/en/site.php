@@ -898,6 +898,7 @@ return [
         'forgot_pin' => 'Forgot PIN?',
         'forgot_password' => 'Forgot password?',
         'sign_in' => 'Sign in',
+        'session_expired' => 'Your session has expired. Please sign in again.',
         'pin_recovery' => [
             'title' => 'Forgot PIN or password?',
             'intro' => 'Enter your phone number to continue.',

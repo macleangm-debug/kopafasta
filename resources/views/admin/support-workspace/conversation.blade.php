@@ -1,10 +1,10 @@
 @php
     $isMember = (bool) $conversation->customer_id;
-    $name = $serialized['name'] ?? ($isMember ? 'Member' : 'Guest / Non-member');
+    $name = $serialized['name'] ?? ($isMember ? __('admin.support.conversation.member') : __('admin.support.guest_non_member'));
 @endphp
-<x-admin.layout title="Conversation" heading="" subheading="">
+<x-admin.layout :title="__('admin.support.conversation.title')" heading="" subheading="">
     <div class="mb-4">
-        <a href="{{ route('admin.support.inbox') }}" class="text-sm font-semibold text-brand hover:underline">← Inbox</a>
+        <a href="{{ route('admin.support.inbox') }}" class="text-sm font-semibold text-brand hover:underline">{{ __('admin.support.conversation.back_inbox') }}</a>
     </div>
 
     <div class="grid lg:grid-cols-3 gap-6">
@@ -13,9 +13,9 @@
                 <div class="px-5 py-4 border-b border-gray-100">
                     <p class="text-sm font-bold text-gray-900">{{ $name }}</p>
                     <p class="text-xs text-gray-500 mt-0.5">
-                        {{ $isMember ? 'Member conversation' : 'Guest / Non-member' }}
+                        {{ $isMember ? __('admin.support.conversation.member_conversation') : __('admin.support.guest_non_member') }}
                         · {{ app(\App\Services\Support\SupportConversationService::class)->deskState($conversation) }}
-                        @if ($conversation->needs_human) · Needs human @endif
+                        @if ($conversation->needs_human) · {{ __('admin.support.conversation.needs_human') }} @endif
                         @if ($conversation->conversation_number) · {{ $conversation->publicNumber() }} @endif
                     </p>
                     @php
@@ -45,19 +45,19 @@
                             <p class="whitespace-pre-wrap text-gray-800">{{ $message->body }}</p>
                         </div>
                     @empty
-                        <p class="text-sm text-gray-500 text-center py-8">No messages yet.</p>
+                        <p class="text-sm text-gray-500 text-center py-8">{{ __('admin.support.inbox.no_messages') }}</p>
                     @endforelse
                 </div>
             </div>
 
             <form method="POST" action="{{ route('admin.support.inbox.reply', $conversation) }}" class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 space-y-3">
                 @csrf
-                <label class="block text-sm font-semibold text-gray-900">Reply</label>
+                <label class="block text-sm font-semibold text-gray-900">{{ __('admin.support.conversation.reply') }}</label>
                 <textarea name="body" rows="4" required maxlength="5000" class="w-full rounded-xl border-gray-300 text-sm focus:ring-brand/40"></textarea>
                 <div class="flex flex-wrap gap-2">
-                    <button type="submit" class="inline-flex rounded-xl bg-brand-gold text-brand font-semibold text-sm px-5 py-2.5 hover:brightness-95">Send reply</button>
+                    <button type="submit" class="inline-flex rounded-xl bg-brand-gold text-brand font-semibold text-sm px-5 py-2.5 hover:brightness-95">{{ __('admin.support.conversation.send_reply') }}</button>
                     @if (! $conversation->assigned_to)
-                        <button form="accept-form" type="submit" class="inline-flex rounded-xl ring-1 ring-brand/20 text-brand font-semibold text-sm px-5 py-2.5 hover:bg-brand-muted/40">Accept</button>
+                        <button form="accept-form" type="submit" class="inline-flex rounded-xl ring-1 ring-brand/20 text-brand font-semibold text-sm px-5 py-2.5 hover:bg-brand-muted/40">{{ __('admin.support.conversation.accept') }}</button>
                     @endif
                 </div>
             </form>
@@ -77,7 +77,7 @@
                         <a href="{{ route('admin.customers.show', $conversation->customer) }}" class="inline-flex rounded-xl ring-1 ring-gray-200 px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50">View member</a>
                     </div>
                 @else
-                    <p class="font-semibold text-amber-800">Guest / Non-member</p>
+                    <p class="font-semibold text-amber-800">{{ __('admin.support.guest_non_member') }}</p>
                     <p><span class="text-gray-500">Name:</span> {{ $conversation->user?->name ?: '—' }}</p>
                     <p><span class="text-gray-500">Phone:</span> {{ $conversation->user?->phone ?: '—' }}</p>
                     <p><span class="text-gray-500">Email:</span> {{ $conversation->user?->email ?: '—' }}</p>

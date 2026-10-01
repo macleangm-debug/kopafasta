@@ -16,6 +16,21 @@ class SupportGuestChatFormReadyTest extends TestCase
         $this->assertStringContainsString('guestPhoneDigits', $html);
         $this->assertStringContainsString('Anza mazungumzo', $html);
         $this->assertStringContainsString('@input.capture="syncGuestPhone()"', $html);
+        $this->assertStringContainsString('x-show="!needsGuestGate"', $html);
+        $this->assertStringContainsString('responseDelayMinMs', $html);
+        $this->assertStringContainsString('paceDelay', $html);
+        $this->assertStringContainsString('personaDisplay', $html);
+        $this->assertStringContainsString('Kabla ya kuanza mazungumzo', $html);
+    }
+
+    public function test_feedback_form_panel_is_single_responsive_surface(): void
+    {
+        $html = File::get(resource_path('views/components/site/feedback-form-panel.blade.php'));
+
+        $this->assertStringContainsString('lg:inset-auto lg:left-1/2', $html);
+        $this->assertStringContainsString('lg:hidden', $html);
+        $this->assertStringNotContainsString('x-site.bottom-sheet', $html);
+        $this->assertStringContainsString('@open-feedback.window', $html);
     }
 
     public function test_phone_input_dispatches_parent_sync_events(): void

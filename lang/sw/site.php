@@ -895,6 +895,7 @@ return [
         'forgot_pin' => 'Umesahau PIN?',
         'forgot_password' => 'Umesahau nenosiri?',
         'sign_in' => 'Ingia',
+        'session_expired' => 'Kipindi chako kimeisha. Tafadhali ingia tena.',
         'pin_recovery' => [
             'title' => 'Umesahau PIN au nenosiri?',
             'intro' => 'Weka nambari yako ya simu kuendelea.',
