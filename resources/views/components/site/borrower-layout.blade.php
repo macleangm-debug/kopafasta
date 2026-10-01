@@ -35,15 +35,9 @@
     $plusActive = $borrowerCustomer
         ? app(\App\Services\Plus\PlusService::class)->isActive($borrowerCustomer)
         : false;
-    $notificationQuery = $borrowerCustomer
-        ? $portalContext->borrowerNotificationsQuery($borrowerCustomer)
-        : null;
-    $unreadNotifications = $notificationQuery
-        ? (clone $notificationQuery)->whereNull('read_at')->count()
-        : 0;
-    $bellPreviewItems = $borrowerCustomer
-        ? app(\App\Services\NotificationInboxService::class)->previewItems($borrowerCustomer)
-        : [];
+    $inbox = app(\App\Services\NotificationInboxService::class);
+    $bellPreviewItems = $borrowerCustomer ? $inbox->previewItems($borrowerCustomer) : [];
+    $unreadNotifications = $borrowerCustomer ? $inbox->attentionCount($borrowerCustomer) : 0;
     $pendingGuarantorPopup = collect();
 
     $icon = function (string $name) {
@@ -196,7 +190,7 @@
                     <x-site.theme-toggle variant="header" />
                     <x-site.locale-switcher variant="header" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                     <div class="relative" x-data="notificationBell()" x-init="load()">
-                        <button type="button" @click="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
+                        <button type="button" @click.stop="toggle()" class="relative p-2 rounded-lg text-gray-600 hover:bg-brand-muted hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
                             <span x-show="unread > 0" x-cloak class="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
                         </button>
@@ -206,35 +200,30 @@
                                 <a href="{{ route('site.borrower.notifications') }}" data-kf-motion="tab" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.layout.view_all') }}</a>
                             </div>
                             <div class="max-h-80 overflow-y-auto bg-white/90">
-                                <template x-if="loading && items.length === 0">
-                                    <div class="p-4"><x-site.skeleton variant="rows" :lines="3" /></div>
-                                </template>
-                                <template x-if="!loading && items.length === 0">
-                                    <p class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
-                                </template>
+                                <div x-show="loading && items.length === 0" class="p-4"><x-site.skeleton variant="rows" :lines="3" /></div>
+                                <p x-show="!loading && items.length === 0" class="px-4 py-8 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
                                 <template x-for="item in items" :key="item.id">
                                     <div class="px-4 py-3 border-b border-gray-50 hover:bg-brand-muted/30" :class="!item.read ? 'bg-brand-muted/50' : ''">
                                         <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category_label || item.category"></p>
                                         <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
                                         <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
                                         <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
-                                        <template x-if="item.accept_url && item.decline_url">
-                                            <div class="mt-2 flex flex-wrap gap-2">
-                                                <a :href="item.accept_url"
-                                                   class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand"
-                                                   x-text="item.action_label || @js(__('borrower.guarantor_notifications.accept_cta'))"></a>
-                                                <form :action="item.decline_url" method="POST" class="inline">
-                                                    <input type="hidden" name="_token" :value="document.querySelector('meta[name=csrf-token]')?.content || ''">
-                                                    <input type="hidden" name="action" value="reject">
-                                                    <button type="submit"
-                                                            class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50"
-                                                            x-text="item.decline_label || @js(__('borrower.guarantor_notifications.decline_cta'))"></button>
-                                                </form>
-                                            </div>
-                                        </template>
-                                        <template x-if="item.action_url && !(item.accept_url && item.decline_url)">
-                                            <a :href="item.action_url" class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
-                                        </template>
+                                        <div class="mt-2 flex flex-wrap gap-2" x-show="item.accept_url && item.decline_url">
+                                            <a :href="item.accept_url"
+                                               class="inline-flex items-center rounded-lg bg-brand-gold px-3 py-1.5 text-xs font-bold text-brand"
+                                               x-text="item.action_label || @js(__('borrower.guarantor_notifications.accept_cta'))"></a>
+                                            <form :action="item.decline_url" method="POST" class="inline">
+                                                <input type="hidden" name="_token" :value="document.querySelector('meta[name=csrf-token]')?.content || ''">
+                                                <input type="hidden" name="action" value="reject">
+                                                <button type="submit"
+                                                        class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50"
+                                                        x-text="item.decline_label || @js(__('borrower.guarantor_notifications.decline_cta'))"></button>
+                                            </form>
+                                        </div>
+                                        <a x-show="item.action_url && !(item.accept_url && item.decline_url)"
+                                           :href="item.action_url"
+                                           class="inline-flex mt-2 text-xs font-semibold text-brand hover:underline"
+                                           x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
                                     </div>
                                 </template>
                             </div>
@@ -293,7 +282,7 @@
                 <x-site.theme-toggle variant="compact" />
                 <x-site.locale-switcher variant="compact" :siteCountries="$siteCountries" :siteCountry="$siteCountry" :siteLocale="$siteLocale" />
                 <div class="relative" x-data="notificationBell()" x-init="load()">
-                    <button type="button" @click="toggle()" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
+                    <button type="button" @click.stop="toggle()" class="relative p-2 text-gray-600 hover:text-brand" title="{{ __('borrower.layout.notifications') }}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">{!! $icon('bell') !!}</svg>
                         <span x-show="unread > 0" x-cloak class="absolute top-1 right-1 min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center" x-text="unread > 9 ? '9+' : unread"></span>
                     </button>
@@ -321,21 +310,15 @@
                                     </div>
                                 </div>
                                 <div class="flex-1 overflow-y-auto overscroll-contain">
-                                    <template x-if="loading && items.length === 0">
-                                        <div class="p-5"><x-site.skeleton variant="rows" :lines="3" /></div>
-                                    </template>
-                                    <template x-if="!loading && items.length === 0">
-                                        <p class="px-5 py-10 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
-                                    </template>
+                                    <div x-show="loading && items.length === 0" class="p-5"><x-site.skeleton variant="rows" :lines="3" /></div>
+                                    <p x-show="!loading && items.length === 0" class="px-5 py-10 text-sm text-gray-500 text-center">{{ __('borrower.layout.no_notifications') }}</p>
                                     <template x-for="item in items" :key="item.id">
                                         <div class="px-5 py-3 border-b border-gray-50" :class="!item.read ? 'bg-brand-muted/40' : ''">
                                             <p class="text-[11px] font-bold uppercase tracking-widest text-brand" x-text="item.category_label || item.category"></p>
                                             <p class="text-sm font-semibold text-gray-900 mt-0.5" x-show="item.title" x-text="item.title"></p>
                                             <p class="text-sm text-gray-800 mt-0.5" x-text="item.body || item.message"></p>
                                             <p class="text-[11px] text-gray-400 mt-1" x-text="item.when"></p>
-                                            <template x-if="item.action_url">
-                                                <a :href="item.action_url" @click="sheetOpen = false" class="inline-flex mt-2 text-xs font-semibold text-brand" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
-                                            </template>
+                                            <a x-show="item.action_url" :href="item.action_url" @click="sheetOpen = false" class="inline-flex mt-2 text-xs font-semibold text-brand" x-text="item.action_label || @js(__('borrower.notifications.view_application'))"></a>
                                         </div>
                                     </template>
                                 </div>
@@ -483,15 +466,18 @@ document.addEventListener('alpine:init', () => {
                 });
                 if (!res.ok) return;
                 const data = await res.json();
-                this.unread = data.unread ?? 0;
+                this.unread = Number(data.unread ?? 0);
                 this.items = Array.isArray(data.items) ? data.items : [];
             } catch (e) {}
             this.loading = false;
         },
-        async toggle() {
-            const willOpen = !this.sheetOpen;
-            this.sheetOpen = willOpen;
-            if (!willOpen) return;
+        toggle() {
+            // Open/close synchronously so @click.outside cannot race an await and snap the panel shut.
+            this.sheetOpen = !this.sheetOpen;
+            if (!this.sheetOpen) return;
+            this.refreshOpen();
+        },
+        async refreshOpen() {
             await this.load();
             if (this.unread <= 0) return;
             try {
@@ -505,10 +491,16 @@ document.addEventListener('alpine:init', () => {
                     },
                     credentials: 'same-origin',
                 });
-                if (res.ok) {
-                    this.unread = 0;
-                    this.items = this.items.map(item => ({ ...item, read: true }));
-                }
+                if (!res.ok) return;
+                const data = await res.json();
+                // Pending guarantor/group invites stay in the attention count until acted on.
+                this.unread = Number(data.unread ?? 0);
+                this.items = this.items.map(item => {
+                    if (item.template === 'guarantor_request' || item.template === 'group_loan_invitation') {
+                        return item;
+                    }
+                    return { ...item, read: true };
+                });
             } catch (e) {}
         },
     }));

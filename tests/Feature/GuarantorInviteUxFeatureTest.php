@@ -443,6 +443,26 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $this->assertNotNull($match);
         $this->assertSame(__('borrower.guarantor_notifications.view_request'), $match['action_label']);
         $this->assertNotNull($match['action_url']);
+
+        // Pending invite keeps the bell badge even after mark-read (non-invite rows only).
+        $before = $this->actingAs($member->user)
+            ->getJson(route('site.borrower.notifications.preview'))
+            ->assertOk()
+            ->json('unread');
+        $this->assertGreaterThan(0, (int) $before);
+
+        $after = $this->actingAs($member->user)
+            ->postJson(route('site.borrower.notifications.read'))
+            ->assertOk()
+            ->json('unread');
+        $this->assertGreaterThan(0, (int) $after);
+
+        $log = NotificationLog::query()
+            ->where('customer_id', $member->id)
+            ->where('template', 'guarantor_request')
+            ->first();
+        $this->assertNotNull($log);
+        $this->assertNull($log->read_at);
     }
 
     public function test_approved_guarantee_tracks_on_guarantor_tab_until_disbursed(): void

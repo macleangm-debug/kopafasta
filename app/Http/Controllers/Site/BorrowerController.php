@@ -1603,13 +1603,11 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
         $inbox = app(\App\Services\NotificationInboxService::class);
+        $items = $inbox->previewItems($customer);
 
         return response()->json([
-            'unread' => app(PortalContextService::class)
-                ->borrowerNotificationsQuery($customer)
-                ->whereNull('read_at')
-                ->count(),
-            'items' => $inbox->previewItems($customer),
+            'unread' => $inbox->attentionCount($customer),
+            'items' => $items,
         ]);
     }
 
@@ -1685,13 +1683,17 @@ class BorrowerController extends Controller
     public function markNotificationsRead(Request $request): RedirectResponse|JsonResponse
     {
         $customer = $this->customer();
+        // Keep pending invitation templates unread so the bell badge stays hot until acted on.
         app(PortalContextService::class)
             ->borrowerNotificationsQuery($customer)
             ->whereNull('read_at')
+            ->whereNotIn('template', ['guarantor_request', 'group_loan_invitation'])
             ->update(['read_at' => now()]);
 
         if ($request->wantsJson()) {
-            return response()->json(['unread' => 0]);
+            return response()->json([
+                'unread' => app(\App\Services\NotificationInboxService::class)->attentionCount($customer),
+            ]);
         }
 
         return back();

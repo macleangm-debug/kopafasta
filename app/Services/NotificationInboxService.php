@@ -69,6 +69,36 @@ class NotificationInboxService
     }
 
     /**
+     * Bell badge count: unread rows, plus pending guarantor/group invites that still need action
+     * even after the bell auto-marked them read.
+     */
+    public function attentionCount(Customer $customer): int
+    {
+        $this->ensureInvitationNotifications($customer);
+
+        $base = $this->portal->borrowerNotificationsQuery($customer);
+        $unread = (clone $base)->whereNull('read_at')->count();
+
+        $pendingInviteAttention = 0;
+        if ($this->portal->pendingGuarantorLinks($customer)->isNotEmpty()) {
+            $pendingInviteAttention += (clone $base)
+                ->where('template', 'guarantor_request')
+                ->whereNotNull('read_at')
+                ->count();
+        }
+
+        $groupInvite = app(GroupMemberOnboardingService::class)->pendingInvitationForCustomer($customer);
+        if ($groupInvite) {
+            $pendingInviteAttention += (clone $base)
+                ->where('template', 'group_loan_invitation')
+                ->whereNotNull('read_at')
+                ->count();
+        }
+
+        return $unread + $pendingInviteAttention;
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function previewItems(Customer $customer, int $limit = 12): array
