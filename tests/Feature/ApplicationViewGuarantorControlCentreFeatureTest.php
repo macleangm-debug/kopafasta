@@ -161,6 +161,42 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
             ->count());
     }
 
+    public function test_accepted_invitation_hides_invite_ctas_even_when_profile_incomplete(): void
+    {
+        [$borrower, $application, $link] = $this->awaitingGuarantorPair(incomplete: true);
+
+        $invite = GuarantorInvitation::query()
+            ->where('loan_application_id', $application->id)
+            ->firstOrFail();
+        $invite->update(['status' => 'accepted']);
+        $link->update(['status' => 'pending']);
+
+        $html = $this->actingAs($borrower->user)
+            ->get(route('site.borrower.application', $application))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(__('borrower.apply.guarantor_status.invitation_accepted'), $html);
+        $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_nudge_whatsapp'), $html);
+        $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_nudge_copy'), $html);
+        $this->assertStringNotContainsString(__('borrower.loan_profile.actions.edit_guarantor'), $html);
+        $this->assertStringContainsString(__('borrower.guarantor_supplement.borrower_change_cta'), $html);
+        $this->assertEquals(1, substr_count($html, 'id="guarantor-progress"'));
+    }
+
+    public function test_pending_invitation_still_shows_whatsapp_and_copy(): void
+    {
+        [$borrower, $application] = $this->awaitingGuarantorPair(incomplete: true);
+
+        $html = $this->actingAs($borrower->user)
+            ->get(route('site.borrower.application', $application))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(__('borrower.loan_profile.guarantor_nudge_whatsapp'), $html);
+        $this->assertStringContainsString(__('borrower.loan_profile.guarantor_nudge_copy'), $html);
+    }
+
     /**
      * @return array{0: Customer, 1: LoanApplication, 2?: CustomerGuarantor}
      */

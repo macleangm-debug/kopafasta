@@ -174,8 +174,27 @@
         $share = $primary?->share;
         $primaryCode = (string) ($primary?->status['code'] ?? '');
         $primaryPendingInvite = in_array($primaryCode, ['pending_acceptance', 'invitation_sent'], true);
-        $primaryIncomplete = in_array($primaryCode, ['pending_profile', 'guarantee_pending', 'registration_in_progress', 'kyc_in_progress'], true);
+        $primaryIncomplete = in_array($primaryCode, [
+            'pending_profile', 'guarantee_pending', 'registration_in_progress', 'kyc_in_progress',
+            'accepted', 'invitation_accepted', 'account_opened',
+        ], true);
         $primaryReady = ($primary?->status['ready'] ?? false) || $primaryCode === 'ready';
+
+        // Persisted acceptance only — never infer from profile completeness.
+        $inviteModel = $primary?->invite;
+        $invitationAccepted = false;
+        if ($inviteModel) {
+            $linkStatus = (string) ($inviteModel->customerGuarantor?->status
+                ?? \App\Models\CustomerGuarantor::query()
+                    ->whereKey((int) ($inviteModel->customer_guarantor_id ?? 0))
+                    ->value('status')
+                ?? '');
+            $invitationAccepted = in_array((string) $inviteModel->status, ['accepted'], true)
+                || $linkStatus === 'approved'
+                || $inviteSvc->hasRecordedConsent($inviteModel);
+        } elseif ($primary) {
+            $invitationAccepted = (bool) ($primary->status['accepted'] ?? false);
+        }
 
         $showChangeGuarantor = ($isDraft && $editGuarantorUrl) || ($guarantorSupplementOpen && $editGuarantorUrl);
         $canChangeWhileHeld = ! $isDraft && ! $showChangeGuarantor && (bool) ($profile['can_change_guarantor_while_held'] ?? false);
@@ -199,19 +218,20 @@
             $allReady && $isDraft => 'ready_before_submit',
             $currentRows->isEmpty() && ($historyRows->isNotEmpty() || $isChangeSupplement || $canChangeWhileHeld || $guarantorSupplementOpen) => 'needs_replacement',
             $currentRows->isEmpty() => 'required_empty',
-            $primaryIncomplete => 'accepted_incomplete',
+            $invitationAccepted || $primaryIncomplete => 'accepted_incomplete',
             $primaryPendingInvite => 'pending',
             default => 'pending',
         };
 
-        $showInviteActions = $uiState === 'pending'
+        // Invitation CTAs only while the invitation itself is still outstanding.
+        $showInviteActions = ! $invitationAccepted
+            && $inviteModel
+            && in_array((string) ($inviteModel->status ?? ''), ['pending', 'opened', 'sent'], true)
             && $share
-            && empty($share['ready'])
-            && ! ($primary?->status['accepted'] ?? false)
-            && ! in_array($primaryCode, [
-                'pending_profile', 'guarantee_pending', 'registration_in_progress',
-                'kyc_in_progress', 'ready', 'accepted', 'account_opened', 'invitation_accepted',
-            ], true);
+            && empty($share['ready']);
+        $showEditGuarantorInvite = $showInviteActions
+            && $application
+            && (string) ($inviteModel->type ?? '') === 'external';
         $showCountdown = $isHeld && $showInviteActions && (! empty($deadline['label']) || isset($deadline['days_left']));
         $showChangeSecondary = in_array($uiState, ['pending', 'accepted_incomplete', 'completed', 'ready_before_submit'], true)
             && ($showChangeGuarantor || $canChangeWhileHeld);
@@ -428,9 +448,7 @@
                                     <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.loan_profile.guarantor_nudge_copy'))"></span>
                                 </button>
                             @endif
-                            @if ($application && $primary?->invite
-                                && (string) ($primary->invite->status ?? '') === 'pending'
-                                && ($primary->invite->type ?? '') === 'external')
+                            @if ($showEditGuarantorInvite)
                                 <a href="{{ app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application) }}"
                                    class="inline-flex shrink-0 items-center gap-1.5 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">
                                     {{ __('borrower.loan_profile.actions.edit_guarantor') }}
@@ -455,9 +473,7 @@
                                 <span x-text="copied ? @js(__('borrower.apply.guarantor_fields.link_copied')) : @js(__('borrower.loan_profile.guarantor_nudge_copy'))"></span>
                             </button>
                         @endif
-                        @if ($application && $primary?->invite
-                            && (string) ($primary->invite->status ?? '') === 'pending'
-                            && ($primary->invite->type ?? '') === 'external')
+                        @if ($showEditGuarantorInvite)
                             <a href="{{ app(\App\Services\GuarantorSupplementService::class)->borrowerEditGuarantorUrl($application) }}"
                                class="inline-flex shrink-0 items-center gap-1.5 bg-white ring-1 ring-brand/20 hover:bg-brand-muted/40 text-brand font-semibold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm whitespace-nowrap">
                                 {{ __('borrower.loan_profile.actions.edit_guarantor') }}
