@@ -1,20 +1,21 @@
 @php
     $rows = $rows ?? collect();
     $viewMode = $viewMode ?? 'cards';
+    $ctaLabel = __('borrower.applications_list.view_progress');
 @endphp
 
-{{-- Desktop: full-width balanced table (same responsive pattern as applications) --}}
+{{-- Desktop: reuse applications-table layout/spacing (no arbitrary column % widths) --}}
 <div class="hidden lg:block">
-    <div class="glass-card overflow-hidden ring-1 ring-brand/15">
+    <div class="glass-card overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full table-fixed text-sm">
-                <thead class="bg-brand-muted/30 text-left text-xs uppercase text-gray-500">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
-                        <th class="w-[28%] px-5 py-3">{{ __('borrower.loans_page.borrower') }}</th>
-                        <th class="w-[24%] px-5 py-3">{{ __('borrower.guarantor_invite.product_label') }}</th>
-                        <th class="w-[18%] px-5 py-3 text-right">{{ __('borrower.guarantor_invite.amount_label') }}</th>
-                        <th class="w-[18%] px-5 py-3">{{ __('borrower.loans_page.loan_status') }}</th>
-                        <th class="w-[12%] px-5 py-3 text-right">{{ __('borrower.applications_list.actions') }}</th>
+                        <th class="px-4 py-3">{{ __('borrower.loans_page.borrower') }}</th>
+                        <th class="px-4 py-3">{{ __('borrower.guarantor_invite.product_label') }}</th>
+                        <th class="px-4 py-3">{{ __('borrower.guarantor_invite.amount_label') }}</th>
+                        <th class="px-4 py-3">{{ __('borrower.loans_page.loan_status') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('borrower.applications_list.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -38,22 +39,22 @@
                         <tr class="hover:bg-brand-muted/20 cursor-pointer transition"
                             data-kf-share="kf-gtr-{{ $link->id }}"
                             onclick="window.location='{{ $detailUrl }}'">
-                            <td class="px-5 py-4">
-                                <p class="font-semibold text-gray-900 leading-snug">{{ $borrowerName }}</p>
+                            <td class="px-4 py-3">
+                                <p class="font-bold text-gray-900 leading-snug">{{ $borrowerName }}</p>
                                 <p class="font-mono text-xs text-gray-500 mt-0.5">{{ $reference }}</p>
                             </td>
-                            <td class="px-5 py-4 text-gray-800">{{ $productName }}</td>
-                            <td class="px-5 py-4 text-right font-semibold tabular-nums whitespace-nowrap">
+                            <td class="px-4 py-3 text-gray-800">{{ $productName }}</td>
+                            <td class="px-4 py-3 font-semibold tabular-nums whitespace-nowrap">
                                 {{ $amount !== null ? format_money((float) $amount) : '—' }}
                             </td>
-                            <td class="px-5 py-4">
+                            <td class="px-4 py-3">
                                 <span class="inline-flex text-xs font-semibold rounded-full px-2.5 py-1 bg-amber-100 text-amber-900">
                                     {{ __('borrower.guarantor.action_required') }}
                                 </span>
                             </td>
-                            <td class="px-5 py-4 text-right" onclick="event.stopPropagation()">
-                                <a href="{{ $detailUrl }}" class="text-brand font-semibold hover:underline">
-                                    {{ __('borrower.applications_list.view') }}
+                            <td class="px-4 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                <a href="{{ $detailUrl }}" data-kf-motion="push" class="text-brand font-semibold hover:underline text-xs">
+                                    {{ $ctaLabel }}
                                 </a>
                             </td>
                         </tr>
@@ -64,7 +65,7 @@
     </div>
 </div>
 
-{{-- Mobile: Application Card pattern — full width, no squeezed columns --}}
+{{-- Mobile: reuse applications-card pattern — compact CTA, not full-width --}}
 <div class="lg:hidden">
     <div class="grid gap-4">
         @foreach ($rows as $row)
@@ -84,7 +85,7 @@
                     ?? ($row->invitation?->short_code ? strtoupper((string) $row->invitation->short_code) : '—');
                 $detailUrl = route('site.borrower.guarantor-requests.show', $link);
             @endphp
-            <div class="glass-card p-5 ring-1 ring-brand/10" data-kf-share="kf-gtr-{{ $link->id }}">
+            <div class="glass-card p-5" data-kf-share="kf-gtr-{{ $link->id }}">
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div class="min-w-0">
                         <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $productName }}</p>
@@ -99,12 +100,14 @@
                 <p class="text-base font-bold tabular-nums text-gray-900 mb-1">
                     {{ $amount !== null ? format_money((float) $amount) : '—' }}
                 </p>
-                <p class="text-xs text-gray-600 mb-4">{{ __('borrower.guarantor.awaiting_your_decision') }}</p>
+                <p class="text-xs text-gray-600 mb-3">{{ __('borrower.guarantor.awaiting_your_decision') }}</p>
 
-                <a href="{{ $detailUrl }}"
-                   class="inline-flex items-center justify-center w-full font-bold px-5 py-3 rounded-xl text-sm bg-brand-gold hover:bg-yellow-400 text-brand shadow-sm">
-                    {{ __('borrower.applications_list.view') }}
-                </a>
+                <div class="flex items-center gap-2 text-xs flex-wrap">
+                    <a href="{{ $detailUrl }}"
+                       class="inline-flex font-semibold px-4 py-2 rounded-xl text-sm bg-brand hover:bg-brand-light text-white">
+                        {{ $ctaLabel }}
+                    </a>
+                </div>
             </div>
         @endforeach
     </div>

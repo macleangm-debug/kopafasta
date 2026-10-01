@@ -158,16 +158,19 @@ class PortalContextService
 
     public function borrowerNotificationsQuery(Customer $customer): Builder
     {
-        // Include guarantor inbox templates so members see Accept/Decline invites
-        // and arrears alerts in the main bell (same person is often borrower + guarantor).
+        // Bell dropdown and full Notifications page share this exact query.
+        // In-app only — SMS/email delivery logs must not crowd (or diverge) the inbox.
+        // Guarantor/group invitation templates are included (same person is often borrower + guarantor).
         return NotificationLog::query()
-            ->where('customer_id', $customer->id);
+            ->where('customer_id', $customer->id)
+            ->where('channel', 'in_app');
     }
 
     public function guarantorNotificationsQuery(Customer $customer): Builder
     {
         return NotificationLog::query()
             ->where('customer_id', $customer->id)
+            ->where('channel', 'in_app')
             ->whereIn('template', array_merge(self::GUARANTOR_INBOX_TEMPLATES, ['guarantor_action']));
     }
 

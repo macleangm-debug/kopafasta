@@ -2692,6 +2692,7 @@ return [
         'continue' => 'Continue',
         'resume' => 'Resume',
         'view' => 'View',
+        'view_progress' => 'View progress',
         'profile_completion' => 'Profile completion',
         'profile' => 'Profile',
         'application' => 'Application',

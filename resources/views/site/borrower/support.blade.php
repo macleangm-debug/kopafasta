@@ -79,9 +79,11 @@
                 @include('site.help._landing-body', [
                     'isSw' => $isSw,
                     'helpCategories' => $helpCategories ?? [],
-                    'helpRecommended' => $helpRecommended ?? [],
+                    'helpGroups' => $helpGroups ?? [],
                     'helpResults' => $helpResults ?? [],
                     'helpQuery' => $helpQuery ?? '',
+                    'helpTopic' => $helpTopic ?? '',
+                    'helpArticle' => $helpArticle ?? '',
                     'homeUrl' => route('site.borrower.support'),
                     'chatUrl' => route('site.borrower.support', ['chat' => 1]),
                     'phones' => $phones ?? support_phones(),

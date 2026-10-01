@@ -2786,6 +2786,7 @@ return [
         'view_application' => 'Angalia ombi',
         'resume' => 'Endelea',
         'view' => 'Angalia',
+        'view_progress' => 'Angalia maendeleo',
         'profile_completion' => 'Ukamilishaji wa wasifu',
         'resume_not_found' => 'Hatukuweza kupata rasimu hiyo ya ombi. Anza ombi jipya au chagua moja kutoka kwenye orodha yako.',
         'created' => 'Imeundwa',

@@ -1107,9 +1107,10 @@ class VendorController extends Controller
             'resolvedTickets' => $resolvedTickets,
             'helpGroups' => $help->groups('partner'),
             'helpCategories' => $help->categories('partner'),
-            'helpRecommended' => $help->recommended(null, 'partner'),
             'helpResults' => $q !== '' ? $help->search($q, 'partner') : [],
             'helpQuery' => $q,
+            'helpTopic' => (string) request('topic', ''),
+            'helpArticle' => (string) request('article', ''),
             'helpSection' => $section,
             'openHumanChat' => request()->boolean('chat'),
             'speakUrl' => request()->routeIs('site.vendor.*')

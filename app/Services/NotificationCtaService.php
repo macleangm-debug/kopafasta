@@ -28,25 +28,11 @@ class NotificationCtaService
         ];
 
         $meta = is_array($notification->meta) ? $notification->meta : [];
-        if (! empty($meta['cta_consumed_at'])) {
-            return $empty;
-        }
-
-        $actionUrl = ($notification->channel === 'in_app'
-            && filled($notification->recipient)
-            && str_starts_with((string) $notification->recipient, '/'))
-            ? (string) $notification->recipient
-            : null;
-
         $template = (string) ($notification->template ?? '');
 
+        // Invitation list CTAs stay visible after read/accept — mark ≠ hide.
+        // Destination remains Mikopo list (never deep-link into the request).
         if ($template === 'guarantor_request') {
-            $linkId = $this->guarantorLinkId($notification, $actionUrl);
-            if ($linkId > 0 && ! $this->guarantorLinkIsPending($linkId)) {
-                return $empty;
-            }
-
-            // CTA enters Mikopo → Mdhamini list; Angalia opens the request. Never deep-link.
             return [
                 'accept_url'    => null,
                 'decline_url'   => null,
@@ -65,6 +51,16 @@ class NotificationCtaService
                 'decline_label' => null,
             ];
         }
+
+        if (! empty($meta['cta_consumed_at'])) {
+            return $empty;
+        }
+
+        $actionUrl = ($notification->channel === 'in_app'
+            && filled($notification->recipient)
+            && str_starts_with((string) $notification->recipient, '/'))
+            ? (string) $notification->recipient
+            : null;
 
         if (in_array($template, ['document_request', 'document_requests', 'application_document_request', 'application_document_request_reminder_1', 'profile_revision_requested'], true)) {
             if (! $this->documentActionStillOpen($notification, $meta, $actionUrl)) {
@@ -156,14 +152,9 @@ class NotificationCtaService
 
     public function consumeGuarantorRequestCtas(CustomerGuarantor $link): void
     {
-        NotificationLog::query()
-            ->where('template', 'guarantor_request')
-            ->where(function ($q) use ($link) {
-                $q->where('meta->customer_guarantor_id', $link->id)
-                    ->orWhere('recipient', 'like', '%/guarantor-requests/'.$link->id.'%');
-            })
-            ->orderBy('id')
-            ->each(fn (NotificationLog $n) => $this->consume($n));
+        // Intentionally a no-op: guarantor_request keeps its list CTA after accept/decline
+        // so bell + Notifications history still offer “Angalia ombi la udhamini”.
+        // Mark-read / clear remain the only ways to retire the row.
     }
 
     public function consumeDocumentRequestCtas(int $applicationId, ?int $requestId = null): void

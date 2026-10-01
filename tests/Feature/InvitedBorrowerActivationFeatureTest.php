@@ -267,7 +267,7 @@ class InvitedBorrowerActivationFeatureTest extends TestCase
             ->assertDontSee('guarantor-invite-popup-title', false)
             ->getContent();
 
-        $this->assertStringContainsString('max-w-3xl', $html);
+        $this->assertStringContainsString('max-w-7xl', $html);
         $this->assertStringContainsString(__('borrower.loan_profile.complete_profile'), $html);
         $this->assertSame('approved', $link->fresh()->status);
 

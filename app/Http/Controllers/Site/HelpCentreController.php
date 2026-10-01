@@ -21,6 +21,21 @@ class HelpCentreController extends Controller
             abort(404);
         }
 
+        // Logged-in borrowers stay on the single Help Centre surface.
+        if (auth()->user()?->customer) {
+            return redirect()->route('site.borrower.support', [
+                'section' => 'help',
+                'topic' => $category,
+            ]);
+        }
+
+        if (auth()->check() && ! auth()->user()?->customer) {
+            return redirect()->route('site.partner.support', [
+                'section' => 'help',
+                'topic' => $category,
+            ]);
+        }
+
         return view('site.help.category', [
             'group' => $group,
             'categoryKey' => $category,
@@ -39,6 +54,23 @@ class HelpCentreController extends Controller
 
         if (! $article) {
             abort(404);
+        }
+
+        // Deep/shareable links restore carousel + open topic on the same Help Centre surface.
+        if (auth()->user()?->customer) {
+            return redirect()->route('site.borrower.support', [
+                'section' => 'help',
+                'topic' => $category,
+                'article' => $slug,
+            ]);
+        }
+
+        if (auth()->check() && ! auth()->user()?->customer) {
+            return redirect()->route('site.partner.support', [
+                'section' => 'help',
+                'topic' => $category,
+                'article' => $slug,
+            ]);
         }
 
         return view('site.help.article', [

@@ -437,7 +437,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ->assertSee('APP-GUX-50', false)
             ->assertSee('Borrow Five', false)
             ->assertSee(__('borrower.guaranteed.waiting_on_your_profile'), false)
-            ->assertSee(__('borrower.guaranteed.view_details'), false);
+            ->assertSee(__('borrower.applications_list.view_progress'), false);
 
         $this->actingAs($member->user)
             ->get(route('site.borrower.loans', ['tab' => 'guaranteed']))
@@ -459,7 +459,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('APP-GUX-50', false)
             ->assertSee('Borrow Five', false)
-            ->assertSee(__('borrower.guaranteed.view_details'), false);
+            ->assertSee(__('borrower.applications_list.view_progress'), false);
     }
 
     public function test_member_can_accept_guarantee_without_signature(): void

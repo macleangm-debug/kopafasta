@@ -27,6 +27,13 @@ class SupportHelpLibraryService
             );
             if ($hasNewShape) {
                 $groups = $stored;
+                $keys = collect($groups)->pluck('key');
+                if (! $keys->contains('getting-started')) {
+                    $reg = collect($this->defaults())->firstWhere('key', 'getting-started');
+                    if (is_array($reg)) {
+                        array_unshift($groups, $reg);
+                    }
+                }
             }
         }
 
@@ -248,6 +255,51 @@ class SupportHelpLibraryService
     public function defaults(): array
     {
         return [
+            $this->cat('getting-started', 'Getting started / Registration', 'Jinsi ya kujisajili', 'both', '🆕', [
+                $this->howto('open-account', 'Registration', 'Usajili',
+                    'How do I open an account?', 'Ninawezaje kufungua akaunti?',
+                    'Open an account', 'Kufungua akaunti',
+                    'Use your mobile number to register, set a PIN, then complete your first details.',
+                    'Tumia namba yako ya simu kujisajili, weka PIN, kisha kamilisha taarifa za mwanzo.',
+                    ['Open Register / Jiunge', 'Enter your mobile number', 'Confirm the SMS code', 'Create a 4-digit PIN', 'Complete the first personal details'],
+                    ['Fungua Jiunge', 'Weka namba yako ya simu', 'Thibitisha msimbo wa SMS', 'Unda PIN ya tarakimu 4', 'Kamilisha taarifa za kwanza binafsi']),
+                $this->answer('phone-number', 'Registration', 'Usajili',
+                    'Which phone number should I use?', 'Namba ya simu gani inayotumika?',
+                    'Use a Tanzanian mobile number you can receive SMS on. This number is your login identity.',
+                    'Tumia namba ya simu ya Tanzania unayoweza kupokea SMS. Namba hii ni utambulisho wako wa kuingia.'),
+                $this->howto('set-pin', 'Registration', 'Usajili',
+                    'How do I set a PIN?', 'Ninawezaje kuweka PIN?',
+                    'Set a PIN', 'Kuweka PIN',
+                    'Choose a private 4-digit PIN you will remember.',
+                    'Chagua PIN ya tarakimu 4 ya faragha utakayokumbuka.',
+                    ['Enter a 4-digit PIN', 'Confirm the same PIN', 'Do not share it with anyone'],
+                    ['Weka PIN ya tarakimu 4', 'Thibitisha PIN ile ile', 'Usishiriki na mtu yeyote']),
+                $this->howto('sign-in', 'Login', 'Kuingia',
+                    'How do I sign in?', 'Ninawezaje kuingia?',
+                    'Sign in', 'Kuingia',
+                    'Use the same phone number and PIN from registration.',
+                    'Tumia namba ile ile ya simu na PIN kutoka usajili.',
+                    ['Open Sign in / Ingia', 'Enter your registered phone number', 'Enter your PIN', 'Continue to your account'],
+                    ['Fungua Ingia', 'Weka namba ya simu iliyosajiliwa', 'Weka PIN yako', 'Endelea kwenye akaunti yako']),
+                $this->howto('forgot-pin', 'Login', 'Kuingia',
+                    'I forgot my PIN', 'Nimesahau PIN',
+                    'Reset a forgotten PIN', 'Kuweka upya PIN uliyosahau',
+                    'Reset from the login screen with an SMS code.',
+                    'Weka upya kutoka skrini ya kuingia kwa msimbo wa SMS.',
+                    ['Open Sign in', 'Tap Forgot PIN / Nimesahau PIN', 'Enter the SMS code', 'Choose a new 4-digit PIN'],
+                    ['Fungua Ingia', 'Gusa Nimesahau PIN', 'Weka msimbo wa SMS', 'Chagua PIN mpya ya tarakimu 4']),
+                $this->howto('first-details', 'Registration', 'Usajili',
+                    'How do I complete my first details?', 'Ninawezaje kukamilisha taarifa za mwanzo?',
+                    'Complete first details', 'Kukamilisha taarifa za mwanzo',
+                    'After PIN, add the basic profile information so you can apply and help others.',
+                    'Baada ya PIN, ongeza taarifa za msingi za wasifu ili uweze kuomba na kusaidia wengine.',
+                    ['Open Profile when prompted', 'Add your legal name and contacts', 'Save before leaving', 'Continue into Loans or Dashboard'],
+                    ['Fungua Wasifu unapoulizwa', 'Ongeza jina la kisheria na mawasiliano', 'Hifadhi kabla ya kuondoka', 'Endelea Mikopo au Dashibodi']),
+                $this->answer('registration-problem', 'Registration', 'Usajili',
+                    'I have a problem while registering', 'Tatizo wakati wa kujisajili',
+                    'Check network and SMS delivery, confirm the phone digits, then try again. If stuck, Talk to Support or Call us.',
+                    'Angalia mtandao na upokeaji wa SMS, hakiki tarakimu za simu, kisha jaribu tena. Bado ukikwama, Ongea na Usaidizi au Piga simu.'),
+            ]),
             $this->cat('apply-loan', 'Applying for a loan', 'Kuomba mkopo', 'member', '📋', [
                 $this->howto('how-to-apply', 'Getting started', 'Kuanza',
                     'How do I apply for a loan?', 'Ninawezaje kuomba mkopo?',

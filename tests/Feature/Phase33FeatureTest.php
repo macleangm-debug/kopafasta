@@ -175,7 +175,7 @@ class Phase33FeatureTest extends TestCase
         $this->actingAs($guarantor->user)
             ->get(route('site.borrower.guaranteed.show', $link))
             ->assertOk()
-            ->assertSee('max-w-3xl', false)
+            ->assertSee('max-w-7xl', false)
             ->assertSee('APP-P33-GTD', false)
             ->assertSee(__('borrower.loan_profile.summary_title'), false);
     }
@@ -228,7 +228,7 @@ class Phase33FeatureTest extends TestCase
             ->get(route('site.borrower.guarantor-requests.show', $link));
 
         $response->assertOk()
-            ->assertSee('max-w-3xl', false)
+            ->assertSee('max-w-7xl', false)
             ->assertSee(__('borrower.guarantor.request_overview'), false)
             ->assertSee(__('borrower.guarantor.your_decision'), false)
             ->assertSee(__('borrower.guarantor.accept_request_cta'), false);

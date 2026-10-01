@@ -1,7 +1,7 @@
 <x-site.borrower-layout
     :title="brand_title(__('borrower.guaranteed.detail_title'))"
     active="loans"
-    content-width="narrow">
+    content-width="wide">
 
     @php
         $borrowerName = $row->borrower?->legalDisplayName() ?? __('borrower.loans_page.borrower');
@@ -19,6 +19,16 @@
             $needsProfile => __('borrower.guaranteed.waiting_on_your_profile'),
             default => $row->stage_label ?? ($row->application_status['label'] ?? '—'),
         };
+        $tenureLabel = null;
+        $tenureMonths = $row->application?->requested_tenure_months
+            ?? $row->loan?->tenure_months
+            ?? null;
+        if ($tenureMonths) {
+            $tenureLabel = __('borrower.applications_list.tenure_months', ['count' => (int) $tenureMonths]);
+        }
+        $supportBits = collect([$borrowerName, $productName, $tenureLabel])
+            ->filter(fn ($v) => filled($v))
+            ->values();
     @endphp
 
     <div class="mb-4">
@@ -35,19 +45,22 @@
         <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-800">{{ session('status') }}</div>
     @endif
 
-    <section class="relative overflow-hidden rounded-2xl kf-premium-panel mb-6">
+    {{-- Premium loan overview: amount first, one current state (no duplicate status fields) --}}
+    <section class="mb-6 rounded-2xl p-4 sm:p-5 relative overflow-hidden kf-premium-panel"
+             style="view-transition-name: kf-gtd-{{ $row->link->id }}">
         <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
-        <div class="relative px-5 sm:px-6 py-5 sm:py-6 text-white">
-            <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.loans_page.guarantor_badge') }}</p>
-            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">{{ $productName }}</h1>
-            <p class="mt-2 text-sm text-white/85">{{ $borrowerName }} · {{ $row->reference }}</p>
-            <div class="mt-4 flex flex-wrap items-center gap-2">
-                <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 bg-white/15 ring-1 ring-white/25">
-                    {{ __('borrower.loans_page.guarantor_badge') }}
-                </span>
-                <span class="inline-flex text-xs font-semibold rounded-full px-3 py-1.5 {{ $needsProfile ? 'bg-amber-400/25 ring-1 ring-amber-200/40 text-amber-50' : 'bg-white/15 ring-1 ring-white/25' }}">
-                    {{ $statusLine }}
-                </span>
+        <div class="relative space-y-3">
+            <div class="min-w-0">
+                <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.loan_profile.summary_title') }}</p>
+                <p class="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums text-white mt-2">
+                    {{ format_money($row->amount) }}
+                </p>
+                <p class="text-sm text-white/85 mt-2">{{ $supportBits->implode(' · ') }}</p>
+                <p class="text-xs font-mono text-white/65 mt-1">{{ $row->reference }}</p>
+            </div>
+            <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <p class="text-xs font-semibold text-white/80">{{ $statusLine }}</p>
+                <p class="text-[11px] uppercase tracking-widest text-white/55 font-semibold">{{ __('borrower.loans_page.guarantor_badge') }}</p>
             </div>
         </div>
     </section>
@@ -92,37 +105,6 @@
             </div>
         </div>
     @endif
-
-    {{-- Summary first --}}
-    <div class="glass-card p-5 mb-6 ring-1 ring-brand/15">
-        <p class="text-[10px] uppercase tracking-widest text-brand font-semibold mb-4">{{ __('borrower.loan_profile.summary_title') }}</p>
-        <div class="grid sm:grid-cols-2 gap-4 text-sm">
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.applications_list.amount') }}</p>
-                <p class="font-semibold mt-1">{{ format_money($row->amount) }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.borrower') }}</p>
-                <p class="font-semibold mt-1">{{ $borrowerName }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.guaranteed.current_step') }}</p>
-                <p class="font-semibold mt-1">{{ $statusLine }}</p>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.loans_page.loan_status') }}</p>
-                <p class="font-semibold mt-1">
-                    @if ($row->loan)
-                        {{ ucfirst((string) $row->loan_status) }}
-                    @elseif ($submitted)
-                        {{ __('borrower.guaranteed.loan_status_submitted') }}
-                    @else
-                        {{ __('borrower.loans_page.not_disbursed') }}
-                    @endif
-                </p>
-            </div>
-        </div>
-    </div>
 
     @php
         $cs = $collateralSecure ?? null;

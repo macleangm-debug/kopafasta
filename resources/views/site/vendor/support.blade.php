@@ -64,9 +64,11 @@
                 @include('site.help._landing-body', [
                     'isSw' => $isSw,
                     'helpCategories' => $helpCategories ?? [],
-                    'helpRecommended' => $helpRecommended ?? [],
+                    'helpGroups' => $helpGroups ?? [],
                     'helpResults' => $helpResults ?? [],
                     'helpQuery' => $helpQuery ?? '',
+                    'helpTopic' => $helpTopic ?? '',
+                    'helpArticle' => $helpArticle ?? '',
                     'homeUrl' => $homeUrl,
                     'chatUrl' => $chatUrl,
                     'phones' => support_phones(),

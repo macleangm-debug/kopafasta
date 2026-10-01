@@ -1604,12 +1604,16 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         $portal = app(PortalContextService::class);
         $ctaService = app(NotificationCtaService::class);
-        $items = $portal->borrowerNotificationsQuery($customer)
-            ->latest()
-            ->limit(8)
-            ->get()
-            ->map(function (NotificationLog $n) use ($ctaService) {
-                $center = app(NotificationCenterService::class);
+        $center = app(NotificationCenterService::class);
+        $base = $portal->borrowerNotificationsQuery($customer);
+
+        // Same eligible set as the full Notifications page. Pin invitation rows so a busy
+        // inbox never hides guarantor/group CTAs from the compact bell dropdown.
+        $inviteTemplates = ['guarantor_request', 'group_loan_invitation'];
+        $pinned = (clone $base)->whereIn('template', $inviteTemplates)->latest()->limit(6)->get();
+        $recent = (clone $base)->latest()->limit(12)->get();
+        $items = $pinned->concat($recent)->unique('id')->take(12)->values()
+            ->map(function (NotificationLog $n) use ($ctaService, $center) {
                 $category = $center->normalizeCategory((string) ($n->category ?: 'general'));
                 $ctas = $ctaService->resolve($n);
 
@@ -4053,9 +4057,10 @@ class BorrowerController extends Controller
             'resolvedTickets' => $resolvedTickets,
             'helpGroups' => $help->groups('member'),
             'helpCategories' => $help->categories('member'),
-            'helpRecommended' => $help->recommended($customer, 'member'),
             'helpResults' => $q !== '' ? $help->search($q, 'member') : [],
             'helpQuery' => $q,
+            'helpTopic' => (string) request('topic', ''),
+            'helpArticle' => (string) request('article', ''),
             'openHumanChat' => $openChat,
             'helpSection' => $section,
             'phones' => support_phones(),
