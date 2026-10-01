@@ -105,7 +105,8 @@ class BorrowerGuarantorStatusFeatureTest extends TestCase
         $this->assertSame('pending_profile', $after['code']);
         $this->assertTrue($after['accepted']);
         $this->assertFalse($after['ready']);
-        $this->assertSame(__('borrower.apply.guarantor_status.pending_profile'), $after['label']);
+        $this->assertSame(__('borrower.apply.guarantor_status.profile_in_progress'), $after['label']);
+        $this->assertNotSame(__('borrower.apply.guarantor_status.invitation_sent'), $after['label']);
 
         $this->actingAs($borrower->user)
             ->get(route('site.borrower.apply.guarantor-status', ['invitation_id' => $invitation->id]))
@@ -162,5 +163,61 @@ class BorrowerGuarantorStatusFeatureTest extends TestCase
         $this->assertSame('invitation_sent', $status['code']);
         $this->assertFalse($status['accepted']);
         $this->assertFalse($status['ready']);
+        $this->assertSame(__('borrower.apply.guarantor_status.invitation_sent'), $status['label']);
+    }
+
+    public function test_accepted_incomplete_badge_is_not_invitation_sent(): void
+    {
+        $borrower = $this->makeCustomer('20');
+        $product = LoanProduct::create([
+            'code'              => 'IL-BGS-ACC',
+            'name'              => 'Accepted Status Product',
+            'is_active'         => true,
+            'interest_rate'     => 0.15,
+            'min_amount'        => 100_000,
+            'max_amount'        => 5_000_000,
+            'tenure_min_months' => 3,
+            'tenure_max_months' => 24,
+            'requires_guarantor'=> true,
+        ]);
+
+        $record = Guarantor::create([
+            'first_name'   => 'Vase',
+            'last_name'    => 'Vase',
+            'phone'        => '255711000020',
+            'relationship' => 'friend',
+        ]);
+
+        $link = CustomerGuarantor::create([
+            'customer_id'  => $borrower->id,
+            'guarantor_id' => $record->id,
+            'status'       => 'pending',
+        ]);
+
+        $invitation = GuarantorInvitation::create([
+            'customer_id'           => $borrower->id,
+            'loan_product_id'       => $product->id,
+            'customer_guarantor_id' => $link->id,
+            'type'                  => 'external',
+            'channel'               => 'link',
+            'token'                 => 'bgs-acc-01',
+            'short_code'            => 'BGSACC',
+            'contact'               => '255711000020',
+            'invitee_name'          => 'Vase Vase Vase',
+            'status'                => 'accepted',
+            'responded_at'          => now(),
+            'expires_at'            => now()->addDays(7),
+        ]);
+
+        $status = app(GuarantorInvitationService::class)->borrowerInvitationStatus($invitation);
+        $this->assertTrue($status['accepted']);
+        $this->assertNotSame('invitation_sent', $status['code']);
+        $this->assertNotSame(__('borrower.apply.guarantor_status.invitation_sent'), $status['label']);
+        $this->assertContains($status['label'], [
+            __('borrower.apply.guarantor_status.invitation_accepted'),
+            __('borrower.apply.guarantor_status.profile_in_progress'),
+        ]);
+        $current = collect($status['steps'])->firstWhere('current', true);
+        $this->assertSame('profile', $current['key'] ?? null);
     }
 }

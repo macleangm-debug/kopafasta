@@ -37,7 +37,11 @@ class ApplicationViewGuarantorControlCentreFeatureTest extends TestCase
         // Section O/C: Wadhamini owns awaiting-guarantor copy — no duplicate waiting card.
         $this->assertStringNotContainsString(__('borrower.intake.passed_title'), $html);
         $this->assertStringNotContainsString(__('borrower.intake.part_submitted'), $html);
-        $this->assertStringContainsString(__('borrower.loan_profile.guarantor_pending_acceptance_title'), $html);
+        // Progress component is the single status source — no duplicate waiting heading/body.
+        $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_pending_acceptance_title'), $html);
+        $this->assertStringNotContainsString(__('borrower.loan_profile.guarantor_pending_acceptance_body'), $html);
+        $this->assertStringContainsString(__('borrower.apply.guarantor_status.invitation_sent'), $html);
+        $this->assertStringContainsString(__('borrower.apply.guarantor_progress.accepted'), $html);
         // Section D: Mohamed-shaped pending is replacement-capable, not "Add another".
         $this->assertStringNotContainsString(__('borrower.guarantor_supplement.borrower_banner'), $html);
         $this->assertStringNotContainsString(__('borrower.apply.submit_step.supplement_title'), $html);

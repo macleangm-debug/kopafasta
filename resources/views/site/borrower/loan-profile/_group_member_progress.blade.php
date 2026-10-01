@@ -1,7 +1,7 @@
 @props(['groupProgress' => null])
 
 @if (! empty($groupProgress) && ! empty($groupProgress['members']))
-    <div id="group-member-progress" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/20" x-data="{ openId: null }">
+    <div id="group-member-progress" class="mb-6 glass-card overflow-hidden ring-1 ring-brand/20">
         <div class="bg-gradient-to-br from-brand-muted/50 to-white px-5 py-4 border-b border-brand/10">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0">
@@ -29,87 +29,41 @@
                 </div>
             </div>
         </div>
-        <ul class="divide-y divide-gray-100">
-            @foreach ($groupProgress['members'] as $index => $member)
+
+        <div class="px-5 py-5 space-y-4">
+            @foreach ($groupProgress['members'] as $member)
                 @php
-                    $memberKey = 'gm-'.$index.'-'.($member['customer_id'] ?? 0).'-'.($member['invitation_id'] ?? 0);
                     $percent = (int) ($member['profile_percent'] ?? 0);
-                    $sections = $member['profile_sections'] ?? [];
-                    $avatarUrl = $member['avatar_url'] ?? null;
+                    $steps = $member['progress_steps'] ?? [];
+                    $terminal = (bool) ($member['terminal'] ?? false);
+                    $badgeTone = (string) ($member['badge_tone'] ?? 'sky');
+                    $role = (string) ($member['role'] ?? '');
                 @endphp
-                <li class="px-5 py-4">
-                    <button type="button"
-                            class="w-full text-left"
-                            @click="openId = openId === @js($memberKey) ? null : @js($memberKey)">
-                        <div class="flex items-start gap-3">
-                            <div class="size-10 rounded-2xl bg-brand text-white grid place-items-center text-sm font-bold shrink-0 overflow-hidden">
-                                @if ($avatarUrl)
-                                    <img src="{{ $avatarUrl }}" alt="{{ $member['name'] ?? '' }}" class="size-full object-cover">
-                                @else
-                                    {{ strtoupper(mb_substr((string) ($member['name'] ?? '?'), 0, 1)) }}
-                                @endif
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <p class="font-semibold text-sm text-gray-900 truncate">{{ $member['name'] ?? '—' }}</p>
-                                    @if (($member['role'] ?? '') === 'leader')
-                                        <span class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                                            {{ __('borrower.apply.group_members.leader_badge') }}
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-                                            {{ __('borrower.apply.group_members.member_badge') }}
-                                        </span>
-                                    @endif
-                                </div>
-                                <p class="text-xs text-gray-500">{{ $member['phone'] ?? '' }}</p>
-                            </div>
-                            <div class="text-right shrink-0 w-[7.5rem]">
-                                <p class="text-xs font-semibold text-gray-700 leading-snug">{{ $member['status_label'] ?? '—' }}</p>
-                                @if (! empty($sections))
-                                    <svg class="w-4 h-4 text-gray-400 ml-auto mt-2 transition" :class="openId === @js($memberKey) && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <div class="flex items-center justify-between gap-2 text-[11px] text-gray-500 mb-1">
-                                <span>{{ __('borrower.apply.group.profile_completion') }}</span>
-                                <span class="font-bold tabular-nums text-brand">{{ $percent }}%</span>
-                            </div>
-                            <div class="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                                <div @class([
-                                    'h-full rounded-full',
-                                    'bg-emerald-500' => $percent >= 100,
-                                    'bg-brand' => $percent < 100,
-                                ]) style="width: {{ max(0, min(100, $percent)) }}%"></div>
-                            </div>
-                        </div>
-                    </button>
-                    @if (! empty($sections))
-                        <div x-show="openId === @js($memberKey)" x-cloak class="mt-3 space-y-2">
-                            <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ __('borrower.apply.group_members.readiness_title') }}</p>
-                            @foreach ($sections as $section)
-                                <div @class([
-                                    'flex items-center justify-between gap-3 rounded-2xl px-3.5 py-2.5 ring-1',
-                                    'bg-emerald-50/80 ring-emerald-100' => $section['complete'] ?? false,
-                                    'bg-gray-50 ring-gray-100' => ! ($section['complete'] ?? false),
-                                ])>
-                                    <span class="text-sm font-medium text-gray-800">{{ $section['label'] ?? '' }}</span>
-                                    <span @class([
-                                        'text-[11px] font-bold uppercase tracking-wider',
-                                        'text-emerald-700' => $section['complete'] ?? false,
-                                        'text-amber-700' => ! ($section['complete'] ?? false),
-                                    ])>
-                                        {{ ($section['complete'] ?? false)
-                                            ? __('borrower.apply.group_members.readiness_done')
-                                            : __('borrower.apply.group_members.readiness_pending') }}
-                                    </span>
-                                </div>
-                            @endforeach
-                        </div>
+                <x-site.invitee-progress
+                    :name="$member['name'] ?? '—'"
+                    :badge="$member['status_label'] ?? null"
+                    :badge-tone="$badgeTone"
+                    :steps="$steps"
+                    :terminal="$terminal"
+                    :terminal-label="$terminal ? ($member['status_label'] ?? null) : null"
+                >
+                    <div class="flex flex-wrap items-center gap-2 min-w-0">
+                        <p class="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight truncate">{{ $member['name'] ?? '—' }}</p>
+                        @if ($role === 'leader')
+                            <span class="inline-flex items-center rounded-full bg-brand text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                {{ __('borrower.apply.group_members.leader_badge') }}
+                            </span>
+                        @else
+                            <span class="inline-flex items-center rounded-full bg-brand-muted text-brand ring-1 ring-brand/15 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                                {{ __('borrower.apply.group_members.member_badge') }}
+                            </span>
+                        @endif
+                    </div>
+                    @if (! empty($member['phone']))
+                        <p class="text-xs text-gray-500 mt-0.5">{{ $member['phone'] }}</p>
                     @endif
-                </li>
+                </x-site.invitee-progress>
             @endforeach
-        </ul>
+        </div>
     </div>
 @endif

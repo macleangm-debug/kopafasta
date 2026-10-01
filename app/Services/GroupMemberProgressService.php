@@ -169,9 +169,15 @@ class GroupMemberProgressService
                 }
             }
 
+            $presentation = $this->presentationForStatus(
+                (string) ($status['key'] ?? ''),
+                (int) ($profile['percent'] ?? 0),
+                (string) ($status['label'] ?? ''),
+            );
+
             return array_merge($member, [
                 'status_key'       => $status['key'],
-                'status_label'     => $status['label'],
+                'status_label'     => $presentation['badge'],
                 'status_complete'  => $status['complete'],
                 'profile_percent'  => $profile['percent'],
                 'profile_sections' => $profile['sections'],
@@ -180,8 +186,10 @@ class GroupMemberProgressService
                 'signature_data'   => $signatureData,
                 'signer_name'      => $signerName,
                 'signed_at'        => $signedAt,
-                // Kept for older clients; wizard uses profile_percent; sections belong on loan views.
-                'progress_steps'   => [],
+                'badge_tone'       => $presentation['tone'],
+                'terminal'         => $presentation['terminal'],
+                // Shared invitee-progress journey (same as individual guarantor).
+                'progress_steps'   => $presentation['steps'],
             ]);
         })->reject(fn (array $member) => in_array($member['status_key'] ?? '', ['declined', 'expired'], true))
             ->values();
@@ -302,8 +310,111 @@ class GroupMemberProgressService
     /** @return list<array{key: string, label: string, complete: bool, pending: bool}> */
     public function stepsForMemberRow(array $memberRow): array
     {
-        // Legacy checklist removed from the borrower wizard — profile % is the source of truth.
-        return [];
+        $presentation = $this->presentationForStatus(
+            (string) ($memberRow['status_key'] ?? ''),
+            (int) ($memberRow['profile_percent'] ?? 0),
+            (string) ($memberRow['status_label'] ?? ''),
+        );
+
+        return $presentation['steps'];
+    }
+
+    /**
+     * Map group-member workflow status into the shared invitee-progress presentation.
+     *
+     * @return array{
+     *   badge: string,
+     *   tone: string,
+     *   terminal: bool,
+     *   steps: list<array{key: string, label: string, complete: bool, current: bool}>
+     * }
+     */
+    public function presentationForStatus(string $statusKey, int $profilePercent = 0, string $fallbackLabel = ''): array
+    {
+        if (in_array($statusKey, ['declined', 'expired'], true)) {
+            $labels = $this->statusLabels();
+
+            return [
+                'badge' => $labels[$statusKey] ?? $fallbackLabel,
+                'tone' => 'rose',
+                'terminal' => true,
+                'steps' => [],
+            ];
+        }
+
+        $invitedDone = true;
+        $acceptedDone = ! in_array($statusKey, [
+            'pending_invitation',
+            'invitation_sent',
+            'link_opened',
+        ], true);
+        $profileDone = in_array($statusKey, [
+            'profile_complete',
+            'awaiting_signature',
+            'kyc_complete',
+        ], true);
+        // “Tayari” once profile requirements are complete (signature may still be pending).
+        $readyDone = in_array($statusKey, ['kyc_complete', 'profile_complete', 'awaiting_signature'], true);
+
+        $current = match (true) {
+            ! $acceptedDone => 'accepted',
+            ! $profileDone => 'profile',
+            ! $readyDone => 'ready',
+            default => 'ready',
+        };
+
+        $badge = match (true) {
+            ! $acceptedDone => __('borrower.apply.guarantor_status.invitation_sent'),
+            ! $profileDone && $profilePercent <= 0 && in_array($statusKey, [
+                'registration_started',
+                'account_registered',
+                'registration_complete',
+            ], true) => __('borrower.apply.guarantor_status.invitation_accepted'),
+            ! $profileDone => __('borrower.apply.guarantor_status.profile_in_progress'),
+            default => __('borrower.apply.group.status_badge_ready'),
+        };
+
+        $tone = match (true) {
+            $readyDone => 'emerald',
+            $acceptedDone => 'amber',
+            default => 'sky',
+        };
+
+        $steps = [
+            [
+                'key' => 'invited',
+                'label' => __('borrower.apply.guarantor_progress.invited'),
+                'complete' => $invitedDone,
+                'current' => false,
+            ],
+            [
+                'key' => 'accepted',
+                'label' => __('borrower.apply.guarantor_progress.accepted'),
+                'complete' => $acceptedDone,
+                'current' => $current === 'accepted',
+            ],
+            [
+                'key' => 'profile',
+                'label' => $profilePercent > 0 && ! $profileDone
+                    ? __('borrower.apply.guarantor_progress.profile_pct', ['percent' => $profilePercent])
+                    : __('borrower.apply.guarantor_progress.profile'),
+                'complete' => $profileDone,
+                'current' => $current === 'profile',
+            ],
+            [
+                'key' => 'ready',
+                'label' => __('borrower.apply.group.progress_step_ready'),
+                'complete' => $readyDone,
+                'current' => $current === 'ready',
+            ],
+        ];
+
+        return [
+            'badge' => $badge,
+            'tone' => $tone,
+            'terminal' => false,
+            'steps' => $steps,
+        ];
     }
 
     /** @return array{key: string, label: string, complete: bool} */

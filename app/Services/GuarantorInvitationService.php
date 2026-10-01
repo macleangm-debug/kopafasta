@@ -735,22 +735,33 @@ class GuarantorInvitationService
      */
     private function borrowerStatusPayload(string $code, ?int $profilePercent, bool $accepted, bool $ready): array
     {
+        // Badge follows furthest achieved/action state — never stay on “invitation sent” after accept.
         $labelKey = match ($code) {
-            'pending_acceptance' => 'pending_acceptance',
-            'pending_profile' => 'pending_profile',
-            'pending_reconfirmation' => 'pending_reconfirmation',
-            'ready' => 'ready',
-            'guarantee_pending' => 'guarantee_pending',
-            'registration_in_progress' => 'registration_in_progress',
-            'kyc_in_progress' => 'kyc_in_progress',
+            'pending_acceptance', 'invitation_sent' => 'invitation_sent',
+            'accepted', 'registration_in_progress' => 'invitation_accepted',
+            'pending_profile', 'kyc_in_progress', 'guarantee_pending', 'pending_reconfirmation' => 'profile_in_progress',
+            'ready' => 'ready_for_review',
             'rejected' => 'rejected',
             'expired' => 'expired',
-            'accepted' => 'accepted',
             default => 'invitation_sent',
         };
+        if (in_array($code, ['registration_in_progress', 'accepted'], true)
+            && $profilePercent !== null
+            && $profilePercent > 0
+            && ! $ready) {
+            $labelKey = 'profile_in_progress';
+        }
 
         $invitedDone = true;
-        $acceptedDone = $accepted || $ready || in_array($code, ['pending_profile', 'guarantee_pending', 'ready', 'pending_reconfirmation'], true);
+        $acceptedDone = $accepted || $ready || in_array($code, [
+            'pending_profile',
+            'guarantee_pending',
+            'ready',
+            'pending_reconfirmation',
+            'registration_in_progress',
+            'kyc_in_progress',
+            'accepted',
+        ], true);
         $profileDone = $ready || ($acceptedDone && $profilePercent !== null && $profilePercent >= 100 && $code === 'ready');
         if ($code === 'ready') {
             $profileDone = true;
@@ -760,8 +771,8 @@ class GuarantorInvitationService
         }
 
         $current = match ($code) {
-            'pending_acceptance', 'invitation_sent', 'registration_in_progress', 'kyc_in_progress' => 'accepted',
-            'pending_profile', 'guarantee_pending', 'pending_reconfirmation' => 'profile',
+            'pending_acceptance', 'invitation_sent' => 'accepted',
+            'registration_in_progress', 'kyc_in_progress', 'pending_profile', 'guarantee_pending', 'pending_reconfirmation', 'accepted' => 'profile',
             'ready' => 'ready',
             'rejected', 'expired' => 'accepted',
             default => 'accepted',
