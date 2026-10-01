@@ -14,9 +14,26 @@
                     <p class="text-sm font-bold text-gray-900">{{ $name }}</p>
                     <p class="text-xs text-gray-500 mt-0.5">
                         {{ $isMember ? 'Member conversation' : 'Guest / Non-member' }}
-                        · {{ ucfirst($conversation->status) }}
+                        · {{ app(\App\Services\Support\SupportConversationService::class)->deskState($conversation) }}
                         @if ($conversation->needs_human) · Needs human @endif
+                        @if ($conversation->conversation_number) · {{ $conversation->publicNumber() }} @endif
                     </p>
+                    @php
+                        $autoMeta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+                        $steps = $autoMeta['steps_attempted'] ?? [];
+                    @endphp
+                    @if (is_array($steps) && $steps !== [])
+                        <div class="mt-3 rounded-xl bg-brand-muted/40 px-3 py-2 text-xs text-gray-700">
+                            <p class="font-bold text-brand mb-1">Automation attempted</p>
+                            <ul class="list-disc pl-4 space-y-0.5">
+                                @foreach ($steps as $step)
+                                    @if (is_array($step))
+                                        <li>{{ ($step['type'] ?? '') }}{{ isset($step['key']) ? ': '.$step['key'] : '' }}{{ isset($step['slug']) ? ': '.$step['slug'] : '' }}{{ !empty($step['creates_ticket']) ? ' (ticket)' : '' }}</li>
+                                    @endif
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                 </div>
                 <div class="p-5 max-h-[28rem] overflow-y-auto space-y-3">
                     @forelse ($conversation->messages as $message)

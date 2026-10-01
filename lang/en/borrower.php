@@ -4505,7 +4505,7 @@ return [
         'email' => 'Email :email',
         'identity_help_title' => 'Help with ID verification',
         'identity_help_body' => 'If your NIDA name does not match your registration, or checks were paused, email us with your phone number and NIDA details. We review each case — for example a legal name change.',
-        'assistant_title' => 'KopaFasta Assistant',
+        'assistant_title' => 'Kopafasta Assistant',
         'assistant_subtitle' => 'Ask about membership, loans, repayments, or guarantors',
         'chat_placeholder' => 'Type your question…',
         'chat_send' => 'Send',

@@ -466,6 +466,20 @@ class SupportHelpLibraryService
                     'What if payment fails?', 'Malipo yakishindikana?',
                     'Use Retry or change number on the same payment surface. Check balance and PIN on your mobile money account.',
                     'Tumia Jaribu tena au badilisha nambari kwenye skrini ile ile. Angalia salio na PIN kwenye akaunti yako ya simu.'),
+                $this->answer('payment-not-showing', 'Problems', 'Matatizo',
+                    'I paid but my payment is not showing', 'Nimelipa lakini malipo hayajaonekana',
+                    'Confirm the payment reference on your phone, wait a few minutes, then refresh Payments. Do not pay again. If it still does not appear, we will open an investigation ticket.',
+                    'Thibitisha rejea ya malipo kwenye simu yako, subiri dakika chache, kisha onyesha upya Malipo. Usilipe tena. Ikiwa bado haionekani, tutafungua tiketi ya uchunguzi.',
+                    null, null, null, true),
+                $this->answer('payment-paid-twice', 'Problems', 'Matatizo',
+                    'I paid twice / duplicate payment', 'Nimelipa mara mbili',
+                    'Do not make another payment. Keep both receipt references. Support will investigate and reverse or apply the duplicate where policy allows.',
+                    'Usifanye malipo mengine. Hifadhi rejea zote mbili. Usaidizi utachunguza na kurejesha au kutumia nakala inaporuhusiwa.',
+                    null, null, null, true),
+                $this->answer('fee-unclear', 'Fees', 'Ada',
+                    'I do not understand a fee', 'Ada sielewi',
+                    'Open the payment or application screen that listed the fee. Amounts come from product settings — Support cannot invent a different fee.',
+                    'Fungua skrini ya malipo au ombi iliyoonyesha ada. Kiasi kinatoka kwenye mipangilio ya bidhaa — Usaidizi hauwezi kubuni ada tofauti.'),
                 $this->answer('receipts', 'Records', 'Rekodi',
                     'Where are my receipts?', 'Risiti zangu ziko wapi?',
                     'Open Payments history for confirmed payments. Successful payments show a receipt reference.',
@@ -812,6 +826,7 @@ class SupportHelpLibraryService
         ?string $ctaRoute = null,
         ?string $ctaEn = null,
         ?string $ctaSw = null,
+        bool $createsTicket = false,
     ): array {
         return [
             'slug' => $slug,
@@ -829,6 +844,7 @@ class SupportHelpLibraryService
             'cta_route' => $ctaRoute,
             'cta_label_en' => $ctaEn,
             'cta_label_sw' => $ctaSw,
+            'creates_ticket' => $createsTicket,
         ];
     }
 
@@ -846,6 +862,7 @@ class SupportHelpLibraryService
         ?string $ctaRoute = null,
         ?string $ctaEn = null,
         ?string $ctaSw = null,
+        bool $createsTicket = false,
     ): array {
         return [
             'slug' => $slug,
@@ -861,6 +878,7 @@ class SupportHelpLibraryService
             'cta_route' => $ctaRoute,
             'cta_label_en' => $ctaEn,
             'cta_label_sw' => $ctaSw,
+            'creates_ticket' => $createsTicket,
         ];
     }
 }

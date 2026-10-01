@@ -1,10 +1,12 @@
 @props([
     'memberMode' => false,
     'forceHuman' => false,
+    'automationMode' => false,
     'agentLabel' => null,
     'agentSubtitle' => null,
     'speakUrl' => null,
     'threadUrl' => null,
+    'automationUrl' => null,
     'existingMessages' => null,
     'conversation' => null,
     'showBackToFaqs' => false,
@@ -36,17 +38,24 @@
             ];
         }
     }
-    $startHuman = $forceHuman || count($seedMessages) > 0;
+    $automationMode = (bool) $automationMode;
+    $startHuman = ($forceHuman && ! $automationMode) || (
+        count($seedMessages) > 0
+        && $conversation instanceof \App\Models\SupportConversation
+        && (bool) ($conversation->needs_human ?? false)
+    );
     $presence = app(\App\Services\Support\SupportConversationService::class)
         ->memberChatPresence($conversation instanceof \App\Models\SupportConversation ? $conversation : null);
     // Parent provides focused/centered width; chat fills that container (not a left-aligned max-w-2xl island).
-    $shellClass = $forceHuman
+    $shellClass = ($forceHuman || $automationMode)
         ? 'overflow-hidden rounded-2xl ring-1 ring-brand/15 shadow-sm bg-white w-full'
         : 'glass-card p-5 sm:p-6 w-full';
     $isSw = str_starts_with(app()->getLocale(), 'sw');
     $composerLocked = $conversation instanceof \App\Models\SupportConversation
         && in_array((string) $conversation->status, ['closed', 'resolved'], true);
-    $needsGuestIdentity = ! $memberMode && $forceHuman;
+    // Guest identity is collected only when escalating to a human — not at automation start.
+    $needsGuestIdentity = ! $memberMode && $forceHuman && ! $automationMode;
+    $guestMayEscalate = ! $memberMode && $automationMode;
     $guestFirstName = trim((string) ($guestFirstName ?? ''));
     $guestLastName = trim((string) ($guestLastName ?? ''));
     if ($guestFirstName === '' && $guestLastName === '' && filled($guestName)) {
@@ -58,24 +67,31 @@
 
 <div {{ $attributes->merge(['class' => $shellClass]) }}
      x-data="aiSupportChat(@js([
-         'greeting' => $forceHuman
-             ? __('borrower.support_page.speak_to_support_hint')
-             : $chat['greeting'],
+         'greeting' => $automationMode
+             ? ($isSw
+                 ? 'Habari. Mimi ni Msaidizi wa Kopafasta. Ninaweza kukusaidia saa 24. Unahitaji msaada kuhusu nini?'
+                 : 'Hello. I am the Kopafasta Assistant. I can help 24/7. What do you need help with?')
+             : ($forceHuman
+                 ? __('borrower.support_page.speak_to_support_hint')
+                 : $chat['greeting']),
          'default' => $chat['default'],
-         'suggestions' => $forceHuman ? [] : $chat['suggestions'],
-         'rules' => $forceHuman ? [] : $chat['rules'],
-         'products' => $forceHuman ? [] : $chat['products'],
+         'suggestions' => ($forceHuman || $automationMode) ? [] : $chat['suggestions'],
+         'rules' => ($forceHuman || $automationMode) ? [] : $chat['rules'],
+         'products' => ($forceHuman || $automationMode) ? [] : $chat['products'],
          'chooseProductPrompt' => $chat['choose_product_prompt'],
          'memberMode' => $memberMode,
          'forceHuman' => (bool) $forceHuman,
+         'automationMode' => (bool) $automationMode,
+         'automationUrl' => $automationUrl,
          'needsGuestIdentity' => (bool) $needsGuestIdentity,
+         'guestMayEscalate' => (bool) $guestMayEscalate,
          'guestFirstName' => $guestFirstName,
          'guestLastName' => $guestLastName,
          'guestName' => trim($guestFirstName.' '.$guestLastName),
          'guestPhone' => (string) ($guestPhone ?? ''),
          'guestIdentityHint' => $isSw
-             ? 'Andika jina la kwanza, jina la mwisho na namba ya simu ili timu iweze kukujibu (si usajili).'
-             : 'Enter your first name, last name and phone so the team can reply (not registration).',
+             ? 'Kabla ya Ongea na mtoa huduma, andika jina la kwanza, jina la mwisho na namba ya simu (si usajili).'
+             : 'Before talking to an agent, enter your first name, last name and phone (not registration).',
          'guestFirstNameLabel' => $isSw ? 'Jina la kwanza' : 'First name',
          'guestLastNameLabel' => $isSw ? 'Jina la mwisho' : 'Last name',
          'guestPhoneLabel' => $isSw ? 'Namba ya simu' : 'Phone number',
@@ -99,9 +115,12 @@
          'statusOnline' => 'Waiting for support',
          'statusAssigned' => 'Agent assigned',
          'tagline' => 'Kwa ajili yako · Here to help',
-         'brandTitle' => 'Kopafasta Support',
+         'brandTitle' => $automationMode
+             ? ($isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant')
+             : 'Kopafasta Support',
          'assignedSuffix' => 'Customer Support',
          'deskLabel' => $presence['desk_label'] ?? 'Waiting for support',
+         'automationDesk' => $isSw ? 'Otomatiki' : 'Automated',
          'showRating' => (bool) $showRating,
          'ratingUrl' => $ratingUrl,
          'composerLocked' => (bool) $composerLocked,
@@ -110,8 +129,8 @@
          'ratingCommentPh' => $isSw ? 'Maoni (si lazima)' : 'Comment (optional)',
          'ratingSend' => $isSw ? 'Tuma tathmini' : 'Submit rating',
      ]))">
-    @if ($forceHuman)
-        {{-- Premium live-support header — compact; no phone/website --}}
+    @if ($forceHuman || $automationMode)
+        {{-- Premium support header — compact; no phone/website --}}
         <div class="relative overflow-hidden bg-gradient-to-br from-brand via-[#127A5F] to-[#0a4a3c] text-white px-3.5 sm:px-4 py-3 sm:py-3.5">
             <div class="absolute inset-0 opacity-20 pointer-events-none"
                  style="background-image: radial-gradient(circle at 12% 20%, #fff 0, transparent 42%), radial-gradient(circle at 92% 0%, #fbbf24 0, transparent 36%);"></div>
@@ -228,6 +247,15 @@
         <p class="text-sm font-bold text-emerald-950" x-text="config.ratingThanks"></p>
     </div>
 
+
+    <div class="flex flex-wrap gap-2 mb-4" x-show="automationMode && !humanMode && choices.length && !showRating && !needsGuestGate" x-cloak>
+        <template x-for="choice in choices" :key="(choice.action||'')+'-'+(choice.key||choice.label)">
+            <button type="button" @click="pickChoice(choice)" :disabled="typing"
+                    class="text-sm px-3 py-1.5 rounded-full bg-brand-muted/80 text-brand hover:bg-brand/10 transition disabled:opacity-50 text-left"
+                    x-text="choice.label"></button>
+        </template>
+    </div>
+
     <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips && !showRating">
         <template x-for="suggestion in config.suggestions" :key="suggestion">
             <button type="button" @click="askSuggestion(suggestion)" :disabled="typing"
@@ -247,7 +275,7 @@
         </div>
     </div>
 
-    <form @submit.prevent="ask" class="flex gap-2 items-end" x-show="!(showRating || ratingDone || composerLocked || needsGuestGate)">
+    <form @submit.prevent="ask" class="flex gap-2 items-end" x-show="!(showRating || ratingDone || composerLocked || needsGuestGate || (automationMode && !humanMode && choices.length))">
         <textarea x-model="input" :disabled="typing" x-ref="composer" rows="1"
                @input="growComposer()"
                placeholder="{{ __('site.support.chat_placeholder') }}"
@@ -265,7 +293,7 @@
         </p>
     @endunless
 
-    @if ($forceHuman)
+    @if ($forceHuman || $automationMode)
         </div>
     @endif
 
@@ -283,6 +311,9 @@
                         sendError: '',
                         messages: seeded,
                         humanMode: !!(config.startHuman || config.forceHuman),
+                        automationMode: !!config.automationMode,
+                        choices: [],
+                        pendingEscalate: false,
                         showProductChips: false,
                         conversationId: config.conversationId || null,
                         agentFirstName: config.agentFirstName || null,
@@ -300,12 +331,11 @@
                         guestName: config.guestName || '',
                         guestPhone: config.guestPhone || '',
                         guestFieldErrors: { first: '', last: '', phone: '' },
-                        guestReady: !config.needsGuestIdentity || (
-                            !!(config.guestFirstName || '').trim()
+                        guestReady: !!(config.guestFirstName || '').trim()
                             && !!(config.guestLastName || '').trim()
-                            && !!(config.guestPhone || '').trim()
-                        ),
+                            && !!(config.guestPhone || '').trim(),
                         get needsGuestGate() {
+                            if (this.pendingEscalate && !this.guestReady) return true;
                             return !!config.needsGuestIdentity && !this.guestReady;
                         },
                         get guestFormReady() {
@@ -347,6 +377,90 @@
                             var el = this.$refs.scroll;
                             if (el) this.$nextTick(function () { el.scrollTop = el.scrollHeight; });
                         },
+
+                        applyAutomation(data) {
+                            if (!data) return;
+                            if (data.conversation_id) this.conversationId = data.conversation_id;
+                            if (data.conversation_number) this.config.conversationNumber = data.conversation_number;
+                            if (data.messages && data.messages.length) {
+                                this.messages = this.mapThread(data.messages);
+                            }
+                            this.choices = data.choices || [];
+                            if (data.composer_locked) this.composerLocked = true;
+                            if (data.mode === 'human' || data.needs_human) {
+                                this.humanMode = true;
+                                this.automationMode = false;
+                                this.choices = [];
+                                this.applyPresence(data);
+                                if (config.threadUrl && !this._timer) {
+                                    this.pollThread();
+                                    var self = this;
+                                    this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2000);
+                                }
+                            }
+                            if (data.handling_label) {
+                                this.config.deskLabel = data.handling_label;
+                            }
+                            if (data.ticket_number) {
+                                this.config.conversationNumber = data.ticket_number;
+                            }
+                            if (data.needs_guest) {
+                                this.pendingEscalate = true;
+                            }
+                            this.scrollBottom();
+                        },
+                        async runAutomation(action, extra) {
+                            if (!config.automationUrl || this.typing) return;
+                            this.typing = true;
+                            this.sendError = '';
+                            var payload = Object.assign({
+                                action: action,
+                                conversation_id: this.conversationId || null,
+                            }, extra || {});
+                            if (config.guestMayEscalate) {
+                                payload.guest_first_name = (this.guestFirstName || '').trim();
+                                payload.guest_last_name = (this.guestLastName || '').trim();
+                                payload.guest_name = (this.guestName || '').trim()
+                                    || (payload.guest_first_name + ' ' + payload.guest_last_name).trim();
+                                payload.guest_phone = (this.guestPhone || '').trim();
+                            }
+                            var self = this;
+                            try {
+                                var res = await fetch(config.automationUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': this.csrfToken(),
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify(payload),
+                                });
+                                var data = {};
+                                try { data = await res.json(); } catch (e) { data = {}; }
+                                if (!res.ok || data.ok === false) {
+                                    self.sendError = data.message || data.error || 'Imeshindikana. Jaribu tena.';
+                                    self.typing = false;
+                                    return;
+                                }
+                                self.applyAutomation(data);
+                            } catch (e) {
+                                self.sendError = 'Imeshindikana. Jaribu tena.';
+                            } finally {
+                                self.typing = false;
+                            }
+                        },
+                        pickChoice(choice) {
+                            if (!choice || this.typing) return;
+                            var action = choice.action || '';
+                            if (action === 'escalate' && config.guestMayEscalate && !this.guestReady) {
+                                this.pendingEscalate = true;
+                                return;
+                            }
+                            var extra = { key: choice.key, slug: choice.key };
+                            this.runAutomation(action, extra);
+                        },
                         askSuggestion(suggestion) {
                             this.input = suggestion;
                             this.ask();
@@ -374,6 +488,11 @@
                             this.guestPhone = phone;
                             this.guestReady = true;
                             this.sendError = '';
+                            if (this.pendingEscalate) {
+                                this.pendingEscalate = false;
+                                this.runAutomation('escalate', { key: 'human' });
+                                return;
+                            }
                             this.$nextTick(function () {
                                 var self = this;
                                 if (self.humanMode && config.threadUrl && !self._timer) {
@@ -574,6 +693,10 @@
                             var self = this;
                             this.scrollBottom();
                             this.$nextTick(function () { self.growComposer(); });
+                            if (this.automationMode && config.automationUrl && !this.humanMode) {
+                                this.runAutomation('start', {});
+                                return;
+                            }
                             if (this.humanMode && config.threadUrl && !this.needsGuestGate) {
                                 this.pollThread();
                                 this._timer = setInterval(function () { self.pollThread(); }, config.pollMs || 2000);

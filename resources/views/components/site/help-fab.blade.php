@@ -55,7 +55,7 @@
                 <a href="{{ route('site.borrower.support', ['chat' => 1]) }}"
                    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">
                     <span class="size-8 rounded-lg bg-brand-muted text-brand grid place-items-center shrink-0">☎</span>
-                    {{ __('site.help_hub.talk_to_support') }}
+                    {{ $isSw ? 'Anza mazungumzo' : 'Start a conversation' }}
                 </a>
                 <button type="button" @click="openFeedback(); menuOpen = false"
                         class="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-muted text-left">
@@ -78,7 +78,7 @@
                 <a href="{{ route('site.support.chat') }}"
                    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-muted">
                     <span class="size-8 rounded-lg bg-brand-muted text-brand grid place-items-center shrink-0">☎</span>
-                    {{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}
+                    {{ $isSw ? 'Anza mazungumzo' : 'Start a conversation' }}
                 </a>
                 <button type="button" @click="openFeedback(); menuOpen = false"
                         class="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 hover:bg-brand-muted text-left">

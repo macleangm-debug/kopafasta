@@ -21,7 +21,14 @@ class SupportConversation extends Model
             'resolved_at'          => 'datetime',
             'closed_at'            => 'datetime',
             'rating_requested_at'  => 'datetime',
+            'automation_meta'      => 'array',
         ];
+    }
+
+    public function handlingLabel(?string $locale = null): string
+    {
+        return app(\App\Services\Support\SupportAutomationService::class)
+            ->handlingLabel((string) ($this->handling_state ?: ''), $locale);
     }
 
     public function resolvedBy(): BelongsTo

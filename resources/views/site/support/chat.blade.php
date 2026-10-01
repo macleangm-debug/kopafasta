@@ -1,4 +1,4 @@
-<x-site.layout :title="brand_title($isSw ? 'Ongea na timu' : 'Talk to Support')">
+<x-site.layout :title="brand_title($isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant')">
     @php
         $isSw = $isSw ?? str_starts_with(app()->getLocale(), 'sw');
         $guestFirstName = $guestFirstName ?? '';
@@ -18,17 +18,21 @@
         <x-site.ai-support-chat
             class="mb-4 w-full"
             :member-mode="false"
-            :force-human="true"
+            :automation-mode="true"
+            :force-human="false"
             :show-back-to-faqs="true"
             :back-to-faqs-label="$isSw ? 'Rudi Kituo cha Usaidizi' : 'Back to Help Center'"
             :speak-url="route('site.support.chat.speak')"
             :thread-url="route('site.support.chat.thread')"
+            :automation-url="route('site.support.chat.automation')"
             :conversation="$conversation"
             :existing-messages="$conversation?->messages"
             :guest-name="$guestName"
             :guest-first-name="$guestFirstName"
             :guest-last-name="$guestLastName"
             :guest-phone="$guestPhone"
+            :agent-label="$isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant'"
+            :agent-subtitle="$isSw ? 'Msaada otomatiki saa 24' : 'Automated help 24/7'"
         />
     </section>
 </x-site.layout>

@@ -295,6 +295,7 @@ class SupportConversationService
             'assigned_to' => $agent->id,
             'status' => self::STATUS_ASSIGNED,
             'needs_human' => true,
+            'handling_state' => SupportAutomationService::STATE_HUMAN,
             'accepted_at' => now(),
             'waiting_since' => null,
         ]);
@@ -382,6 +383,8 @@ class SupportConversationService
         $conversation->update([
             'status' => self::STATUS_CLOSED,
             'needs_human' => false,
+            'handling_state' => SupportAutomationService::STATE_RESOLVED_SUPPORT,
+            'resolution_kind' => 'support',
             'assigned_to' => $conversation->assigned_to,
             'resolution_category' => $category,
             'resolution_note' => $note,
@@ -784,6 +787,11 @@ class SupportConversationService
     /** Human-readable desk state for staff UI. */
     public function deskState(SupportConversation $conversation): string
     {
+        $handling = (string) ($conversation->handling_state ?? '');
+        if ($handling !== '') {
+            return app(SupportAutomationService::class)->handlingLabel($handling, 'en');
+        }
+
         return match (true) {
             $conversation->status === self::STATUS_CLOSED => 'Closed',
             $conversation->status === self::STATUS_RESOLVED => 'Resolved',

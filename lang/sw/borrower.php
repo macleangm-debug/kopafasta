@@ -1917,7 +1917,7 @@ return [
         'email' => 'Barua pepe :email',
         'identity_help_title' => 'Msaada wa uthibitisho wa kitambulisho',
         'identity_help_body' => 'Ikiwa jina lako la NIDA halilingani na usajili, au ukaguzi umesitishwa, tuma barua pepe na nambari yako ya simu na taarifa za NIDA. Tunakagua kila kesi — kwa mfano mabadiliko ya jina yaliyo halali.',
-        'assistant_title' => 'Msaidizi wa KopaFasta',
+        'assistant_title' => 'Msaidizi wa Kopafasta',
         'assistant_subtitle' => 'Uliza kuhusu uanachama, mikopo, malipo, au wadhamini',
         'chat_placeholder' => 'Andika swali lako…',
         'chat_send' => 'Tuma',

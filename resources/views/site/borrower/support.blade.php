@@ -217,11 +217,17 @@
             <x-site.ai-support-chat
                 class="mb-4"
                 :member-mode="true"
-                :force-human="true"
+                :automation-mode="true"
+                :force-human="false"
+                :automation-url="route('site.borrower.support.automation')"
+                :speak-url="route('site.borrower.support.speak')"
+                :thread-url="route('site.borrower.support.thread')"
                 :conversation="$chatConversation"
                 :existing-messages="$chatConversation?->messages"
                 :rating-url="$rateUrl"
                 :show-rating="$chatConversation?->awaitsRating() ?? false"
+                :agent-label="$isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant'"
+                :agent-subtitle="$isSw ? 'Msaada otomatiki saa 24' : 'Automated help 24/7'"
             />
         </div>
     </div>

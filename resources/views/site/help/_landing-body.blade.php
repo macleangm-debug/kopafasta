@@ -201,8 +201,8 @@
            data-kf-support-action="chat"
            class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
             <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
-            <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}</p>
-            <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Pata msaada kutoka kwa timu yetu.' : 'Get help from our team.' }}</p>
+            <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Anza mazungumzo' : 'Start a conversation' }}</p>
+            <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Msaidizi wa Kopafasta — msaada otomatiki saa 24.' : 'Kopafasta Assistant — automated help 24/7.' }}</p>
         </a>
         <button type="button"
                 data-kf-support-action="feedback"

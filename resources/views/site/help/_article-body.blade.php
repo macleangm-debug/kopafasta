@@ -89,7 +89,7 @@
         @if (session('help_feedback_vote') === 'no')
             <div class="mt-4 grid sm:grid-cols-2 gap-3">
                 <a href="{{ $chatUrl }}" data-kf-support-action="chat" class="rounded-xl bg-brand-gold text-brand font-bold text-sm px-4 py-3 text-center">
-                    {{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}
+                    {{ $isSw ? 'Ongea na mtoa huduma' : 'Talk to a support agent' }}
                 </a>
                 <button type="button" data-kf-support-action="feedback" @click.stop="$dispatch('open-feedback')" class="rounded-xl ring-1 ring-brand/20 text-brand font-bold text-sm px-4 py-3">
                     {{ $isSw ? 'Tuma maoni' : 'Send feedback' }}
