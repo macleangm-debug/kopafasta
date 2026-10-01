@@ -20,7 +20,7 @@
              data-kf-share="kf-app-{{ $row['id'] }}">
             <div class="flex items-start justify-between gap-3 mb-3">
                 <div class="min-w-0">
-                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $row['loan_type'] }}</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $row['loan_type'] ?? $row['product_name'] ?? '' }}</p>
                     <p class="text-lg sm:text-xl font-bold text-gray-900 tracking-tight mt-0.5 leading-snug">{{ $row['product_name'] }}</p>
                     <p class="font-mono text-xs text-gray-500 mt-1">{{ $row['application_number'] }}</p>
                 </div>

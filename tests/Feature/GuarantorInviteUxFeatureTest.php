@@ -83,7 +83,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
 
         $this->get(route('site.guarantor.show', 'gux-pending-token'))
             ->assertOk()
-            ->assertSee('premium-gradient', false)
+            ->assertSee('kf-premium-panel', false)
             ->assertSee(__('borrower.guarantor_invite.heading'), false)
             ->assertSee(__('borrower.guarantor_invite.accept'), false);
 
@@ -102,9 +102,9 @@ class GuarantorInviteUxFeatureTest extends TestCase
 
         $this->get(route('site.guarantor.declined', 'gux-declined-token'))
             ->assertOk()
-            ->assertSee('premium-gradient', false)
+            ->assertSee('kf-premium-panel', false)
             ->assertSee(__('borrower.guarantor_invite.declined_cta_member'), false)
-            ->assertSee(__('borrower.guarantor_invite.member_benefit'), false)
+            ->assertSee(__('borrower.guarantor_invite.declined_upsell_lede'), false)
             ->assertSee(route('site.register.borrower'), false);
     }
 
@@ -139,14 +139,30 @@ class GuarantorInviteUxFeatureTest extends TestCase
             'status'              => 'pending',
         ]);
 
+        GuarantorInvitation::create([
+            'customer_id'             => $borrower->id,
+            'loan_application_id'     => $application->id,
+            'loan_product_id'         => $product->id,
+            'customer_guarantor_id'   => $link->id,
+            'guarantor_customer_id'   => $member->id,
+            'type'                    => 'internal',
+            'channel'                 => 'in_app',
+            'token'                   => 'gux-path-token',
+            'short_code'              => 'GUXPTH',
+            'contact'                 => $member->phone,
+            'status'                  => 'pending',
+            'expires_at'              => now()->addDays(7),
+        ]);
+
         app(NotificationService::class)->notifyInApp(
             $member,
             'Request body',
             'guarantor',
             'guarantor_request',
             __('borrower.guarantor_invite.notify_request_title'),
-            route('site.borrower.guarantor-requests.show', $link),
+            route('site.borrower.loans', ['tab' => 'guarantor']),
             __('borrower.guarantor_notifications.view_request'),
+            ['customer_guarantor_id' => $link->id],
         );
 
         $log = NotificationLog::query()
@@ -155,7 +171,8 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ->first();
 
         $this->assertNotNull($log);
-        $this->assertStringStartsWith('/borrower/guarantor-requests/', (string) $log->recipient);
+        $this->assertStringContainsString('/borrower/loans', (string) $log->recipient);
+        $this->assertStringContainsString('tab=guarantor', (string) $log->recipient);
 
         app(GuarantorInvitationService::class)->reject($link);
 
@@ -219,9 +236,10 @@ class GuarantorInviteUxFeatureTest extends TestCase
 
         $this->assertSame('guarantor_request', $hero['variant']);
         $this->assertSame(
-            route('site.borrower.guarantor-requests.show', $link),
+            route('site.borrower.loans', ['tab' => 'guarantor']),
             $hero['cta_url']
         );
+        $this->assertSame(__('borrower.guarantor_notifications.view_request'), $hero['cta_label']);
         $this->assertStringContainsString('Alice', (string) $hero['subtitle']);
     }
 
@@ -262,7 +280,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
         $this->assertNull($sent);
     }
 
-    public function test_notification_preview_exposes_accept_and_decline_for_guarantor_request(): void
+    public function test_notification_preview_exposes_list_cta_for_guarantor_request(): void
     {
         $borrower = $this->makeCustomer('40', [
             'first_name' => 'Borrow',
@@ -320,7 +338,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
             'guarantor',
             'guarantor_request',
             __('borrower.guarantor_invite.notify_request_title'),
-            route('site.borrower.guarantor-requests.show', $link),
+            route('site.borrower.loans', ['tab' => 'guarantor']),
             __('borrower.guarantor_notifications.view_request'),
             [
                 'title_key' => 'borrower.guarantor_invite.notify_request_title',
@@ -333,23 +351,35 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ],
         );
 
+        $log = NotificationLog::query()
+            ->where('customer_id', $member->id)
+            ->where('template', 'guarantor_request')
+            ->first();
+        $this->assertNotNull($log);
+
         $preview = $this->actingAs($member->user)
             ->getJson(route('site.borrower.notifications.preview'))
             ->assertOk()
             ->json('items.0');
 
         $this->assertSame('guarantor_request', $preview['template']);
-        $this->assertSame(route('site.borrower.guarantor-requests.show', $link), $preview['accept_url']);
-        $this->assertSame(route('site.borrower.guarantor-requests.respond', $link), $preview['decline_url']);
-        $this->assertSame(__('borrower.guarantor_notifications.accept_cta'), $preview['action_label']);
-        $this->assertSame(__('borrower.guarantor_notifications.decline_cta'), $preview['decline_label']);
+        $this->assertNull($preview['accept_url']);
+        $this->assertNull($preview['decline_url']);
+        $this->assertSame(route('site.borrower.notifications.go', $log), $preview['action_url']);
+        $this->assertSame(__('borrower.guarantor_notifications.view_request'), $preview['action_label']);
 
         $this->actingAs($member->user)
-            ->get(route('site.borrower.dashboard'))
-            ->assertOk()
-            ->assertSee(__('borrower.guarantor_notifications.accept_cta'), false)
-            ->assertSee(__('borrower.guarantor_notifications.decline_cta'), false)
-            ->assertSee('Borrow Four', false);
+            ->get(route('site.borrower.notifications.go', $log))
+            ->assertRedirect(route('site.borrower.loans', ['tab' => 'guarantor']));
+
+        $log->refresh();
+        $this->assertNotNull($log->read_at);
+        $this->assertTrue(empty(($log->meta ?? [])['cta_consumed_at']));
+
+        // CTA remains resolvable after read (mark ≠ consume/hide).
+        $ctas = app(\App\Services\NotificationCtaService::class)->resolve($log->fresh());
+        $this->assertSame(__('borrower.guarantor_notifications.view_request'), $ctas['action_label']);
+        $this->assertNotNull($ctas['action_url']);
     }
 
     public function test_approved_guarantee_tracks_on_guarantor_tab_until_disbursed(): void
@@ -483,7 +513,7 @@ class GuarantorInviteUxFeatureTest extends TestCase
             ->post(route('site.borrower.guarantor-requests.respond', $link), [
                 'action' => 'approve',
             ])
-            ->assertRedirect(route('site.borrower.profile'));
+            ->assertRedirect(route('site.borrower.guarantor-requests.show', $link));
 
         $this->assertSame('approved', $link->fresh()->status);
         $this->assertSame('awaiting_guarantor', $application->fresh()->status);

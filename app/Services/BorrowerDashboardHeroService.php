@@ -90,8 +90,8 @@ class BorrowerDashboardHeroService
                 'amount'    => null,
                 'meta'      => $pendingGuarantor->application?->application_number
                     ?? $pendingGuarantor->application?->draft_reference,
-                'cta_label' => __('borrower.dashboard.hero.guarantor_request_cta'),
-                'cta_url'   => route('site.borrower.guarantor-requests.show', $link),
+                'cta_label' => __('borrower.guarantor_notifications.view_request'),
+                'cta_url'   => route('site.borrower.loans', ['tab' => 'guarantor']),
             ];
         }
 

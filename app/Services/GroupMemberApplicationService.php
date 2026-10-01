@@ -125,8 +125,12 @@ class GroupMemberApplicationService
     }
 
     /** @return array{show: bool, title: string, message: string, cta_label: string, cta_url: string, reference: string|null}|null */
-    public function dashboardBanner(Customer $customer): ?array
+    public function dashboardBanner(?Customer $customer): ?array
     {
+        if (! $customer) {
+            return null;
+        }
+
         $invitation = app(GroupMemberOnboardingService::class)->pendingInvitationForCustomer($customer);
         if (! $invitation || $invitation->status === 'completed') {
             return null;

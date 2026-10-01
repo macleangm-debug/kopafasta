@@ -42,16 +42,27 @@ class NotificationCtaService
 
         if ($template === 'guarantor_request') {
             $linkId = $this->guarantorLinkId($notification, $actionUrl);
-            if ($linkId <= 0 || ! $this->guarantorLinkIsPending($linkId)) {
+            if ($linkId > 0 && ! $this->guarantorLinkIsPending($linkId)) {
                 return $empty;
             }
 
+            // CTA enters Mikopo → Mdhamini list; Angalia opens the request. Never deep-link.
             return [
-                'accept_url'    => route('site.borrower.guarantor-requests.show', $linkId),
-                'decline_url'   => route('site.borrower.guarantor-requests.respond', $linkId),
-                'action_url'    => null,
-                'action_label'  => __('borrower.guarantor_notifications.accept_cta'),
-                'decline_label' => __('borrower.guarantor_notifications.decline_cta'),
+                'accept_url'    => null,
+                'decline_url'   => null,
+                'action_url'    => route('site.borrower.notifications.go', $notification),
+                'action_label'  => __('borrower.guarantor_notifications.view_request'),
+                'decline_label' => null,
+            ];
+        }
+
+        if ($template === 'group_loan_invitation') {
+            return [
+                'accept_url'    => null,
+                'decline_url'   => null,
+                'action_url'    => route('site.borrower.notifications.go', $notification),
+                'action_label'  => __('borrower.apply.group.notify_request_cta'),
+                'decline_label' => null,
             ];
         }
 

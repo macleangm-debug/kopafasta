@@ -222,11 +222,17 @@ class GroupMemberOnboardingService
 
     public function notifyLinkedInvitation(GroupMemberInvitation $invitation, Customer $customer): void
     {
+        $listUrl = route('site.borrower.loans', ['tab' => 'applications']);
+
         $already = \App\Models\NotificationLog::query()
             ->where('customer_id', $customer->id)
             ->where('template', 'group_loan_invitation')
             ->whereNull('read_at')
-            ->where('recipient', 'like', '%group-member/application%')
+            ->where(function ($q) use ($listUrl, $invitation) {
+                $q->where('meta->group_member_invitation_id', $invitation->id)
+                    ->orWhere('recipient', 'like', '%group-member/application%')
+                    ->orWhere('recipient', $listUrl);
+            })
             ->exists();
 
         if ($already) {
@@ -246,7 +252,7 @@ class GroupMemberOnboardingService
             'group_loan',
             'group_loan_invitation',
             __('borrower.apply.group.notify_request_title'),
-            route('site.group-member.application'),
+            $listUrl,
             __('borrower.apply.group.notify_request_cta'),
             [
                 'group_member_invitation_id' => $invitation->id,

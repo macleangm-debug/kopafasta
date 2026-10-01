@@ -44,7 +44,7 @@ class Phase28FeatureTest extends TestCase
             __('borrower.payments_page.title', [], 'sw')
         );
         $this->assertSame(
-            'Angalia ombi →',
+            'Angalia ombi la udhamini',
             __('borrower.guarantor_notifications.view_request', [], 'sw')
         );
         $this->assertSame(

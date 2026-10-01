@@ -315,6 +315,9 @@ class InvitedBorrowerActivationFeatureTest extends TestCase
         $this->assertSame('View guarantor request', __('borrower.guarantor_notifications.view_request', [], 'en'));
         $this->assertSame('Angalia ombi la kikundi', __('borrower.apply.group.notify_request_cta', [], 'sw'));
         $this->assertSame('View group request', __('borrower.apply.group.notify_request_cta', [], 'en'));
+
+        $listUrl = route('site.borrower.loans', ['tab' => 'guarantor']);
+        $this->assertStringContainsString('tab=guarantor', $listUrl);
     }
 
     public function test_application_view_guarantor_actions_follow_progress(): void

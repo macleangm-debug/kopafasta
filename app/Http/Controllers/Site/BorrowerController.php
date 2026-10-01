@@ -1642,11 +1642,20 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         abort_unless($notification->customer_id === $customer->id, 404);
 
-        $target = ($notification->channel === 'in_app'
-            && filled($notification->recipient)
-            && str_starts_with((string) $notification->recipient, '/'))
-            ? (string) $notification->recipient
-            : route('site.borrower.notifications');
+        $template = (string) ($notification->template ?? '');
+
+        // Invitation CTAs always enter Mikopo list first — never deep-link a stored request URL.
+        if ($template === 'guarantor_request') {
+            $target = route('site.borrower.loans', ['tab' => 'guarantor']);
+        } elseif ($template === 'group_loan_invitation') {
+            $target = route('site.borrower.loans', ['tab' => 'applications']);
+        } else {
+            $target = ($notification->channel === 'in_app'
+                && filled($notification->recipient)
+                && str_starts_with((string) $notification->recipient, '/'))
+                ? (string) $notification->recipient
+                : route('site.borrower.notifications');
+        }
 
         // Membership-off: never send borrowers to pay/join/renew membership from a CTA.
         if (! app(MembershipService::class)->isRequiredForCountry($customer->country_code ?? 'TZ')) {
@@ -1656,7 +1665,15 @@ class BorrowerController extends Controller
             }
         }
 
-        app(NotificationCtaService::class)->consume($notification);
+        // Invitation CTAs: mark read, keep CTA visible in history (mark ≠ hide/consume).
+        // Decision/fulfillment paths consume CTAs separately.
+        if (in_array($template, ['guarantor_request', 'group_loan_invitation'], true)) {
+            if (! $notification->read_at) {
+                $notification->update(['read_at' => now()]);
+            }
+        } else {
+            app(NotificationCtaService::class)->consume($notification);
+        }
 
         return redirect()->to($target);
     }

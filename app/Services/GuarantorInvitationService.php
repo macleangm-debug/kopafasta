@@ -1501,12 +1501,18 @@ class GuarantorInvitationService
             ?? '—';
         $borrowerName = trim($borrower->first_name.' '.$borrower->last_name);
 
+        $listUrl = route('site.borrower.loans', ['tab' => 'guarantor']);
+
         // Avoid duplicate unread guarantor_request rows for the same link.
         $alreadyNotified = NotificationLog::query()
             ->where('customer_id', $member->id)
             ->where('template', 'guarantor_request')
             ->whereNull('read_at')
-            ->where('recipient', 'like', '%/guarantor-requests/'.$link->id.'%')
+            ->where(function ($q) use ($link, $listUrl) {
+                $q->where('meta->customer_guarantor_id', $link->id)
+                    ->orWhere('recipient', 'like', '%/guarantor-requests/'.$link->id.'%')
+                    ->orWhere('recipient', $listUrl);
+            })
             ->exists();
 
         if ($alreadyNotified) {
@@ -1522,7 +1528,7 @@ class GuarantorInvitationService
             'guarantor',
             'guarantor_request',
             __('borrower.guarantor_invite.notify_request_title'),
-            route('site.borrower.guarantor-requests.show', $link),
+            $listUrl,
             __('borrower.guarantor_notifications.view_request'),
             [
                 'title_key' => 'borrower.guarantor_invite.notify_request_title',
