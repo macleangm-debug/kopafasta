@@ -23,104 +23,10 @@
     >
         <x-slot:meta>{{ $heroSubtitle }}</x-slot:meta>
         <x-slot:actions>
-            <div class="relative" x-data="{ staffSheet: false }">
-                @php
-                    $viewingLabel = $teamView
-                        ? 'Team'
-                        : (collect($staffOptions)->firstWhere('id', $selectedStaffId)['name'] ?? 'Staff');
-                @endphp
-                <form method="POST" action="{{ route('admin.role-view.select-staff') }}" class="hidden sm:inline-flex items-center gap-2">
-                    @csrf
-                    <label class="text-[10px] uppercase tracking-widest text-white/70 font-semibold shrink-0">{{ __('admin.role_view.viewing') }}:</label>
-                    <select name="staff_id"
-                            onchange="this.form.submit()"
-                            class="rounded-xl border-0 bg-brand-gold text-brand text-sm font-bold px-3 py-2 focus:ring-2 focus:ring-white/40 min-w-[10rem] shadow-sm"
-                            title="Filters Support workload and performance. Does not impersonate — actions still record as you."
-                            aria-label="{{ __('admin.role_view.viewing') }}: Team">
-                        <option value="0" @selected($teamView) class="text-gray-900">Team ▾</option>
-                        <optgroup label="Humans" class="text-gray-900">
-                            @foreach ($staffOptions as $person)
-                                <option value="{{ $person['id'] }}" @selected((int) $selectedStaffId === (int) $person['id']) class="text-gray-900">
-                                    {{ $person['name'] }} · Human
-                                </option>
-                            @endforeach
-                        </optgroup>
-                    </select>
-                </form>
-                @php $digitalAssistants = $dashboard['digital_assistants'] ?? []; @endphp
-                @if (count($digitalAssistants) > 0)
-                    <div class="hidden sm:inline-flex items-center gap-1.5">
-                        <span class="text-[10px] uppercase tracking-widest text-white/70 font-semibold">Assistants</span>
-                        <select
-                            onchange="if (this.value) window.location = this.value"
-                            class="rounded-xl border-0 bg-white/15 text-white text-sm font-semibold px-3 py-2 focus:ring-2 focus:ring-white/40 min-w-[9rem]"
-                            aria-label="Digital Assistants">
-                            <option value="">Digital Assistants ▾</option>
-                            @foreach ($digitalAssistants as $assistant)
-                                <option value="{{ $assistant['url'] }}" class="text-gray-900">
-                                    {{ $assistant['name'] }} · Digital Assistant
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endif
-                <button type="button" @click="staffSheet = true"
-                        class="sm:hidden inline-flex items-center gap-1.5 rounded-xl bg-brand-gold text-brand font-bold px-3 py-2 text-sm shadow-sm"
-                        aria-label="{{ __('admin.role_view.viewing') }}: {{ $viewingLabel }}">
-                    <span>{{ __('admin.role_view.viewing') }}: {{ $viewingLabel }} ▾</span>
-                </button>
-                <x-site.action-panel :title="__('admin.role_view.viewing')" open="staffSheet">
-                    <p class="text-xs text-gray-500 mb-3">Humans filter workload. Digital Assistants open performance profiles — not logins.</p>
-                    <form method="POST" action="{{ route('admin.role-view.select-staff') }}" class="space-y-1">
-                        @csrf
-                        <button type="submit" name="staff_id" value="0"
-                                class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ $teamView ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
-                            Team
-                        </button>
-                        <p class="pt-2 pb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Humans</p>
-                        @foreach ($staffOptions as $person)
-                            <button type="submit" name="staff_id" value="{{ $person['id'] }}"
-                                    class="w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold {{ (int) $selectedStaffId === (int) $person['id'] ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-gray-900' }}">
-                                <span>{{ $person['name'] }}</span>
-                                <span class="ml-2 inline-flex rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5">Human</span>
-                            </button>
-                        @endforeach
-                    </form>
-                    @if (count($digitalAssistants) > 0)
-                        <p class="pt-3 pb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Digital Assistants</p>
-                        <div class="space-y-1">
-                            @foreach ($digitalAssistants as $assistant)
-                                <a href="{{ $assistant['url'] }}"
-                                   class="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-900 hover:bg-slate-50">
-                                    <span>{{ $assistant['name'] }}</span>
-                                    <span class="inline-flex rounded-full bg-brand-muted text-brand text-[10px] font-bold px-2 py-0.5">Digital Assistant</span>
-                                </a>
-                            @endforeach
-                        </div>
-                    @endif
-                </x-site.action-panel>
-            </div>
-            @if ($agent)
-                @php
-                    $isOnline = $availability === 'online';
-                    $nextAvailability = $isOnline ? 'offline' : 'online';
-                    $availLabel = $isOnline ? '● Online ▾' : '○ Offline ▾';
-                @endphp
-                <form method="POST" action="{{ route('admin.support.availability') }}" class="inline">
-                    @csrf
-                    <input type="hidden" name="availability" value="{{ $nextAvailability }}">
-                    <button type="submit"
-                            class="inline-flex items-center rounded-xl bg-brand-gold text-brand font-bold px-3.5 py-2 text-sm shadow-sm ring-1 ring-white/30"
-                            title="{{ $isOnline ? 'Click to go Offline. Assigned chats stay yours; you cannot Accept new waiting chats.' : 'Click to go Online and Accept waiting chats.' }}">
-                        {{ $availLabel }}
-                    </button>
-                </form>
-            @else
-                <span class="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white">
-                    <span class="size-2.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
-                    {{ __('admin.support.home.agents_online', ['count' => $agentsOnline]) }}
-                </span>
-            @endif
+            {{-- Human ▾ / Digital ▾ / Online live only in the top Support bar — do not duplicate here. --}}
+            <span class="inline-flex items-center rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white">
+                {{ __('admin.support.home.agents_online', ['count' => $agentsOnline]) }}
+            </span>
         </x-slot:actions>
         <x-slot:stats>
             @php

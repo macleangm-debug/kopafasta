@@ -40,7 +40,8 @@ class SupportAutomationService
 
     public const PERSONAS_MAX_SETTING_KEY = 'support.msaidizi.personas_max';
 
-    public const PERSONAS_MAX_DEFAULT = 5;
+    /** Soft ceiling for Settings — not an operational requirement of exactly five. */
+    public const PERSONAS_MAX_DEFAULT = 20;
 
     public const GUEST_CONVERSION_ENABLED_KEY = 'support.msaidizi.guest_conversion_enabled';
 
@@ -62,36 +63,76 @@ class SupportAutomationService
     }
 
     /**
-     * Active automated persona names. Settings Hub is source of truth.
+     * All configured Digital personas (active + inactive). Settings Hub is source of truth.
+     *
+     * @return list<array{key: string, name: string, active: bool}>
+     */
+    public function allPersonas(): array
+    {
+        $stored = Setting::get(self::PERSONAS_SETTING_KEY);
+        $max = $this->personasMax();
+        if (! is_array($stored) || $stored === []) {
+            return array_map(
+                fn (array $p) => ['key' => $p['key'], 'name' => $p['name'], 'active' => true],
+                array_slice(self::PERSONAS, 0, min(5, $max))
+            );
+        }
+
+        $out = [];
+        $seen = [];
+        foreach (array_slice(array_values($stored), 0, $max) as $i => $row) {
+            if (is_string($row)) {
+                $name = trim($row);
+                $key = Str::slug($name) ?: ('persona_'.($i + 1));
+                $active = true;
+            } elseif (is_array($row)) {
+                $name = trim((string) ($row['name'] ?? ''));
+                $key = trim((string) ($row['key'] ?? '')) ?: (Str::slug($name) ?: ('persona_'.($i + 1)));
+                $active = array_key_exists('active', $row) ? (bool) $row['active'] : true;
+            } else {
+                continue;
+            }
+            if ($name === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = ['key' => $key, 'name' => $name, 'active' => $active];
+        }
+
+        if ($out === []) {
+            return array_map(
+                fn (array $p) => ['key' => $p['key'], 'name' => $p['name'], 'active' => true],
+                array_slice(self::PERSONAS, 0, min(5, $max))
+            );
+        }
+
+        return $out;
+    }
+
+    /**
+     * Active personas only — rotation / new conversation assignment.
      *
      * @return list<array{key: string, name: string}>
      */
     public function personas(): array
     {
-        $stored = Setting::get(self::PERSONAS_SETTING_KEY);
-        $max = $this->personasMax();
-        if (! is_array($stored) || $stored === []) {
-            return array_slice(self::PERSONAS, 0, $max);
+        $active = array_values(array_filter(
+            $this->allPersonas(),
+            fn (array $p) => (bool) ($p['active'] ?? true)
+        ));
+
+        if ($active === []) {
+            // Never leave rotation empty — fall back to built-in defaults.
+            return array_map(
+                fn (array $p) => ['key' => $p['key'], 'name' => $p['name']],
+                array_slice(self::PERSONAS, 0, 5)
+            );
         }
 
-        $out = [];
-        foreach (array_slice(array_values($stored), 0, $max) as $i => $row) {
-            if (is_string($row)) {
-                $name = trim($row);
-                $key = Str::slug($name) ?: ('persona_'.($i + 1));
-            } elseif (is_array($row)) {
-                $name = trim((string) ($row['name'] ?? ''));
-                $key = trim((string) ($row['key'] ?? '')) ?: (Str::slug($name) ?: ('persona_'.($i + 1)));
-            } else {
-                continue;
-            }
-            if ($name === '') {
-                continue;
-            }
-            $out[] = ['key' => $key, 'name' => $name];
-        }
-
-        return $out !== [] ? $out : array_slice(self::PERSONAS, 0, $max);
+        return array_map(
+            fn (array $p) => ['key' => $p['key'], 'name' => $p['name']],
+            $active
+        );
     }
 
     /**
@@ -1723,14 +1764,25 @@ class SupportAutomationService
     private function personaFromMeta(array $meta): array
     {
         $key = (string) ($meta['persona_key'] ?? '');
-        $pool = $this->personas();
-        foreach ($pool as $persona) {
+        $storedName = trim((string) ($meta['persona_name'] ?? ''));
+
+        foreach ($this->allPersonas() as $persona) {
             if ($persona['key'] === $key) {
-                return $persona;
+                return ['key' => $persona['key'], 'name' => $persona['name']];
             }
         }
 
-        return $pool[0];
+        // Historical attribution: keep original persona even if later inactive/removed.
+        if ($key !== '' && $storedName !== '') {
+            return ['key' => $key, 'name' => $storedName];
+        }
+        if ($storedName !== '') {
+            return ['key' => $key !== '' ? $key : (Str::slug($storedName) ?: 'persona'), 'name' => $storedName];
+        }
+
+        $pool = $this->personas();
+
+        return $pool[0] ?? ['key' => 'amani', 'name' => 'Amani'];
     }
 
     private function resolveFirstName(

@@ -468,10 +468,11 @@ class CustomerSupportWorkspaceService
             'agent' => $agent,
             'team_view' => $team || $agentId === null,
             'staff_options' => $this->staffOptions(),
-            'digital_assistants' => collect(app(SupportAutomationService::class)->personas())
+            'digital_assistants' => collect(app(SupportAutomationService::class)->allPersonas())
                 ->map(fn (array $p) => [
                     'key' => (string) $p['key'],
                     'name' => (string) $p['name'],
+                    'active' => (bool) ($p['active'] ?? true),
                     'kind' => 'digital_assistant',
                     'badge' => 'Digital Assistant',
                     'url' => route('admin.support.assistants', ['persona' => $p['key']]),
@@ -998,12 +999,14 @@ class CustomerSupportWorkspaceService
     public function digitalAssistantPerformance(?string $range = '30d', ?string $fromDate = null, ?string $toDate = null): array
     {
         [$from, $label, $to] = $this->rangeBounds($range ?? '30d', $fromDate, $toDate);
-        $personas = app(SupportAutomationService::class)->personas();
+        $automation = app(SupportAutomationService::class);
+        $personas = $automation->allPersonas();
         $out = [];
 
         foreach ($personas as $persona) {
             $key = (string) $persona['key'];
             $name = (string) $persona['name'];
+            $active = (bool) ($persona['active'] ?? true);
 
             $base = SupportConversation::query()
                 ->where('created_at', '>=', $from)
@@ -1026,6 +1029,7 @@ class CustomerSupportWorkspaceService
                     $q->where('resolution_kind', 'msaidizi')
                         ->orWhere('handling_state', SupportAutomationService::STATE_RESOLVED_AUTOMATED);
                 })
+                ->whereNull('assigned_to')
                 ->count();
             $handedOver = (clone $base)
                 ->where(function ($q) {
@@ -1033,7 +1037,8 @@ class CustomerSupportWorkspaceService
                         ->orWhere('handling_state', SupportAutomationService::STATE_ESCALATED)
                         ->orWhere('handling_state', SupportAutomationService::STATE_HUMAN)
                         ->orWhere('handling_state', SupportAutomationService::STATE_RESOLVED_SUPPORT)
-                        ->orWhere('resolution_kind', 'support');
+                        ->orWhere('resolution_kind', 'support')
+                        ->orWhereNotNull('assigned_to');
                 })
                 ->count();
             $guestRepeats = (clone $base)
@@ -1057,7 +1062,7 @@ class CustomerSupportWorkspaceService
                 ->where('rated_at', '>=', $from)
                 ->when($to, fn ($q) => $q->where('rated_at', '<=', $to))
                 ->where('automation_meta->persona_key', $key)
-                ->pluck('rating');
+                ->get(['rating', 'automation_meta']);
 
             $activeNow = SupportConversation::query()
                 ->where('automation_meta->persona_key', $key)
@@ -1071,39 +1076,65 @@ class CustomerSupportWorkspaceService
                     SupportAutomationService::STATE_HUMAN,
                     SupportAutomationService::STATE_RESOLVED_SUPPORT,
                 ])
+                ->whereNull('assigned_to')
                 ->count();
 
-            $resolvedRows = (clone $base)
+            // Digital resolution time: active digital handling only (excludes overnight idle + human time).
+            $digitalResolvedRows = (clone $base)
                 ->whereIn('status', ['resolved', 'closed'])
+                ->where(function ($q) {
+                    $q->where('resolution_kind', 'msaidizi')
+                        ->orWhere('handling_state', SupportAutomationService::STATE_RESOLVED_AUTOMATED);
+                })
+                ->whereNull('assigned_to')
                 ->whereNotNull('resolved_at')
                 ->whereNotNull('created_at')
-                ->get(['created_at', 'resolved_at']);
-            $avgResolutionSeconds = null;
-            if ($resolvedRows->isNotEmpty()) {
-                $avgResolutionSeconds = (int) round($resolvedRows->avg(function ($row) {
-                    return max(0, $row->created_at->diffInSeconds($row->resolved_at));
-                }));
+                ->where(function ($q) {
+                    $q->whereNull('resolution_category')
+                        ->orWhere('resolution_category', '!=', 'duplicate_reconcile');
+                })
+                ->with(['messages' => fn ($q) => $q->orderBy('id')->select(['id', 'support_conversation_id', 'created_at'])])
+                ->get(['id', 'created_at', 'resolved_at', 'resolution_kind', 'handling_state', 'assigned_to', 'resolution_category']);
+
+            $resolutionSamples = [];
+            foreach ($digitalResolvedRows as $row) {
+                $seconds = $this->digitalActiveResolutionSeconds($row);
+                if ($seconds !== null) {
+                    $resolutionSamples[] = $seconds;
+                }
+            }
+            $avgResolutionSeconds = $resolutionSamples !== []
+                ? (int) round(array_sum($resolutionSamples) / count($resolutionSamples))
+                : null;
+            $medianResolutionSeconds = null;
+            if ($resolutionSamples !== []) {
+                sort($resolutionSamples);
+                $mid = (int) floor((count($resolutionSamples) - 1) / 2);
+                $medianResolutionSeconds = (int) $resolutionSamples[$mid];
             }
 
             $recent = SupportConversation::query()
                 ->where('automation_meta->persona_key', $key)
-                ->latest('last_message_at')
-                ->limit(8)
-                ->get(['id', 'conversation_number', 'topic', 'status', 'handling_state', 'last_message_at', 'customer_id', 'user_id', 'guest_name'])
-                ->map(fn (SupportConversation $c) => [
-                    'id' => $c->id,
-                    'number' => $c->publicNumber(),
-                    'topic' => (string) ($c->topic ?: '—'),
-                    'status' => app(SupportConversationService::class)->customerFacingStatusLabel((string) $c->status),
-                    'audience' => $c->customer_id ? 'Member' : ($c->user_id ? 'Partner' : 'Guest'),
-                    'at' => optional($c->last_message_at)->toIso8601String(),
-                    'url' => route('admin.support.inbox.show', $c),
+                ->where('created_at', '>=', $from)
+                ->when($to, fn ($q) => $q->where('created_at', '<=', $to))
+                ->with([
+                    'customer:id,first_name,middle_name,last_name,phone',
+                    'user:id,name',
+                    'assignedTo:id,name',
+                    'messages' => fn ($q) => $q->orderBy('id')->select(['id', 'support_conversation_id', 'created_at']),
                 ])
+                ->latest('last_message_at')
+                ->limit(50)
+                ->get()
+                ->map(function (SupportConversation $c) use ($automation) {
+                    return $this->digitalConversationRow($c, $automation);
+                })
                 ->all();
 
             $out[] = [
                 'key' => $key,
                 'name' => $name,
+                'active' => $active,
                 'conversations_handled' => $handled,
                 'active_now' => $activeNow,
                 'guests_handled' => $guestHandled,
@@ -1117,7 +1148,8 @@ class CustomerSupportWorkspaceService
                 'resolution_rate' => $handled > 0 ? (int) round(($resolvedAuto / $handled) * 100) : null,
                 'handover_rate' => $handled > 0 ? (int) round(($handedOver / $handled) * 100) : null,
                 'avg_resolution_seconds' => $avgResolutionSeconds,
-                'avg_rating' => $ratings->isNotEmpty() ? round((float) $ratings->avg(), 1) : null,
+                'median_resolution_seconds' => $medianResolutionSeconds,
+                'avg_rating' => $ratings->isNotEmpty() ? round((float) $ratings->avg('rating'), 1) : null,
                 'ratings_count' => $ratings->count(),
                 'recent_conversations' => $recent,
                 'range_label' => $label,
@@ -1126,6 +1158,135 @@ class CustomerSupportWorkspaceService
         }
 
         return $out;
+    }
+
+    /**
+     * Active digital handling duration: message-to-message gaps ≤ 30 minutes until digital resolve.
+     * Excludes overnight idle, human-handled, duplicate-reconcile, and rows without reliable timestamps.
+     */
+    public function digitalActiveResolutionSeconds(SupportConversation $conversation): ?int
+    {
+        if (! in_array((string) $conversation->status, ['resolved', 'closed'], true)) {
+            return null;
+        }
+        if ($conversation->assigned_to) {
+            return null;
+        }
+        if ((string) ($conversation->resolution_category ?? '') === 'duplicate_reconcile') {
+            return null;
+        }
+        $digital = (string) ($conversation->resolution_kind ?? '') === 'msaidizi'
+            || (string) ($conversation->handling_state ?? '') === SupportAutomationService::STATE_RESOLVED_AUTOMATED;
+        if (! $digital || ! $conversation->resolved_at || ! $conversation->created_at) {
+            return null;
+        }
+
+        $idleCap = 30 * 60;
+        $times = $conversation->relationLoaded('messages')
+            ? $conversation->messages->pluck('created_at')->filter()->values()
+            : $conversation->messages()->orderBy('id')->pluck('created_at')->filter()->values();
+
+        if ($times->isEmpty()) {
+            // No message timestamps — do not invent; exclude from avg/median.
+            return null;
+        }
+
+        $active = 0;
+        $prev = $times->first();
+        foreach ($times->slice(1) as $at) {
+            $gap = max(0, $prev->diffInSeconds($at));
+            if ($gap <= $idleCap) {
+                $active += $gap;
+            }
+            $prev = $at;
+        }
+        $finalGap = max(0, $prev->diffInSeconds($conversation->resolved_at));
+        if ($finalGap <= $idleCap) {
+            $active += $finalGap;
+        }
+
+        return max(0, $active);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function digitalConversationRow(SupportConversation $c, SupportAutomationService $automation): array
+    {
+        $meta = is_array($c->automation_meta) ? $c->automation_meta : [];
+        $isGuest = ! $c->customer_id && ! $c->user_id;
+        $isMember = (bool) $c->customer_id;
+        $type = $isMember ? 'Member' : ($c->user_id ? 'Partner' : 'Guest');
+        $customerName = $isMember
+            ? trim((string) ($c->customer?->full_name ?: $c->customer?->legalDisplayName()))
+            : ($isGuest
+                ? trim((string) ($c->guest_name ?: ($meta['guest_name'] ?? '')))
+                : trim((string) ($c->user?->name ?? '')));
+        if ($customerName === '') {
+            $customerName = null;
+        }
+
+        $topicRaw = (string) ($c->topic ?: ($meta['issue_slug'] ?? $meta['category_key'] ?? ''));
+        $topic = $topicRaw !== ''
+            ? $automation->customerFacingTopicLabel(
+                $topicRaw,
+                $isMember ? 'member' : ($isGuest ? 'guest' : 'partner'),
+                app()->getLocale()
+            )
+            : null;
+
+        $digitallyResolved = in_array((string) $c->status, ['resolved', 'closed'], true)
+            && (
+                (string) ($c->resolution_kind ?? '') === 'msaidizi'
+                || (string) ($c->handling_state ?? '') === SupportAutomationService::STATE_RESOLVED_AUTOMATED
+            )
+            && ! $c->assigned_to;
+
+        $handedToHuman = (bool) $c->needs_human
+            || in_array((string) ($c->handling_state ?? ''), [
+                SupportAutomationService::STATE_ESCALATED,
+                SupportAutomationService::STATE_HUMAN,
+                SupportAutomationService::STATE_RESOLVED_SUPPORT,
+            ], true)
+            || (bool) $c->assigned_to
+            || (string) ($c->resolution_kind ?? '') === 'support';
+
+        $humanResolved = in_array((string) $c->status, ['resolved', 'closed'], true)
+            && $handedToHuman
+            && ! $digitallyResolved;
+
+        if ($digitallyResolved) {
+            $outcome = 'Resolved digitally';
+        } elseif ($humanResolved) {
+            $outcome = 'Human resolved';
+        } elseif ($handedToHuman && ! in_array((string) $c->status, ['resolved', 'closed'], true)) {
+            $outcome = 'Handed to human';
+        } elseif (in_array((string) $c->status, ['resolved', 'closed'], true)) {
+            $outcome = 'Closed';
+        } else {
+            $outcome = 'Open';
+        }
+
+        $resolutionSeconds = $digitallyResolved ? $this->digitalActiveResolutionSeconds($c) : null;
+        $handoverName = $c->assignedTo?->name;
+
+        return [
+            'id' => $c->id,
+            'number' => $c->publicNumber(),
+            'customer' => $customerName,
+            'type' => $type,
+            'topic' => $topic,
+            'started_at' => optional($c->created_at)->toIso8601String(),
+            'started_label' => $c->created_at ? format_app_datetime($c->created_at, 'd M H:i') : null,
+            'resolved_at' => optional($c->resolved_at)->toIso8601String(),
+            'resolved_label' => $c->resolved_at ? format_app_datetime($c->resolved_at, 'd M H:i') : null,
+            'resolution_seconds' => $resolutionSeconds,
+            'outcome' => $outcome,
+            'handover' => $handoverName,
+            'csat' => $c->rating ? (int) $c->rating : null,
+            'rating_comment' => isset($meta['rating_comment']) ? (string) $meta['rating_comment'] : null,
+            'url' => route('admin.support.inbox.show', $c),
+        ];
     }
 
     /**

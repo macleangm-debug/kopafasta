@@ -11,10 +11,11 @@
     $viewingLabel = $teamView
         ? __('admin.role_view.staff_all')
         : (collect($staffOptions)->firstWhere('id', $selectedStaffId)['name'] ?? ($agent?->name ?? 'Staff'));
-    $digitalAssistants = collect(app(\App\Services\Support\SupportAutomationService::class)->personas())
+    $digitalAssistants = collect(app(\App\Services\Support\SupportAutomationService::class)->allPersonas())
         ->map(fn (array $p) => [
             'key' => (string) $p['key'],
             'name' => (string) $p['name'],
+            'active' => (bool) ($p['active'] ?? true),
             'url' => route('admin.support.assistants', ['persona' => $p['key']]),
             'initial' => mb_strtoupper(mb_substr((string) $p['name'], 0, 1)),
             'needle' => mb_strtolower((string) $p['name']),
@@ -154,11 +155,13 @@
                 @forelse ($digitalAssistants as $assistant)
                     <a href="{{ $assistant['url'] }}"
                        x-show="matches(@js($assistant['needle']), digitalQ)"
-                       class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold hover:bg-brand-muted/40">
+                       class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold hover:bg-brand-muted/40 {{ empty($assistant['active']) ? 'opacity-70' : '' }}">
                         <span class="size-8 rounded-xl bg-brand text-white grid place-items-center text-xs font-bold">{{ $assistant['initial'] }}</span>
                         <span class="flex-1 min-w-0">
                             <span class="block truncate">{{ $assistant['name'] }}</span>
-                            <span class="block text-[10px] uppercase tracking-wide text-brand/70 font-bold">Digital Assistant</span>
+                            <span class="block text-[10px] uppercase tracking-wide text-brand/70 font-bold">
+                                Digital Assistant{{ empty($assistant['active']) ? ' · Inactive' : '' }}
+                            </span>
                         </span>
                     </a>
                 @empty

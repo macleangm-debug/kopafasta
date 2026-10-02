@@ -589,11 +589,23 @@ class SupportConversationService
 
     public function recordConversationRating(SupportConversation $conversation, int $rating, ?string $comment = null): SupportConversation
     {
+        // One submission only — never create a ticket/CNV or overwrite an existing CSAT.
+        if ($conversation->rating) {
+            return $conversation->fresh() ?? $conversation;
+        }
+
         $rating = max(1, min(5, $rating));
+        $comment = $comment !== null ? trim((string) $comment) : '';
+        $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+        if ($comment !== '') {
+            $meta['rating_comment'] = $comment;
+        }
+
         $conversation->update([
             'rating' => $rating,
             'rated_at' => now(),
-            'resolution_note' => $comment
+            'automation_meta' => $meta,
+            'resolution_note' => $comment !== ''
                 ? trim((string) $conversation->resolution_note."\nRating note: ".$comment)
                 : $conversation->resolution_note,
         ]);

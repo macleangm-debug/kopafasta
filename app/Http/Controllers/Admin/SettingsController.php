@@ -2713,8 +2713,12 @@ class SettingsController extends Controller
                 ? array_values($storedClosings['en'])
                 : $automation->defaultGuestConversionVariants(false),
         ];
-        $personaNames = collect($automation->personas())
-            ->pluck('name')
+        $personaNames = collect($automation->allPersonas())
+            ->map(fn (array $p) => [
+                'key' => $p['key'],
+                'name' => $p['name'],
+                'active' => (bool) ($p['active'] ?? true),
+            ])
             ->values()
             ->all();
 
@@ -2725,7 +2729,8 @@ class SettingsController extends Controller
             'recurringCount' => \App\Support\SupportTaxonomy::recurringIssueCount(),
             'recurringWindowHours' => \App\Support\SupportTaxonomy::recurringWindowHours(),
             'guestConversionClosings' => $guestConversionClosings,
-            'personaNames' => $personaNames,
+            'personaRows' => $personaNames,
+            'personaNames' => collect($personaNames)->pluck('name')->all(),
             'personasMax' => $automation->personasMax(),
             'guestConversionEnabled' => (bool) Setting::get(\App\Services\Support\SupportAutomationService::GUEST_CONVERSION_ENABLED_KEY, true),
             'guestRepeatThreshold' => (int) Setting::get(\App\Services\Support\SupportAutomationService::GUEST_REPEAT_THRESHOLD_KEY, 3),
@@ -2755,6 +2760,10 @@ class SettingsController extends Controller
             'personas_max' => ['nullable', 'integer', 'min:1', 'max:20'],
             'persona_names' => ['nullable', 'array', 'max:20'],
             'persona_names.*' => ['nullable', 'string', 'max:40'],
+            'persona_keys' => ['nullable', 'array', 'max:20'],
+            'persona_keys.*' => ['nullable', 'string', 'max:64'],
+            'persona_active' => ['nullable', 'array', 'max:20'],
+            'persona_active.*' => ['nullable'],
             'guest_conversion_enabled' => ['nullable', 'boolean'],
             'guest_repeat_threshold' => ['nullable', 'integer', 'min:2', 'max:20'],
             'guest_conversion_cooldown_hours' => ['nullable', 'integer', 'min:1', 'max:720'],
@@ -2817,20 +2826,38 @@ class SettingsController extends Controller
             max(1, min(720, (int) ($data['guest_conversion_cooldown_hours'] ?? 72)))
         );
 
+        $names = array_values($data['persona_names'] ?? []);
+        $keys = array_values($data['persona_keys'] ?? []);
+        $activeFlags = $data['persona_active'] ?? [];
         $personaRows = [];
-        foreach (array_slice(array_values($data['persona_names'] ?? []), 0, $max) as $i => $raw) {
+        $seen = [];
+        foreach (array_slice($names, 0, $max) as $i => $raw) {
             $name = trim((string) $raw);
             if ($name === '') {
                 continue;
             }
+            $key = trim((string) ($keys[$i] ?? ''));
+            if ($key === '') {
+                $key = \Illuminate\Support\Str::slug($name) ?: ('persona_'.($i + 1));
+            }
+            if (isset($seen[$key])) {
+                $key = $key.'-'.($i + 1);
+            }
+            $seen[$key] = true;
             $personaRows[] = [
-                'key' => \Illuminate\Support\Str::slug($name) ?: ('persona_'.($i + 1)),
+                'key' => $key,
                 'name' => $name,
+                'active' => (string) ($activeFlags[$i] ?? $activeFlags[(string) $i] ?? '0') === '1',
             ];
         }
         Setting::set(
             \App\Services\Support\SupportAutomationService::PERSONAS_SETTING_KEY,
-            $personaRows !== [] ? $personaRows : array_slice(\App\Services\Support\SupportAutomationService::PERSONAS, 0, $max)
+            $personaRows !== []
+                ? $personaRows
+                : array_map(
+                    fn (array $p) => ['key' => $p['key'], 'name' => $p['name'], 'active' => true],
+                    array_slice(\App\Services\Support\SupportAutomationService::PERSONAS, 0, min(5, $max))
+                )
         );
 
         return back()->with('status', 'Support settings saved. Digital Assistants, SLA targets, and Guest conversion updated.');

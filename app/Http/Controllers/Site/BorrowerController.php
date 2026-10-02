@@ -4279,13 +4279,22 @@ class BorrowerController extends Controller
             $meta = is_array($supportConversation->automation_meta) ? $supportConversation->automation_meta : [];
             $persona = (string) ($meta['persona_name'] ?? '');
             $thanks = $isSw
-                ? ($persona !== '' ? "Asante kwa tathmini yako ya {$persona}." : 'Asante kwa tathmini yako.')
-                : ($persona !== '' ? "Thank you for rating {$persona}." : 'Thank you for your rating.');
+                ? 'Asante kwa tathmini yako.'
+                : 'Thank you for your rating.';
+            if ($persona !== '' && $isSw) {
+                $thanks = "Asante kwa tathmini yako.";
+            }
 
             return response()->json([
                 'ok' => true,
                 'thanks' => $thanks,
-                'redirect' => route('site.borrower.support'),
+                'show_account_nav' => true,
+                'account_nav' => [
+                    ['label' => $isSw ? 'Dashibodi' : 'Dashboard', 'url' => route('site.borrower.dashboard')],
+                    ['label' => $isSw ? 'Mikopo' : 'Loans', 'url' => route('site.borrower.loans')],
+                    ['label' => 'Kopafasta Plus', 'url' => route('site.borrower.plus.home')],
+                    ['label' => $isSw ? 'Kituo cha Usaidizi' : 'Help Center', 'url' => route('site.borrower.support')],
+                ],
             ]);
         }
 

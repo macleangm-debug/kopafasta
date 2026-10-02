@@ -266,9 +266,37 @@
                 class="w-full rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-60"
                 x-text="config.ratingSend"></button>
     </div>
-    <div x-show="ratingDone" x-cloak class="mb-4 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-5 text-center space-y-1">
+    <div x-show="ratingDone" x-cloak class="mb-4 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-5 text-center space-y-3">
         <p class="text-2xl text-amber-400 tracking-widest" x-text="'★'.repeat(rating || 5)"></p>
         <p class="text-sm font-bold text-emerald-950" x-text="config.ratingThanks"></p>
+        <div class="relative pt-1" x-show="config.memberMode && accountNav.length" x-cloak>
+            <button type="button" @click="accountOpen = !accountOpen"
+                    class="inline-flex items-center gap-2 rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 shadow-sm"
+                    :aria-expanded="accountOpen.toString()">
+                <span x-text="config.isSw ? 'Rudi kwenye akaunti' : 'Back to account'"></span>
+                <span aria-hidden="true">▾</span>
+            </button>
+            <div x-show="accountOpen" x-cloak @click.outside="accountOpen = false"
+                 class="hidden sm:block absolute left-1/2 -translate-x-1/2 mt-2 z-30 w-64 rounded-2xl bg-white shadow-xl ring-1 ring-brand/15 overflow-hidden text-left"
+                 style="display:none">
+                <template x-for="(link, i) in accountNav" :key="'nav-'+i">
+                    <a :href="link.url"
+                       class="block px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-brand-muted/50"
+                       x-text="link.label"></a>
+                </template>
+            </div>
+            <div class="sm:hidden">
+                <x-site.action-panel :title="'Akaunti'" open="accountOpen">
+                    <div class="space-y-1">
+                        <template x-for="(link, i) in accountNav" :key="'mnav-'+i">
+                            <a :href="link.url"
+                               class="block w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-900 hover:bg-slate-50"
+                               x-text="link.label"></a>
+                        </template>
+                    </div>
+                </x-site.action-panel>
+            </div>
+        </div>
     </div>
 
 
@@ -404,6 +432,8 @@
                         ratingComment: '',
                         ratingSending: false,
                         ratingDone: false,
+                        accountNav: [],
+                        accountOpen: false,
                         guestFirstName: config.guestFirstName || '',
                         guestLastName: config.guestLastName || '',
                         guestName: config.guestName || '',
@@ -852,6 +882,9 @@
                                 self.showRating = false;
                                 self.composerLocked = true;
                                 if (data.thanks) self.config.ratingThanks = data.thanks;
+                                if (Array.isArray(data.account_nav) && data.account_nav.length) {
+                                    self.accountNav = data.account_nav;
+                                }
                                 if (data.show_join_cta && self.joinCta && self.joinCta.url) {
                                     /* keep join CTA visible after Guest rating */
                                 } else if (data.show_join_cta && data.join_cta && data.join_cta.url) {
@@ -868,10 +901,8 @@
                                         secondary_key: 'login',
                                     };
                                 }
-                                var go = data.redirect || null;
-                                if (go) {
-                                    setTimeout(function () { window.location = go; }, 1100);
-                                }
+                                // Member/Partner: stay on thank-you + account nav. Guest: conversion CTA only.
+                                // Do not auto-redirect after rating.
                             } catch (e) {
                                 self.sendError = 'Rating failed. Try again.';
                             } finally {

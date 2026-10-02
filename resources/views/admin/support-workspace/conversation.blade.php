@@ -85,6 +85,32 @@
                 @endif
             </div>
 
+            <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 text-sm space-y-2">
+                <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">CSAT</p>
+                @php
+                    $autoMeta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+                    $personaName = (string) ($autoMeta['persona_name'] ?? '');
+                    $ratingComment = (string) ($autoMeta['rating_comment'] ?? '');
+                    if ($ratingComment === '' && is_string($conversation->resolution_note) && str_contains($conversation->resolution_note, 'Rating note:')) {
+                        $ratingComment = trim((string) substr($conversation->resolution_note, strrpos($conversation->resolution_note, 'Rating note:') + strlen('Rating note:')));
+                    }
+                    $resolver = $conversation->assignedTo?->name
+                        ?: ($personaName !== '' ? $personaName.' · Digital' : null);
+                @endphp
+                @if ($conversation->rating)
+                    <p class="text-lg font-bold text-amber-500 tracking-widest">{{ str_repeat('★', (int) $conversation->rating) }}{{ str_repeat('☆', max(0, 5 - (int) $conversation->rating)) }}</p>
+                    <p class="text-xs text-gray-600">{{ optional($conversation->rated_at)->format('d M Y H:i') ?: '—' }}</p>
+                    @if ($resolver)
+                        <p class="text-xs text-gray-700"><span class="text-gray-500">Attributed to:</span> <span class="font-semibold">{{ $resolver }}</span></p>
+                    @endif
+                    @if ($ratingComment !== '')
+                        <p class="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-gray-800 whitespace-pre-wrap">{{ $ratingComment }}</p>
+                    @endif
+                @else
+                    <p class="text-sm text-gray-500">No customer rating yet.</p>
+                @endif
+            </div>
+
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 space-y-3">
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Case</p>
                 <p class="text-xs text-gray-500">Not every chat needs a ticket. Create a case only when investigation is required.</p>

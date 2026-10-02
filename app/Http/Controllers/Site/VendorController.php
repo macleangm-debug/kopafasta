@@ -1313,13 +1313,19 @@ class VendorController extends Controller
             ->recordConversationRating($supportConversation, (int) $data['rating'], $data['comment'] ?? null);
 
         $page = $request->routeIs('site.vendor.*') ? 'site.vendor.support' : 'site.partner.support';
-        $thanks = 'Asante kwa tathmini yako.';
+        $dash = $request->routeIs('site.vendor.*') ? 'site.vendor.dashboard' : 'site.partner.dashboard';
+        $isSw = str_starts_with(app()->getLocale(), 'sw');
+        $thanks = $isSw ? 'Asante kwa tathmini yako.' : 'Thank you for your rating.';
 
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'ok' => true,
                 'thanks' => $thanks,
-                'redirect' => route($page, ['section' => 'history']),
+                'show_account_nav' => true,
+                'account_nav' => [
+                    ['label' => $isSw ? 'Dashibodi' : 'Dashboard', 'url' => route($dash)],
+                    ['label' => $isSw ? 'Kituo cha Usaidizi' : 'Help Center', 'url' => route($page)],
+                ],
             ]);
         }
 

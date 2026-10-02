@@ -12,12 +12,22 @@
     while (count($enClosings) < 5) {
         $enClosings[] = '';
     }
-    $personasMax = (int) old('personas_max', $personasMax ?? 5);
-    $personaNames = old('persona_names', $personaNames ?? ['Amani', 'Neema', 'Baraka', 'Rehema', 'Daniel']);
-    while (count($personaNames) < $personasMax) {
-        $personaNames[] = '';
+    $personasMax = (int) old('personas_max', $personasMax ?? 20);
+    $personaRows = old('persona_rows', $personaRows ?? null);
+    if (! is_array($personaRows) || $personaRows === []) {
+        $names = old('persona_names', $personaNames ?? ['Amani', 'Neema', 'Baraka', 'Rehema', 'Daniel']);
+        $personaRows = [];
+        foreach (array_values($names) as $i => $name) {
+            if (trim((string) $name) === '') {
+                continue;
+            }
+            $personaRows[] = [
+                'key' => \Illuminate\Support\Str::slug((string) $name) ?: ('persona_'.($i + 1)),
+                'name' => (string) $name,
+                'active' => true,
+            ];
+        }
     }
-    $personaNames = array_slice(array_values($personaNames), 0, $personasMax);
     $guestConversionEnabled = old('guest_conversion_enabled', $guestConversionEnabled ?? true);
     $guestRepeatThreshold = (int) old('guest_repeat_threshold', $guestRepeatThreshold ?? 3);
     $guestConversionCooldownHours = (int) old('guest_conversion_cooldown_hours', $guestConversionCooldownHours ?? 72);
@@ -135,33 +145,58 @@
             </div>
         </div>
 
-        <div x-show="tab === 'msaidizi'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-8">
+        <div x-show="tab === 'msaidizi'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-8"
+             x-data="{
+                max: {{ (int) $personasMax }},
+                rows: @js(collect($personaRows)->values()->all()),
+                add() {
+                    if (this.rows.length >= this.max) return;
+                    this.rows.push({ key: '', name: '', active: true });
+                },
+                remove(i) { this.rows.splice(i, 1); }
+             }">
             <div class="space-y-4">
                 <div>
                     <p class="text-xs uppercase tracking-widest text-brand font-semibold">Digital Assistants</p>
                     <p class="text-sm text-gray-600 mt-1">
-                        Settings-backed personas (not Staff users). Empty slots are ignored.
-                        Conversations pick one active name at start. Leave all blank to restore built-in defaults.
+                        Settings-backed personas of one Digital Assistant engine (not Staff users).
+                        Active names rotate into new conversations. Inactive keep historical attribution but receive no new chats.
                     </p>
                 </div>
                 <div class="grid sm:grid-cols-3 gap-3 max-w-xl">
                     <label class="block text-sm sm:col-span-1">
                         <span class="font-semibold text-gray-700">Maximum assistants</span>
-                        <input type="number" name="personas_max" min="1" max="20" value="{{ $personasMax }}"
+                        <input type="number" name="personas_max" min="1" max="20" x-model.number="max" value="{{ $personasMax }}"
                                class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                        <span class="text-xs text-gray-500">Soft ceiling (1–20). Not a requirement of exactly five.</span>
                     </label>
                 </div>
-                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    @foreach ($personaNames as $i => $name)
-                        <label class="block text-sm">
-                            <span class="font-semibold text-gray-700">Assistant {{ $i + 1 }}</span>
-                            <input type="text" name="persona_names[{{ $i }}]" maxlength="40"
-                                   value="{{ $name }}"
-                                   class="mt-1 w-full rounded-lg border-gray-200 text-sm"
-                                   placeholder="Name">
-                        </label>
-                    @endforeach
+                <div class="space-y-3">
+                    <template x-for="(row, i) in rows" :key="'persona-'+i">
+                        <div class="flex flex-col sm:flex-row sm:items-end gap-3 rounded-xl ring-1 ring-slate-200 bg-slate-50/60 p-3">
+                            <input type="hidden" :name="'persona_keys['+i+']'" :value="row.key || ''">
+                            <label class="block text-sm flex-1 min-w-0">
+                                <span class="font-semibold text-gray-700">Name</span>
+                                <input type="text" :name="'persona_names['+i+']'" maxlength="40" x-model="row.name"
+                                       class="mt-1 w-full rounded-lg border-gray-200 text-sm bg-white"
+                                       placeholder="e.g. Amani">
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-800 pb-2 shrink-0">
+                                <input type="hidden" :name="'persona_active['+i+']'" value="0">
+                                <input type="checkbox" :name="'persona_active['+i+']'" value="1" x-model="row.active"
+                                       class="rounded border-gray-300 text-brand focus:ring-brand">
+                                Active
+                            </label>
+                            <button type="button" @click="remove(i)"
+                                    class="text-xs font-semibold text-rose-700 hover:underline pb-2 shrink-0"
+                                    x-show="rows.length > 1">Remove</button>
+                        </div>
+                    </template>
                 </div>
+                <button type="button" @click="add()" :disabled="rows.length >= max"
+                        class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-50">
+                    Add Digital Assistant
+                </button>
             </div>
 
             <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 space-y-3">

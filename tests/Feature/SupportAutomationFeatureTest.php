@@ -162,15 +162,17 @@ class SupportAutomationFeatureTest extends TestCase
         $this->assertFalse($keys->contains('apply-loan'));
     }
 
-    public function test_personas_are_settings_backed_max_five(): void
+    public function test_personas_are_settings_backed_with_soft_max(): void
     {
         \App\Models\Setting::set(SupportAutomationService::PERSONAS_SETTING_KEY, [
-            ['key' => 'zuri', 'name' => 'Zuri'],
-            ['key' => 'taji', 'name' => 'Taji'],
+            ['key' => 'zuri', 'name' => 'Zuri', 'active' => true],
+            ['key' => 'taji', 'name' => 'Taji', 'active' => true],
+            ['key' => 'old', 'name' => 'Old', 'active' => false],
         ]);
         $names = collect(app(SupportAutomationService::class)->personas())->pluck('name')->all();
         $this->assertSame(['Zuri', 'Taji'], $names);
-        $this->assertLessThanOrEqual(5, count(app(SupportAutomationService::class)->personas()));
+        $this->assertLessThanOrEqual(20, count(app(SupportAutomationService::class)->allPersonas()));
+        $this->assertCount(3, app(SupportAutomationService::class)->allPersonas());
     }
 
     public function test_affiliate_public_copy_does_not_advertise_premium_self_registration(): void
