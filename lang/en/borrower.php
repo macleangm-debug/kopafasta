@@ -77,7 +77,7 @@ return [
 
     'auth' => [
         'login_promo_hint' => 'Optional — applied to your membership fee if you have not paid yet.',
-        'phone_invalid' => 'Enter a valid mobile number (at least 9 digits).',
+        'phone_invalid' => 'Enter the 9-digit phone number.',
         'phone_taken' => 'This phone number is already registered. Log in instead.',
         'phone_taken_title' => 'Account already exists',
         'phone_taken_cta' => 'Go to login',

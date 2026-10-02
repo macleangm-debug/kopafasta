@@ -1027,16 +1027,25 @@ class AuthController extends Controller
     public function checkBorrowerPhone(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'phone' => ['required', 'string', 'max:20'],
+            'phone' => ['required', 'string', new \App\Rules\CanonicalPhone(
+                is_string($request->input('country')) ? (string) $request->input('country') : 'TZ'
+            )],
+            'country' => ['nullable', 'string', 'max:4'],
         ]);
 
-        $phoneDigits = preg_replace('/\D/', '', $data['phone']) ?: '';
-        if (strlen($phoneDigits) < 11) {
+        $phoneDigits = \App\Support\PhoneNumber::canonicalDigits(
+            $data['phone'],
+            is_string($data['country'] ?? null) ? (string) $data['country'] : 'TZ'
+        );
+        if (! $phoneDigits) {
             return response()->json([
                 'available' => false,
-                'message' => __('borrower.auth.phone_invalid'),
-            ]);
+                'message' => str_starts_with(app()->getLocale(), 'sw')
+                    ? 'Weka tarakimu 9 za nambari ya simu.'
+                    : 'Enter the 9-digit phone number.',
+            ], 422);
         }
+        $data['phone'] = $phoneDigits;
 
         $existingUser = User::query()
             ->where('role', 'borrower')
@@ -1171,7 +1180,7 @@ class AuthController extends Controller
             'phone' => [
                 'required',
                 'string',
-                'max:20',
+                new \App\Rules\CanonicalPhone(),
             ],
             'password' => ['nullable', 'string'], // ignored — borrower auth is phone + PIN only
             'referral_code' => ['nullable', 'string', 'max:32'],
@@ -1185,7 +1194,21 @@ class AuthController extends Controller
 
         $data = $request->validate($rules);
 
-        $phoneDigits = preg_replace('/\D/', '', $data['phone']);
+        $canonicalPhone = \App\Support\PhoneNumber::canonicalDigits(
+            $data['phone'],
+            (string) ($data['country'] ?? 'TZ')
+        );
+        if (! $canonicalPhone) {
+            return back()
+                ->withErrors([
+                    'phone' => str_starts_with(app()->getLocale(), 'sw')
+                        ? 'Weka tarakimu 9 za nambari ya simu.'
+                        : 'Enter the 9-digit phone number.',
+                ])
+                ->withInput();
+        }
+        $data['phone'] = $canonicalPhone;
+        $phoneDigits = $canonicalPhone;
         $existingUser = User::query()
             ->where('role', 'borrower')
             ->where(function ($query) use ($data, $phoneDigits) {

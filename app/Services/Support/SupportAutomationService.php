@@ -265,6 +265,7 @@ class SupportAutomationService
             'workspace' => $this->selectWorkspace($conversation, (string) ($input['key'] ?? ''), $locale),
             'category' => $this->selectCategory($conversation, (string) ($input['key'] ?? ''), $audience, $workspace, $locale),
             'issue' => $this->selectIssue($conversation, (string) ($input['slug'] ?? ''), $customer, $user, $audience, $workspace, $locale),
+            'pick_record' => $this->selectRecord($conversation, (string) ($input['key'] ?? ''), $customer, $user, $audience, $workspace, $locale),
             'resolved_yes' => $this->resolveAutomated($conversation, $locale),
             'no_other_issue' => $this->resolveAutomated($conversation, $locale, doneLabel: true),
             'another_issue' => $this->restartIssuePath($conversation, $locale),
@@ -571,7 +572,43 @@ class SupportAutomationService
         $label = $isSw
             ? (string) ($article['q_sw'] ?? $article['q_en'] ?? '')
             : (string) ($article['q_en'] ?? $article['q_sw'] ?? '');
-        $body = $this->formatArticleAnswer($article, $locale, $customer, $user, $audience, is_string($workspace) ? $workspace : null, $categoryKey, $slug);
+
+        $diagnostic = null;
+        if ($customer || ($audience === 'partner' && $user)) {
+            $diagnostic = app(SupportAccountDiagnosticService::class)->diagnose(
+                $customer,
+                $user,
+                $audience,
+                $categoryKey,
+                $slug,
+                $locale,
+                is_string($workspace) ? $workspace : null,
+                isset($meta['selected_application_id']) ? (int) $meta['selected_application_id'] : null,
+            );
+        }
+
+        if (is_array($diagnostic) && ! empty($diagnostic['choices']) && ($diagnostic['context']['kind'] ?? '') === 'member_pick_loan') {
+            $this->conversations->appendMessage($conversation, 'customer', $label, null, false, false);
+            $this->conversations->appendMessage($conversation, 'bot', (string) $diagnostic['body'], null, true, false);
+            $meta['phase'] = 'pick_record';
+            $meta['pending_issue_slug'] = $slug;
+            $meta['diagnostic_context'] = $diagnostic['context'] ?? null;
+            $meta['steps_attempted'][] = [
+                'type' => 'diagnostic_pick',
+                'category' => $categoryKey,
+                'slug' => $slug,
+                'at' => now()->toIso8601String(),
+            ];
+            $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
+            $payload = $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
+            $payload['choices'] = $diagnostic['choices'];
+
+            return $payload;
+        }
+
+        $body = is_array($diagnostic) && filled($diagnostic['body'] ?? null)
+            ? (string) $diagnostic['body']
+            : $this->formatArticleAnswer($article, $locale, $customer, $user, $audience, is_string($workspace) ? $workspace : null, $categoryKey, $slug);
 
         $this->conversations->appendMessage($conversation, 'customer', $label, null, false, false);
         $this->conversations->appendMessage($conversation, 'bot', $body, null, true, false);
@@ -579,11 +616,15 @@ class SupportAutomationService
         $tried = array_values(array_unique(array_merge($meta['tried_slugs'] ?? [], [$slug])));
         $meta['tried_slugs'] = $tried;
         $meta['issue_slug'] = $slug;
+        if (is_array($diagnostic)) {
+            $meta['diagnostic_context'] = $diagnostic['context'] ?? null;
+        }
         $meta['steps_attempted'][] = [
             'type' => 'issue',
             'category' => $categoryKey,
             'slug' => $slug,
             'creates_ticket' => (bool) ($article['creates_ticket'] ?? false),
+            'diagnostic' => (bool) $diagnostic,
             'at' => now()->toIso8601String(),
         ];
 
@@ -619,11 +660,83 @@ class SupportAutomationService
             return $this->payload($conversation->fresh(['messages', 'tickets', 'assignedTo']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
         }
 
+        if (is_array($diagnostic) && ! empty($diagnostic['handover'])) {
+            $offer = $this->isSw($locale)
+                ? 'Ikiwa hali haiko wazi, Ongea na Usaidizi — tutaendelea na muktadha huu.'
+                : 'If this state is unclear, Talk to Support — we will continue with this context.';
+            $this->conversations->appendMessage($conversation, 'bot', $offer, null, true, false);
+            $meta['phase'] = 'escalate_offer';
+            $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
+            $payload = $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
+            if (! empty($diagnostic['cta_url'])) {
+                $payload['cta'] = [
+                    'url' => $diagnostic['cta_url'],
+                    'label' => $diagnostic['cta_label'] ?? ($this->isSw($locale) ? 'Endelea' : 'Continue'),
+                ];
+            }
+
+            return $payload;
+        }
+
         $this->conversations->appendMessage($conversation, 'bot', $this->resolvedPrompt($locale, (string) ($meta['customer_first_name'] ?? '') ?: null), null, true, false);
         $meta['phase'] = 'confirm';
         $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
 
-        return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
+        $payload = $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
+        if (is_array($diagnostic) && ! empty($diagnostic['cta_url'])) {
+            $payload['cta'] = [
+                'url' => $diagnostic['cta_url'],
+                'label' => $diagnostic['cta_label'] ?? ($this->isSw($locale) ? 'Endelea' : 'Continue'),
+            ];
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Authenticated Member picks a specific application/loan for diagnosis.
+     *
+     * @return array<string, mixed>
+     */
+    private function selectRecord(
+        SupportConversation $conversation,
+        string $key,
+        ?Customer $customer,
+        ?User $user,
+        string $audience,
+        mixed $workspace,
+        ?string $locale,
+    ): array {
+        if (! $customer || ! str_starts_with($key, 'application:')) {
+            throw new \InvalidArgumentException('Unknown record.');
+        }
+
+        $applicationId = (int) substr($key, strlen('application:'));
+        $owns = \App\Models\LoanApplication::query()
+            ->where('customer_id', $customer->id)
+            ->whereKey($applicationId)
+            ->exists();
+        if (! $owns) {
+            throw new \InvalidArgumentException('Unknown record.');
+        }
+
+        $meta = $this->meta($conversation);
+        $meta['selected_application_id'] = $applicationId;
+        $slug = (string) ($meta['pending_issue_slug'] ?? $meta['issue_slug'] ?? 'application-stage');
+        $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
+
+        $label = $this->isSw($locale) ? 'Ombi lililochaguliwa' : 'Selected application';
+        $this->conversations->appendMessage($conversation, 'customer', $label, null, false, false);
+
+        return $this->selectIssue(
+            $conversation->fresh() ?? $conversation,
+            $slug,
+            $customer,
+            $user,
+            $audience,
+            $workspace,
+            $locale,
+        );
     }
 
     /**
@@ -792,12 +905,23 @@ class SupportAutomationService
         $this->conversations->appendMessage($conversation, 'bot', $handover, null, true, false);
 
         $meta['phase'] = 'human';
-        $meta['steps_attempted'][] = ['type' => 'escalate', 'at' => now()->toIso8601String()];
+        $meta['steps_attempted'][] = [
+            'type' => 'escalate',
+            'diagnostic' => $meta['diagnostic_context'] ?? null,
+            'at' => now()->toIso8601String(),
+        ];
         $this->persistState($conversation, self::STATE_ESCALATED, $meta);
 
+        $diag = is_array($meta['diagnostic_context'] ?? null) ? $meta['diagnostic_context'] : [];
+        $diagBits = collect([
+            $diag['kind'] ?? null,
+            isset($diag['application_number']) ? 'APP '.$diag['application_number'] : null,
+            isset($diag['status_code']) ? 'status '.$diag['status_code'] : null,
+        ])->filter()->implode(' · ');
+
         $body = $this->isSw($locale)
-            ? 'Nahitaji Ongea na mtoa huduma.'
-            : 'I need to talk to a support agent.';
+            ? 'Nahitaji Ongea na mtoa huduma.'.($diagBits !== '' ? "\nMuktadha: {$diagBits}" : '')
+            : 'I need to talk to a support agent.'.($diagBits !== '' ? "\nContext: {$diagBits}" : '');
 
         $conversation = $this->conversations->requestHuman(
             $customer,

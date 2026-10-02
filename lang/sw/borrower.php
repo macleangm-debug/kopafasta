@@ -75,7 +75,7 @@ return [
     ],
     'auth' => [
         'login_promo_hint' => 'Si lazima — hutumika kwenye ada ya uanachama ikiwa bado hujalipa.',
-        'phone_invalid' => 'Weka nambari sahihi ya simu (angalau tarakimu 9).',
+        'phone_invalid' => 'Weka tarakimu 9 za nambari ya simu.',
         'phone_taken' => 'Nambari hii tayari imesajiliwa. Ingia badala yake.',
         'phone_taken_title' => 'Akaunti tayari ipo',
         'phone_taken_cta' => 'Nenda kuingia',

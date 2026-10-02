@@ -304,6 +304,12 @@
            x-text="joinCta.label || 'Anza Sasa'"></a>
     </div>
 
+    <div x-show="actionCta && actionCta.url" x-cloak class="mt-3">
+        <a :href="actionCta.url"
+           class="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-brand hover:bg-brand-light text-white font-bold text-sm px-5 py-2.5 shadow-sm transition"
+           x-text="actionCta.label || 'Continue'"></a>
+    </div>
+
     @unless ($memberMode)
         <div x-show="!needsGuestGate && !joinCta" x-cloak class="mt-3">
             <x-site.guest-conversion-card :url="$registerUrl" compact />
@@ -350,6 +356,7 @@
                         ratingUrl: config.ratingUrl || null,
                         composerLocked: !!config.composerLocked,
                         joinCta: null,
+                        actionCta: null,
                         rating: 0,
                         hoverStar: 0,
                         ratingComment: '',
@@ -447,6 +454,11 @@
                             if (data.composer_locked) this.composerLocked = true;
                             if (data.join_cta && data.join_cta.url) {
                                 this.joinCta = data.join_cta;
+                            }
+                            if (data.cta && data.cta.url) {
+                                this.actionCta = data.cta;
+                            } else if (! data.join_cta) {
+                                this.actionCta = null;
                             }
                             if (data.persona_display) {
                                 this.config.personaDisplay = data.persona_display;

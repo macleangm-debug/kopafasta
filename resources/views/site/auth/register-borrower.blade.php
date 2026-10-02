@@ -225,13 +225,14 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.mobile') }}</label>
                                     <div class="flex gap-2">
                                         <span class="inline-flex items-center px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-brand tabular-nums shrink-0" x-text="activeCountry.prefix"></span>
-                                        <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only data-digits-allow-spaces="1" name="local_phone" x-model="form.local_phone"
+                                        <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only name="local_phone" x-model="form.local_phone"
                                                @input="onPhoneInput()"
                                                autocomplete="tel-national"
+                                               maxlength="9"
                                                autocapitalize="off" autocorrect="off" spellcheck="false"
                                                data-lpignore="true" data-1p-ignore="true"
                                                :disabled="!activeCountry.active" :readonly="lockIdentity && !!form.local_phone"
-                                               placeholder="712 345 678"
+                                               placeholder="712345678"
                                                class="flex-1 px-3.5 py-3 rounded-xl bg-white border border-gray-200 focus:border-brand focus:ring-2 focus:ring-brand/10 text-base outline-none transition">
                                     </div>
                                     <p class="mt-1.5 text-xs text-gray-500">{{ __('borrower.register.mobile_hint') }}</p>
@@ -271,8 +272,9 @@
                                                    class="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                                             <div class="flex gap-2">
                                                 <span class="inline-flex items-center px-3.5 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold" x-text="activeCountry.prefix"></span>
-                                                <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only name="waitlist_local_phone" x-model="waitlist_local_phone" placeholder="712 345 678"
-                                                       @input="waitlist_local_phone = String(waitlist_local_phone || '').replace(/\D/g, '')"
+                                                <input type="tel" inputmode="numeric" pattern="[0-9]*" data-digits-only name="waitlist_local_phone" x-model="waitlist_local_phone" placeholder="712345678"
+                                                       maxlength="9"
+                                                       @input="waitlist_local_phone = String(waitlist_local_phone || '').replace(/\D/g, '').slice(0, 9)"
                                                        class="flex-1 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">
                                             </div>
                                             <input type="hidden" name="phone" :value="waitlist_local_phone ? activeCountry.prefix.replace(/\D/g, '') + waitlist_local_phone.replace(/\D/g, '').replace(/^0+/, '') : ''">
@@ -422,7 +424,7 @@
                 },
                 get canContinueStep1() {
                     const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
-                    return this.activeCountry.active && digits.length >= 9;
+                    return this.activeCountry.active && digits.length === 9;
                 },
                 get canContinueStep2() {
                     const genderEl = typeof document !== 'undefined'
@@ -446,14 +448,14 @@
                     return prefix + local;
                 },
                 onPhoneInput() {
-                    this.form.local_phone = (this.form.local_phone || '').replace(/[^\d\s]/g, '');
+                    this.form.local_phone = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
                     this.errors.phone = '';
                     this.step1Error = '';
                     this.phoneConflict = null;
                 },
                 validatePhone() {
                     const digits = (this.form.local_phone || '').replace(/\D/g, '').replace(/^0+/, '');
-                    this.errors.phone = digits.length >= 9 ? '' : @js(__('borrower.auth.phone_invalid'));
+                    this.errors.phone = digits.length === 9 ? '' : @js(__('borrower.auth.phone_invalid'));
                     return ! this.errors.phone;
                 },
                 setInlineError(step, message) {
