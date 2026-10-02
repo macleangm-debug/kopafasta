@@ -190,7 +190,7 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
 
         $this->actingAs($admin, 'admin')
             ->post(route('admin.users.password-setup-link', $staff))
-            ->assertRedirect(route('admin.users.show', $staff))
+            ->assertRedirect(route('admin.users.show', $staff).'#password-access')
             ->assertSessionHas('password_setup_url')
             ->assertSessionHas('status');
 
@@ -218,22 +218,25 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
             ->assertSee(route('admin.users.password-setup-link', $staff), false)
             ->getContent();
 
-        // Visible CTA must be a native submit; confirmForm may enhance but must not be required.
+        // Visible CTA must be a native submit — JS must not be required for POST.
         $this->assertMatchesRegularExpression(
             '/type="submit"[^>]*data-testid="password-setup-link-cta"|data-testid="password-setup-link-cta"[^>]*type="submit"/',
             $html
         );
+        $this->assertStringContainsString('data-loading-label="Creating setup link…"', $html);
+        $this->assertStringContainsString('data-loading-label="Setting password…"', $html);
+        $passwordCard = substr($html, (int) strpos($html, 'id="password-access"'), 3500);
+        $this->assertStringNotContainsString('confirmForm(', $passwordCard);
         $this->assertStringNotContainsString('type="button"', substr(
             $html,
             (int) strpos($html, 'password-setup-link-form'),
             800
         ));
-        $this->assertStringContainsString('confirmForm(this,', $html);
 
         $this->actingAs($admin, 'admin')
             ->from(route('admin.users.show', $staff))
             ->post(route('admin.users.password-setup-link', $staff))
-            ->assertRedirect(route('admin.users.show', $staff))
+            ->assertRedirect(route('admin.users.show', $staff).'#password-access')
             ->assertSessionHas('password_setup_url');
 
         $this->actingAs($admin, 'admin')
@@ -241,6 +244,80 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('data-testid="password-setup-url"', false)
             ->assertSee('password-setup', false);
+    }
+
+    public function test_set_password_form_posts_natively_and_shows_temporary_password(): void
+    {
+        config(['auth_portal.require_2fa_staff' => false, 'auth_portal.require_2fa_admin' => false]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+        $staff = User::factory()->create([
+            'role' => 'officer',
+            'roles' => ['officer'],
+            'email' => 'officer.native@example.com',
+            'password' => 'old-secret-99',
+            'is_active' => true,
+        ]);
+
+        $html = $this->actingAs($admin, 'admin')
+            ->get(route('admin.users.show', $staff))
+            ->assertOk()
+            ->assertSee('data-testid="set-password-cta"', false)
+            ->assertSee(route('admin.users.reset-password', $staff), false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/type="submit"[^>]*data-testid="set-password-cta"|data-testid="set-password-cta"[^>]*type="submit"/',
+            $html
+        );
+        $passwordCard = substr($html, (int) strpos($html, 'id="password-access"'), 3500);
+        $this->assertStringNotContainsString('confirmForm(', $passwordCard);
+
+        // Manual password via native POST (browser Network equivalent).
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.users.show', $staff))
+            ->post(route('admin.users.reset-password', $staff), [
+                'password' => 'ManualPass99',
+                'password_confirmation' => 'ManualPass99',
+            ])
+            ->assertRedirect(route('admin.users.show', $staff).'#password-access')
+            ->assertSessionHas('temporary_password', 'ManualPass99');
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.users.show', $staff))
+            ->assertOk()
+            ->assertSee('data-testid="temporary-password"', false)
+            ->assertSee('ManualPass99', false);
+
+        Auth::guard('admin')->logout();
+
+        $this->post(route('staff.login'), [
+            'login' => 'officer.native@example.com',
+            'password' => 'ManualPass99',
+        ])->assertRedirect(route('admin.teams.screening'));
+
+        Auth::guard('admin')->logout();
+
+        // Blank fields → secure auto-generate via same native POST.
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.users.show', $staff))
+            ->post(route('admin.users.reset-password', $staff), [
+                'password' => '',
+                'password_confirmation' => '',
+            ])
+            ->assertRedirect(route('admin.users.show', $staff).'#password-access')
+            ->assertSessionHas('temporary_password');
+
+        $generated = session('temporary_password');
+        $this->assertNotSame('', (string) $generated);
+        $this->assertNotSame('ManualPass99', $generated);
+
+        Auth::guard('admin')->logout();
+
+        $this->post(route('staff.login'), [
+            'login' => 'officer.native@example.com',
+            'password' => $generated,
+        ])->assertRedirect(route('admin.teams.screening'));
     }
 
     public function test_another_issue_restarts_category_inside_same_conversation(): void
@@ -295,7 +372,7 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
         $this->get(route('admin.teams.management'))
             ->assertOk()
             ->assertSee('Post-approval', false)
-            ->assertSee('data-kf-glass-hero', false);
+            ->assertDontSee('data-kf-glass-hero', false);
 
         $this->assertSame('manager', app(AdminRoleViewService::class)->active()['role_key'] ?? null);
 
@@ -373,9 +450,20 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
             'is_active' => true,
         ]);
 
-        $issued = app(UserAccountService::class)->issuePasswordSetupLink($admin, $staff);
+        // Native POST from User show (browser Network equivalent) — no synthetic email.
+        $this->actingAs($admin, 'admin')
+            ->from(route('admin.users.show', $staff))
+            ->post(route('admin.users.password-setup-link', $staff))
+            ->assertRedirect(route('admin.users.show', $staff).'#password-access')
+            ->assertSessionHas('password_setup_url');
+
+        $url = (string) session('password_setup_url');
+        $this->assertNotSame('', $url);
+
         $query = [];
-        parse_str(parse_url($issued['url'], PHP_URL_QUERY) ?: '', $query);
+        parse_str(parse_url($url, PHP_URL_QUERY) ?: '', $query);
+
+        Auth::guard('admin')->logout();
 
         $this->post(route('staff.password-setup.store'), [
             'token' => $query['token'],
@@ -389,5 +477,16 @@ class FinalP0WorkspaceStaffClosureFeatureTest extends TestCase
             'login' => '255711000777',
             'password' => 'SetupChosen99',
         ])->assertRedirect(route('staff.dashboard'));
+
+        Auth::guard('admin')->logout();
+
+        // Reuse same URL → rejected.
+        $this->post(route('staff.password-setup.store'), [
+            'token' => $query['token'],
+            'uid' => $staff->id,
+            'email' => $query['email'],
+            'password' => 'ReuseFail99',
+            'password_confirmation' => 'ReuseFail99',
+        ])->assertSessionHasErrors('password');
     }
 }

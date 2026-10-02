@@ -94,26 +94,28 @@
         </div>
     @endif
 
-    <div class="mb-8" id="loan-products">
-        <div class="flex items-end justify-between gap-3 mb-4">
-            <div>
-                <h2 class="text-lg font-semibold">{{ __('borrower.loan_products') }}</h2>
-                <p class="text-sm text-gray-500">{{ __('borrower.dashboard.browse_products') }}</p>
-            </div>
-            <a href="{{ route('site.borrower.loan-products') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
-        </div>
-        @if(isset($products) && $products->isNotEmpty())
-            <div class="relative -mx-4 lg:mx-0" x-data="{ open: null }">
-                <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 items-stretch">
-                    @foreach($products as $p)
-                        <x-site.loan-product-card :product="$p" />
-                    @endforeach
+    <x-site.defer-section skeleton="cards" class="mb-8" :lines="3" id="loan-products">
+        <div>
+            <div class="flex items-end justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-lg font-semibold">{{ __('borrower.loan_products') }}</h2>
+                    <p class="text-sm text-gray-500">{{ __('borrower.dashboard.browse_products') }}</p>
                 </div>
+                <a href="{{ route('site.borrower.loan-products') }}" class="text-xs font-semibold text-brand hover:underline">{{ __('borrower.dashboard.view_all') }}</a>
             </div>
-        @else
-            <div class="text-sm text-gray-500">{{ __('borrower.dashboard_page.no_products') }}</div>
-        @endif
-    </div>
+            @if(isset($products) && $products->isNotEmpty())
+                <div class="relative -mx-4 lg:mx-0" x-data="{ open: null }">
+                    <div class="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 items-stretch">
+                        @foreach($products as $p)
+                            <x-site.loan-product-card :product="$p" />
+                        @endforeach
+                    </div>
+                </div>
+            @else
+                <div class="text-sm text-gray-500">{{ __('borrower.dashboard_page.no_products') }}</div>
+            @endif
+        </div>
+    </x-site.defer-section>
 
     @php
         $underReview = in_array((string) ($customer->grade_status ?? ''), ['under_review'], true)
@@ -196,28 +198,30 @@
 
     @if ($referralCode ?? null)
         @php $referralPoints = wallet_balance_as_points($referralWallet->balance ?? 0); @endphp
-        <section class="mb-8 kf-premium-panel rounded-2xl p-6 sm:p-8">
-            <div class="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div class="min-w-0">
-                    <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.referrals.grow') }}</p>
-                    <h2 class="text-xl sm:text-2xl font-bold mt-1">{{ __('borrower.dashboard.referral_title') }}</h2>
-                    <p class="text-sm text-white/80 mt-2">{{ __('borrower.referrals.your_code') }}: <span class="font-mono font-bold text-white">{{ $referralCode }}</span></p>
-                    <div class="mt-4">
-                        <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.dashboard.referral_wallet') }}</p>
-                        <p class="mt-1 flex items-end gap-2">
-                            <span class="text-5xl sm:text-6xl font-black tabular-nums text-brand-gold leading-none">{{ number_format($referralPoints) }}</span>
-                            <span class="pb-1 text-sm font-semibold text-white/80">{{ __('borrower.rewards.points_short') }}</span>
-                        </p>
+        <x-site.defer-section skeleton="cards" class="mb-8" :lines="4">
+            <section class="kf-premium-panel rounded-2xl p-6 sm:p-8">
+                <div class="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                    <div class="min-w-0">
+                        <p class="text-xs uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.referrals.grow') }}</p>
+                        <h2 class="text-xl sm:text-2xl font-bold mt-1">{{ __('borrower.dashboard.referral_title') }}</h2>
+                        <p class="text-sm text-white/80 mt-2">{{ __('borrower.referrals.your_code') }}: <span class="font-mono font-bold text-white">{{ $referralCode }}</span></p>
+                        <div class="mt-4">
+                            <p class="text-[10px] uppercase tracking-widest text-brand-gold font-semibold">{{ __('borrower.dashboard.referral_wallet') }}</p>
+                            <p class="mt-1 flex items-end gap-2">
+                                <span class="text-5xl sm:text-6xl font-black tabular-nums text-brand-gold leading-none">{{ number_format($referralPoints) }}</span>
+                                <span class="pb-1 text-sm font-semibold text-white/80">{{ __('borrower.rewards.points_short') }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3 shrink-0">
+                        <x-site.referral-share :link="$referralLink" :code="$referralCode" :message="$referralShareMessage ?? null" :channels="['whatsapp']" />
+                        <a href="{{ route('site.borrower.engagement', ['tab' => 'referrals']) }}" class="inline-flex items-center justify-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm ring-1 ring-white/20">
+                            {{ __('borrower.nav.referrals') }}
+                        </a>
                     </div>
                 </div>
-                <div class="flex flex-col sm:flex-row gap-3 shrink-0">
-                    <x-site.referral-share :link="$referralLink" :code="$referralCode" :message="$referralShareMessage ?? null" :channels="['whatsapp']" />
-                    <a href="{{ route('site.borrower.engagement', ['tab' => 'referrals']) }}" class="inline-flex items-center justify-center bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-2.5 rounded-xl text-sm ring-1 ring-white/20">
-                        {{ __('borrower.nav.referrals') }}
-                    </a>
-                </div>
-            </div>
-        </section>
+            </section>
+        </x-site.defer-section>
     @endif
 
 </x-site.borrower-layout>

@@ -13,14 +13,26 @@
         }
     @endphp
 
-    <section class="kf-premium-panel rounded-3xl mb-5">
+    <section class="relative overflow-hidden kf-premium-panel kf-glass-hero kf-hero-enter rounded-3xl mb-5"
+             data-kf-glass-hero
+             x-data
+             x-init="
+                const key = 'kf-glass-glare:' + window.location.pathname;
+                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                try {
+                    if (sessionStorage.getItem(key) === '1') return;
+                    sessionStorage.setItem(key, '1');
+                    $el.classList.add('kf-glass-hero--glare');
+                } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+             ">
+        <x-site.glass-hero-surface />
         <div class="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_55%)] pointer-events-none"></div>
         @if (! empty($hero['grade']))
             <div class="absolute top-5 right-5 sm:top-6 sm:right-6 z-10">
                 <x-site.grade-badge :grade="$hero['grade']" :label="$hero['grade_label'] ?? __('site.affiliate_portal.premium_badge')" size="lg" class="shrink-0" />
             </div>
         @endif
-        <div class="relative p-5 sm:p-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+        <div class="relative z-[1] p-5 sm:p-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
             <div class="min-w-0 flex-1 {{ ! empty($hero['grade']) ? 'pr-28 lg:pr-0' : '' }}">
                 <div class="min-w-0">
                     <p class="text-[11px] uppercase tracking-widest text-brand-gold font-semibold">{{ strtoupper((string) $typeLabel) }}</p>
@@ -109,7 +121,8 @@
         </div>
     </section>
 
-    <div class="grid lg:grid-cols-2 gap-6 mb-6">
+    <x-site.defer-section skeleton="cards" class="mb-6" :lines="6">
+    <div class="grid lg:grid-cols-2 gap-6">
         <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
             <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
                 <h2 class="font-bold text-white">{{ ($progress['premium'] ?? false) ? __('site.affiliate_portal.impact_title') : __('site.affiliate_portal.progress_title') }}</h2>
@@ -182,8 +195,10 @@
             </div>
         </section>
     </div>
+    </x-site.defer-section>
 
-    <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white mb-6">
+    <x-site.defer-section skeleton="rows" class="mb-6" :lines="5">
+    <section class="rounded-2xl overflow-hidden ring-1 ring-brand/15 bg-white">
         <div class="kf-premium-panel rounded-none relative px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
             <h2 class="font-bold text-white">{{ __('site.affiliate_portal.recent_activity') }}</h2>
             <a href="{{ route('site.affiliate.performance', ['tab' => 'commissions']) }}"
@@ -210,5 +225,6 @@
             @endforelse
         </div>
     </section>
+    </x-site.defer-section>
 
 </x-site.affiliate-layout>

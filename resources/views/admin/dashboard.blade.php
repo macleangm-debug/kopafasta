@@ -116,7 +116,8 @@
         $approvalRate = (int) round(($approvedCount / $decisionTotal) * 100);
         $portfolioTotal = max(1, array_sum($portfolioStatus));
     @endphp
-    <div class="grid lg:grid-cols-3 gap-4 mb-6">
+    <x-site.defer-section skeleton="cards" class="mb-6" :lines="8">
+    <div class="grid lg:grid-cols-3 gap-4">
         <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5 lg:col-span-2">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
@@ -326,6 +327,7 @@
             @endforeach
         </div>
     </div>
+    </x-site.defer-section>
 @endif
 
 </x-admin.layout>

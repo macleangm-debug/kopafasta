@@ -109,29 +109,40 @@
         </div>
     @endif
     <div class="grid lg:grid-cols-2 gap-4">
-        <form method="POST" action="{{ route('admin.users.reset-password', $record) }}" class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4"
-              x-data="{ show: false }"
-              onsubmit="event.preventDefault(); confirmForm(this, {
-                  title: 'Reset staff password?',
-                  message: 'This replaces the current password with a temporary password you can share securely.',
-                  confirmLabel: 'Set password',
-                  confirmClass: 'bg-brand hover:brightness-95 text-white',
-              })">
+        {{-- Native POST only. Confirmation is not required for submit to work. --}}
+        <form method="POST"
+              action="{{ route('admin.users.reset-password', $record) }}"
+              class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4"
+              data-testid="set-password-form"
+              x-data="{ show: false, show2: false }">
             @csrf
+            @error('password')
+                <p class="text-xs font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-2" role="alert">{{ $message }}</p>
+            @enderror
             <div class="relative">
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Temporary password</label>
-                <input :type="show ? 'text' : 'password'" name="password" autocomplete="new-password"
-                       class="w-full rounded-lg border-gray-200 text-sm pr-16" placeholder="Enter one or leave blank to generate securely">
+                <input type="password"
+                       :type="show ? 'text' : 'password'"
+                       name="password"
+                       autocomplete="new-password"
+                       class="w-full rounded-lg border-gray-200 text-sm pr-16 @error('password') border-red-300 @enderror"
+                       placeholder="Enter one or leave blank to generate securely">
                 <button type="button" @click="show = !show" class="absolute right-2 bottom-2 text-xs font-semibold text-brand">Show</button>
             </div>
-            <div class="relative" x-data="{ show2: false }">
+            <div class="relative">
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Confirm temporary password</label>
-                <input :type="show2 ? 'text' : 'password'" name="password_confirmation" autocomplete="new-password"
-                       class="w-full rounded-lg border-gray-200 text-sm pr-16">
+                <input type="password"
+                       :type="show2 ? 'text' : 'password'"
+                       name="password_confirmation"
+                       autocomplete="new-password"
+                       class="w-full rounded-lg border-gray-200 text-sm pr-16"
+                       placeholder="Required only when entering a password">
                 <button type="button" @click="show2 = !show2" class="absolute right-2 bottom-2 text-xs font-semibold text-brand">Show</button>
             </div>
-            <button type="submit" data-loading-label="Setting…"
-                    class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:brightness-95 kf-press">
+            <button type="submit"
+                    data-loading-label="Setting password…"
+                    data-testid="set-password-cta"
+                    class="inline-flex min-w-[9.5rem] justify-center rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:brightness-95 kf-press">
                 Set password
             </button>
         </form>
@@ -139,25 +150,14 @@
               action="{{ route('admin.users.password-setup-link', $record) }}"
               id="admin-password-setup-link-form"
               class="space-y-3 rounded-xl ring-1 ring-gray-200 p-4"
-              data-testid="password-setup-link-form"
-              onsubmit="
-                  if (typeof confirmForm !== 'function') { return true; }
-                  event.preventDefault();
-                  confirmForm(this, {
-                      title: 'Issue password setup link?',
-                      message: 'Creates a single-use link that expires. Share it securely. Never invent an email address.',
-                      confirmLabel: 'Create link',
-                      confirmClass: 'bg-brand-gold text-brand hover:brightness-95',
-                  });
-              ">
+              data-testid="password-setup-link-form">
             @csrf
             <p class="text-sm font-semibold text-gray-900">Secure setup link</p>
             <p class="text-xs text-gray-500">User chooses their own password. Link is single-use and expires.</p>
-            {{-- Native type=submit POST. confirmForm enhances; if JS is absent the form still submits. --}}
             <button type="submit"
-                    data-loading-label="Creating…"
+                    data-loading-label="Creating setup link…"
                     data-testid="password-setup-link-cta"
-                    class="inline-flex rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5 hover:brightness-95 kf-press">
+                    class="inline-flex min-w-[11rem] justify-center rounded-xl bg-brand-gold text-brand text-sm font-bold px-4 py-2.5 hover:brightness-95 kf-press">
                 Create / send setup link
             </button>
         </form>

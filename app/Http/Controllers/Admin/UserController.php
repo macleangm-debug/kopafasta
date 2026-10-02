@@ -300,7 +300,8 @@ class UserController extends ResourceController
 
         return redirect()
             ->route("{$this->routePrefix}.show", $user)
-            ->with('status', 'Password reset. Temporary password: '.$result['temporary_password'])
+            ->withFragment('password-access')
+            ->with('status', 'Password set. Copy the temporary password below — it is shown once.')
             ->with('temporary_password', $result['temporary_password']);
     }
 
@@ -312,6 +313,7 @@ class UserController extends ResourceController
 
         return redirect()
             ->route("{$this->routePrefix}.show", $user)
+            ->withFragment('password-access')
             ->with('status', $result['emailed']
                 ? 'Password setup link emailed (also copied below for sharing).'
                 : 'Password setup link ready — copy and share securely (no email on file).')

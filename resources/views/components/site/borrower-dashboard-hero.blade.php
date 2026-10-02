@@ -14,7 +14,19 @@
     $hasLoanCopy = filled($hero['title'] ?? null) || filled($hero['subtitle'] ?? null) || filled($hero['meta'] ?? null);
 @endphp
 
-<section class="mb-6 rounded-2xl p-5 sm:p-6 relative overflow-hidden {{ $shell }}">
+<section class="mb-6 rounded-2xl p-5 sm:p-6 relative overflow-hidden {{ $shell }} kf-glass-hero kf-hero-enter"
+         data-kf-glass-hero
+         x-data
+         x-init="
+            const key = 'kf-glass-glare:' + window.location.pathname;
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            try {
+                if (sessionStorage.getItem(key) === '1') return;
+                sessionStorage.setItem(key, '1');
+                $el.classList.add('kf-glass-hero--glare');
+            } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+         ">
+    <x-site.glass-hero-surface />
     @unless ($premium)
         <div class="absolute inset-0 opacity-[0.07] pointer-events-none" aria-hidden="true">
             <svg class="absolute -right-6 -bottom-8 w-48 h-32" viewBox="0 0 200 120" fill="none">
@@ -28,7 +40,7 @@
         @include('components.site.illustrations.product', ['type' => $decor])
     </div>
 
-    <div class="relative">
+    <div class="relative z-[1]">
         <div class="flex items-start justify-between gap-3">
             <x-site.brand-mark size="sm" variant="light" />
             @if (filled($hero['grade'] ?? null))

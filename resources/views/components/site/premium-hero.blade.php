@@ -23,7 +23,7 @@
          data-kf-glass-hero
          x-data
          x-init="
-            const key = 'kf-glass-glare:' + (document.querySelector('[data-kf-glass-hero]') ? window.location.pathname : 'shared');
+            const key = 'kf-glass-glare:' + window.location.pathname;
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
             try {
                 if (sessionStorage.getItem(key) === '1') return;
@@ -31,7 +31,7 @@
                 $el.classList.add('kf-glass-hero--glare');
             } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
          ">
-    <div class="kf-glass-hero__surface absolute inset-0 pointer-events-none" aria-hidden="true"></div>
+    <x-site.glass-hero-surface />
     <div class="relative z-[1] px-5 sm:px-6 py-6 sm:py-7 text-white">
         @if (filled($eyebrow))
             <p class="text-[10px] uppercase tracking-[0.2em] font-semibold text-brand-gold">{{ $eyebrow }}</p>

@@ -18,12 +18,24 @@
     'completionCtaLabel' => null,
 ])
 
-{{-- Shared account-shell hero (borrower + partner). Dashboard Hero language. --}}
-<section class="mb-6 rounded-2xl p-5 sm:p-6 relative overflow-hidden kf-premium-panel">
+{{-- Shared account-shell hero (borrower + partner). Glass + one-time glare. --}}
+<section class="mb-6 rounded-2xl p-5 sm:p-6 relative overflow-hidden kf-premium-panel kf-glass-hero kf-hero-enter"
+         data-kf-glass-hero
+         x-data
+         x-init="
+            const key = 'kf-glass-glare:' + window.location.pathname;
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            try {
+                if (sessionStorage.getItem(key) === '1') return;
+                sessionStorage.setItem(key, '1');
+                $el.classList.add('kf-glass-hero--glare');
+            } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+         ">
+    <x-site.glass-hero-surface />
     <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
     <div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_rgba(245,200,66,0.45),_transparent_55%)] pointer-events-none" aria-hidden="true"></div>
 
-    <div class="relative">
+    <div class="relative z-[1]">
         <div class="flex items-start justify-between gap-3">
             <x-site.brand-mark size="sm" variant="light" />
             @if ($mode === 'identity' && $showGradeBadge && filled($grade))
