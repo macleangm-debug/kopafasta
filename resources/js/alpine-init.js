@@ -281,6 +281,39 @@ function initAlpineTrees() {
     });
 }
 
+function initKfScrollReveal() {
+    if (window.__kfRevealStarted) {
+        return;
+    }
+    window.__kfRevealStarted = true;
+
+    const nodes = Array.from(document.querySelectorAll('[data-kf-reveal]'));
+    if (!nodes.length) {
+        return;
+    }
+
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!('IntersectionObserver' in window) || reduce) {
+        nodes.forEach((el) => el.classList.add('kf-reveal-in'));
+        return;
+    }
+
+    const io = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+                entry.target.classList.add('kf-reveal-in');
+                io.unobserve(entry.target);
+            });
+        },
+        { rootMargin: '0px 0px -8% 0px', threshold: 0.08 }
+    );
+
+    nodes.forEach((el) => io.observe(el));
+}
+
 function startAlpine() {
     if (window.__alpineStarted) {
         return;
@@ -289,6 +322,7 @@ function startAlpine() {
     window.__alpineStarted = true;
     Alpine.start();
     initAlpineTrees();
+    initKfScrollReveal();
 }
 
 if (document.readyState === 'loading') {

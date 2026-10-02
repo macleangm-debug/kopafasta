@@ -25,7 +25,19 @@
 
 <section @class(['relative overflow-hidden premium-gradient', 'py-6 sm:py-10' => $isFeature, 'py-5 sm:py-7' => ! $isFeature])>
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="relative overflow-hidden rounded-[1.75rem] sm:rounded-[2rem] bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27] text-white shadow-[0_28px_70px_rgba(8,47,39,0.28)] ring-1 ring-brand-gold/20">
+        <div class="relative overflow-hidden rounded-[1.75rem] sm:rounded-[2rem] bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27] text-white shadow-[0_28px_70px_rgba(8,47,39,0.28)] ring-1 ring-brand-gold/20 kf-glass-hero kf-hero-enter"
+             data-kf-glass-hero
+             x-data
+             x-init="
+                const key = 'kf-glass-glare:' + window.location.pathname + ':public-hero';
+                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                try {
+                    if (sessionStorage.getItem(key) === '1') return;
+                    sessionStorage.setItem(key, '1');
+                    $el.classList.add('kf-glass-hero--glare');
+                } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+             ">
+            <x-site.glass-hero-surface />
             <div class="absolute inset-0 opacity-[0.18] pointer-events-none" style="background-image:url(\"data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.55' stroke-width='2'/%3E%3C/svg%3E\"); background-size:72px 48px;"></div>
             @unless ($isMinimal)
                 <div class="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-gold/15 pointer-events-none"></div>
@@ -47,7 +59,7 @@
                     <h1 class="{{ $titleClass }}">{{ $title }}</h1>
                     @if (filled($body))
                         <p @class([
-                            'text-white/80 max-w-xl leading-relaxed',
+                            'text-white/85 max-w-xl leading-relaxed',
                             'mt-4 text-base sm:text-lg' => $isFeature,
                             'mt-3 text-sm sm:text-base' => ! $isFeature,
                         ])>{{ $body }}</p>
@@ -67,13 +79,13 @@
                     @if ($primaryHref || $secondaryHref)
                         <div class="mt-6 sm:mt-7 flex flex-wrap gap-3">
                             @if ($primaryHref && $primaryLabel)
-                                <a href="{{ $primaryHref }}" class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-extrabold px-6 py-3.5 rounded-xl shadow-md transition">
+                                <a href="{{ $primaryHref }}" class="inline-flex items-center gap-2 bg-brand-gold hover:brightness-95 text-brand font-extrabold px-6 py-3.5 rounded-xl shadow-md transition kf-press">
                                     {{ $primaryLabel }}
                                     <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10h12m-4-4 4 4-4 4"/></svg>
                                 </a>
                             @endif
                             @if ($secondaryHref && $secondaryLabel)
-                                <a href="{{ $secondaryHref }}" class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 ring-1 ring-white/25 text-white font-semibold px-6 py-3.5 rounded-xl transition">
+                                <a href="{{ $secondaryHref }}" class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 ring-1 ring-white/25 text-white font-semibold px-6 py-3.5 rounded-xl transition kf-press">
                                     {{ $secondaryLabel }}
                                 </a>
                             @endif

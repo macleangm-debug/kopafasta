@@ -133,8 +133,8 @@
                 <template x-for="cat in groups" :key="cat.key">
                     <button type="button"
                             @click="selectCategory(cat.key)"
-                            class="snap-start shrink-0 w-[14.5rem] sm:w-[15.5rem] min-h-[10.5rem] rounded-2xl bg-white ring-1 shadow-sm px-5 py-5 transition text-left flex flex-col kf-card-lift kf-press"
-                            :class="selectedKey === cat.key ? 'ring-brand/50 bg-brand-muted/30' : 'ring-brand/10 hover:ring-brand/30'">
+                            class="snap-start shrink-0 w-[14.5rem] sm:w-[15.5rem] min-h-[10.5rem] kf-info-card px-5 py-5 transition text-left flex flex-col kf-card-lift kf-press"
+                            :class="selectedKey === cat.key ? 'ring-brand/50 bg-brand-muted/30' : 'hover:ring-brand/30'">
                         <span class="inline-flex size-12 items-center justify-center rounded-2xl bg-brand-muted/50 text-3xl" aria-hidden="true" x-text="cat.icon"></span>
                         <p class="mt-3.5 text-[15px] font-bold text-gray-900 leading-snug flex-1" x-text="cat.label"></p>
                         <p class="mt-2 text-xs font-semibold text-brand flex items-center justify-between gap-2">
@@ -206,7 +206,7 @@
     </section>
 
     {{-- Get help — Anza mazungumzo primary; Feedback/Phone secondary. Chat and Feedback never share routing/state. --}}
-    <section class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-4 sm:p-5 space-y-4">
+    <section class="kf-info-card p-4 sm:p-5 space-y-4" data-kf-reveal>
         <div>
             <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">{{ $isSw ? 'Pata msaada' : 'Get help' }}</p>
             <p class="mt-1 text-sm text-gray-600">{{ $isSw ? 'Chagua njia inayokufaa sasa.' : 'Choose the path that fits right now.' }}</p>
@@ -214,7 +214,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <a href="{{ $chatUrl }}"
                data-kf-support-action="chat"
-               class="rounded-2xl bg-brand text-white ring-1 ring-brand/30 hover:bg-brand-light px-4 sm:px-5 py-5 text-left transition shadow-sm relative">
+               class="rounded-2xl bg-brand text-white ring-1 ring-brand/30 hover:bg-brand-light px-4 sm:px-5 py-5 text-left transition shadow-sm relative kf-press kf-card-lift">
                 <span class="absolute top-3 right-3 inline-flex items-center rounded-full bg-brand-gold/95 text-brand text-[10px] font-extrabold px-2 py-0.5">24/7</span>
                 <p class="text-xl" aria-hidden="true">💬</p>
                 <p class="mt-2 text-sm font-bold leading-snug">{{ $isSw ? 'Anza mazungumzo' : 'Start a conversation' }}</p>
@@ -223,14 +223,14 @@
             <button type="button"
                     data-kf-support-action="feedback"
                     @click.stop="$dispatch('open-feedback')"
-                    class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 hover:ring-brand/25 hover:bg-white px-4 sm:px-5 py-5 text-left transition">
+                    class="kf-info-card kf-card-lift kf-press px-4 sm:px-5 py-5 text-left bg-slate-50/80">
                 <p class="text-xl" aria-hidden="true">✉️</p>
                 <p class="mt-2 text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</p>
                 <p class="mt-1 text-xs text-gray-500 leading-snug">{{ $isSw ? 'Tuma swali, pendekezo au malalamiko.' : 'Send a question, suggestion or complaint.' }}</p>
             </button>
             @if ($primaryPhone)
                 <a href="tel:{{ preg_replace('/\s+/', '', $primaryPhone) }}"
-                   class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 hover:ring-brand/25 hover:bg-white px-4 sm:px-5 py-5 text-left transition">
+                   class="kf-info-card kf-card-lift kf-press px-4 sm:px-5 py-5 text-left bg-slate-50/80">
                     <p class="text-xl" aria-hidden="true">☎️</p>
                     <p class="mt-2 text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Piga simu' : 'Call us' }}</p>
                     <p class="mt-1 text-xs text-brand font-semibold leading-snug tabular-nums">{{ $primaryPhone }}</p>
@@ -239,7 +239,7 @@
                     @endif
                 </a>
             @else
-                <div class="rounded-2xl bg-slate-50 ring-1 ring-brand/10 px-4 sm:px-5 py-5 text-left opacity-70">
+                <div class="kf-info-card px-4 sm:px-5 py-5 text-left opacity-70 bg-slate-50/80">
                     <p class="text-xl" aria-hidden="true">☎️</p>
                     <p class="mt-2 text-sm font-bold text-gray-900">{{ $isSw ? 'Piga simu' : 'Call us' }}</p>
                     <p class="mt-1 text-xs text-gray-500">{{ $isSw ? 'Nambari itakuja hivi karibuni' : 'Number coming soon' }}</p>

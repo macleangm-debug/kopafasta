@@ -14,9 +14,9 @@
     </div>
 @endif
 
-@if ($showStatusBanner && session('status'))
+@if ($showStatusBanner && session('feedback_success'))
     <div class="mb-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-sm text-emerald-900" role="status">
-        {{ session('status') }}
+        {{ session('feedback_success') }}
     </div>
 @endif
 

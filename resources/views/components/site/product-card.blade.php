@@ -12,7 +12,7 @@
     $hasTenure = filled($product->tenure_max_months ?? null);
 @endphp
 
-<article class="relative glass-card overflow-hidden hover:shadow-[0_16px_48px_rgba(0,77,64,0.14)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col h-full group">
+<article class="relative rounded-2xl border border-brand/10 bg-white shadow-[0_8px_28px_rgba(0,77,64,0.07)] overflow-hidden hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col h-full group kf-card-lift kf-press">
     <a href="{{ route('site.product', $product->code) }}" class="absolute inset-0 z-10" aria-label="{{ $productName }}"></a>
     <div class="p-3 pb-0">
         <x-site.product-illustration :code="$product->code" size="card" class="!aspect-[2/1]" />

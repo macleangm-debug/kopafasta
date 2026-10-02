@@ -118,10 +118,11 @@ class FeedbackController extends Controller
         }
 
         $from = (string) ($validated['from'] ?? $request->query('from', ''));
+        $success = __('site.feedback.success');
         if ($customerId || $from === 'borrower') {
             return redirect()
                 ->route('site.borrower.support', ['feedback' => 1])
-                ->with('status', __('site.feedback.success'));
+                ->with('feedback_success', $success);
         }
         if ($from === 'partner' || ($user && ! $customerId && method_exists($user, 'vendor') && $user->vendor)) {
             $home = \Illuminate\Support\Facades\Route::has('site.partner.support')
@@ -130,12 +131,12 @@ class FeedbackController extends Controller
 
             return redirect()
                 ->route($home, ['feedback' => 1])
-                ->with('status', __('site.feedback.success'));
+                ->with('feedback_success', $success);
         }
 
         return redirect()
             ->route('site.feedback', ['open' => 1])
-            ->with('status', __('site.feedback.success'));
+            ->with('feedback_success', $success);
     }
 
     /** @return array<string, array{label: string, description: string, fields: list<string>}> */

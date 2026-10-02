@@ -7,9 +7,9 @@
         <a href="{{ $supportHome }}" class="text-sm font-semibold text-brand hover:underline">← Support Home</a>
     </div>
 
-    @if (session('status'))
+    @if (session('feedback_success'))
         <div class="max-w-xl rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 px-5 py-6 space-y-4">
-            <p class="text-sm font-semibold text-emerald-950">{{ session('status') }}</p>
+            <p class="text-sm font-semibold text-emerald-950">{{ session('feedback_success') }}</p>
             <a href="{{ $supportHome }}" class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5">
                 {{ $isSw ? 'Rudi Support' : 'Back to Support' }}
             </a>

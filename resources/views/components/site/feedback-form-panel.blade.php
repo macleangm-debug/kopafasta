@@ -1,7 +1,8 @@
 @php
     $categories = $categories ?? app(\App\Http\Controllers\Site\FeedbackController::class)->categories();
     $openOnLoad = (bool) ($openOnLoad ?? false);
-    $successMessage = session('status');
+    // Dedicated key only — never consume generic session('status') (logout/expiry flash).
+    $successMessage = session('feedback_success');
     $categoryOptions = collect($categories)->mapWithKeys(fn ($cat, $key) => [$key => $cat['label']])->all();
     $authUser = auth()->user();
     $authenticated = (bool) $authUser;
@@ -25,7 +26,8 @@
         'subject' => old('subject'),
         'message' => old('message'),
     ];
-    $isSuccess = filled($successMessage);
+    $onAuthGate = request()->routeIs('site.login', 'site.login.*', 'site.register*', 'site.borrower.setup-pin*');
+    $isSuccess = filled($successMessage) && ! $onAuthGate;
 @endphp
 
 <div

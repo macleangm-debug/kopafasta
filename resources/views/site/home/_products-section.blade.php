@@ -2,6 +2,7 @@
 <section
     class="bg-white py-14 lg:py-18"
     data-landing-products
+    data-kf-reveal
     x-data="{
         scrollByCard(dir) {
             const track = this.$refs.track;

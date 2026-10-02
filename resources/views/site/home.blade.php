@@ -16,9 +16,21 @@
     @endif
 
     {{-- KOPAFASTA PLUS — premium feature card --}}
-    <section class="py-10 lg:py-12 bg-white">
+    <section class="py-10 lg:py-12 bg-white" data-kf-reveal>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-brand via-[#127A5F] to-[#082f27] text-white shadow-[0_24px_60px_rgba(8,47,39,0.24)] ring-1 ring-brand-gold/30">
+            <div class="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-brand via-[#127A5F] to-[#082f27] text-white shadow-[0_24px_60px_rgba(8,47,39,0.24)] ring-1 ring-brand-gold/30 kf-glass-hero"
+                 data-kf-glass-hero
+                 x-data
+                 x-init="
+                    const key = 'kf-glass-glare:' + window.location.pathname + ':plus';
+                    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                    try {
+                        if (sessionStorage.getItem(key) === '1') return;
+                        sessionStorage.setItem(key, '1');
+                        $el.classList.add('kf-glass-hero--glare');
+                    } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+                 ">
+                <x-site.glass-hero-surface />
                 <div class="absolute inset-0 opacity-[0.16] pointer-events-none" style="background-image:url(\"data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.55' stroke-width='2'/%3E%3C/svg%3E\"); background-size:72px 48px;"></div>
                 <div class="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-gold/10 pointer-events-none"></div>
                 <div class="relative grid lg:grid-cols-2 gap-8 lg:gap-12 items-center px-6 sm:px-10 py-8 sm:py-10">
@@ -28,8 +40,8 @@
                             {{ __('site.plus.teaser_kicker') }}
                         </p>
                         <h2 class="mt-3 text-2xl sm:text-4xl font-black tracking-tight leading-tight">{{ __('site.plus.teaser_title') }}</h2>
-                        <p class="mt-3 text-white/80 leading-relaxed max-w-xl">{{ __('site.plus.teaser_body') }}</p>
-                        <a href="{{ route('site.plus') }}" class="mt-6 inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand font-extrabold px-5 py-3">
+                        <p class="mt-3 text-white/85 leading-relaxed max-w-xl">{{ __('site.plus.teaser_body') }}</p>
+                        <a href="{{ route('site.plus') }}" class="mt-6 inline-flex rounded-xl bg-brand-gold hover:brightness-95 text-brand font-extrabold px-5 py-3 kf-press">
                             {{ __('site.plus.explore') }} →
                         </a>
                     </div>
@@ -52,7 +64,7 @@
     </section>
 
     {{-- MARKETPLACE --}}
-    <section class="premium-gradient py-10 lg:py-12 border-y border-gray-100/80">
+    <section class="premium-gradient py-10 lg:py-12 border-y border-gray-100/80" data-kf-reveal>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-wrap items-end justify-between gap-4 mb-6 text-left">
                 <div class="max-w-2xl">
