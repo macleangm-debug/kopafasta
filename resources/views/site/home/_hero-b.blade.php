@@ -33,7 +33,7 @@
 
         <ul class="mt-10 grid sm:grid-cols-2 gap-3 text-left max-w-xl mx-auto">
             @foreach (__('site.hero.variant_b_pills') as $pill)
-                <li class="flex items-start gap-3 rounded-2xl bg-white/10 ring-1 ring-white/15 px-4 py-3">
+                <li class="flex items-start gap-3 rounded-2xl bg-white/8 ring-1 ring-white/10 px-4 py-3">
                     <span class="mt-0.5 text-brand-gold font-bold" aria-hidden="true">›</span>
                     <span class="text-sm font-semibold text-white/95 leading-snug">{{ $pill['label'] }}</span>
                 </li>

@@ -50,25 +50,27 @@
         </ul>
     </x-site.public-hero>
 
-<div id="benefits"
-         x-data="{
-            scrollByCard(dir) {
-                const track = this.$refs.track;
-                if (!track) return;
-                const slide = track.querySelector('[data-plus-benefit]');
-                const step = (slide ? slide.getBoundingClientRect().width : 300) + 16;
-                track.scrollBy({ left: dir * step, behavior: 'smooth' });
-            },
-         }">
-        <x-site.public-section
-            eyebrow="Kopafasta Plus"
-            :title="__('site.plus.rooms_title')"
-            :body="__('site.plus.rooms_body')"
-        >
-            <div class="kf-carousel-shell">
+<section id="benefits" class="py-10 lg:py-12 bg-white"
+             x-data="{
+                scrollByCard(dir) {
+                    const track = this.$refs.track;
+                    if (!track) return;
+                    const slide = track.querySelector('[data-plus-benefit]');
+                    const step = (slide ? slide.getBoundingClientRect().width : 300) + 16;
+                    track.scrollBy({ left: dir * step, behavior: 'smooth' });
+                },
+             }">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-left max-w-2xl mb-6">
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-900">{{ __('site.plus.rooms_title') }}</h2>
+                <p class="mt-2 text-gray-600">{{ __('site.plus.rooms_body') }}</p>
+            </div>
+
+            <div class="relative">
                 <div
                     x-ref="track"
-                    class="kf-carousel-track"
+                    class="overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory scroll-smooth scrollbar-none"
+                    style="-webkit-overflow-scrolling: touch;"
                 >
                     <div class="flex gap-4 w-max items-stretch">
                         @foreach ($benefits as $benefit)
@@ -82,36 +84,44 @@
                         @endforeach
                     </div>
                 </div>
-                <x-site.carousel-control direction="prev" @click="scrollByCard(-1)" />
-                <x-site.carousel-control direction="next" @click="scrollByCard(1)" />
-            </div>
-        </x-site.public-section>
-    </div>
-
-    <x-site.public-section tone="muted">
-        <div class="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-brand via-[#127A5F] to-[#082f27] text-white px-6 sm:px-10 py-8 sm:py-9 shadow-[0_24px_60px_rgba(8,47,39,0.24)] ring-1 ring-brand-gold/35">
-            <div class="absolute inset-0 opacity-[0.14] pointer-events-none" style="background-image:url(\"data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.55' stroke-width='2'/%3E%3C/svg%3E\"); background-size:72px 48px;"></div>
-            <div class="relative grid lg:grid-cols-[1.2fr_1fr] gap-8 items-center text-left">
-                <div>
-                    <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-bold">Kopafasta Plus</p>
-                    <div class="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <p class="text-4xl sm:text-5xl font-black tabular-nums tracking-tight">{{ format_money($amount) }}</p>
-                        <p class="text-base font-semibold text-white/75">/ {{ $isYearly ? __('site.plus.per_year') : __('site.plus.per_month') }}</p>
-                        @if ($monthlyEquiv !== null)
-                            <p class="text-sm text-white/70 w-full sm:w-auto">· {{ __('site.plus.equiv_month_compact', ['amount' => format_money($monthlyEquiv)]) }}</p>
-                        @endif
+                <div class="mt-5 flex items-center justify-between gap-3">
+                    <div class="flex gap-2">
+                        <button type="button" @click="scrollByCard(-1)"
+                                class="size-10 rounded-full bg-white ring-1 ring-gray-200 text-brand font-bold" aria-label="Previous">‹</button>
+                        <button type="button" @click="scrollByCard(1)"
+                                class="size-10 rounded-full bg-white ring-1 ring-gray-200 text-brand font-bold" aria-label="Next">›</button>
                     </div>
-                    <ul class="mt-5 grid sm:grid-cols-2 gap-2 text-sm text-white/90">
-                        @foreach (__('site.plus.includes') as $item)
-                            <li class="flex gap-2"><span class="text-brand-gold shrink-0 font-bold">›</span> {{ $item }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-                <div class="lg:text-right">
-                    <a href="{{ $plusJoinHref }}" class="inline-flex rounded-xl bg-brand-gold text-brand px-7 py-3.5 font-extrabold shadow-md">{{ __('site.plus.join') }}</a>
-                    <p class="mt-3 text-xs text-white/60 lg:ml-auto lg:max-w-xs">{{ __('site.plus.optional') }}</p>
                 </div>
             </div>
         </div>
-    </x-site.public-section>
+    </section>
+
+    <section class="py-10 lg:py-12 bg-[#f7faf8]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-brand via-[#127A5F] to-[#082f27] text-white px-6 sm:px-10 py-8 sm:py-9 shadow-[0_24px_60px_rgba(8,47,39,0.24)] ring-1 ring-brand-gold/35">
+                <div class="absolute inset-0 opacity-[0.14] pointer-events-none" style="background-image:url(\"data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.55' stroke-width='2'/%3E%3C/svg%3E\"); background-size:72px 48px;"></div>
+                <div class="relative grid lg:grid-cols-[1.2fr_1fr] gap-8 items-center text-left">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-bold">Kopafasta Plus</p>
+                        <div class="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <p class="text-4xl sm:text-5xl font-black tabular-nums tracking-tight">{{ format_money($amount) }}</p>
+                            <p class="text-base font-semibold text-white/75">/ {{ $isYearly ? __('site.plus.per_year') : __('site.plus.per_month') }}</p>
+                            @if ($monthlyEquiv !== null)
+                                <p class="text-sm text-white/70 w-full sm:w-auto">· {{ __('site.plus.equiv_month_compact', ['amount' => format_money($monthlyEquiv)]) }}</p>
+                            @endif
+                        </div>
+                        <ul class="mt-5 grid sm:grid-cols-2 gap-2 text-sm text-white/90">
+                            @foreach (__('site.plus.includes') as $item)
+                                <li class="flex gap-2"><span class="text-brand-gold shrink-0 font-bold">›</span> {{ $item }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    <div class="lg:text-right">
+                        <a href="{{ $plusJoinHref }}" class="inline-flex rounded-xl bg-brand-gold text-brand px-7 py-3.5 font-extrabold shadow-md">{{ __('site.plus.join') }}</a>
+                        <p class="mt-3 text-xs text-white/60 lg:ml-auto lg:max-w-xs">{{ __('site.plus.optional') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 </x-site.layout>

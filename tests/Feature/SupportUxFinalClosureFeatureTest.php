@@ -157,6 +157,9 @@ class SupportUxFinalClosureFeatureTest extends TestCase
         $this->assertStringContainsString('.kf-glass-hero__surface', $css);
         $this->assertStringContainsString('kf-glass-glare', $css);
         $this->assertStringContainsString('animation: kf-glass-glare 1.05s ease-out 1 both', $css);
+        $this->assertStringContainsString('rgba(255, 255, 255, 0.14)', $css);
+        $this->assertStringContainsString('backdrop-filter: blur(10px)', $css);
+        $this->assertStringNotContainsString('.kf-glass-hero > *:not(.kf-glass-hero__surface)', $css);
         $this->assertStringContainsString('padding-block: 3rem', $css);
         $this->assertStringContainsString('padding-block: 5rem', $css);
     }

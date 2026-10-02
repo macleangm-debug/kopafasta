@@ -44,7 +44,7 @@
                     __('site.hero.showcase_market'),
                     __('site.hero.showcase_plus'),
                 ] as $line)
-                    <li class="flex items-start gap-3 rounded-2xl bg-white/10 ring-1 ring-white/15 px-4 py-3.5 backdrop-blur-[2px]">
+                    <li class="flex items-start gap-3 rounded-2xl bg-white/8 ring-1 ring-white/10 px-4 py-3.5 backdrop-blur-[2px]">
                         <span class="mt-0.5 text-brand-gold font-black tracking-[-0.14em]" aria-hidden="true">›››</span>
                         <span class="text-base font-semibold text-white/95 leading-snug">{{ $line }}</span>
                     </li>
