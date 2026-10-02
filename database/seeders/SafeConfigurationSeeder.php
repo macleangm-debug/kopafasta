@@ -36,6 +36,7 @@ class SafeConfigurationSeeder extends Seeder
             PlusLearningSeeder::class,
             KycDocumentTypeSeeder::class,
             PublicPolicySeeder::class,
+            DigitalAssistantPersonasConfigSeeder::class,
         ]);
     }
 }
