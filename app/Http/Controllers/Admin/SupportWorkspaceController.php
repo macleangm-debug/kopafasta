@@ -105,7 +105,8 @@ class SupportWorkspaceController extends Controller
             'queueKpis' => $this->workspace->queueKpis(),
             'assignableAgents' => $this->workspace->assignableAgentsWithWorkload(),
             'canPickAgent' => ! ($agent && $this->workspace->isAssignableSupportAgent($agent)),
-            'quickReplies' => $this->quickReplies->all(),
+            'quickReplies' => $this->quickReplies->messageTemplates(),
+            'diagnosticTemplates' => [],
             'quickReplyBodies' => collect($this->quickReplies->all())->mapWithKeys(
                 fn ($row) => [$row['key'] => $this->quickReplies->compose($row['key'], str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw', [], false)]
             )->all(),
@@ -187,7 +188,8 @@ class SupportWorkspaceController extends Controller
             'queueKpis' => $this->workspace->queueKpis(),
             'assignableAgents' => $this->workspace->assignableAgentsWithWorkload(),
             'canPickAgent' => ! ($agent && $this->workspace->isAssignableSupportAgent($agent)),
-            'quickReplies' => $this->quickReplies->all(),
+            'quickReplies' => $this->quickReplies->messageTemplates(),
+            'diagnosticTemplates' => $this->quickReplies->diagnosticTemplates(),
             'quickReplyBodies' => collect($this->quickReplies->all())->mapWithKeys(function ($row) use ($locale, $supportConversation, $agent) {
                 $vars = [];
                 if ($row['key'] === 'introduction') {
@@ -327,6 +329,50 @@ class SupportWorkspaceController extends Controller
         }
 
         return back()->with('status', 'Availability set to '.ucfirst($state).'.');
+    }
+
+    public function diagnosticDraft(Request $request, SupportConversation $supportConversation): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'key' => ['required', 'string', 'max:80'],
+        ]);
+
+        $locale = str_starts_with(app()->getLocale(), 'en') ? 'en' : 'sw';
+        $templates = collect($this->quickReplies->diagnosticTemplates());
+        $row = $templates->firstWhere('key', (string) $data['key']);
+        if (! $row) {
+            return response()->json(['ok' => false, 'error' => 'Unknown diagnostic template.'], 422);
+        }
+
+        $supportConversation->loadMissing(['customer', 'user.partner']);
+        $customer = $supportConversation->customer;
+        $user = $supportConversation->user;
+        $workspace = null;
+        if ($user?->partner) {
+            try {
+                $workspace = app(\App\Services\PartnerWorkspaceService::class)->currentKey($user->partner);
+            } catch (\Throwable) {
+                $workspace = null;
+            }
+        }
+
+        $draft = app(\App\Services\Support\SupportAccountDiagnosticService::class)->staffDiagnosticDraft(
+            $customer,
+            $user,
+            (string) $row['category'],
+            (string) $row['slug'],
+            $locale,
+            is_string($workspace) ? $workspace : null,
+        );
+
+        $draft = $this->conversations->safeChatText($draft, $locale);
+
+        return response()->json([
+            'ok' => true,
+            'draft' => $draft,
+            'key' => $row['key'],
+            'send' => false,
+        ]);
     }
 
     public function reply(Request $request, SupportConversation $supportConversation): RedirectResponse|\Illuminate\Http\JsonResponse

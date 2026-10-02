@@ -229,7 +229,7 @@ class SupportAutomationService
         $meta['steps_attempted'] = $meta['steps_attempted'] ?? [];
         $persona = $this->ensurePersona($meta);
         $firstName = $this->resolveFirstName($customer, $guestFirstName, $guestName, $conversation);
-        $meta['customer_first_name'] = $firstName;
+        $meta['customer_first_name'] = $this->conversations->safePersonFirstName($firstName);
 
         $hasBot = $conversation->messages()->where('is_automated', true)->exists()
             || $conversation->messages()->where('sender_type', 'bot')->exists();
@@ -739,7 +739,14 @@ class SupportAutomationService
 
         if (is_array($diagnostic) && ! empty($diagnostic['choices']) && ($diagnostic['context']['kind'] ?? '') === 'member_pick_loan') {
             $this->conversations->appendMessage($conversation, 'customer', $label, null, false, false);
-            $this->conversations->appendMessage($conversation, 'bot', (string) $diagnostic['body'], null, true, false);
+            $this->conversations->appendMessage(
+                $conversation,
+                'bot',
+                $this->conversations->safeChatText($diagnostic['body'] ?? '', $locale),
+                null,
+                true,
+                false,
+            );
             $meta['phase'] = 'pick_record';
             $meta['pending_issue_slug'] = $slug;
             $meta['diagnostic_context'] = $diagnostic['context'] ?? null;
@@ -757,7 +764,7 @@ class SupportAutomationService
         }
 
         $body = is_array($diagnostic) && filled($diagnostic['body'] ?? null)
-            ? (string) $diagnostic['body']
+            ? $this->conversations->safeChatText($diagnostic['body'], $locale)
             : $this->formatArticleAnswer($article, $locale, $customer, $user, $audience, is_string($workspace) ? $workspace : null, $categoryKey, $slug);
 
         $this->conversations->appendMessage($conversation, 'customer', $label, null, false, false);
@@ -1074,9 +1081,15 @@ class SupportAutomationService
         }
 
         $firstName = trim((string) ($input['guest_first_name'] ?? $meta['customer_first_name'] ?? ''));
-        if ($firstName === '') {
-            $firstName = $this->resolveFirstName($customer, $user, $guestName, $conversation) ?? '';
+        if ($firstName === '' || $this->conversations->looksLikeSerializedDump($firstName)) {
+            $firstName = $this->resolveFirstName(
+                $customer,
+                isset($input['guest_first_name']) ? (string) $input['guest_first_name'] : null,
+                $guestName,
+                $conversation,
+            ) ?? '';
         }
+        $firstName = $this->conversations->safePersonFirstName($firstName);
         $meta['customer_first_name'] = $firstName;
 
         $label = $this->humanOfferLabel($locale);
@@ -1697,23 +1710,24 @@ class SupportAutomationService
         ?string $guestName,
         ?SupportConversation $conversation = null,
     ): ?string {
-        $first = trim((string) $guestFirstName);
+        // Never accept Eloquent/JSON dumps coerced through Stringable into a "name".
+        $first = $this->conversations->safePersonFirstName($guestFirstName);
         if ($first !== '') {
             return $first;
         }
 
         if ($customer) {
-            $fromCustomer = trim((string) ($customer->first_name ?? ''));
+            $fromCustomer = $this->conversations->safePersonFirstName($customer->first_name ?? '');
             if ($fromCustomer !== '') {
                 return $fromCustomer;
             }
         }
 
         $full = trim((string) ($guestName ?: $conversation?->guest_name));
-        if ($full !== '') {
+        if ($full !== '' && ! $this->conversations->looksLikeSerializedDump($full)) {
             $parts = preg_split('/\s+/', $full) ?: [];
 
-            return trim((string) ($parts[0] ?? '')) ?: null;
+            return $this->conversations->safePersonFirstName($parts[0] ?? '') ?: null;
         }
 
         return null;

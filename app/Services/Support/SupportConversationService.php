@@ -354,15 +354,16 @@ class SupportConversationService
     public function appendMessage(
         SupportConversation $conversation,
         string $senderType,
-        string $body,
+        mixed $body,
         ?int $senderUserId = null,
         bool $automated = false,
         bool $advanceState = true,
     ): SupportMessage {
+        $safeBody = $this->safeChatText($body);
         $message = $conversation->messages()->create([
             'sender_type' => $senderType,
             'sender_user_id' => $senderUserId,
-            'body' => trim($body),
+            'body' => $safeBody,
             'is_automated' => $automated,
             'read_at' => in_array($senderType, ['staff', 'bot'], true) ? now() : null,
         ]);
@@ -660,7 +661,8 @@ class SupportConversationService
     {
         $sw = str_starts_with(strtolower((string) ($locale ?? app()->getLocale())), 'sw');
         $waitingLabel = $sw ? 'Inasubiri mtoa huduma' : 'Waiting for support';
-        $assignedLabel = $sw ? 'Mtoa huduma ameteuliwa' : 'Agent assigned';
+        $teamLabel = $sw ? 'Timu ya Usaidizi' : 'Support Team';
+        $assignedLabel = $sw ? 'Kopafasta Support' : 'Kopafasta Support';
 
         if (! $conversation) {
             return [
@@ -669,6 +671,7 @@ class SupportConversationService
                 'status' => self::STATUS_WAITING,
                 'presence' => 'online',
                 'desk_label' => $waitingLabel,
+                'brand_title' => null,
                 'composer_locked' => false,
             ];
         }
@@ -681,6 +684,14 @@ class SupportConversationService
             : null;
 
         $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+        $humanOwned = (bool) ($conversation->needs_human)
+            || $accepted
+            || in_array((string) $conversation->status, [self::STATUS_WAITING, self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true)
+                && in_array((string) ($conversation->handling_state ?? ''), [
+                    SupportAutomationService::STATE_ESCALATED,
+                    SupportAutomationService::STATE_HUMAN,
+                ], true);
+
         $waitingLock = in_array((string) $conversation->status, [self::STATUS_WAITING], true)
             && (bool) ($conversation->needs_human)
             && (bool) ($meta['waiting_followup_used'] ?? false)
@@ -691,7 +702,10 @@ class SupportConversationService
             'agent_first_name' => $agentFirst,
             'status' => (string) $conversation->status,
             'presence' => $agentFirst ? 'assigned' : 'online',
-            'desk_label' => $agentFirst ? $assignedLabel : $waitingLabel,
+            'desk_label' => $agentFirst ? $assignedLabel : ($humanOwned ? $waitingLabel : $waitingLabel),
+            'brand_title' => $agentFirst
+                ? ($assignedLabel.' · '.$agentFirst)
+                : ($humanOwned ? $teamLabel : null),
             'composer_locked' => $waitingLock
                 || in_array((string) $conversation->status, [self::STATUS_CLOSED, self::STATUS_RESOLVED], true),
         ];
@@ -707,6 +721,118 @@ class SupportConversationService
         }
 
         return $this->customerFacingStatusLabel((string) $conversation->status, $locale);
+    }
+
+    /**
+     * Customer/staff chat text must be an approved human-readable string.
+     * Never stringify Eloquent models, arrays, DTOs, or JSON dumps into bubbles.
+     */
+    public function safeChatText(mixed $value, ?string $locale = null): string
+    {
+        // Eloquent models implement Stringable and cast to JSON — never allow that into chat.
+        if ($value instanceof \Illuminate\Database\Eloquent\Model
+            || $value instanceof \Illuminate\Support\Collection
+            || is_array($value)
+        ) {
+            \Illuminate\Support\Facades\Log::warning('support.chat.blocked_payload', [
+                'type' => is_object($value) ? $value::class : gettype($value),
+            ]);
+
+            return $this->unsafePayloadFallback($locale);
+        }
+
+        if (is_object($value) && ! $value instanceof \Stringable) {
+            \Illuminate\Support\Facades\Log::warning('support.chat.blocked_payload', [
+                'type' => $value::class,
+            ]);
+
+            return $this->unsafePayloadFallback($locale);
+        }
+
+        if (is_scalar($value) || $value === null || $value instanceof \Stringable) {
+            $text = trim((string) $value);
+        } else {
+            return $this->unsafePayloadFallback($locale);
+        }
+
+        if ($text === '') {
+            return '';
+        }
+
+        if ($this->looksLikeSerializedDump($text)) {
+            \Illuminate\Support\Facades\Log::warning('support.chat.blocked_serialized_dump', [
+                'length' => strlen($text),
+            ]);
+
+            return $this->unsafePayloadFallback($locale);
+        }
+
+        return $text;
+    }
+
+    public function looksLikeSerializedDump(string $text): bool
+    {
+        $t = ltrim($text);
+        if ($t === '' || ($t[0] !== '{' && $t[0] !== '[' && ! str_contains($t, '{"'))) {
+            return false;
+        }
+
+        // Full JSON object/array dump, or a message that embedded one.
+        $needles = [
+            '"email_verified_at"',
+            '"preferences"',
+            '"remember_token"',
+            '"password"',
+            '"two_factor_secret"',
+            '"updated_at"',
+            '"created_at"',
+            '"affiliate_id"',
+            '"risk_',
+        ];
+        $hits = 0;
+        foreach ($needles as $needle) {
+            if (str_contains($t, $needle)) {
+                $hits++;
+            }
+        }
+
+        if ($hits >= 2) {
+            return true;
+        }
+
+        // Bare model dump: starts with { and has id + first_name/phone style attributes.
+        if ($t[0] === '{' && str_contains($t, '"id"') && (
+            str_contains($t, '"first_name"') || str_contains($t, '"email"') || str_contains($t, '"phone"')
+        ) && str_contains($t, '"created_at"')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function unsafePayloadFallback(?string $locale = null): string
+    {
+        if (str_starts_with(strtolower((string) ($locale ?? app()->getLocale())), 'en')) {
+            return 'I found the relevant account information, but I need a moment to present it clearly. Please try again, or Talk to Support.';
+        }
+
+        return 'Nimepata taarifa za akaunti, lakini nahitaji muda mfupi kuziwasilisha wazi. Jaribu tena, au Ongea na Usaidizi.';
+    }
+
+    /**
+     * Person first names only — never accept models/JSON dumps as a "name".
+     */
+    public function safePersonFirstName(mixed $value): string
+    {
+        if ($value instanceof \Illuminate\Database\Eloquent\Model || is_array($value) || is_object($value)) {
+            return '';
+        }
+        $text = trim((string) $value);
+        if ($text === '' || $this->looksLikeSerializedDump($text) || strlen($text) > 60 || str_contains($text, '{')) {
+            return '';
+        }
+
+        return $this->personFirstName($text);
     }
 
     public function assignedAgentOfflineAcknowledgement(): string
@@ -969,7 +1095,7 @@ class SupportConversationService
                 'id' => (int) $m->id,
                 'role' => in_array($m->sender_type, ['staff', 'bot'], true) ? 'bot' : 'user',
                 'sender_type' => (string) $m->sender_type,
-                'text' => (string) $m->body,
+                'text' => $this->safeChatText((string) $m->body),
                 'at' => $m->created_at?->toIso8601String(),
                 'time' => $m->created_at ? format_app_datetime($m->created_at, 'H:i') : null,
             ])->all();

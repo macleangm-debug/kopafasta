@@ -39,10 +39,15 @@
         }
     }
     $automationMode = (bool) $automationMode;
+    $humanConversationActive = $conversation instanceof \App\Models\SupportConversation
+        && ! in_array((string) $conversation->status, ['closed', 'resolved'], true)
+        && (
+            (bool) ($conversation->needs_human ?? false)
+            || in_array((string) $conversation->status, ['waiting', 'assigned', 'active'], true)
+            || in_array((string) ($conversation->handling_state ?? ''), ['escalated', 'human'], true)
+        );
     $startHuman = ($forceHuman && ! $automationMode) || (
-        count($seedMessages) > 0
-        && $conversation instanceof \App\Models\SupportConversation
-        && (bool) ($conversation->needs_human ?? false)
+        count($seedMessages) > 0 && $humanConversationActive
     );
     $presence = app(\App\Services\Support\SupportConversationService::class)
         ->memberChatPresence($conversation instanceof \App\Models\SupportConversation ? $conversation : null);
@@ -116,13 +121,15 @@
          'presence' => $presence['presence'],
          'statusOnline' => $isSw ? 'Inasubiri mtoa huduma' : 'Waiting for support',
          'statusAssigned' => $isSw ? 'Mtoa huduma ameteuliwa' : 'Agent assigned',
+         'supportTeamTitle' => $isSw ? 'Timu ya Usaidizi' : 'Support Team',
+         'humanBrandTitle' => $presence['brand_title'] ?? null,
          'tagline' => $automationMode
              ? ($isSw ? 'Msaidizi wa kidijitali · Digital assistant' : 'Digital assistant · Here to help')
              : ($isSw ? 'Kwa ajili yako · Here to help' : 'Here to help'),
          'brandTitle' => $automationMode
              ? ($isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant')
              : 'Kopafasta Support',
-         'assignedSuffix' => $isSw ? 'Usaidizi kwa Wateja' : 'Customer Support',
+         'assignedSuffix' => 'Kopafasta Support',
          'deskLabel' => $presence['desk_label'] ?? ($isSw ? 'Inasubiri mtoa huduma' : 'Waiting for support'),
          'automationDesk' => $isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant',
          'personaDisplay' => null,
@@ -148,9 +155,7 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <p class="text-[15px] sm:text-base font-bold tracking-tight truncate"
-                           x-text="agentFirstName
-                                ? (agentFirstName + ' · ' + config.assignedSuffix)
-                                : (config.personaDisplay || config.brandTitle)"></p>
+                           x-text="headerTitle()"></p>
                         <span class="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide">
                             <span class="size-1.5 rounded-full"
                                   :class="presence === 'assigned' ? 'bg-brand-gold' : 'bg-emerald-300'"></span>
@@ -353,7 +358,7 @@
                         sendError: '',
                         messages: seeded,
                         humanMode: !!(config.startHuman || config.forceHuman),
-                        automationMode: !!config.automationMode,
+                        automationMode: !!config.automationMode && !(config.startHuman || config.forceHuman),
                         choices: [],
                         pendingEscalate: false,
                         showProductChips: false,
@@ -450,6 +455,15 @@
                             var el = this.$refs.scroll;
                             if (el) this.$nextTick(function () { el.scrollTop = el.scrollHeight; });
                         },
+                        headerTitle() {
+                            if (this.agentFirstName) {
+                                return (config.assignedSuffix || 'Kopafasta Support') + ' · ' + this.agentFirstName;
+                            }
+                            if (this.humanMode) {
+                                return config.humanBrandTitle || config.supportTeamTitle || config.brandTitle || 'Support Team';
+                            }
+                            return config.personaDisplay || config.brandTitle;
+                        },
                         trackGuestCta(key) {
                             if (!config.automationUrl || !this.conversationId) return;
                             try {
@@ -520,8 +534,14 @@
                                 this.humanMode = true;
                                 this.automationMode = false;
                                 this.choices = [];
+                                this.config.personaDisplay = null;
+                                this.config.humanBrandTitle = data.brand_title
+                                    || config.supportTeamTitle
+                                    || (config.supportTeamTitle || 'Support Team');
+                                this.config.brandTitle = this.config.humanBrandTitle;
                                 this.applyPresence(data);
                                 if (data.composer_locked) this.composerLocked = true;
+                                else this.composerLocked = !!data.composer_locked;
                                 if (config.threadUrl && !this._timer) {
                                     this.pollThread();
                                     var self = this;
@@ -649,6 +669,11 @@
                             if (data.agent_first_name) {
                                 this.agentFirstName = data.agent_first_name;
                                 this.presence = 'assigned';
+                                this.humanMode = true;
+                                this.automationMode = false;
+                                this.choices = [];
+                                this.config.humanBrandTitle = data.brand_title
+                                    || ((config.assignedSuffix || 'Kopafasta Support') + ' · ' + data.agent_first_name);
                             } else if (data.presence) {
                                 this.presence = data.presence;
                                 if (data.presence === 'online') this.agentFirstName = null;
@@ -656,7 +681,8 @@
                                 this.presence = 'assigned';
                             }
                             if (data.desk_label) this.config.deskLabel = data.desk_label;
-                            if (data.composer_locked) this.composerLocked = true;
+                            if (data.brand_title) this.config.humanBrandTitle = data.brand_title;
+                            if (typeof data.composer_locked === 'boolean') this.composerLocked = data.composer_locked;
                             if (data.status && ['closed', 'resolved'].indexOf(data.status) !== -1) {
                                 this.composerLocked = true;
                             }

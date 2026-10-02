@@ -86,6 +86,20 @@
          x-data="supportInboxDesk(@js([
              'draft' => '',
              'bodies' => $quickReplyBodies,
+             'messageTemplates' => collect($quickReplies ?? [])->map(fn ($qr) => [
+                 'key' => $qr['key'],
+                 'kind' => $qr['kind'] ?? 'message',
+                 'group' => $qr['group'] ?? '',
+                 'label' => $qr['label_'.$locale] ?? $qr['label_sw'],
+                 'one_click' => (bool) ($qr['one_click'] ?? false),
+             ])->values(),
+             'diagnosticTemplates' => collect($diagnosticTemplates ?? [])->map(fn ($qr) => [
+                 'key' => $qr['key'],
+                 'kind' => 'diagnostic',
+                 'group' => $qr['group'] ?? 'diagnostic',
+                 'label' => $qr['label_'.$locale] ?? $qr['label_sw'],
+             ])->values(),
+             'diagnosticUrl' => $conversation ? route('admin.support.inbox.diagnostic-draft', $conversation) : null,
              'messages' => $seedMessages,
              'conversationId' => $conversation?->id,
              'threadUrl' => $conversation ? route('admin.support.inbox.thread', $conversation) : null,
@@ -349,20 +363,35 @@
                         </div>
                     @else
                         <div class="border-t border-slate-200/80 p-4 space-y-3 bg-white">
-                            @if (! empty($quickReplies))
-                                <div x-data="{ tq: '', replies: @js(collect($quickReplies)->map(fn ($qr) => [
-                                    'key' => $qr['key'],
-                                    'group' => $qr['group'] ?? '',
-                                    'label' => $qr['label_'.$locale] ?? $qr['label_sw'],
-                                ])->values()) }" class="space-y-2">
+                            @if (! empty($quickReplies) || ! empty($diagnosticTemplates))
+                                <div class="space-y-2">
                                     <input type="search" x-model="tq" placeholder="Search templates (SW/EN)…"
                                            class="w-full rounded-lg border-slate-200 text-xs">
-                                    <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                                        <template x-for="qr in replies.filter(r => !tq || (r.label + ' ' + r.group + ' ' + r.key).toLowerCase().includes(tq.toLowerCase()))" :key="qr.key">
-                                            <button type="button" @click="insertQuick(qr.key)"
-                                                    class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-muted"
-                                                    x-text="qr.label"></button>
-                                        </template>
+                                    <div>
+                                        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">Message templates</p>
+                                        <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                                            <template x-for="qr in filteredMessageTemplates()" :key="'m-'+qr.key">
+                                                <button type="button"
+                                                        @click="useMessageTemplate(qr)"
+                                                        :disabled="templateBusy === qr.key || sending"
+                                                        :class="templateBusy === qr.key ? 'opacity-60 ring-1 ring-brand/40' : ''"
+                                                        class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-muted disabled:cursor-wait"
+                                                        x-text="templateBusy === qr.key ? (qr.label + '…') : qr.label"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">Status / Diagnostic</p>
+                                        <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                                            <template x-for="qr in filteredDiagnosticTemplates()" :key="'d-'+qr.key">
+                                                <button type="button"
+                                                        @click="useDiagnosticTemplate(qr)"
+                                                        :disabled="templateBusy === qr.key || sending"
+                                                        :class="templateBusy === qr.key ? 'opacity-60 ring-1 ring-brand/40' : ''"
+                                                        class="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand-muted/70 text-brand hover:bg-brand-muted disabled:cursor-wait"
+                                                        x-text="templateBusy === qr.key ? (qr.label + '…') : qr.label"></button>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                             @endif
@@ -461,6 +490,11 @@
                     return {
                         draft: config.draft || '',
                         bodies: config.bodies || {},
+                        messageTemplates: Array.isArray(config.messageTemplates) ? config.messageTemplates.slice() : [],
+                        diagnosticTemplates: Array.isArray(config.diagnosticTemplates) ? config.diagnosticTemplates.slice() : [],
+                        diagnosticUrl: config.diagnosticUrl || null,
+                        tq: '',
+                        templateBusy: null,
                         messages: Array.isArray(config.messages) ? config.messages.slice() : [],
                         conversationId: config.conversationId || null,
                         threadUrl: config.threadUrl,
@@ -505,6 +539,62 @@
                         insertQuick(key) {
                             this.draft = this.bodies[key] || '';
                             this.$refs.composer?.focus();
+                        },
+                        filteredMessageTemplates() {
+                            var q = (this.tq || '').toLowerCase();
+                            return (this.messageTemplates || []).filter(function (r) {
+                                return !q || (r.label + ' ' + r.group + ' ' + r.key).toLowerCase().includes(q);
+                            });
+                        },
+                        filteredDiagnosticTemplates() {
+                            var q = (this.tq || '').toLowerCase();
+                            return (this.diagnosticTemplates || []).filter(function (r) {
+                                return !q || (r.label + ' ' + r.group + ' ' + r.key).toLowerCase().includes(q);
+                            });
+                        },
+                        async useMessageTemplate(qr) {
+                            if (!qr || this.templateBusy || this.sending) return;
+                            this.templateBusy = qr.key;
+                            this.error = '';
+                            try {
+                                if (qr.one_click) {
+                                    this.draft = this.bodies[qr.key] || '';
+                                    await this.sendReply();
+                                } else {
+                                    this.insertQuick(qr.key);
+                                }
+                            } finally {
+                                this.templateBusy = null;
+                            }
+                        },
+                        async useDiagnosticTemplate(qr) {
+                            if (!qr || !this.diagnosticUrl || this.templateBusy || this.sending) return;
+                            this.templateBusy = qr.key;
+                            this.error = '';
+                            try {
+                                var res = await fetch(this.diagnosticUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': this.csrfToken(),
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify({ key: qr.key }),
+                                });
+                                var data = await res.json().catch(function () { return {}; });
+                                if (!res.ok || !data.ok) {
+                                    this.error = data.error || 'Diagnostic template failed.';
+                                    return;
+                                }
+                                this.draft = data.draft || '';
+                                this.$refs.composer?.focus();
+                            } catch (e) {
+                                this.error = 'Diagnostic template failed.';
+                            } finally {
+                                this.templateBusy = null;
+                            }
                         },
                         mapMessages(list) {
                             return (list || []).map(function (m) {

@@ -549,4 +549,46 @@ class SupportAccountDiagnosticService
     {
         return str_starts_with(strtolower((string) ($locale ?: app()->getLocale())), 'sw');
     }
+
+    /**
+     * Staff Status/Diagnostic template — read-only Support 360 text for composer preview.
+     * Never returns models/arrays/JSON; always customer-safe prose via the same diagnose path.
+     */
+    public function staffDiagnosticDraft(
+        ?Customer $customer,
+        ?User $user,
+        string $categoryKey,
+        string $slug,
+        ?string $locale = null,
+        ?string $workspace = null,
+    ): string {
+        $locale = $locale ?: app()->getLocale();
+        $audience = $customer ? 'member' : ($user ? 'partner' : 'guest');
+        if ($audience === 'guest') {
+            return $this->isSw($locale)
+                ? 'Hii ni mazungumzo ya mgeni — diagnostiki za akaunti zinahitaji Mwanachama/Mshirika aliyeingia.'
+                : 'This is a guest conversation — account diagnostics require an authenticated Member/Partner.';
+        }
+
+        $result = $this->diagnose(
+            $customer,
+            $user,
+            $audience,
+            $categoryKey,
+            $slug,
+            $locale,
+            $workspace,
+            null,
+        );
+
+        $body = is_array($result) ? ($result['body'] ?? null) : null;
+        $safe = app(SupportConversationService::class)->safeChatText($body, $locale);
+        if ($safe === '' || $safe === app(SupportConversationService::class)->unsafePayloadFallback($locale)) {
+            return $this->isSw($locale)
+                ? 'Sijaweza kuandaa muhtasari wa diagnostiki sasa. Angalia Member/Partner 360 kwa maelezo.'
+                : 'I could not prepare a diagnostic summary right now. Check Member/Partner 360 for details.';
+        }
+
+        return $safe;
+    }
 }

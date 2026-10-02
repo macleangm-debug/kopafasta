@@ -210,4 +210,37 @@ class SupportQuickReplyService
 
         return implode("\n", $lines);
     }
+
+    /**
+     * Status/Diagnostic template shortcuts — prepare live Support 360 text into the composer (do not auto-send).
+     *
+     * @return list<array{key: string, kind: string, group: string, label_sw: string, label_en: string, category: string, slug: string}>
+     */
+    public function diagnosticTemplates(): array
+    {
+        return [
+            ['key' => 'diag_application', 'kind' => 'diagnostic', 'group' => 'diagnostic', 'label_sw' => 'Maendeleo ya ombi', 'label_en' => 'Application progress', 'category' => 'apply-loan', 'slug' => 'application-stage'],
+            ['key' => 'diag_profile', 'kind' => 'diagnostic', 'group' => 'diagnostic', 'label_sw' => 'Maendeleo ya wasifu', 'label_en' => 'Profile progress', 'category' => 'profile', 'slug' => 'profile-progress'],
+            ['key' => 'diag_guarantor', 'kind' => 'diagnostic', 'group' => 'diagnostic', 'label_sw' => 'Hali ya mdhamini', 'label_en' => 'Guarantor status', 'category' => 'guarantors', 'slug' => 'guarantor-pending'],
+            ['key' => 'diag_repayment', 'kind' => 'diagnostic', 'group' => 'diagnostic', 'label_sw' => 'Hali ya malipo', 'label_en' => 'Repayment status', 'category' => 'repayments', 'slug' => 'next-repayment'],
+            ['key' => 'diag_plus', 'kind' => 'diagnostic', 'group' => 'diagnostic', 'label_sw' => 'Hali ya Plus', 'label_en' => 'Plus status', 'category' => 'plus', 'slug' => 'what-is-plus'],
+            ['key' => 'diag_rejected', 'kind' => 'diagnostic', 'group' => 'diagnostic', 'label_sw' => 'Uamuzi / kataa', 'label_en' => 'Rejection / decision', 'category' => 'apply-loan', 'slug' => 'application-rejected'],
+            ['key' => 'diag_wallet', 'kind' => 'diagnostic', 'group' => 'diagnostic', 'label_sw' => 'Pochi / mapato', 'label_en' => 'Wallet / earnings', 'category' => 'affiliate', 'slug' => 'affiliate-earnings'],
+        ];
+    }
+
+    /**
+     * Message templates (communication phrases). one_click = safe to send immediately.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function messageTemplates(): array
+    {
+        return array_map(static function (array $row) {
+            $row['kind'] = 'message';
+            $row['one_click'] = in_array($row['key'], ['received', 'queue_wait', 'apology_delay', 'thanks', 'confirm'], true);
+
+            return $row;
+        }, $this->all());
+    }
 }

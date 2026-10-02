@@ -1256,6 +1256,7 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             Route::get('inbox/{supportConversation}/thread', [SupportWorkspaceController::class, 'conversationThread'])->name('inbox.thread');
             Route::post('inbox/{supportConversation}/reply', [SupportWorkspaceController::class, 'reply'])->name('inbox.reply');
             Route::post('inbox/{supportConversation}/accept', [SupportWorkspaceController::class, 'accept'])->name('inbox.accept');
+            Route::post('inbox/{supportConversation}/diagnostic-draft', [SupportWorkspaceController::class, 'diagnosticDraft'])->name('inbox.diagnostic-draft');
             Route::post('inbox/{supportConversation}/resolve', [SupportWorkspaceController::class, 'resolveConversation'])->name('inbox.resolve');
             Route::post('inbox/{supportConversation}/create-case', [SupportWorkspaceController::class, 'createCase'])->name('inbox.create-case');
             Route::get('interactions/new', [SupportWorkspaceController::class, 'newInteraction'])->name('interactions.new');
