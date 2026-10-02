@@ -202,40 +202,52 @@
         </div>
     </section>
 
-    {{-- Three support cards — Chat and Feedback never share routing/state. --}}
-    <section class="grid grid-cols-3 gap-2 sm:gap-4">
-        <a href="{{ $chatUrl }}"
-           data-kf-support-action="chat"
-           class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
-            <p class="text-lg sm:text-xl" aria-hidden="true">💬</p>
-            <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Ongea na timu' : 'Talk to Support' }}</p>
-            <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Pata msaada kutoka kwa timu yetu.' : 'Get help from our team.' }}</p>
-        </a>
-        <button type="button"
-                data-kf-support-action="feedback"
-                @click.stop="$dispatch('open-feedback')"
-                class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
-            <p class="text-lg sm:text-xl" aria-hidden="true">✉️</p>
-            <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</p>
-            <p class="mt-1 text-[10px] sm:text-xs text-gray-500 leading-snug hidden sm:block">{{ $isSw ? 'Tuma swali, pendekezo au malalamiko.' : 'Send a question, suggestion or complaint.' }}</p>
-        </button>
-        @if ($primaryPhone)
-            <a href="tel:{{ preg_replace('/\s+/', '', $primaryPhone) }}"
-               class="rounded-2xl bg-white ring-1 ring-brand/15 hover:ring-brand/30 px-2.5 sm:px-5 py-4 text-center sm:text-left transition shadow-sm">
-                <p class="text-lg sm:text-xl" aria-hidden="true">☎️</p>
-                <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Piga simu' : 'Call us' }}</p>
-                <p class="mt-1 text-[10px] sm:text-xs text-brand font-semibold leading-snug tabular-nums">{{ $primaryPhone }}</p>
-                @if (filled($supportHours))
-                    <p class="mt-0.5 text-[10px] text-gray-500 hidden sm:block">{{ $supportHours }}</p>
-                @endif
+    {{-- Get help — Anza mazungumzo primary (highlighted); Feedback/Phone secondary. Chat and Feedback never share routing/state. --}}
+    <section class="kf-info-card p-4 sm:p-5 space-y-4" data-kf-reveal>
+        <div>
+            <p class="text-[10px] uppercase tracking-[0.18em] text-brand font-semibold">{{ $isSw ? 'Pata msaada' : 'Get help' }}</p>
+            <p class="mt-1 text-sm text-gray-600">{{ $isSw ? 'Chagua njia inayokufaa sasa.' : 'Choose the path that fits right now.' }}</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <a href="{{ $chatUrl }}"
+               data-kf-support-action="chat"
+               class="rounded-2xl bg-brand text-white ring-1 ring-brand/30 hover:bg-brand-light px-4 sm:px-5 py-5 text-left transition shadow-sm relative kf-press kf-card-lift">
+                <span class="absolute top-3 right-3 inline-flex items-center rounded-full bg-brand-gold/95 text-brand text-[10px] font-extrabold px-2 py-0.5">24/7</span>
+                <p class="text-xl" aria-hidden="true">💬</p>
+                <p class="mt-2 text-sm font-bold leading-snug">{{ $isSw ? 'Anza mazungumzo' : 'Start a conversation' }}</p>
+                <p class="mt-1 text-xs text-white/80 leading-snug">{{ $isSw ? 'Msaidizi wa Kopafasta — msaada unapouhitaji.' : 'Kopafasta Assistant — help when you need it.' }}</p>
             </a>
-        @else
-            <div class="rounded-2xl bg-white ring-1 ring-brand/10 px-2.5 sm:px-5 py-4 text-center sm:text-left opacity-70">
-                <p class="text-lg sm:text-xl" aria-hidden="true">☎️</p>
-                <p class="mt-2 text-[11px] sm:text-sm font-bold text-gray-900">{{ $isSw ? 'Piga simu' : 'Call us' }}</p>
-                <p class="mt-1 text-[10px] text-gray-500">{{ $isSw ? 'Nambari itakuja hivi karibuni' : 'Number coming soon' }}</p>
-            </div>
-        @endif
+            <button type="button"
+                    data-kf-support-action="feedback"
+                    @click.stop="$dispatch('open-feedback')"
+                    class="kf-info-card kf-card-lift kf-press px-4 sm:px-5 py-5 text-left bg-slate-50/80">
+                <p class="text-xl" aria-hidden="true">✉️</p>
+                <p class="mt-2 text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Tuma maoni' : 'Send feedback' }}</p>
+                <p class="mt-1 text-xs text-gray-500 leading-snug">{{ $isSw ? 'Tuma swali, pendekezo au malalamiko.' : 'Send a question, suggestion or complaint.' }}</p>
+            </button>
+            @if ($primaryPhone)
+                <a href="tel:{{ preg_replace('/\s+/', '', $primaryPhone) }}"
+                   class="kf-info-card kf-card-lift kf-press px-4 sm:px-5 py-5 text-left bg-slate-50/80">
+                    <p class="text-xl" aria-hidden="true">☎️</p>
+                    <p class="mt-2 text-sm font-bold text-gray-900 leading-snug">{{ $isSw ? 'Piga simu' : 'Call us' }}</p>
+                    <p class="mt-1 text-xs text-brand font-semibold leading-snug tabular-nums">{{ $primaryPhone }}</p>
+                    @if (filled($supportHours))
+                        <p class="mt-0.5 text-[10px] text-gray-500">{{ $supportHours }}</p>
+                    @endif
+                </a>
+            @else
+                <div class="kf-info-card px-4 sm:px-5 py-5 text-left opacity-70 bg-slate-50/80">
+                    <p class="text-xl" aria-hidden="true">☎️</p>
+                    <p class="mt-2 text-sm font-bold text-gray-900">{{ $isSw ? 'Piga simu' : 'Call us' }}</p>
+                    <p class="mt-1 text-xs text-gray-500">{{ $isSw ? 'Nambari itakuja hivi karibuni' : 'Number coming soon' }}</p>
+                </div>
+            @endif
+        </div>
+        <p class="text-center text-[11px] sm:text-xs font-semibold text-brand/80 tracking-wide">
+            {{ $isSw
+                ? 'Majibu ya haraka · Mazungumzo salama · Msaada unapouhitaji'
+                : 'Quick answers · Secure chat · Help when you need it' }}
+        </p>
     </section>
 </div>
 
