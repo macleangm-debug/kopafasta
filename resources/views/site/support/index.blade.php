@@ -9,13 +9,8 @@
              data-kf-glass-hero
              x-data
              x-init="
-                const key = 'kf-glass-glare:v2:' + window.location.pathname;
                 if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-                try {
-                    if (sessionStorage.getItem(key) === '1') return;
-                    sessionStorage.setItem(key, '1');
-                    $el.classList.add('kf-glass-hero--glare');
-                } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+            $el.classList.add('kf-glass-hero--glare');
              ">
         <div class="absolute inset-0 bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27]"></div>
         <x-site.glass-hero-surface />

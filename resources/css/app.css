@@ -229,7 +229,7 @@ html.kf-auth-lock body {
 
 /* Restrained glass hero surface + one-time glare (not a loading shimmer).
    Premium public heroes / featured panels only — not ordinary product/info cards.
-   Glass must be visible on opaque brand gradients — rely on frosted overlays, not backdrop blur alone. */
+   Glare runs on every page load (class added in Blade x-init). Reduced-motion disables. */
 .kf-glass-hero {
     isolation: isolate;
     position: relative;
@@ -237,14 +237,12 @@ html.kf-auth-lock body {
 .kf-glass-hero__surface {
     z-index: 1;
     background:
-        linear-gradient(125deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.08) 38%, rgba(255, 255, 255, 0.04) 62%, rgba(255, 233, 163, 0.12) 100%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, transparent 48%);
-    backdrop-filter: blur(10px) saturate(1.15);
-    -webkit-backdrop-filter: blur(10px) saturate(1.15);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.35),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+        linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0.1) 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 55%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
     border-radius: inherit;
 }
 .kf-glass-hero > *:not(.kf-glass-hero__surface) {
@@ -1324,15 +1322,15 @@ html.dark .kf-receipt--paper::after {
     @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
 }
 .kf-public-section {
-    padding-block: 2rem; /* 32px mobile — tighter public rhythm */
+    padding-block: 3rem; /* 48px mobile — Public UI Rhythm */
 }
 @media (min-width: 1024px) {
     .kf-public-section {
-        padding-block: 3rem; /* 48px desktop */
+        padding-block: 5rem; /* 80px desktop — Public UI Rhythm */
     }
 }
 .kf-public-section__intro {
-    @apply flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5 lg:mb-6;
+    @apply flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-7 lg:mb-8;
 }
 .kf-public-section__eyebrow {
     @apply text-[11px] uppercase tracking-[0.2em] text-brand font-semibold;

@@ -3,13 +3,8 @@
      data-kf-glass-hero
      x-data
      x-init="
-        const key = 'kf-glass-glare:v2:' + window.location.pathname + ':home-b';
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        try {
-            if (sessionStorage.getItem(key) === '1') return;
-            sessionStorage.setItem(key, '1');
-            $el.classList.add('kf-glass-hero--glare');
-        } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+        $el.classList.add('kf-glass-hero--glare');
      ">
     <x-site.glass-hero-surface />
     <div class="absolute inset-0 opacity-[0.16] pointer-events-none" style="background-image:url(\"data:image/svg+xml,%3Csvg width='72' height='48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 36l14-24 14 24M30 36l14-24 14 24' fill='none' stroke='%23f5c842' stroke-opacity='0.55' stroke-width='2'/%3E%3C/svg%3E\"); background-size:72px 48px;"></div>

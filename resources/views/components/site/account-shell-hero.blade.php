@@ -23,13 +23,8 @@
          data-kf-glass-hero
          x-data
          x-init="
-            const key = 'kf-glass-glare:' + window.location.pathname;
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-            try {
-                if (sessionStorage.getItem(key) === '1') return;
-                sessionStorage.setItem(key, '1');
-                $el.classList.add('kf-glass-hero--glare');
-            } catch (e) { $el.classList.add('kf-glass-hero--glare'); }
+            $el.classList.add('kf-glass-hero--glare');
          ">
     <x-site.glass-hero-surface />
     <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-gold/10 pointer-events-none" aria-hidden="true"></div>
