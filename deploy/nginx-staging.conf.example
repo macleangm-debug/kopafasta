@@ -40,6 +40,14 @@ server {
     location = /favicon.ico { access_log off; log_not_found off; }
     location = /robots.txt  { access_log off; log_not_found off; }
 
+    # Branded static fallback for upstream failures (PHP-FPM down/timeout).
+    # Keep genuine 5xx status — do not mask as 200.
+    error_page 502 503 504 /errors/50x.html;
+    location = /errors/50x.html {
+        root /var/www/kopafasta/public;
+        internal;
+    }
+
     error_page 404 /index.php;
 
     location ~ \.php$ {
@@ -47,6 +55,7 @@ server {
         fastcgi_pass unix:/run/php/php8.3-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
+        fastcgi_read_timeout 120s;
     }
 
     location ~ /\.(?!well-known).* {

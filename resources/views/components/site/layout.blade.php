@@ -324,7 +324,10 @@
             </div>
         </footer>
 
-        <x-site.help-fab variant="public" />
+        <x-site.help-fab
+            variant="public"
+            class="{{ request()->routeIs('site.support.chat') ? 'max-lg:hidden' : '' }}"
+        />
     @endunless
     <x-site.upload-busy-overlay />
     <x-site.confirm-modal name="default" />

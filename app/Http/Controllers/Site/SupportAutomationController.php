@@ -95,6 +95,15 @@ class SupportAutomationController extends Controller
                 if ($request->hasSession()) {
                     $request->session()->put('support_guest_phone', $guestPhone);
                 }
+            } elseif (! $customer && ! $requireAuth && filled($data['guest_phone'] ?? null)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => str_starts_with(app()->getLocale(), 'sw')
+                        ? 'Weka tarakimu 9 za nambari ya simu.'
+                        : 'Enter the 9-digit phone number.',
+                    'needs_guest' => true,
+                    'field' => 'guest_phone',
+                ], 422);
             }
             if ($guestFirst !== '' && $request->hasSession()) {
                 $request->session()->put('support_guest_first_name', $guestFirst);
@@ -221,6 +230,18 @@ class SupportAutomationController extends Controller
             return response()->json($payload);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('support.automation.failed', [
+                'action' => $action ?? null,
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => str_starts_with(app()->getLocale(), 'sw')
+                    ? 'Samahani, kuna tatizo la muda. Jaribu tena.'
+                    : 'Sorry, something went wrong. Please try again.',
+            ], 500);
         }
     }
 
@@ -265,11 +286,10 @@ class SupportAutomationController extends Controller
             ? ($persona !== '' ? "Asante kwa tathmini yako ya {$persona}." : 'Asante kwa tathmini yako.')
             : ($persona !== '' ? "Thank you for rating {$persona}." : 'Thank you for your rating.');
 
-        return response()->json([
+        return response()->json(array_merge([
             'ok' => true,
             'thanks' => $thanks,
-            'show_join_cta' => true,
-        ]);
+        ], $this->automation->guestJoinCtaPayload(app()->getLocale(), false)));
     }
 
     private function resolveConversation(

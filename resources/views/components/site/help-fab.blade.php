@@ -16,7 +16,10 @@
 @endphp
 
 {{-- Shared floating help control — same chrome for public site and borrower account shell. --}}
-<div class="fixed bottom-6 right-6 z-40 print:hidden {{ $variant === 'borrower' ? 'hidden lg:block' : '' }}"
+<div {{ $attributes->class([
+         'fixed bottom-6 right-6 z-40 print:hidden',
+         'hidden lg:block' => $variant === 'borrower' || request()->boolean('chat'),
+     ]) }}
      x-data="kfHelpFab(@js([
          'variant' => $variant,
          'greeting' => $chatbot['greeting'] ?? '',

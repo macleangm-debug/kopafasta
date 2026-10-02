@@ -308,7 +308,7 @@ class SupportAutomationService
      *
      * @return array{join_cta: array<string, mixed>, show_join_cta: bool}
      */
-    private function guestJoinCtaPayload(?string $locale, bool $repeatNudge = false): array
+    public function guestJoinCtaPayload(?string $locale, bool $repeatNudge = false): array
     {
         $sw = $this->isSw($locale);
 
@@ -942,7 +942,7 @@ class SupportAutomationService
         $this->conversations->appendMessage($conversation, 'customer', $customerLabel, null, false, false);
         $firstName = (string) ($meta['customer_first_name'] ?? '');
         $isGuest = blank($conversation->customer_id) && blank($conversation->user_id);
-        $thanks = $this->closeResolvedCopy($locale, $firstName !== '' ? $firstName : null, $isGuest);
+        $thanks = $this->closeResolvedCopy($locale, $firstName !== '' ? $firstName : null, false);
         $this->conversations->appendMessage($conversation, 'bot', $thanks, null, true, false);
 
         if ($isGuest && filled($conversation->guest_phone)) {
@@ -986,24 +986,6 @@ class SupportAutomationService
                 $payload['rating_url'] = route('site.partner.support.conversation.rate', $fresh);
             }
             $payload['composer_locked'] = true;
-        }
-        if ($isGuest) {
-            $sw = $this->isSw($locale);
-            // Conversion CTA after rating (frontend shows join after ratingDone).
-            $payload['join_cta'] = [
-                'title' => $sw ? 'Pata huduma zote za mwanachama' : 'Get the full member experience',
-                'body' => $sw
-                    ? 'Fungua akaunti yako ya Kopafasta na upate huduma zote zinazopatikana kwa wanachama.'
-                    : 'Open your Kopafasta account and access every member service in one place.',
-                'label' => $sw ? 'Anza Sasa' : 'Get started',
-                'url' => route('site.register.borrower'),
-                'prompt' => $sw
-                    ? 'Jiunge na Kopafasta ili upate huduma zote kwenye akaunti yako.'
-                    : 'Join Kopafasta to access every member service in one place.',
-                'secondary_label' => $sw ? 'Ingia' : 'Sign in',
-                'secondary_url' => route('login'),
-                'secondary_key' => 'login',
-            ];
         }
 
         return $payload;

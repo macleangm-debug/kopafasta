@@ -357,9 +357,15 @@
         <script>
             document.addEventListener('alpine:init', function () {
                 Alpine.data('aiSupportChat', function (config) {
+                    var guestNationalLen = (function (phone) {
+                        var d = String(phone || '').replace(/\D/g, '');
+                        if (d.indexOf('255') === 0 && d.length > 3) d = d.slice(3);
+                        d = d.replace(/^0+/, '');
+                        return d.length;
+                    })(config.guestPhone || '');
                     var guestAlreadyReady = !!(config.guestFirstName || '').trim()
                         && !!(config.guestLastName || '').trim()
-                        && String(config.guestPhone || '').replace(/\D/g, '').length >= 9;
+                        && guestNationalLen === 9;
                     // Guests must not see a conversation thread until identity is confirmed.
                     var seeded;
                     if (config.needsGuestIdentity && !guestAlreadyReady) {
@@ -403,10 +409,8 @@
                         guestName: config.guestName || '',
                         guestPhone: config.guestPhone || '',
                         guestFieldErrors: { first: '', last: '', phone: '' },
-                        guestPhoneDigits: String(config.guestPhone || '').replace(/\D/g, ''),
-                        guestReady: !!(config.guestFirstName || '').trim()
-                            && !!(config.guestLastName || '').trim()
-                            && String(config.guestPhone || '').replace(/\D/g, '').length >= 9,
+                        guestPhoneDigits: '',
+                        guestReady: guestAlreadyReady,
                         get needsGuestGate() {
                             if (this.pendingEscalate && !this.guestReady) return true;
                             return !!config.needsGuestIdentity && !this.guestReady;
@@ -414,7 +418,23 @@
                         get guestFormReady() {
                             return !!(this.guestFirstName || '').trim()
                                 && !!(this.guestLastName || '').trim()
-                                && String(this.guestPhoneDigits || '').length >= 9;
+                                && this.nationalPhoneDigits().length === 9;
+                        },
+                        nationalPhoneDigits() {
+                            var local = '';
+                            var root = this.$refs.guestGate;
+                            if (root) {
+                                var localEl = root.querySelector('input[data-phone-local], input[name="guest_phone_local"]');
+                                if (localEl) {
+                                    local = String(localEl.value || '').replace(/\D/g, '').replace(/^0+/, '');
+                                }
+                            }
+                            if (local === '') {
+                                var d = String(this.guestPhoneDigits || this.guestPhone || '').replace(/\D/g, '');
+                                if (d.indexOf('255') === 0 && d.length > 3) d = d.slice(3);
+                                local = d.replace(/^0+/, '');
+                            }
+                            return local.slice(0, 9);
                         },
                         syncGuestPhone() {
                             var digits = this.readGuestPhone();
@@ -424,10 +444,8 @@
                                 : null;
                             if (phoneEl && phoneEl.value) {
                                 this.guestPhone = String(phoneEl.value || '').trim();
-                            } else if (digits.length >= 9 && digits.indexOf('255') !== 0) {
-                                this.guestPhone = '+255' + digits.replace(/^0+/, '');
-                            } else if (digits.length >= 9) {
-                                this.guestPhone = '+' + digits;
+                            } else if (this.nationalPhoneDigits().length === 9) {
+                                this.guestPhone = '+255' + this.nationalPhoneDigits();
                             }
                         },
                         readGuestPhone() {
@@ -453,6 +471,16 @@
                             return String(raw || '').replace(/\D/g, '');
                         },
                         _timer: null,
+                        safeCustomerError(raw) {
+                            var msg = String(raw || '').trim();
+                            if (!msg) {
+                                return config.isSw ? 'Imeshindikana. Jaribu tena.' : 'Something went wrong. Try again.';
+                            }
+                            if (/Route\s*\[[^\]]+\]\s+not defined|Illuminate\\|Symfony\\|SQLSTATE|stack trace|Undefined (variable|array key)/i.test(msg)) {
+                                return config.isSw ? 'Samahani, kuna tatizo la muda. Jaribu tena.' : 'Sorry, something went wrong. Please try again.';
+                            }
+                            return msg;
+                        },
                         csrfToken() {
                             var meta = document.querySelector('meta[name="csrf-token"]');
                             if (meta && meta.content) return meta.content;
@@ -550,6 +578,7 @@
                                 this.showRating = true;
                                 this.composerLocked = true;
                                 this.choices = [];
+                                this.resolutionChoices = [];
                                 if (data.rating_url) this.ratingUrl = data.rating_url;
                                 if (data.rating_prompt) this.config.ratingPrompt = data.rating_prompt;
                             }
@@ -617,7 +646,7 @@
                                 var data = {};
                                 try { data = await res.json(); } catch (e) { data = {}; }
                                 if (!res.ok || data.ok === false) {
-                                    self.sendError = data.message || data.error || 'Imeshindikana. Jaribu tena.';
+                                    self.sendError = self.safeCustomerError(data.message || data.error);
                                     self.typing = false;
                                     return;
                                 }
@@ -647,24 +676,28 @@
                         confirmGuestIdentity() {
                             var first = (this.guestFirstName || '').trim();
                             var last = (this.guestLastName || '').trim();
-                            var phoneDigits = this.readGuestPhone();
+                            this.syncGuestPhone();
+                            var national = this.nationalPhoneDigits();
                             var phoneEl = this.$refs.guestGate
                                 ? this.$refs.guestGate.querySelector('input[name="guest_phone"]')
                                 : null;
                             var phone = phoneEl ? String(phoneEl.value || '').trim() : (this.guestPhone || '').trim();
+                            var phoneMsg = config.isSw
+                                ? 'Weka tarakimu 9 za nambari ya simu.'
+                                : 'Enter the 9-digit phone number.';
                             this.guestFieldErrors = {
                                 first: first ? '' : (config.guestFirstRequired || ''),
                                 last: last ? '' : (config.guestLastRequired || ''),
-                                phone: phoneDigits.length >= 9 ? '' : (config.guestPhoneRequired || ''),
+                                phone: national.length === 9 ? '' : phoneMsg,
                             };
-                            if (! first || ! last || phoneDigits.length < 9) {
+                            if (! first || ! last || national.length !== 9) {
                                 this.sendError = '';
                                 return;
                             }
                             this.guestFirstName = first;
                             this.guestLastName = last;
                             this.guestName = (first + ' ' + last).trim();
-                            this.guestPhone = phone;
+                            this.guestPhone = phone || ('+255' + national);
                             this.syncGuestPhone();
                             this.guestReady = true;
                             this.sendError = '';
@@ -742,7 +775,7 @@
                                 });
                                 var data = await res.json().catch(function () { return {}; });
                                 if (!res.ok || data.ok === false) {
-                                    self.sendError = data.message || data.error || 'Could not confirm.';
+                                    self.sendError = self.safeCustomerError(data.message || data.error || 'Could not confirm.');
                                     return;
                                 }
                                 self.resolutionChoices = [];
@@ -809,7 +842,7 @@
                                 var data = {};
                                 try { data = await res.json(); } catch (e) { data = {}; }
                                 if (!res.ok || data.ok === false) {
-                                    self.sendError = data.message || data.error || 'Rating failed.';
+                                    self.sendError = self.safeCustomerError(data.message || data.error || 'Rating failed.');
                                     return;
                                 }
                                 self.ratingDone = true;
@@ -818,6 +851,8 @@
                                 if (data.thanks) self.config.ratingThanks = data.thanks;
                                 if (data.show_join_cta && self.joinCta && self.joinCta.url) {
                                     /* keep join CTA visible after Guest rating */
+                                } else if (data.show_join_cta && data.join_cta && data.join_cta.url) {
+                                    self.joinCta = data.join_cta;
                                 } else if (data.show_join_cta && !self.joinCta) {
                                     self.joinCta = {
                                         title: '',
@@ -826,7 +861,7 @@
                                         url: config.registerUrl,
                                         key: 'register',
                                         secondary_label: config.isSw ? 'Ingia' : 'Sign in',
-                                        secondary_url: '/login',
+                                        secondary_url: @js(route('site.login')),
                                         secondary_key: 'login',
                                     };
                                 }
@@ -908,7 +943,7 @@
                                     if (!r.ok || data.ok === false) {
                                         self.messages = self.messages.filter(function (m) { return m.id !== optimistic.id; });
                                         self.input = q;
-                                        self.sendError = data.message || data.error || 'Imeshindikana kutuma. Jaribu tena.';
+                                        self.sendError = self.safeCustomerError(data.message || data.error);
                                         if (data.composer_locked) {
                                             self.composerLocked = true;
                                             if (data.messages && data.messages.length) {

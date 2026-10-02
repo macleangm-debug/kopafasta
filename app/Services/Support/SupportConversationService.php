@@ -852,7 +852,25 @@ class SupportConversationService
             return $this->unsafePayloadFallback($locale);
         }
 
+        if ($this->looksLikeFrameworkLeak($text)) {
+            \Illuminate\Support\Facades\Log::warning('support.chat.blocked_framework_leak', [
+                'length' => strlen($text),
+            ]);
+
+            return $this->unsafePayloadFallback($locale);
+        }
+
         return $text;
+    }
+
+    public function looksLikeFrameworkLeak(string $text): bool
+    {
+        $t = $text;
+
+        return (bool) preg_match(
+            '/\bRoute\s*\[[^\]]+\]\s+not defined\b|\bIlluminate\\\\|\bSymfony\\\\|\bSQLSTATE\[|\bstack trace\b|\bUndefined (variable|array key|property)\b|\bCall to (undefined|a member function)\b/i',
+            $t
+        );
     }
 
     public function looksLikeSerializedDump(string $text): bool

@@ -8,31 +8,27 @@
         : null;
 @endphp
 <x-admin.layout title="Digital Support Assistants" heading="" subheading="">
-    <x-admin.letterhead
-        kicker="Customer Support"
-        title="{{ $focus ? $focus['name'] : 'Digital Support Assistants' }}"
-        subtitle="{{ $focus ? 'Digital Assistant 360 — Settings persona, not a Staff login.' : 'Settings-backed personas (not Staff logins). Overview first — open a profile for detail.' }}">
-        <x-slot:actions>
-            <a href="{{ route('admin.settings.support') }}?tab=msaidizi"
-               class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/25 text-white text-sm font-semibold px-3 py-2 hover:bg-white/20">
-                Configure
-            </a>
-            @if ($focus)
-                <a href="{{ route('admin.support.assistants', ['range' => $range]) }}"
+    @if (! $focus)
+        <x-admin.letterhead
+            kicker="Customer Support"
+            title="Digital Support Assistants"
+            subtitle="Settings-backed personas (not Staff logins). Overview first — open a profile for detail.">
+            <x-slot:actions>
+                <a href="{{ route('admin.settings.support') }}?tab=msaidizi"
                    class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/25 text-white text-sm font-semibold px-3 py-2 hover:bg-white/20">
-                    ← All assistants
+                    Configure
                 </a>
-            @endif
-            <div class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/20 p-1 text-sm font-semibold">
-                @foreach (['today' => 'Today', '7d' => '7 days', '30d' => '30 days'] as $key => $label)
-                    <a href="{{ route('admin.support.assistants', array_filter(['range' => $key, 'persona' => $focusKey ?: null])) }}"
-                       class="px-3 py-1.5 rounded-lg {{ $range === $key ? 'bg-white text-brand' : 'text-white/80 hover:text-white' }}">
-                        {{ $label }}
-                    </a>
-                @endforeach
-            </div>
-        </x-slot:actions>
-    </x-admin.letterhead>
+                <div class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/20 p-1 text-sm font-semibold">
+                    @foreach (['today' => 'Today', '7d' => '7 days', '30d' => '30 days'] as $key => $label)
+                        <a href="{{ route('admin.support.assistants', ['range' => $key]) }}"
+                           class="px-3 py-1.5 rounded-lg {{ $range === $key ? 'bg-white text-brand' : 'text-white/80 hover:text-white' }}">
+                            {{ $label }}
+                        </a>
+                    @endforeach
+                </div>
+            </x-slot:actions>
+        </x-admin.letterhead>
+    @endif
 
     @if ($focus)
         @php
@@ -44,17 +40,33 @@
                     : sprintf('%dm %ds', intdiv($avgSec, 60), $avgSec % 60));
             $recent = $focus['recent_conversations'] ?? [];
         @endphp
-        {{-- Digital Assistant performance profile — not a Staff workspace --}}
+        {{-- One Digital Assistant 360 hero — identity + actions + range (no duplicate letterhead). --}}
         <article class="mb-6 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
             <div class="px-5 py-5 sm:px-6 bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27] text-white">
-                <div class="flex items-center gap-4">
-                    <span class="size-14 rounded-2xl bg-white/15 ring-1 ring-white/25 grid place-items-center text-2xl font-bold">{{ mb_substr($focus['name'], 0, 1) }}</span>
-                    <div class="min-w-0">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <h2 class="text-xl font-bold tracking-tight">{{ $focus['name'] }}</h2>
-                            <span class="inline-flex rounded-full bg-brand-gold text-brand text-[10px] font-bold px-2.5 py-0.5 uppercase tracking-wide">Digital Assistant</span>
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div class="flex items-center gap-4 min-w-0">
+                        <span class="size-14 rounded-2xl bg-white/15 ring-1 ring-white/25 grid place-items-center text-2xl font-bold shrink-0">{{ mb_substr($focus['name'], 0, 1) }}</span>
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h1 class="text-xl sm:text-2xl font-bold tracking-tight">{{ $focus['name'] }}</h1>
+                                <span class="inline-flex rounded-full bg-brand-gold text-brand text-[10px] font-bold px-2.5 py-0.5 uppercase tracking-wide">Digital Assistant</span>
+                            </div>
+                            <p class="mt-1 text-sm text-white/75">Performance profile · Settings persona · no Staff login · no Online/Offline</p>
                         </div>
-                        <p class="mt-1 text-sm text-white/75">Performance profile · Settings persona · no Staff login · no Online/Offline</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        <a href="{{ route('admin.settings.support') }}?tab=msaidizi"
+                           class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/25 text-white text-sm font-semibold px-3 py-2 hover:bg-white/20">Configure</a>
+                        <a href="{{ route('admin.support.assistants', ['range' => $range]) }}"
+                           class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/25 text-white text-sm font-semibold px-3 py-2 hover:bg-white/20">Digital Overview</a>
+                        <div class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/20 p-1 text-sm font-semibold">
+                            @foreach (['today' => 'Today', '7d' => '7 days', '30d' => '30 days'] as $key => $label)
+                                <a href="{{ route('admin.support.assistants', ['range' => $key, 'persona' => $focusKey]) }}"
+                                   class="px-3 py-1.5 rounded-lg {{ $range === $key ? 'bg-white text-brand' : 'text-white/80 hover:text-white' }}">
+                                    {{ $label }}
+                                </a>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>
@@ -97,12 +109,6 @@
                     </ul>
                 </div>
             @endif
-            <div class="px-5 pb-5 sm:px-6 flex flex-wrap gap-2">
-                <a href="{{ route('admin.settings.support') }}?tab=msaidizi"
-                   class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5">Configure</a>
-                <a href="{{ route('admin.support.assistants', ['range' => $range]) }}"
-                   class="inline-flex rounded-xl ring-1 ring-brand/20 text-brand text-sm font-semibold px-4 py-2.5 hover:bg-brand-muted/40">Digital Overview</a>
-            </div>
         </article>
     @else
         <div class="mb-5 grid grid-cols-2 lg:grid-cols-4 gap-2">

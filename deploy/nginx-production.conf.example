@@ -43,11 +43,19 @@ server {
 
     error_page 404 /index.php;
 
+    # Branded static fallback for upstream failures. Preserve genuine 5xx.
+    error_page 502 503 504 /errors/50x.html;
+    location = /errors/50x.html {
+        root /var/www/kopafasta/public;
+        internal;
+    }
+
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php8.3-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
+        fastcgi_read_timeout 120s;
     }
 
     location ~ /\.(?!well-known).* {
