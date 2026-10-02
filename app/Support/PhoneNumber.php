@@ -131,6 +131,59 @@ class PhoneNumber
         return $prefixDigits.$local;
     }
 
+    /**
+     * Canonical identity digits for storage/lookup: country prefix + exact national length.
+     * Tanzania: +255 + 9 national digits → 255XXXXXXXXX (12 digits, no plus).
+     * Rejects incomplete/malformed numbers rather than guessing.
+     */
+    public static function canonicalDigits(?string $phone, ?string $countryCode = 'TZ'): ?string
+    {
+        $normalized = self::normalizeForCountry($phone, $countryCode);
+        if (! $normalized) {
+            return null;
+        }
+
+        $digits = self::digits($normalized);
+        $country = app(CountrySettingsService::class)->forCode($countryCode);
+        $prefixDigits = self::digits($country['phone_prefix'] ?? '');
+        if ($prefixDigits === '' || ! str_starts_with($digits, $prefixDigits)) {
+            return null;
+        }
+
+        $national = substr($digits, strlen($prefixDigits));
+        $expected = self::nationalLengthFor($countryCode);
+
+        if (strlen($national) !== $expected) {
+            return null;
+        }
+
+        return $digits;
+    }
+
+    /** Display form: +255XXXXXXXXX (no spaces). */
+    public static function canonicalDisplay(?string $phone, ?string $countryCode = 'TZ'): ?string
+    {
+        $digits = self::canonicalDigits($phone, $countryCode);
+
+        return $digits ? '+'.$digits : null;
+    }
+
+    public static function isValidCanonical(?string $phone, ?string $countryCode = 'TZ'): bool
+    {
+        return self::canonicalDigits($phone, $countryCode) !== null;
+    }
+
+    public static function nationalLengthFor(?string $countryCode): int
+    {
+        $code = strtoupper((string) ($countryCode ?: 'TZ'));
+
+        // Tanzania mobiles: exactly 9 national digits after +255.
+        return match ($code) {
+            'TZ' => 9,
+            default => 9,
+        };
+    }
+
     public static function digits(?string $phone): string
     {
         return preg_replace('/\D+/', '', (string) $phone) ?? '';

@@ -140,7 +140,8 @@
                autocomplete="{{ $lockEmpty ? 'one-time-code' : ($lockedCountry ? 'off' : 'tel-national') }}"
                name="{{ $name }}_local"
                value="{{ $lockEmpty && ! $errors->has($name) ? '' : $split['local'] }}"
-               @input="local = String(local || '').replace(/\D/g, ''); syncHidden()"
+               maxlength="{{ \App\Support\PhoneNumber::nationalLengthFor($lockedCountry ?: 'TZ') }}"
+               @input="local = String(local || '').replace(/\D/g, '').slice(0, {{ \App\Support\PhoneNumber::nationalLengthFor($lockedCountry ?: 'TZ') }}); syncHidden()"
                @if ($lockEmpty && ! $errors->has($name)) readonly onfocus="this.removeAttribute('readonly')" @endif
                @if ($requiredWhen) data-required-when="{{ $requiredWhen }}" @endif
                @if ($required) required @endif
@@ -167,7 +168,7 @@
             const prefixEl = root.querySelector('[data-phone-prefix]');
             const prefix = (prefixEl?.value || prefixEl?.getAttribute('value') || '').replace(/\D/g, '');
             const localEl = root.querySelector('[data-phone-local]');
-            const local = (localEl?.value || '').replace(/\D/g, '').replace(/^0+/, '');
+            const local = (localEl?.value || '').replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
             if (localEl && localEl.value !== local) {
                 localEl.value = local;
             }

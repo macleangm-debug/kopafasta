@@ -293,18 +293,21 @@
         </button>
     </form>
 
-    <div x-show="joinCta && joinCta.url" x-cloak class="mt-3 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4">
-        <p class="text-sm text-gray-700" x-text="joinCta.prompt || ''"></p>
+    <div x-show="joinCta && joinCta.url" x-cloak class="mt-3 rounded-2xl bg-gradient-to-br from-brand-muted/70 to-white ring-1 ring-brand/15 shadow-sm p-4 sm:p-5">
+        <p class="text-[10px] uppercase tracking-[0.18em] font-bold text-brand">Kopafasta</p>
+        <h3 class="mt-1 text-sm sm:text-base font-bold text-gray-900 leading-snug"
+            x-text="joinCta.title || ''"></h3>
+        <p class="mt-1 text-xs sm:text-sm text-gray-600 leading-relaxed"
+           x-text="joinCta.body || joinCta.prompt || ''"></p>
         <a :href="joinCta.url"
-           class="mt-3 inline-flex items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold text-sm px-5 py-2.5 shadow-sm"
+           class="mt-3 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold text-sm px-5 py-2.5 shadow-sm transition"
            x-text="joinCta.label || 'Anza Sasa'"></a>
     </div>
 
     @unless ($memberMode)
-        <p class="mt-3 text-sm text-gray-500" x-show="!needsGuestGate && !joinCta">
-            {{ __('site.support.chat.guest_hint') }}
-            <a href="{{ $registerUrl }}" class="font-semibold text-brand hover:underline">{{ __('site.hero.get_started') }}</a>
-        </p>
+        <div x-show="!needsGuestGate && !joinCta" x-cloak class="mt-3">
+            <x-site.guest-conversion-card :url="$registerUrl" compact />
+        </div>
     @endunless
 
     @if ($forceHuman || $automationMode)

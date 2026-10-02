@@ -86,10 +86,11 @@ class SupportAutomationController extends Controller
         $guestName = trim((string) ($data['guest_name'] ?? '')) ?: trim($guestFirst.' '.$guestLast);
         $guestPhone = null;
         if (! $customer && ! $requireAuth) {
-            $guestPhone = PhoneNumber::fromRequest($request, 'guest_phone', (string) session('country', 'TZ'))
-                ?: (isset($data['guest_phone'])
-                    ? PhoneNumber::normalizeForCountry((string) $data['guest_phone'], (string) session('country', 'TZ'))
-                    : null);
+            $guestPhone = PhoneNumber::canonicalDigits(
+                PhoneNumber::fromRequest($request, 'guest_phone', (string) session('country', 'TZ'))
+                    ?: (isset($data['guest_phone']) ? (string) $data['guest_phone'] : null),
+                (string) session('country', 'TZ')
+            );
             if ($guestPhone) {
                 if ($request->hasSession()) {
                     $request->session()->put('support_guest_phone', $guestPhone);

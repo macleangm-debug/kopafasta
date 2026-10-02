@@ -21,6 +21,16 @@
                 <p class="text-sm"><span class="text-gray-500">{{ $isSw ? 'Jina la kwanza' : 'First name' }}</span><br><span class="font-semibold">{{ $guest->first_name }}</span></p>
                 <p class="text-sm"><span class="text-gray-500">{{ $isSw ? 'Jina la mwisho' : 'Last name' }}</span><br><span class="font-semibold">{{ $guest->last_name ?: '—' }}</span></p>
                 <p class="text-sm"><span class="text-gray-500">{{ $isSw ? 'Simu' : 'Phone' }}</span><br><span class="font-semibold tabular-nums">+{{ $guest->phone }}</span></p>
+                @if ($guest->name_mismatch_at)
+                    <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 text-xs text-amber-900 leading-relaxed">
+                        <p class="font-semibold">{{ $isSw ? 'Jina lililotolewa linatofautiana na wasifu wa Mgeni.' : 'Name provided in this interaction differs from Guest profile.' }}</p>
+                        <p class="mt-1 text-amber-800">
+                            {{ $isSw ? 'Lililotolewa:' : 'Presented as:' }}
+                            <span class="font-semibold">{{ trim(($guest->presented_first_name ?? '').' '.($guest->presented_last_name ?? '')) ?: '—' }}</span>
+                            <span class="text-amber-700">· {{ $guest->name_mismatch_at->format('d M Y H:i') }}</span>
+                        </p>
+                    </div>
+                @endif
                 <p class="text-sm"><span class="text-gray-500">{{ $isSw ? 'Hali' : 'Status' }}</span><br><span class="font-semibold capitalize">{{ $guest->registration_status }}</span></p>
                 <p class="text-sm"><span class="text-gray-500">{{ $isSw ? 'Mawasiliano ya kwanza / ya mwisho' : 'First / last contact' }}</span><br>
                     <span class="text-gray-800">{{ $guest->first_contact_at?->format('d M Y H:i') ?? '—' }}</span>

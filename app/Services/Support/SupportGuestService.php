@@ -23,7 +23,8 @@ class SupportGuestService
     public const SOURCE_OTHER = 'other';
 
     /**
-     * Upsert an active Guest by normalized phone. Never duplicates on phone.
+     * Upsert an active Guest by normalized phone. Phone is the only identity key.
+     * Never duplicates on phone. Never silently overwrites a different stored name.
      * If the phone already belongs to a Member/Partner, returns null (caller records on that identity).
      */
     public function touchGuest(
@@ -41,41 +42,63 @@ class SupportGuestService
             return null;
         }
 
-        $guest = SupportGuest::query()->where('phone', $normalized)->first();
-        $now = now();
+        return DB::transaction(function () use ($firstName, $lastName, $normalized, $source) {
+            $guest = SupportGuest::query()
+                ->where('phone', $normalized)
+                ->lockForUpdate()
+                ->first();
+            $now = now();
+            $incomingFirst = trim($firstName);
+            $incomingLast = trim($lastName);
 
-        if ($guest) {
-            if ($guest->isActiveGuest()) {
-                $incomingFirst = trim($firstName);
-                $incomingLast = trim($lastName);
-                $storedFirst = trim((string) $guest->first_name);
-                $storedLast = trim((string) $guest->last_name);
+            if ($guest) {
+                if ($guest->isActiveGuest()) {
+                    $storedFirst = trim((string) $guest->first_name);
+                    $storedLast = trim((string) $guest->last_name);
 
-                $guest->fill([
-                    'first_name' => $this->safeGuestName($storedFirst, $incomingFirst),
-                    'last_name' => $this->safeGuestName($storedLast, $incomingLast),
-                    'last_contact_at' => $now,
-                    'contact_count' => (int) $guest->contact_count + 1,
-                ]);
-                if (blank($guest->source)) {
-                    $guest->source = $source;
+                    $fill = [
+                        'last_contact_at' => $now,
+                        'contact_count' => (int) $guest->contact_count + 1,
+                    ];
+
+                    // Fill blanks only — never overwrite a different canonical Guest name.
+                    if ($storedFirst === '' && $incomingFirst !== '') {
+                        $fill['first_name'] = $incomingFirst;
+                        $storedFirst = $incomingFirst;
+                    }
+                    if ($storedLast === '' && $incomingLast !== '') {
+                        $fill['last_name'] = $incomingLast;
+                        $storedLast = $incomingLast;
+                    }
+
+                    $mismatch = $this->presentedNameDiffers($storedFirst, $storedLast, $incomingFirst, $incomingLast);
+                    if ($mismatch) {
+                        $fill['presented_first_name'] = $incomingFirst !== '' ? $incomingFirst : null;
+                        $fill['presented_last_name'] = $incomingLast !== '' ? $incomingLast : null;
+                        $fill['name_mismatch_at'] = $now;
+                    }
+
+                    $guest->fill($fill);
+                    if (blank($guest->source)) {
+                        $guest->source = $source;
+                    }
+                    $guest->save();
                 }
-                $guest->save();
+
+                return $guest;
             }
 
-            return $guest;
-        }
-
-        return SupportGuest::create([
-            'phone' => $normalized,
-            'first_name' => trim($firstName),
-            'last_name' => trim($lastName),
-            'source' => $source,
-            'first_contact_at' => $now,
-            'last_contact_at' => $now,
-            'contact_count' => 1,
-            'registration_status' => 'guest',
-        ]);
+            return SupportGuest::create([
+                'phone' => $normalized,
+                'first_name' => $incomingFirst,
+                'last_name' => $incomingLast,
+                'source' => $source,
+                'first_contact_at' => $now,
+                'last_contact_at' => $now,
+                'contact_count' => 1,
+                'registration_status' => 'guest',
+            ]);
+        });
     }
 
     /**
@@ -119,6 +142,9 @@ class SupportGuestService
                 'converted_at' => now(),
                 'customer_id' => $customerId,
                 'user_id' => $userId,
+                'presented_first_name' => null,
+                'presented_last_name' => null,
+                'name_mismatch_at' => null,
             ]);
 
             // Preserve conversation history on the registered identity.
@@ -202,14 +228,9 @@ class SupportGuestService
 
     public function normalizePhone(string $phone): ?string
     {
-        $normalized = PhoneNumber::normalizeForCountry($phone, (string) session('country', 'TZ'))
-            ?: PhoneNumber::digits($phone);
+        $country = (string) session('country', 'TZ');
 
-        if (! $normalized || strlen(PhoneNumber::digits($normalized)) < 9) {
-            return null;
-        }
-
-        return PhoneNumber::digits($normalized);
+        return PhoneNumber::canonicalDigits($phone, $country);
     }
 
     private function phonesMatch(string $a, string $b): bool
@@ -226,22 +247,16 @@ class SupportGuestService
         return strlen($da) >= 9 && strlen($db) >= 9 && substr($da, -9) === substr($db, -9);
     }
 
-    /**
-     * Preserve phone-owned Guest CRM identity. Fill blanks; keep stored when names differ materially.
-     */
-    private function safeGuestName(string $stored, string $incoming): string
+    private function presentedNameDiffers(string $storedFirst, string $storedLast, string $incomingFirst, string $incomingLast): bool
     {
-        if ($stored === '') {
-            return $incoming;
-        }
-        if ($incoming === '') {
-            return $stored;
-        }
-        if ($this->namesMateriallyDiffer($stored, $incoming)) {
-            return $stored;
+        if ($incomingFirst === '' && $incomingLast === '') {
+            return false;
         }
 
-        return $incoming;
+        $firstDiffers = $incomingFirst !== '' && $storedFirst !== '' && $this->namesMateriallyDiffer($storedFirst, $incomingFirst);
+        $lastDiffers = $incomingLast !== '' && $storedLast !== '' && $this->namesMateriallyDiffer($storedLast, $incomingLast);
+
+        return $firstDiffers || $lastDiffers;
     }
 
     private function namesMateriallyDiffer(string $a, string $b): bool

@@ -94,15 +94,18 @@ class SupportCenterController extends Controller
         $first = trim($data['guest_first_name']);
         $last = trim($data['guest_last_name']);
         $name = trim($data['guest_name'] ?? '') ?: trim($first.' '.$last);
-        $phone = PhoneNumber::fromRequest($request, 'guest_phone', (string) session('country', 'TZ'))
-            ?: PhoneNumber::normalizeForCountry($data['guest_phone'], (string) session('country', 'TZ'));
+        $phone = PhoneNumber::canonicalDigits(
+            PhoneNumber::fromRequest($request, 'guest_phone', (string) session('country', 'TZ'))
+                ?: $data['guest_phone'],
+            (string) session('country', 'TZ')
+        );
 
-        if ($first === '' || $last === '' || $name === '' || ! $phone || strlen(PhoneNumber::digits($phone)) < 9) {
+        if ($first === '' || $last === '' || $name === '' || ! $phone) {
             return response()->json([
                 'ok' => false,
                 'message' => str_starts_with(app()->getLocale(), 'sw')
-                    ? 'Andika jina la kwanza, jina la mwisho na namba ya simu ili kuendelea.'
-                    : 'Enter your first name, last name and phone number to continue.',
+                    ? 'Andika jina la kwanza, jina la mwisho na namba sahihi ya simu (+255, tarakimu 9) ili kuendelea.'
+                    : 'Enter your first name, last name and a valid phone (+255, 9 digits) to continue.',
             ], 422);
         }
 

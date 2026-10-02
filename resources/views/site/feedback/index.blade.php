@@ -12,9 +12,9 @@
                 {{ __('site.feedback.submit') }}
             </button>
             <div>
-                <a href="{{ route('site.faq') }}"
+                <a href="{{ route('site.support') }}"
                    class="inline-flex items-center gap-2 rounded-xl bg-white ring-1 ring-brand/20 px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-muted/50 transition">
-                    {{ __('site.footer.faq') }}
+                    {{ str_starts_with(app()->getLocale(), 'sw') ? 'Msaada' : 'Support' }}
                 </a>
             </div>
         </div>

@@ -12,6 +12,7 @@ use App\Models\LoanApplicationDraft;
 use App\Models\LoanProduct;
 use App\Models\NotificationLog;
 use App\Support\MemberNumberFormatter;
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -1199,6 +1200,12 @@ class GuarantorInvitationService
 
     public function normalizePhone(?string $phone): string
     {
+        $canonical = PhoneNumber::canonicalDigits($phone, 'TZ');
+        if ($canonical) {
+            return '+'.$canonical;
+        }
+
+        // Legacy fallback for incomplete historical strings already in flight — empty when unusable.
         $digits = preg_replace('/\D/', '', (string) $phone) ?? '';
         if ($digits === '') {
             return '';

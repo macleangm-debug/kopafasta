@@ -31,6 +31,17 @@ class PhoneNumberTest extends TestCase
         $this->assertSame('255712345678', PhoneNumber::normalizeForCountry('254712345678', 'TZ'));
     }
 
+    public function test_canonical_digits_requires_exact_nine_national_digits_for_tz(): void
+    {
+        $this->assertSame('255712345678', PhoneNumber::canonicalDigits('712345678', 'TZ'));
+        $this->assertSame('255712345678', PhoneNumber::canonicalDigits('0712345678', 'TZ'));
+        $this->assertSame('255712345678', PhoneNumber::canonicalDigits('+255712345678', 'TZ'));
+        $this->assertSame('+255712345678', PhoneNumber::canonicalDisplay('0712345678', 'TZ'));
+        $this->assertNull(PhoneNumber::canonicalDigits('71234567', 'TZ'));
+        $this->assertNull(PhoneNumber::canonicalDigits('7123456789', 'TZ'));
+        $this->assertFalse(PhoneNumber::isValidCanonical('07123', 'TZ'));
+    }
+
     public function test_from_request_prefers_visible_local_digits_over_hidden_full(): void
     {
         $request = \Illuminate\Http\Request::create('/pay', 'POST', [

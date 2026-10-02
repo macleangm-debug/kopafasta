@@ -666,10 +666,15 @@ class SupportAutomationService
 
         $payload = $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
         if ($isGuest) {
+            $sw = $this->isSw($locale);
             $payload['join_cta'] = [
-                'label' => $this->isSw($locale) ? 'Anza Sasa' : 'Get started',
+                'title' => $sw ? 'Pata huduma zote za mwanachama' : 'Get the full member experience',
+                'body' => $sw
+                    ? 'Fungua akaunti yako ya Kopafasta na upate huduma zote zinazopatikana kwa wanachama.'
+                    : 'Open your Kopafasta account and access every member service in one place.',
+                'label' => $sw ? 'Anza Sasa' : 'Get started',
                 'url' => route('site.register.borrower'),
-                'prompt' => $this->isSw($locale)
+                'prompt' => $sw
                     ? 'Jiunge na Kopafasta ili upate huduma zote kwenye akaunti yako.'
                     : 'Join Kopafasta to access every member service in one place.',
             ];

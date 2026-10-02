@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Support\PhoneNumber;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -317,12 +318,8 @@ class PayInService
 
     public function normalizePhone(string $phone): string
     {
-        $digits = preg_replace('/\D+/', '', $phone) ?: '';
-        if (str_starts_with($digits, '0') && strlen($digits) === 10) {
-            $digits = '255'.substr($digits, 1);
-        }
-
-        return $digits;
+        return PhoneNumber::canonicalDigits($phone, 'TZ')
+            ?: (preg_replace('/\D+/', '', $phone) ?: '');
     }
 
     /** PayIn rejects underscores and most punctuation in description. */

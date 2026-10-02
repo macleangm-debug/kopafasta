@@ -51,6 +51,7 @@ class PublicPolicyAndFeedbackPanelFeatureTest extends TestCase
         $this->assertStringContainsString('compliment', $html);
         $this->assertStringNotContainsString('investment_inquiry', $html);
         $this->assertStringNotContainsString('Investment inquiry', $html);
+        $this->assertStringContainsString(route('site.support'), $html);
     }
 
     public function test_swahili_tagline_uses_corrected_copy(): void

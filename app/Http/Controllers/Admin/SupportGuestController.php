@@ -107,11 +107,16 @@ class SupportGuestController extends Controller
             'guest_phone' => ['required', 'string', 'max:32'],
         ]);
 
-        $phone = PhoneNumber::fromRequest($request, 'guest_phone', (string) session('country', 'TZ'))
-            ?: PhoneNumber::normalizeForCountry($data['guest_phone'], (string) session('country', 'TZ'));
+        $phone = PhoneNumber::canonicalDigits(
+            PhoneNumber::fromRequest($request, 'guest_phone', (string) session('country', 'TZ'))
+                ?: $data['guest_phone'],
+            (string) session('country', 'TZ')
+        );
 
         if (! $phone) {
-            return back()->withInput()->with('error', 'Enter a valid phone number.');
+            return back()->withInput()->with('error', str_starts_with(app()->getLocale(), 'sw')
+                ? 'Weka namba sahihi ya Tanzania (+255 na tarakimu 9).'
+                : 'Enter a valid Tanzania phone (+255 and 9 digits).');
         }
 
         $identity = $guests->resolvePhoneIdentity($phone);
@@ -161,11 +166,16 @@ class SupportGuestController extends Controller
             'guest_phone' => ['required', 'string', 'max:32'],
         ]);
 
-        $phone = PhoneNumber::fromRequest($request, 'guest_phone', (string) session('country', 'TZ'))
-            ?: PhoneNumber::normalizeForCountry($data['guest_phone'], (string) session('country', 'TZ'));
+        $phone = PhoneNumber::canonicalDigits(
+            PhoneNumber::fromRequest($request, 'guest_phone', (string) session('country', 'TZ'))
+                ?: $data['guest_phone'],
+            (string) session('country', 'TZ')
+        );
 
         if (! $phone) {
-            return back()->withInput()->with('error', 'Enter a valid phone number.');
+            return back()->withInput()->with('error', str_starts_with(app()->getLocale(), 'sw')
+                ? 'Weka namba sahihi ya Tanzania (+255 na tarakimu 9).'
+                : 'Enter a valid Tanzania phone (+255 and 9 digits).');
         }
 
         if ($phone !== $guest->phone) {
@@ -179,6 +189,9 @@ class SupportGuestController extends Controller
             'first_name' => trim($data['first_name']),
             'last_name' => trim($data['last_name']),
             'phone' => $phone,
+            'presented_first_name' => null,
+            'presented_last_name' => null,
+            'name_mismatch_at' => null,
         ]);
 
         return redirect()

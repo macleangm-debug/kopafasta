@@ -37,6 +37,10 @@ class GuestCrmAndGuarantorStateFeatureTest extends TestCase
         $guest = SupportGuest::query()->first();
         $this->assertSame('guest', $guest->registration_status);
         $this->assertSame(2, (int) $guest->contact_count);
+        $this->assertSame('Asha', $guest->first_name);
+        $this->assertSame('Juma', $guest->last_name);
+        $this->assertSame('Juma Updated', $guest->presented_last_name);
+        $this->assertNotNull($guest->name_mismatch_at);
         $this->assertSame(SupportGuestService::SOURCE_GUEST_CHAT, $guest->source);
     }
 
@@ -136,9 +140,47 @@ class GuestCrmAndGuarantorStateFeatureTest extends TestCase
             ->assertRedirect(route('admin.customers.guests.show', $guest));
 
         $this->assertSame(1, SupportGuest::query()->count());
-        $this->assertSame('Updated', $guest->fresh()->last_name);
+        $fresh = $guest->fresh();
+        $this->assertSame('Dial', $fresh->last_name);
+        $this->assertSame('Updated', $fresh->presented_last_name);
+        $this->assertNotNull($fresh->name_mismatch_at);
         $this->assertDatabaseCount('support_conversations', 0);
         $this->assertDatabaseCount('support_tickets', 0);
+    }
+
+    public function test_same_phone_matching_name_reuses_guest_without_mismatch(): void
+    {
+        $service = app(SupportGuestService::class);
+        $first = $service->touchGuest('John', 'Mushi', '0712345678', SupportGuestService::SOURCE_GUEST_CHAT);
+        $second = $service->touchGuest('john', 'mushi', '+255712345678', SupportGuestService::SOURCE_GUEST_CHAT);
+
+        $this->assertNotNull($first);
+        $this->assertSame($first->id, $second?->id);
+        $this->assertSame(1, SupportGuest::query()->count());
+        $this->assertNull($second->fresh()->name_mismatch_at);
+        $this->assertSame('John', $second->fresh()->first_name);
+    }
+
+    public function test_different_name_same_phone_preserves_canonical_and_flags_discrepancy(): void
+    {
+        $service = app(SupportGuestService::class);
+        $service->touchGuest('John', 'Mushi', '712345678', SupportGuestService::SOURCE_GUEST_CHAT);
+        $guest = $service->touchGuest('Peter', 'Mushi', '0712345678', SupportGuestService::SOURCE_PHONE_CALL);
+
+        $this->assertSame(1, SupportGuest::query()->count());
+        $this->assertSame('John', $guest->first_name);
+        $this->assertSame('Mushi', $guest->last_name);
+        $this->assertSame('Peter', $guest->presented_first_name);
+        $this->assertSame('Mushi', $guest->presented_last_name);
+        $this->assertNotNull($guest->name_mismatch_at);
+    }
+
+    public function test_incomplete_tanzania_phone_is_rejected(): void
+    {
+        $guest = app(SupportGuestService::class)->touchGuest('Asha', 'Juma', '71234567', SupportGuestService::SOURCE_GUEST_CHAT);
+
+        $this->assertNull($guest);
+        $this->assertSame(0, SupportGuest::query()->count());
     }
 
     public function test_staff_cannot_start_guest_conversation_from_new_support(): void
