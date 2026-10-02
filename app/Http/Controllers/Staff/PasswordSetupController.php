@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ConsoleSecondFactorService;
 use App\Services\RoleService;
 use App\Services\UserAccountService;
+use App\Services\WebTwoFactorAuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,8 +40,13 @@ class PasswordSetupController extends Controller
         ]);
     }
 
-    public function store(Request $request, RoleService $roles, UserAccountService $accounts): RedirectResponse
-    {
+    public function store(
+        Request $request,
+        RoleService $roles,
+        UserAccountService $accounts,
+        WebTwoFactorAuthService $twoFactor,
+        ConsoleSecondFactorService $secondFactor,
+    ): RedirectResponse {
         $data = $request->validate([
             'token' => ['required', 'string'],
             'email' => ['required', 'string', 'max:190'],
@@ -75,6 +82,19 @@ class PasswordSetupController extends Controller
         ])->save();
 
         DB::table($table)->where('email', $brokerKey)->delete();
+
+        $context = $roles->hasConsoleAccess($user) ? 'admin' : 'staff';
+        $home = $context === 'admin'
+            ? route($roles->homeRoute($user))
+            : route('staff.dashboard');
+
+        // Continue the same secure-access journey into second-step enrollment.
+        if ($secondFactor->mustEnroll($user, $context)) {
+            $twoFactor->storePendingLogin($request, $user, 'admin', $context, $home, false);
+
+            return redirect()->to($secondFactor->setupRedirect($user, $context))
+                ->with('status', 'Password saved. Set up your security verification next.');
+        }
 
         return redirect()->route('staff.login')
             ->with('status', 'Password set. Sign in with your Staff or Console credentials.');

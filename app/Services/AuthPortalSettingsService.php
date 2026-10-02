@@ -22,6 +22,21 @@ class AuthPortalSettingsService
         return $this->bool('require_2fa_partner');
     }
 
+    public function staffAllowAuthenticator(): bool
+    {
+        return $this->bool('staff_allow_authenticator', true);
+    }
+
+    public function staffAllowSecurityQuestions(): bool
+    {
+        return $this->bool('staff_allow_security_questions', true);
+    }
+
+    public function privilegedRequireAuthenticator(): bool
+    {
+        return $this->bool('privileged_require_authenticator', true);
+    }
+
     public function isRequired(string $context): bool
     {
         return match ($context) {
@@ -81,17 +96,20 @@ class AuthPortalSettingsService
             'require_2fa_admin'        => $this->require2faAdmin(),
             'require_2fa_staff'        => $this->require2faStaff(),
             'require_2fa_partner'      => $this->require2faPartner(),
+            'staff_allow_authenticator' => $this->staffAllowAuthenticator(),
+            'staff_allow_security_questions' => $this->staffAllowSecurityQuestions(),
+            'privileged_require_authenticator' => $this->privilegedRequireAuthenticator(),
             'two_factor_session_hours' => $this->twoFactorSessionHours(),
             'pin_recovery_session_seconds' => $this->pinRecoverySessionSeconds(),
         ];
     }
 
-    protected function bool(string $key): bool
+    protected function bool(string $key, bool $default = false): bool
     {
         $stored = Setting::get('auth_portal.'.$key);
 
         if ($stored === null) {
-            return (bool) config('auth_portal.'.$key, false);
+            return (bool) config('auth_portal.'.$key, $default);
         }
 
         return (bool) $stored;

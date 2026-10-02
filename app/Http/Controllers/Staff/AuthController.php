@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Services\ConsoleSecondFactorService;
 use App\Services\KopafastaLaunchService;
 use App\Services\RoleService;
 use App\Services\StaffCredentialAuthService;
@@ -75,17 +76,18 @@ class AuthController extends Controller
     protected function delegateConsoleLogin(Request $request, $user, WebTwoFactorAuthService $twoFactor): RedirectResponse
     {
         $home = route(app(RoleService::class)->homeRoute($user));
+        $second = app(ConsoleSecondFactorService::class);
 
-        if ($twoFactor->mustEnroll($user, 'admin')) {
+        if ($second->mustEnroll($user, 'admin')) {
             $twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
 
-            return redirect()->route('auth.two-factor.setup', ['context' => 'admin']);
+            return redirect()->to($second->setupRedirect($user, 'admin'));
         }
 
-        if ($twoFactor->needsChallenge($user, $request, 'admin')) {
+        if ($second->needsChallenge($user, $request, 'admin')) {
             $twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
 
-            return redirect()->route('auth.two-factor.challenge', ['context' => 'admin']);
+            return redirect()->to($second->challengeRedirect($user, 'admin'));
         }
 
         Auth::guard('admin')->login($user, $request->boolean('remember'));
@@ -99,17 +101,18 @@ class AuthController extends Controller
     protected function finishStaffLogin(Request $request, $user, WebTwoFactorAuthService $twoFactor): RedirectResponse
     {
         $home = route('staff.dashboard');
+        $second = app(ConsoleSecondFactorService::class);
 
-        if ($twoFactor->mustEnroll($user, 'staff')) {
+        if ($second->mustEnroll($user, 'staff')) {
             $twoFactor->storePendingLogin($request, $user, 'admin', 'staff', $home, $request->boolean('remember'));
 
-            return redirect()->route('auth.two-factor.setup', ['context' => 'staff']);
+            return redirect()->to($second->setupRedirect($user, 'staff'));
         }
 
-        if ($twoFactor->needsChallenge($user, $request, 'staff')) {
+        if ($second->needsChallenge($user, $request, 'staff')) {
             $twoFactor->storePendingLogin($request, $user, 'admin', 'staff', $home, $request->boolean('remember'));
 
-            return redirect()->route('auth.two-factor.challenge', ['context' => 'staff']);
+            return redirect()->to($second->challengeRedirect($user, 'staff'));
         }
 
         Auth::guard('admin')->login($user, $request->boolean('remember'));

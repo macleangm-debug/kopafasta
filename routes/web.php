@@ -92,6 +92,7 @@ use App\Http\Controllers\Admin\VendorPaymentController;
 use App\Http\Controllers\Admin\WriteOffRequestController;
 use App\Http\Controllers\Admin\WriteOffRuleController;
 use App\Http\Controllers\Auth\WebTwoFactorController;
+use App\Http\Controllers\Auth\ConsoleSecureAccessController;
 use App\Http\Controllers\PayInWebhookController;
 use App\Http\Controllers\Site\AccountThemeController;
 use App\Http\Controllers\Site\AccountWelcomeController;
@@ -714,6 +715,14 @@ Route::prefix('auth/two-factor')->name('auth.two-factor.')->group(function () {
     Route::post('confirm-setup', [WebTwoFactorController::class, 'confirmSetup'])->name('confirm-setup');
 });
 
+Route::prefix('auth/secure')->name('auth.secure.')->group(function () {
+    Route::get('choose', [ConsoleSecureAccessController::class, 'choose'])->name('choose');
+    Route::get('questions/setup', [ConsoleSecureAccessController::class, 'questionsSetup'])->name('questions.setup');
+    Route::post('questions/setup', [ConsoleSecureAccessController::class, 'storeQuestionsSetup'])->name('questions.setup.store');
+    Route::get('questions/challenge', [ConsoleSecureAccessController::class, 'questionsChallenge'])->name('questions.challenge');
+    Route::post('questions/challenge', [ConsoleSecureAccessController::class, 'verifyQuestionsChallenge'])->name('questions.challenge.verify');
+});
+
 Route::prefix('staff')->name('staff.')->middleware(SetLocale::class)->group(function () {
     Route::middleware('guest:admin')->group(function () {
         Route::get('login', [StaffAuthController::class, 'showLogin'])->name('login');
@@ -1297,6 +1306,7 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
         Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active');
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
         Route::post('users/{user}/password-setup-link', [UserController::class, 'issuePasswordSetupLink'])->name('users.password-setup-link');
+        Route::post('users/{user}/reset-security-verification', [UserController::class, 'resetSecurityVerification'])->name('users.reset-security-verification');
 
         // ========== FINANCE (extended) ==========
         Route::middleware('permission:finance.accounts')->group(function () use ($registerResource): void {

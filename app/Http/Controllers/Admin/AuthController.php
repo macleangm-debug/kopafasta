@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\ConsoleSecondFactorService;
 use App\Services\KopafastaLaunchService;
 use App\Services\RoleService;
 use App\Services\TurnstileService;
@@ -48,17 +49,18 @@ class AuthController extends Controller
         }
 
         $home = route($this->roles->homeRoute($user));
+        $second = app(ConsoleSecondFactorService::class);
 
-        if ($this->twoFactor->mustEnroll($user, 'admin')) {
+        if ($second->mustEnroll($user, 'admin')) {
             $this->twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
 
-            return redirect()->route('auth.two-factor.setup', ['context' => 'admin']);
+            return redirect()->to($second->setupRedirect($user, 'admin'));
         }
 
-        if ($this->twoFactor->needsChallenge($user, $request, 'admin')) {
+        if ($second->needsChallenge($user, $request, 'admin')) {
             $this->twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
 
-            return redirect()->route('auth.two-factor.challenge', ['context' => 'admin']);
+            return redirect()->to($second->challengeRedirect($user, 'admin'));
         }
 
         Auth::guard('admin')->login($user, $request->boolean('remember'));

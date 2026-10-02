@@ -320,4 +320,47 @@ class UserController extends ResourceController
             ->with('password_setup_url', $result['url'])
             ->with('password_setup_expires', $result['expires_at']);
     }
+
+    public function resetSecurityVerification(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasPermission('users.manage'), 403);
+
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        app(\App\Services\ConsoleSecondFactorService::class)->clearSecurityQuestions(
+            auth()->user(),
+            $user,
+            $request,
+            $data['reason'] ?? null,
+        );
+
+        // Also clear TOTP so the Staff member re-enrolls at next secure login (answers never shown).
+        $user->forceFill([
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
+        ])->save();
+
+        \App\Models\AuditLog::create([
+            'user_id' => auth()->id(),
+            'event' => 'admin.user_security_verification_reset',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'old_values' => null,
+            'new_values' => json_encode([
+                'reset_by' => auth()->id(),
+                'reason' => $data['reason'] ?? null,
+                'cleared' => ['security_questions', 'authenticator'],
+            ]),
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+        ]);
+
+        return redirect()
+            ->route("{$this->routePrefix}.show", $user)
+            ->withFragment('password-access')
+            ->with('status', 'Security verification reset. The user must re-enroll at next sign-in. Answers were never shown.');
+    }
 }

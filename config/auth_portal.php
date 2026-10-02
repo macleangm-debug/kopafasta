@@ -14,4 +14,9 @@ return [
     'require_2fa_staff'   => (bool) env('REQUIRE_2FA_STAFF', true),
     'require_2fa_partner' => (bool) env('REQUIRE_2FA_PARTNER', false),
     'two_factor_session_hours' => (int) env('TWO_FACTOR_SESSION_HOURS', 12),
+
+    /** Staff second-step methods (Settings Hub). Authenticator remains available for privileged Admin. */
+    'staff_allow_authenticator' => true,
+    'staff_allow_security_questions' => true,
+    'privileged_require_authenticator' => true,
 ];

@@ -36,7 +36,7 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
         $this->post(route('staff.login'), [
             'email' => 'collector@example.com',
             'password' => 'password',
-        ])->assertRedirect(route('auth.two-factor.setup', ['context' => 'staff']));
+        ])->assertRedirect(route('auth.secure.choose', ['context' => 'staff']));
     }
 
     public function test_collector_reaches_dashboard_after_2fa_enrollment(): void
@@ -50,7 +50,7 @@ class Phase69StaffPortalAnd2faFeatureTest extends TestCase
         $this->post(route('staff.login'), [
             'email' => 'collector2@example.com',
             'password' => 'password',
-        ])->assertRedirect(route('auth.two-factor.setup', ['context' => 'staff']));
+        ])->assertRedirect(route('auth.secure.choose', ['context' => 'staff']));
 
         $this->get(route('auth.two-factor.setup', ['context' => 'staff']))->assertOk();
 

@@ -162,6 +162,25 @@
             </button>
         </form>
     </div>
+
+    <form method="POST"
+          action="{{ route('admin.users.reset-security-verification', $record) }}"
+          class="rounded-xl ring-1 ring-amber-200 bg-amber-50/60 p-4 space-y-3"
+          data-testid="reset-security-verification-form">
+        @csrf
+        <p class="text-sm font-semibold text-amber-950">Reset security verification</p>
+        <p class="text-xs text-amber-900/80">Clears authenticator and security questions so the user re-enrolls at next sign-in. Answers are never shown.</p>
+        <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Reason (optional)</label>
+            <input type="text" name="reason" maxlength="500" placeholder="e.g. Lost phone / staff requested reset"
+                   class="w-full rounded-lg border-gray-200 text-sm bg-white">
+        </div>
+        <button type="submit"
+                data-loading-label="Resetting…"
+                class="inline-flex rounded-xl bg-white text-amber-950 text-sm font-semibold px-4 py-2.5 ring-1 ring-amber-300 hover:bg-amber-100">
+            Reset security verification
+        </button>
+    </form>
 </div>
 @endperm
 

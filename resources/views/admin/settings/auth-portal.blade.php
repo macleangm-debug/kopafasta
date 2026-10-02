@@ -6,6 +6,7 @@
         submit-label="Save authentication settings"
         :tabs="[
             'twofactor' => 'Two-factor',
+            'methods' => 'Staff methods',
             'session' => 'Session',
             'pin' => 'PIN reset',
             'turnstile' => 'Turnstile',
@@ -13,11 +14,10 @@
     >
         <x-admin.settings-panel id="twofactor">
             <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
-                <h3 class="text-sm font-semibold text-gray-900 mb-1">Two-factor authentication (TOTP)</h3>
+                <h3 class="text-sm font-semibold text-gray-900 mb-1">Require second-step verification</h3>
                 <p class="text-xs text-gray-500 mb-4">
-                    When enabled, users must enroll an authenticator app on first sign-in, then enter a code (or recovery code) on <strong>every new login</strong>.
-                    Trusted devices cannot skip 2FA. Within an active session, the code is not re-asked until logout or the session trust window expires.
-                    Each person manages their own authenticator under <a href="{{ route('admin.settings.account-security') }}" class="text-amber-700 underline">Account security</a>.
+                    When enabled, users must enroll a verification method on first sign-in, then complete it on <strong>every new login</strong>.
+                    Staff may use authenticator or security questions (see Staff methods). Privileged Admin keeps authenticator as the stronger option.
                 </p>
 
                 <div class="space-y-3">
@@ -28,7 +28,7 @@
                                class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
                         <span>
                             <span class="font-medium text-gray-900">Admin console</span>
-                            <span class="block text-gray-500 text-xs mt-0.5">Applies to <code class="text-xs">/admin/login</code> and full back-office users (officer, manager, admin).</span>
+                            <span class="block text-gray-500 text-xs mt-0.5">Applies to <code class="text-xs">/admin/login</code> and full back-office users.</span>
                         </span>
                     </label>
 
@@ -39,7 +39,7 @@
                                class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
                         <span>
                             <span class="font-medium text-gray-900">Staff workspace</span>
-                            <span class="block text-gray-500 text-xs mt-0.5">Applies to <code class="text-xs">/staff/login</code> and limited-permission staff deep-linking into admin routes.</span>
+                            <span class="block text-gray-500 text-xs mt-0.5">Applies to <code class="text-xs">/staff/login</code>.</span>
                         </span>
                     </label>
 
@@ -50,7 +50,57 @@
                                class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
                         <span>
                             <span class="font-medium text-gray-900">Partner portal</span>
-                            <span class="block text-gray-500 text-xs mt-0.5">Applies to partner email/password sign-in at <code class="text-xs">/login</code> and authenticated partner routes.</span>
+                            <span class="block text-gray-500 text-xs mt-0.5">Partner email/password sign-in only — Borrower/Member PIN is unchanged.</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+        </x-admin.settings-panel>
+
+        <x-admin.settings-panel id="methods">
+            <div class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-900 mb-1">Staff verification methods</h3>
+                    <p class="text-xs text-gray-500">
+                        Ordinary Staff may enroll one of the enabled methods. Do not disable authentication entirely.
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <label class="flex items-start gap-3 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-3">
+                        <input type="hidden" name="staff_allow_authenticator" value="0">
+                        <input type="checkbox" name="staff_allow_authenticator" value="1"
+                               @checked(! empty($values['staff_allow_authenticator']))
+                               class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                        <span>
+                            <span class="font-medium text-gray-900">Authenticator app</span>
+                            <span class="block text-gray-500 text-xs mt-0.5">TOTP (Google Authenticator, Authy, etc.).</span>
+                        </span>
+                    </label>
+                    <label class="flex items-start gap-3 text-sm bg-gray-50 ring-1 ring-gray-200 rounded-lg px-3 py-3">
+                        <input type="hidden" name="staff_allow_security_questions" value="0">
+                        <input type="checkbox" name="staff_allow_security_questions" value="1"
+                               @checked(! empty($values['staff_allow_security_questions']))
+                               class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                        <span>
+                            <span class="font-medium text-gray-900">Security questions</span>
+                            <span class="block text-gray-500 text-xs mt-0.5">Reuses the existing Kopafasta question bank. Enroll 3; challenge 1 per login.</span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="pt-2 border-t border-gray-100">
+                    <h3 class="text-sm font-semibold text-gray-900 mb-1">Privileged Admin minimum</h3>
+                    <p class="text-xs text-gray-500 mb-3">
+                        Administrator / Super Administrator should not silently fall to weaker verification.
+                    </p>
+                    <label class="flex items-start gap-3 text-sm bg-amber-50 ring-1 ring-amber-200 rounded-lg px-3 py-3">
+                        <input type="hidden" name="privileged_require_authenticator" value="0">
+                        <input type="checkbox" name="privileged_require_authenticator" value="1"
+                               @checked(! empty($values['privileged_require_authenticator']))
+                               class="mt-0.5 size-4 rounded border-gray-300 text-brand focus:ring-brand">
+                        <span>
+                            <span class="font-medium text-gray-900">Require authenticator for privileged Admin</span>
+                            <span class="block text-gray-500 text-xs mt-0.5">Keeps authenticator MFA available as the stronger option for Admin / Super Admin.</span>
                         </span>
                     </label>
                 </div>

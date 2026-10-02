@@ -1410,16 +1410,29 @@ class SettingsController extends Controller
             'require_2fa_admin'        => ['nullable', 'boolean'],
             'require_2fa_staff'        => ['nullable', 'boolean'],
             'require_2fa_partner'      => ['nullable', 'boolean'],
+            'staff_allow_authenticator' => ['nullable', 'boolean'],
+            'staff_allow_security_questions' => ['nullable', 'boolean'],
+            'privileged_require_authenticator' => ['nullable', 'boolean'],
             'two_factor_session_hours' => ['required', 'integer', 'min:1', 'max:168'],
             'pin_recovery_session_seconds' => ['required', 'integer', 'min:30', 'max:900'],
             'turnstile_site_key'       => ['nullable', 'string', 'max:255'],
             'turnstile_secret_key'     => ['nullable', 'string', 'max:255'],
         ]);
 
+        // Never allow disabling every Staff verification method while Staff 2FA is required.
+        $allowAuth = $request->boolean('staff_allow_authenticator');
+        $allowKba = $request->boolean('staff_allow_security_questions');
+        if ($request->boolean('require_2fa_staff') && ! $allowAuth && ! $allowKba) {
+            $allowAuth = true;
+        }
+
         Setting::setMany([
             'auth_portal.require_2fa_admin'        => $request->boolean('require_2fa_admin'),
             'auth_portal.require_2fa_staff'        => $request->boolean('require_2fa_staff'),
             'auth_portal.require_2fa_partner'      => $request->boolean('require_2fa_partner'),
+            'auth_portal.staff_allow_authenticator' => $allowAuth,
+            'auth_portal.staff_allow_security_questions' => $allowKba,
+            'auth_portal.privileged_require_authenticator' => $request->boolean('privileged_require_authenticator'),
             'auth_portal.two_factor_session_hours' => (int) $data['two_factor_session_hours'],
             'auth_portal.pin_recovery_session_seconds' => (int) $data['pin_recovery_session_seconds'],
             'security.turnstile_site_key'          => trim((string) ($data['turnstile_site_key'] ?? '')),
