@@ -30,7 +30,9 @@ class SupportFinalUatClosureP0FeatureTest extends TestCase
     {
         $html = File::get(resource_path('views/components/site/ai-support-chat.blade.php'));
         $this->assertStringContainsString('nationalPhoneDigits()', $html);
-        $this->assertStringContainsString('national.length === 9', $html);
+        $this->assertStringContainsString('guestNationalLen', $html);
+        $this->assertStringContainsString('Number(this.guestNationalLen) === 9', $html);
+        $this->assertStringContainsString('this.guestNationalLen = national.length', $html);
         $this->assertStringContainsString('Weka tarakimu 9 za nambari ya simu.', $html);
         $this->assertStringContainsString('safeCustomerError', $html);
     }
@@ -46,11 +48,16 @@ class SupportFinalUatClosureP0FeatureTest extends TestCase
     public function test_human_digital_selectors_are_searchable_and_wide(): void
     {
         $html = File::get(resource_path('views/admin/partials/_support-header-controls.blade.php'));
-        $this->assertStringContainsString('filteredHumans', $html);
-        $this->assertStringContainsString('filteredDigital', $html);
+        $this->assertStringContainsString('fixed z-[90]', $html);
         $this->assertStringContainsString('w-[20rem]', $html);
         $this->assertStringContainsString('Search humans', $html);
         $this->assertStringContainsString('Search assistants', $html);
+        $this->assertStringContainsString('@forelse ($humanPeople', $html);
+        $this->assertStringContainsString('@forelse ($digitalAssistants', $html);
+        $this->assertStringContainsString('matches(@js($person[\'needle\']), humanQ)', $html);
+        $this->assertStringContainsString('matches(@js($assistant[\'needle\']), digitalQ)', $html);
+        $this->assertStringContainsString('Digital Overview', $html);
+        $this->assertStringContainsString('x-site.action-panel', $html);
     }
 
     public function test_mobile_support_chat_hides_help_fab(): void

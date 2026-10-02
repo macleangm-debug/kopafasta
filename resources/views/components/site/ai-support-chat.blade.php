@@ -187,7 +187,7 @@
         </div>
         <div class="px-3.5 sm:px-4 pt-3 pb-4">
             <div x-show="needsGuestGate" x-cloak class="mb-4 rounded-2xl bg-brand-muted/40 ring-1 ring-brand/15 p-4 space-y-3" x-ref="guestGate"
-                 @input.capture="syncGuestPhone()" @change.capture="syncGuestPhone()" @keyup.capture="syncGuestPhone()">
+                 @input.capture="syncGuestPhone()" @change.capture="syncGuestPhone()" @keyup.capture="syncGuestPhone()" @paste.capture="$nextTick(() => syncGuestPhone())">
                 <p class="text-sm text-gray-700" x-text="config.guestIdentityHint"></p>
                 <div class="grid sm:grid-cols-2 gap-3">
                     <div>
@@ -410,6 +410,7 @@
                         guestPhone: config.guestPhone || '',
                         guestFieldErrors: { first: '', last: '', phone: '' },
                         guestPhoneDigits: '',
+                        guestNationalLen: guestNationalLen,
                         guestReady: guestAlreadyReady,
                         get needsGuestGate() {
                             if (this.pendingEscalate && !this.guestReady) return true;
@@ -418,7 +419,7 @@
                         get guestFormReady() {
                             return !!(this.guestFirstName || '').trim()
                                 && !!(this.guestLastName || '').trim()
-                                && this.nationalPhoneDigits().length === 9;
+                                && Number(this.guestNationalLen) === 9;
                         },
                         nationalPhoneDigits() {
                             var local = '';
@@ -439,13 +440,15 @@
                         syncGuestPhone() {
                             var digits = this.readGuestPhone();
                             this.guestPhoneDigits = digits;
+                            var national = this.nationalPhoneDigits();
+                            this.guestNationalLen = national.length;
                             var phoneEl = this.$refs.guestGate
                                 ? this.$refs.guestGate.querySelector('input[name="guest_phone"]')
                                 : null;
                             if (phoneEl && phoneEl.value) {
                                 this.guestPhone = String(phoneEl.value || '').trim();
-                            } else if (this.nationalPhoneDigits().length === 9) {
-                                this.guestPhone = '+255' + this.nationalPhoneDigits();
+                            } else if (national.length === 9) {
+                                this.guestPhone = '+255' + national;
                             }
                         },
                         readGuestPhone() {

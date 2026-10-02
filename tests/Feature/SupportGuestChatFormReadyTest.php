@@ -14,8 +14,10 @@ class SupportGuestChatFormReadyTest extends TestCase
         $this->assertStringContainsString('guestFormReady', $html);
         $this->assertStringContainsString('syncGuestPhone', $html);
         $this->assertStringContainsString('guestPhoneDigits', $html);
+        $this->assertStringContainsString('guestNationalLen', $html);
         $this->assertStringContainsString('Anza mazungumzo', $html);
         $this->assertStringContainsString('@input.capture="syncGuestPhone()"', $html);
+        $this->assertStringContainsString('@paste.capture="$nextTick(() => syncGuestPhone())"', $html);
         $this->assertStringContainsString('x-show="!needsGuestGate"', $html);
         $this->assertStringContainsString('responseDelayMinMs', $html);
         $this->assertStringContainsString('paceDelay', $html);
