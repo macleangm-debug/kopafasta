@@ -64,11 +64,19 @@ class SupportAutomationController extends Controller
                 if (! $user) {
                     return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
                 }
-                $workspace = (string) ($request->session()->get('partner_workspace')
-                    ?? $request->attributes->get('partner_workspace')
-                    ?? '');
-                if ($workspace === '') {
-                    $workspace = null;
+                $partner = $user->partner ?? null;
+                if ($partner) {
+                    $workspaces = app(\App\Services\PartnerWorkspaceService::class);
+                    $workspace = $workspaces->currentKey($partner);
+                    // Multi-role without a resolved workspace is handled inside automation start.
+                } else {
+                    $workspace = (string) ($request->session()->get(\App\Services\PartnerWorkspaceService::SESSION_KEY)
+                        ?? $request->session()->get('partner_workspace')
+                        ?? $request->attributes->get('partner_workspace')
+                        ?? '');
+                    if ($workspace === '') {
+                        $workspace = null;
+                    }
                 }
             }
         }

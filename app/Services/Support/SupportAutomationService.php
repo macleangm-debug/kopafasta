@@ -8,6 +8,7 @@ use App\Models\SupportConversation;
 use App\Models\SupportTicket;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 /**
  * Deterministic first-line support driven by SupportHelpLibraryService.
  * No external generative AI — answers come only from published Help content.
@@ -26,7 +27,7 @@ class SupportAutomationService
 
     public const STATE_RESOLVED_SUPPORT = 'resolved_support';
 
-    /** Named digital assistants — never presented as human employees. */
+    /** Fallback named digital assistants — Settings Hub overrides (max 5). */
     public const PERSONAS = [
         ['key' => 'amani', 'name' => 'Amani'],
         ['key' => 'neema', 'name' => 'Neema'],
@@ -35,11 +36,45 @@ class SupportAutomationService
         ['key' => 'daniel', 'name' => 'Daniel'],
     ];
 
+    public const PERSONAS_SETTING_KEY = 'support.msaidizi.personas';
+
     public function __construct(
         private readonly SupportHelpLibraryService $help,
         private readonly SupportConversationService $conversations,
         private readonly SupportTicketService $tickets,
     ) {}
+
+    /**
+     * Active automated persona names (max 5). Settings Hub is source of truth.
+     *
+     * @return list<array{key: string, name: string}>
+     */
+    public function personas(): array
+    {
+        $stored = Setting::get(self::PERSONAS_SETTING_KEY);
+        if (! is_array($stored) || $stored === []) {
+            return self::PERSONAS;
+        }
+
+        $out = [];
+        foreach (array_slice(array_values($stored), 0, 5) as $i => $row) {
+            if (is_string($row)) {
+                $name = trim($row);
+                $key = Str::slug($name) ?: ('persona_'.($i + 1));
+            } elseif (is_array($row)) {
+                $name = trim((string) ($row['name'] ?? ''));
+                $key = trim((string) ($row['key'] ?? '')) ?: (Str::slug($name) ?: ('persona_'.($i + 1)));
+            } else {
+                continue;
+            }
+            if ($name === '') {
+                continue;
+            }
+            $out[] = ['key' => $key, 'name' => $name];
+        }
+
+        return $out !== [] ? $out : self::PERSONAS;
+    }
 
     /**
      * @return list<array{key:string,label:string,icon:string}>
@@ -82,14 +117,6 @@ class SupportAutomationService
             ->filter(fn (array $i) => $i['slug'] !== '' && $i['label'] !== '')
             ->values()
             ->all();
-    }
-
-    /**
-     * @return array{key: string, name: string}
-     */
-    public function personas(): array
-    {
-        return self::PERSONAS;
     }
 
     public function personaDisplayName(string $personaName, ?string $locale = null): string
@@ -175,7 +202,9 @@ class SupportAutomationService
         $meta = $this->meta($conversation);
         $meta['audience'] = $audience;
         $meta['workspace'] = $workspace;
-        $meta['phase'] = 'category';
+        $isGuest = ! $customer && ! $user;
+        // Guests must route Borrower vs Partner before categories. Authenticated users already have audience.
+        $meta['phase'] = $isGuest ? 'audience_route' : 'category';
         $meta['tried_slugs'] = [];
         $meta['category_key'] = null;
         $meta['issue_slug'] = null;
@@ -197,6 +226,16 @@ class SupportAutomationService
                 false,
             );
             $meta['greeting_sent'] = true;
+            if ($isGuest) {
+                $this->conversations->appendMessage(
+                    $conversation,
+                    'bot',
+                    $this->audienceRoutePrompt($locale, $firstName),
+                    null,
+                    true,
+                    false,
+                );
+            }
         }
 
         $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
@@ -222,6 +261,8 @@ class SupportAutomationService
         $locale = $locale ?? app()->getLocale();
 
         return match ($action) {
+            'audience' => $this->selectAudience($conversation, (string) ($input['key'] ?? ''), $locale),
+            'workspace' => $this->selectWorkspace($conversation, (string) ($input['key'] ?? ''), $locale),
             'category' => $this->selectCategory($conversation, (string) ($input['key'] ?? ''), $audience, $workspace, $locale),
             'issue' => $this->selectIssue($conversation, (string) ($input['slug'] ?? ''), $customer, $user, $audience, $workspace, $locale),
             'resolved_yes' => $this->resolveAutomated($conversation, $locale),
@@ -261,7 +302,11 @@ class SupportAutomationService
 
         $choices = [];
         if ($handling === self::STATE_WAITING_CUSTOMER || $handling === self::STATE_AUTOMATED) {
-            if ($phase === 'category') {
+            if ($phase === 'audience_route') {
+                $choices = $this->audienceRouteChoices($locale);
+            } elseif ($phase === 'workspace_route') {
+                $choices = $this->workspaceRouteChoices($locale, $meta['workspace_options'] ?? null);
+            } elseif ($phase === 'category') {
                 $choices = collect($this->categoryChoices($audience, $locale, is_string($workspace) ? $workspace : null))
                     ->map(fn (array $c) => [
                         'action' => 'category',
@@ -365,6 +410,93 @@ class SupportAutomationService
     }
 
     /**
+     * Guest conversation routing — not identity proof or account role assignment.
+     *
+     * @return array<string, mixed>
+     */
+    private function selectAudience(SupportConversation $conversation, string $key, ?string $locale): array
+    {
+        $meta = $this->meta($conversation);
+        $key = strtolower(trim($key));
+        if (! in_array($key, ['member', 'partner'], true)) {
+            throw new \InvalidArgumentException('Unknown audience.');
+        }
+
+        $label = $key === 'partner'
+            ? ($this->isSw($locale) ? 'Mimi ni Mshirika' : 'I am a Partner')
+            : ($this->isSw($locale) ? 'Mimi ni Mkopaji / Mwanachama' : 'I am a Borrower / Member');
+        $this->conversations->appendMessage($conversation, 'customer', $label, null, false, false);
+
+        $meta['audience'] = $key;
+        $meta['audience_routed'] = true;
+
+        if ($key === 'partner') {
+            // Guest Partner: pick service branch before categories (Affiliate / Supplier / …).
+            $meta['workspace'] = null;
+            $meta['workspace_options'] = $this->guestPartnerWorkspaceOptions($locale);
+            $meta['phase'] = 'workspace_route';
+            $firstName = (string) ($meta['customer_first_name'] ?? '');
+            $this->conversations->appendMessage(
+                $conversation,
+                'bot',
+                $this->workspaceRoutePrompt($locale, $firstName !== '' ? $firstName : null),
+                null,
+                true,
+                false,
+            );
+            $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
+
+            return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, 'partner', $locale, null);
+        }
+
+        $meta['workspace'] = null;
+        $meta['phase'] = 'category';
+        $firstName = (string) ($meta['customer_first_name'] ?? '');
+        $this->conversations->appendMessage(
+            $conversation,
+            'bot',
+            $this->askCategoryPrompt($locale, $firstName !== '' ? $firstName : null),
+            null,
+            true,
+            false,
+        );
+        $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
+
+        return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, 'member', $locale, null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function selectWorkspace(SupportConversation $conversation, string $key, ?string $locale): array
+    {
+        $meta = $this->meta($conversation);
+        $key = strtolower(trim($key));
+        $options = collect($meta['workspace_options'] ?? $this->guestPartnerWorkspaceOptions($locale));
+        $match = $options->firstWhere('key', $key);
+        if (! $match) {
+            throw new \InvalidArgumentException('Unknown partner service.');
+        }
+
+        $this->conversations->appendMessage($conversation, 'customer', (string) $match['label'], null, false, false);
+        $meta['audience'] = 'partner';
+        $meta['workspace'] = $key;
+        $meta['phase'] = 'category';
+        $firstName = (string) ($meta['customer_first_name'] ?? '');
+        $this->conversations->appendMessage(
+            $conversation,
+            'bot',
+            $this->askCategoryPrompt($locale, $firstName !== '' ? $firstName : null),
+            null,
+            true,
+            false,
+        );
+        $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
+
+        return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, 'partner', $locale, $key);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function selectCategory(
@@ -439,7 +571,7 @@ class SupportAutomationService
         $label = $isSw
             ? (string) ($article['q_sw'] ?? $article['q_en'] ?? '')
             : (string) ($article['q_en'] ?? $article['q_sw'] ?? '');
-        $body = $this->formatArticleAnswer($article, $locale, $customer);
+        $body = $this->formatArticleAnswer($article, $locale, $customer, $user, $audience, is_string($workspace) ? $workspace : null, $categoryKey, $slug);
 
         $this->conversations->appendMessage($conversation, 'customer', $label, null, false, false);
         $this->conversations->appendMessage($conversation, 'bot', $body, null, true, false);
@@ -838,8 +970,16 @@ class SupportAutomationService
     /**
      * @param  array<string, mixed>  $article
      */
-    private function formatArticleAnswer(array $article, ?string $locale, ?Customer $customer): string
-    {
+    private function formatArticleAnswer(
+        array $article,
+        ?string $locale,
+        ?Customer $customer,
+        ?User $user = null,
+        string $audience = 'member',
+        ?string $workspace = null,
+        string $categoryKey = '',
+        string $slug = '',
+    ): string {
         $isSw = $this->isSw($locale);
         $body = $isSw
             ? (string) ($article['a_sw'] ?? $article['a_en'] ?? '')
@@ -876,7 +1016,189 @@ class SupportAutomationService
             }
         }
 
+        $personal = $this->personalCommercialContext($user, $audience, $workspace, $categoryKey, $slug, $locale);
+        if ($personal !== null && $personal !== '') {
+            $parts[] = $personal;
+        }
+
         return trim(implode("\n\n", array_filter($parts)));
+    }
+
+    /**
+     * Partner-specific commercial line from authoritative services — never invent rates.
+     */
+    private function personalCommercialContext(
+        ?User $user,
+        string $audience,
+        ?string $workspace,
+        string $categoryKey,
+        string $slug,
+        ?string $locale,
+    ): ?string {
+        if ($audience !== 'partner' || ! $user) {
+            return null;
+        }
+
+        $partner = $user->partner ?? null;
+        if (! $partner) {
+            return null;
+        }
+
+        $isSw = $this->isSw($locale);
+        $commercialSlugs = [
+            'affiliate-commission', 'affiliate-earnings', 'affiliate-referrals',
+            'supplier-earnings', 'supplier-markup', 'supplier-commission', 'supplier-deposit',
+        ];
+        $looksCommercial = in_array($slug, $commercialSlugs, true)
+            || str_contains($slug, 'commission')
+            || str_contains($slug, 'earnings')
+            || str_contains($slug, 'markup')
+            || str_contains($categoryKey, 'affiliate')
+            || str_contains($categoryKey, 'supplier');
+
+        if (! $looksCommercial) {
+            return null;
+        }
+
+        try {
+            if (($workspace === 'affiliate' || $categoryKey === 'affiliate') && method_exists($partner, 'isAffiliate') && $partner->isAffiliate()) {
+                $pct = app(\App\Services\AffiliateService::class)->commissionPercent($partner);
+                $tier = method_exists($partner, 'isPremiumAffiliate') && $partner->isPremiumAffiliate()
+                    ? ($isSw ? 'Premium' : 'Premium')
+                    : ($isSw ? 'Standard' : 'Standard');
+                if ($pct > 0) {
+                    return $isSw
+                        ? "Akaunti yako ({$tier}): kiwango chako cha sasa cha kamisheni ni {$pct}% kulingana na usanidi/makubaliano yako."
+                        : "Your account ({$tier}): your current commission rate is {$pct}% per your configuration/agreement.";
+                }
+
+                return $isSw
+                    ? 'Kamisheni yako inafuata usanidi wa Affiliate kwenye akaunti yako. Fungua nafasi ya Affiliate kuona maelezo, au Ongea na Usaidizi ikiwa haionekani.'
+                    : 'Your commission follows the Affiliate configuration on your account. Open your Affiliate workspace for details, or Talk to Support if it is missing.';
+            }
+
+            if (($workspace === 'supplier' || $categoryKey === 'supplier') && method_exists($partner, 'isSupplier') && $partner->isSupplier()) {
+                $lending = app(\App\Services\AssetLendingService::class);
+                $markup = $lending->defaultDepositMarkupPercent();
+                if ($markup > 0) {
+                    return $isSw
+                        ? "Kulingana na usanidi wa soko wa sasa, asilimia ya markup ya amana ni {$markup}%. Fungua nafasi ya Msambazaji kwa oda na malipo yako."
+                        : "Per current marketplace configuration, the default deposit markup percent is {$markup}%. Open your Supplier workspace for your orders and payments.";
+                }
+            }
+        } catch (\Throwable) {
+            return $isSw
+                ? 'Hatuwezi kuthibitisha kiwango cha kibiashara sasa. Fuata maelezo yaliyo kwenye nafasi yako ya Mshirika, au Ongea na Usaidizi.'
+                : 'We cannot confirm the commercial rate right now. Follow the details in your Partner workspace, or Talk to Support.';
+        }
+
+        return null;
+    }
+
+    private function audienceRoutePrompt(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            return $name !== ''
+                ? "{$name}, tunawezaje kukusaidia? Chagua chini."
+                : 'Tunawezaje kukusaidia? Chagua chini.';
+        }
+
+        return $name !== ''
+            ? "{$name}, how can we help you? Choose below."
+            : 'How can we help you? Choose below.';
+    }
+
+    /**
+     * @return list<array{action: string, key: string, label: string}>
+     */
+    private function audienceRouteChoices(?string $locale): array
+    {
+        if ($this->isSw($locale)) {
+            return [
+                ['action' => 'audience', 'key' => 'member', 'label' => 'Mimi ni Mkopaji / Mwanachama'],
+                ['action' => 'audience', 'key' => 'partner', 'label' => 'Mimi ni Mshirika'],
+            ];
+        }
+
+        return [
+            ['action' => 'audience', 'key' => 'member', 'label' => 'I am a Borrower / Member'],
+            ['action' => 'audience', 'key' => 'partner', 'label' => 'I am a Partner'],
+        ];
+    }
+
+    private function workspaceRoutePrompt(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            return $name !== ''
+                ? "Sawa {$name}. Unahitaji msaada wa huduma gani ya Ushirika?"
+                : 'Sawa. Unahitaji msaada wa huduma gani ya Ushirika?';
+        }
+
+        return $name !== ''
+            ? "Alright {$name}. Which Partner service do you need help with?"
+            : 'Alright. Which Partner service do you need help with?';
+    }
+
+    /**
+     * @param  list<array{key: string, label: string}>|null  $options
+     * @return list<array{action: string, key: string, label: string}>
+     */
+    private function workspaceRouteChoices(?string $locale, ?array $options): array
+    {
+        $rows = $options ?: $this->guestPartnerWorkspaceOptions($locale);
+
+        return collect($rows)
+            ->map(fn (array $r) => [
+                'action' => 'workspace',
+                'key' => (string) $r['key'],
+                'label' => (string) $r['label'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{key: string, label: string}>
+     */
+    private function guestPartnerWorkspaceOptions(?string $locale): array
+    {
+        if ($this->isSw($locale)) {
+            return [
+                ['key' => 'affiliate', 'label' => 'Affiliate'],
+                ['key' => 'supplier', 'label' => 'Msambazaji wa mali'],
+                ['key' => 'insurance', 'label' => 'Bima'],
+                ['key' => 'recovery', 'label' => 'Urejesho'],
+                ['key' => 'valuer', 'label' => 'Mthamini'],
+                ['key' => 'capital', 'label' => 'Mtaji'],
+                ['key' => 'service', 'label' => 'Huduma nyingine ya Mshirika'],
+            ];
+        }
+
+        return [
+            ['key' => 'affiliate', 'label' => 'Affiliate'],
+            ['key' => 'supplier', 'label' => 'Asset Supplier'],
+            ['key' => 'insurance', 'label' => 'Insurance Partner'],
+            ['key' => 'recovery', 'label' => 'Recovery Partner'],
+            ['key' => 'valuer', 'label' => 'Valuer'],
+            ['key' => 'capital', 'label' => 'Capital Partner'],
+            ['key' => 'service', 'label' => 'Other Partner service'],
+        ];
+    }
+
+    private function askCategoryPrompt(?string $locale, ?string $firstName): string
+    {
+        $name = trim((string) $firstName);
+        if ($this->isSw($locale)) {
+            return $name !== ''
+                ? "Sawa {$name}. Chagua mada ya msaada."
+                : 'Sawa. Chagua mada ya msaada.';
+        }
+
+        return $name !== ''
+            ? "Alright {$name}. Choose a help topic."
+            : 'Alright. Choose a help topic.';
     }
 
     private function isSw(?string $locale): bool
@@ -897,7 +1219,8 @@ class SupportAutomationService
             return $existing;
         }
 
-        $persona = self::PERSONAS[array_rand(self::PERSONAS)];
+        $pool = $this->personas();
+        $persona = $pool[array_rand($pool)];
         $meta['persona_key'] = $persona['key'];
         $meta['persona_name'] = $persona['name'];
 
@@ -911,13 +1234,14 @@ class SupportAutomationService
     private function personaFromMeta(array $meta): array
     {
         $key = (string) ($meta['persona_key'] ?? '');
-        foreach (self::PERSONAS as $persona) {
+        $pool = $this->personas();
+        foreach ($pool as $persona) {
             if ($persona['key'] === $key) {
                 return $persona;
             }
         }
 
-        return self::PERSONAS[0];
+        return $pool[0];
     }
 
     private function resolveFirstName(

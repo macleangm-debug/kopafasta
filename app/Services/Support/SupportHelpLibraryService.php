@@ -51,16 +51,21 @@ class SupportHelpLibraryService
         $groups = $this->injectProductsCategory($groups, $audience);
 
         if ($audience === 'partner' && filled($workspace)) {
+            $aliases = match ((string) $workspace) {
+                'service' => ['service', 'insurance', 'recovery', 'valuer'],
+                'insurance', 'recovery', 'valuer' => [(string) $workspace, 'service'],
+                default => [(string) $workspace],
+            };
             $groups = collect($groups)
-                ->filter(function (array $g) use ($workspace) {
+                ->filter(function (array $g) use ($aliases) {
                     $workspaces = $g['workspaces'] ?? null;
                     if (! is_array($workspaces) || $workspaces === []) {
                         // Shared/common partner topics (account, registration, etc.).
                         return in_array((string) ($g['audience'] ?? 'both'), ['both', 'partner', 'public'], true)
-                            && ! in_array((string) ($g['key'] ?? ''), ['apply-loan', 'guarantors', 'group-loans', 'repayments', 'collateral', 'marketplace', 'plus', 'rewards'], true);
+                            && ! in_array((string) ($g['key'] ?? ''), ['apply-loan', 'guarantors', 'group-loans', 'repayments', 'collateral', 'marketplace', 'plus', 'rewards', 'products'], true);
                     }
 
-                    return in_array($workspace, $workspaces, true);
+                    return array_intersect($workspaces, $aliases) !== [];
                 })
                 ->values()
                 ->all();
@@ -596,31 +601,122 @@ class SupportHelpLibraryService
                 $this->howto('become-partner', 'Getting started', 'Kuanza',
                     'How do I become a Partner or Affiliate?', 'Ninawezaje kuwa Mshirika au Affiliate?',
                     'Become a Partner / Affiliate', 'Kuwa Mshirika / Affiliate',
-                    'Use the public apply flow, then track activation.',
-                    'Tumia mtiririko wa ombi la umma, kisha fuatilia uanzishaji.',
-                    ['Open Partner apply', 'Complete the form', 'Submit documents', 'Wait for review', 'Accept agreement and activate'],
-                    ['Fungua ombi la Mshirika', 'Kamilisha fomu', 'Wasilisha hati', 'Subiri ukaguzi', 'Kubali makubaliano na anzisha']),
+                    'Use the public Partner apply flow for Standard Affiliate and other open Partner roles, then track activation. Premium Affiliate is registered internally — it is not a public self-registration option.',
+                    'Tumia mtiririko wa ombi la umma kwa Affiliate ya Standard na majukumu mengine ya Mshirika yaliyo wazi, kisha fuatilia uanzishaji. Affiliate ya Premium inasajiliwa ndani — si chaguo la kujisajili hadharani.',
+                    ['Open Partner apply', 'Complete the form for the role you want', 'Submit documents', 'Wait for review', 'Accept agreement and activate'],
+                    ['Fungua ombi la Mshirika', 'Kamilisha fomu kwa jukumu unalotaka', 'Wasilisha hati', 'Subiri ukaguzi', 'Kubali makubaliano na anzisha']),
                 $this->answer('partner-wallet', 'Wallet', 'Pochi',
                     'Where is my Partner wallet?', 'Pochi yangu ya Mshirika iko wapi?',
                     'Open your Partner workspace wallet for available / pending balance and withdrawal history.',
                     'Fungua pochi ya nafasi yako ya Mshirika kwa salio linalopatikana / linalosubiri na historia ya uondoaji.'),
-                $this->answer('affiliate-referrals', 'Affiliate', 'Affiliate',
-                    'How do referrals and commissions work?', 'Rufaa na kamisheni zinafanyaje kazi?',
-                    'Open your Affiliate workspace for referrals, campaigns, and commission tracking. Withdrawal follows wallet rules.',
-                    'Fungua nafasi yako ya Affiliate kwa rufaa, kampeni, na ufuatiliaji wa kamisheni. Uondoaji unafuata sheria za pochi.'),
-                $this->answer('insurance-partner', 'Insurance', 'Bima',
-                    'How do insurance partner assignments work?', 'Kazi za mshirika wa bima zinafanyaje?',
-                    'Open your Insurance workspace for assigned journeys, policies, and next actions.',
-                    'Fungua nafasi yako ya Bima kwa kazi zilizokabidhiwa, sera, na hatua zinazofuata.'),
-                $this->answer('recovery-partner', 'Recovery', 'Urejesho',
-                    'How do recovery assignments work?', 'Kazi za urejesho zinafanyaje?',
-                    'Open your Recovery workspace for assignments, process steps, and earnings/withdrawal.',
-                    'Fungua nafasi yako ya Urejesho kwa kazi, hatua za mchakato, na mapato/uondoaji.'),
-                $this->answer('supplier-partner', 'Supplier', 'Msambazaji',
-                    'How do supplier marketplace orders work?', 'Oda za soko la msambazaji zinafanyaje?',
-                    'Open your Supplier workspace for marketplace orders and payments.',
-                    'Fungua nafasi yako ya Msambazaji kwa oda za soko na malipo.'),
             ], ['affiliate', 'insurance', 'recovery', 'supplier', 'service', 'valuer', 'capital']),
+            $this->cat('affiliate', 'Affiliate', 'Affiliate', 'partner', '🤝', [
+                $this->answer('affiliate-how', 'Basics', 'Misingi',
+                    'How does Affiliate work?', 'Affiliate inafanyaje kazi?',
+                    'Affiliates refer members with a referral/promo code. Commission and discounts follow the current Affiliate configuration. Public information describes Standard Affiliate. Premium Affiliate terms apply only to authenticated Premium Affiliates.',
+                    'Affiliate hurejelea wanachama kwa msimbo wa rufaa/promo. Kamisheni na punguzo zinafuata usanidi wa sasa wa Affiliate. Taarifa za umma zinaeleza Affiliate ya Standard. Masharti ya Premium yanatumika tu kwa Affiliate ya Premium iliyothibitishwa.'),
+                $this->answer('affiliate-code', 'Referral', 'Rufaa',
+                    'Where is my referral / promo code?', 'Msimbo wangu wa rufaa / promo uko wapi?',
+                    'Open your Affiliate workspace to view and manage your referral code where editing is allowed.',
+                    'Fungua nafasi yako ya Affiliate kuona na kudhibiti msimbo wako wa rufaa pale uhariri unaporuhusiwa.'),
+                $this->answer('affiliate-commission', 'Commission', 'Kamisheni',
+                    'What commission do I get?', 'Ninapata kamisheni gani?',
+                    'Commission follows Affiliate Settings and your agreement. Authenticated Affiliates see their effective rate from account configuration — Support does not invent percentages.',
+                    'Kamisheni inafuata Mipangilio ya Affiliate na makubaliano yako. Affiliate walioingia wanaona kiwango chao halisi kutoka usanidi wa akaunti — Usaidizi hautoi asilimia za kubuni.'),
+                $this->answer('affiliate-earnings', 'Earnings', 'Mapato',
+                    'Where do I see earnings and withdrawals?', 'Ninaona wapi mapato na uondoaji?',
+                    'Open your Affiliate wallet for available / pending balance and withdrawal history. Withdrawal rules follow Payments / wallet Settings.',
+                    'Fungua pochi yako ya Affiliate kwa salio linalopatikana / linalosubiri na historia ya uondoaji. Sheria za uondoaji zinafuata Mipangilio ya Malipo / pochi.'),
+                $this->answer('affiliate-referrals', 'Tracking', 'Ufuatiliaji',
+                    'How do I track referrals?', 'Ninafuatiliaje rufaa?',
+                    'Open your Affiliate workspace for referrals, campaigns, and commission tracking.',
+                    'Fungua nafasi yako ya Affiliate kwa rufaa, kampeni, na ufuatiliaji wa kamisheni.'),
+                $this->answer('affiliate-profile', 'Account', 'Akaunti',
+                    'Where is my Affiliate profile / agreement?', 'Wasifu / makubaliano yangu ya Affiliate yako wapi?',
+                    'Agreements and account settings live under Partner Profile / account. The dashboard shows Needs Attention only when action is required.',
+                    'Makubaliano na mipangilio ya akaunti yako chini ya Wasifu / akaunti ya Mshirika. Dashibodi inaonyesha Mahitaji ya Makini tu hatua inapohitajika.'),
+            ], ['affiliate']),
+            $this->cat('supplier', 'Asset Supplier', 'Msambazaji wa mali', 'partner', '📦', [
+                $this->answer('supplier-how', 'Basics', 'Misingi',
+                    'How does Asset Supplier work?', 'Msambazaji wa mali anafanyaje kazi?',
+                    'Suppliers list marketplace assets, follow deposit and order steps, and receive payouts per marketplace configuration.',
+                    'Wasambazaji huorodhesha mali kwenye soko, hufuata hatua za amana na oda, na hupokea malipo kulingana na usanidi wa soko.'),
+                $this->howto('supplier-add-asset', 'Assets', 'Mali',
+                    'How do I add an asset?', 'Ninawezaje kuongeza mali?',
+                    'Add an asset', 'Ongeza mali',
+                    'Open your Supplier workspace and follow the list-asset flow shown there.',
+                    'Fungua nafasi yako ya Msambazaji na fuata mtiririko wa kuorodhesha mali unaoonekana huko.',
+                    ['Open Supplier workspace', 'Start Add / list asset', 'Enter asset details and photos', 'Submit for review', 'Track status in Supplier orders'],
+                    ['Fungua nafasi ya Msambazaji', 'Anza Ongeza / orodhesha mali', 'Weka maelezo na picha', 'Wasilisha kwa ukaguzi', 'Fuatilia hali kwenye oda za Msambazaji']),
+                $this->answer('supplier-deposit', 'Deposits', 'Amana',
+                    'How does the deposit work?', 'Amana inafanyaje kazi?',
+                    'Buyer deposits follow Asset Lending / marketplace Settings (tiers and markup). Amounts shown on each deal come from that configuration — Support does not invent deposit figures.',
+                    'Amana za mnunuzi zinafuata Mipangilio ya Ufadhili wa Mali / soko (ngazi na markup). Kiasi kwenye kila shughuli kinatokana na usanidi huo — Usaidizi hautoi kiasi cha amana cha kubuni.'),
+                $this->answer('supplier-markup', 'Pricing', 'Bei',
+                    'How does markup / commission work?', 'Markup / kamisheni inafanyaje kazi?',
+                    'Markup and supplier earnings follow Marketplace / Asset Lending Settings and each asset deal. Authenticated Suppliers see applicable configured values when available.',
+                    'Markup na mapato ya msambazaji yanafuata Mipangilio ya Soko / Ufadhili wa Mali na kila shughuli. Wasambazaji walioingia wanaona thamani zilizosanidiwa zinapopatikana.'),
+                $this->answer('supplier-earnings', 'Earnings', 'Mapato',
+                    'What do I earn / how am I paid?', 'Ninachuma nini / ninalipwaje?',
+                    'Open Supplier wallet and orders for payouts. Commercial percentages come from Settings / deal configuration — never from free-typed chatbot copy.',
+                    'Fungua pochi na oda za Msambazaji kwa malipo. Asilimia za kibiashara zinatokana na Mipangilio / usanidi wa shughuli — si nakala ya gumzo.'),
+                $this->answer('supplier-orders', 'Orders', 'Oda',
+                    'Where are marketplace orders / requests?', 'Oda / maombi ya soko yako wapi?',
+                    'Open your Supplier workspace for marketplace orders and payment status.',
+                    'Fungua nafasi yako ya Msambazaji kwa oda za soko na hali ya malipo.'),
+                $this->answer('supplier-profile', 'Account', 'Akaunti',
+                    'Where is my Supplier profile?', 'Wasifu wangu wa Msambazaji uko wapi?',
+                    'Use Partner Profile / account for agreements and KYC. Dashboard Needs Attention appears only when action is required.',
+                    'Tumia Wasifu / akaunti ya Mshirika kwa makubaliano na KYC. Mahitaji ya Makini yanaonekana tu hatua inapohitajika.'),
+            ], ['supplier']),
+            $this->cat('insurance', 'Insurance Partner', 'Mshirika wa Bima', 'partner', '🛡️', [
+                $this->answer('insurance-how', 'Basics', 'Misingi',
+                    'How does the insurance partnership work?', 'Ushirikiano wa bima unafanyaje kazi?',
+                    'Insurance Partners handle assigned customer journeys and policies in the Insurance workspace.',
+                    'Washirika wa Bima hushughulikia safari za wateja na sera zilizokabidhiwa kwenye nafasi ya Bima.'),
+                $this->answer('insurance-products', 'Products', 'Bidhaa',
+                    'Where do I see products / services?', 'Ninaona wapi bidhaa / huduma?',
+                    'Open your Insurance workspace for products and services enabled for your partnership.',
+                    'Fungua nafasi yako ya Bima kwa bidhaa na huduma zilizowezeshwa kwa ushirikiano wako.'),
+                $this->answer('insurance-customers', 'Applications', 'Maombi',
+                    'How do customer applications work?', 'Maombi ya wateja yanafanyaje?',
+                    'Follow assigned journeys in your Insurance workspace. Status and next actions are shown there.',
+                    'Fuata safari zilizokabidhiwa kwenye nafasi yako ya Bima. Hali na hatua zinazofuata zinaonekana huko.'),
+                $this->answer('insurance-earnings', 'Earnings', 'Mapato',
+                    'How do earnings / commission work?', 'Mapato / kamisheni yanafanyaje?',
+                    'Where commission applies, amounts follow Partner / Insurance configuration and your wallet — Support does not invent rates.',
+                    'Kamisheni inapotumika, kiasi kinafuata usanidi wa Mshirika / Bima na pochi yako — Usaidizi hautoi viwango vya kubuni.'),
+                $this->answer('insurance-profile', 'Account', 'Akaunti',
+                    'Where is my Insurance Partner profile?', 'Wasifu wangu wa Mshirika wa Bima uko wapi?',
+                    'Agreements live under Partner Profile / account.',
+                    'Makubaliano yako chini ya Wasifu / akaunti ya Mshirika.'),
+            ], ['insurance', 'service']),
+            $this->cat('recovery', 'Recovery Partner', 'Mshirika wa Urejesho', 'partner', '🧭', [
+                $this->answer('recovery-assignments', 'Assignments', 'Kazi',
+                    'How do recovery assignments work?', 'Kazi za urejesho zinafanyaje?',
+                    'Open your Recovery / Collection workspace for assignments and next actions.',
+                    'Fungua nafasi yako ya Urejesho / Ukusanyaji kwa kazi na hatua zinazofuata.'),
+                $this->answer('recovery-process', 'Process', 'Mchakato',
+                    'What is the recovery process?', 'Mchakato wa urejesho ni nini?',
+                    'Follow the steps shown on each assignment. Do not invent fees or settlement amounts outside the case screens.',
+                    'Fuata hatua zilizoonyeshwa kwenye kila kazi. Usibuni ada au kiasi cha suluhu nje ya skrini za kesi.'),
+                $this->answer('recovery-fees', 'Fees', 'Ada',
+                    'How do fees / earnings work?', 'Ada / mapato yanafanyaje?',
+                    'Fees and earnings follow Recovery Partner configuration and each assignment. Support reads configured values — it does not invent them.',
+                    'Ada na mapato yanafuata usanidi wa Mshirika wa Urejesho na kila kazi. Usaidizi husoma thamani zilizosanidiwa — hauzibuni.'),
+                $this->answer('recovery-payments', 'Payments', 'Malipo',
+                    'Where are payments / withdrawals?', 'Malipo / uondoaji viko wapi?',
+                    'Use your Partner wallet for available / pending balance and withdrawal history.',
+                    'Tumia pochi yako ya Mshirika kwa salio linalopatikana / linalosubiri na historia ya uondoaji.'),
+                $this->answer('recovery-performance', 'Performance', 'Utendaji',
+                    'Where do I see performance?', 'Ninaona wapi utendaji?',
+                    'Open your Recovery workspace for assignment progress. KPI rules only apply where your Partner agreement requires them.',
+                    'Fungua nafasi yako ya Urejesho kwa maendeleo ya kazi. Sheria za KPI zinatumika tu pale makubaliano yako yanapohitaji.'),
+                $this->answer('recovery-profile', 'Account', 'Akaunti',
+                    'Where is my Recovery Partner profile?', 'Wasifu wangu wa Mshirika wa Urejesho uko wapi?',
+                    'Agreements live under Partner Profile / account.',
+                    'Makubaliano yako chini ya Wasifu / akaunti ya Mshirika.'),
+            ], ['recovery', 'service']),
         ];
     }
 
@@ -676,8 +772,8 @@ class SupportHelpLibraryService
         }
         $products = $query->orderBy('name')->limit(40)->get();
         if ($products->isEmpty()) {
-            return $this->cat('products', 'Products', 'Bidhaa', 'member', '📦', [
-                $this->answer('no-products', 'Products', 'Bidhaa',
+            return $this->cat('products', 'Loan products', 'Bidhaa za mikopo', 'member', '📦', [
+                $this->answer('no-products', 'Loan products', 'Bidhaa za mikopo',
                     'Which products are available?', 'Bidhaa zipi zinapatikana?',
                     'Open Loans to see products currently offered. Availability follows Admin configuration.',
                     'Fungua Mikopo kuona bidhaa zinazotolewa sasa. Upatikanaji unafuata usanidi wa Admin.'),
@@ -694,12 +790,29 @@ class SupportHelpLibraryService
             $max = $product->max_amount ?? null;
             $needsG = (bool) ($product->requires_guarantor ?? false);
             $needsC = (bool) ($product->requires_collateral ?? false);
+            $tenureMin = isset($product->tenure_min_months) ? (int) $product->tenure_min_months : null;
+            $tenureMax = isset($product->tenure_max_months) ? (int) $product->tenure_max_months : null;
+            $cadence = trim((string) ($product->repayment_cadence ?? ''));
             $rangeEn = ($min !== null && $max !== null)
                 ? 'Typical amount range: '.format_money((float) $min).' – '.format_money((float) $max).'.'
                 : 'Open the product card in Loans for current amount and tenure limits.';
             $rangeSw = ($min !== null && $max !== null)
                 ? 'Kiasi cha kawaida: '.format_money((float) $min).' – '.format_money((float) $max).'.'
                 : 'Fungua kadi ya bidhaa kwenye Mikopo kwa mipaka ya sasa ya kiasi na muda.';
+            $tenureEn = ($tenureMin && $tenureMax)
+                ? ($tenureMin === $tenureMax
+                    ? "Duration: {$tenureMin} months."
+                    : "Duration: {$tenureMin}–{$tenureMax} months.")
+                : '';
+            $tenureSw = ($tenureMin && $tenureMax)
+                ? ($tenureMin === $tenureMax
+                    ? "Muda: miezi {$tenureMin}."
+                    : "Muda: miezi {$tenureMin}–{$tenureMax}.")
+                : '';
+            $cadenceEn = $cadence !== '' ? 'Repayment cadence: '.$cadence.'.' : '';
+            $cadenceSw = $cadence !== '' ? 'Mpangilio wa marejesho: '.$cadence.'.' : '';
+            $commercialEn = $this->productCommercialLine($product, false);
+            $commercialSw = $this->productCommercialLine($product, true);
             $reqEn = collect([
                 $needsG ? 'May require a guarantor.' : null,
                 $needsC ? 'May require collateral.' : null,
@@ -709,27 +822,30 @@ class SupportHelpLibraryService
                 $needsC ? 'Inaweza kuhitaji dhamana.' : null,
             ])->filter()->implode(' ') ?: 'Mahitaji yanafuata kadi ya bidhaa na hatua za Uchunguzi.';
 
+            $summaryEn = trim(implode(' ', array_filter([$rangeEn, $tenureEn, $cadenceEn, $commercialEn, $reqEn])));
+            $summarySw = trim(implode(' ', array_filter([$rangeSw, $tenureSw, $cadenceSw, $commercialSw, $reqSw])));
+
             $articles[] = $this->howto(
                 $slug,
-                'Products',
-                'Bidhaa',
+                'Loan products',
+                'Bidhaa za mikopo',
                 'How does '.$name.' work?',
                 $name.' inafanyaje kazi?',
                 $name,
                 $name,
-                $rangeEn.' '.$reqEn.' Apply from Loans, complete required steps, then submit.',
-                $rangeSw.' '.$reqSw.' Omba kutoka Mikopo, kamilisha hatua zinazohitajika, kisha wasilisha.',
+                $summaryEn.' Apply from Loans, complete required steps, then submit.',
+                $summarySw.' Omba kutoka Mikopo, kamilisha hatua zinazohitajika, kisha wasilisha.',
                 [
                     'Open Loans',
                     'Select '.$name,
-                    'Review eligibility, amount and tenure on the product card',
+                    'Review eligibility, amount, tenure, fees and rates on the product card',
                     'Tap Apply and complete required steps',
                     'Submit — Application View shows what happens next',
                 ],
                 [
                     'Fungua Mikopo',
                     'Chagua '.$name,
-                    'Hakiki stahiki, kiasi na muda kwenye kadi ya bidhaa',
+                    'Hakiki stahiki, kiasi, muda, ada na viwango kwenye kadi ya bidhaa',
                     'Gusa Omba na kamilisha hatua zinazohitajika',
                     'Wasilisha — Muonekano wa Ombi unaonyesha kinachofuata',
                 ],
@@ -739,7 +855,64 @@ class SupportHelpLibraryService
             );
         }
 
-        return $this->cat('products', 'Products', 'Bidhaa', 'member', '📦', $articles);
+        // Overview article first so “What loans do you offer?” is obvious.
+        array_unshift($articles, $this->answer(
+            'which-loans',
+            'Loan products',
+            'Bidhaa za mikopo',
+            'What loans do you offer / which loan can I apply for?',
+            'Mnatoa mikopo gani / ninaweza kuomba mkopo gani?',
+            'Active products below reflect current Loan Product configuration. Open each product for amount, duration, fees and repayment options. Eligibility follows Screening — Support does not invent rates.',
+            'Bidhaa hai hapa chini zinaonyesha usanidi wa sasa wa Bidhaa za Mikopo. Fungua kila bidhaa kwa kiasi, muda, ada na chaguo za marejesho. Stahiki inafuata Uchunguzi — Usaidizi hautoi viwango vya kubuni.'
+        ));
+
+        return $this->cat('products', 'Loan products', 'Bidhaa za mikopo', 'member', '📦', $articles);
+    }
+
+    /**
+     * Live commercial summary from LoanProduct — omit anything not configured; never invent.
+     */
+    private function productCommercialLine(object $product, bool $sw): string
+    {
+        $bits = [];
+        $hidesInterest = method_exists($product, 'hidesInterest')
+            ? $product->hidesInterest()
+            : (bool) ($product->hides_interest ?? false);
+
+        if (! $hidesInterest && isset($product->interest_rate) && (float) $product->interest_rate > 0) {
+            $rate = rtrim(rtrim(number_format((float) $product->interest_rate, 4, '.', ''), '0'), '.');
+            $method = trim((string) ($product->interest_method ?? ''));
+            $bits[] = $sw
+                ? ('Kiwango cha riba (usanidi wa sasa): '.$rate.'%'.($method !== '' ? ' · '.$method : '').'.')
+                : ('Interest rate (current config): '.$rate.'%'.($method !== '' ? ' · '.$method : '').'.');
+        } elseif ($hidesInterest) {
+            $bits[] = $sw
+                ? 'Maelezo ya riba yanaonyeshwa kwenye kadi ya bidhaa pale yanaporuhusiwa.'
+                : 'Interest details appear on the product card where disclosure is enabled.';
+        }
+
+        foreach ([
+            'processing_fee_rate' => [$sw ? 'Ada ya usindikaji' : 'Processing fee', '%'],
+            'service_fee_rate' => [$sw ? 'Ada ya huduma' : 'Service fee', '%'],
+            'administration_fee_rate' => [$sw ? 'Ada ya usimamizi' : 'Administration fee', '%'],
+        ] as $field => [$label, $suffix]) {
+            if (isset($product->{$field}) && (float) $product->{$field} > 0) {
+                $val = rtrim(rtrim(number_format((float) $product->{$field}, 4, '.', ''), '0'), '.');
+                $bits[] = $label.': '.$val.$suffix.'.';
+            }
+        }
+        if (isset($product->application_fee_amount) && (int) $product->application_fee_amount > 0) {
+            $bits[] = ($sw ? 'Ada ya ombi: ' : 'Application fee: ')
+                .format_money((float) $product->application_fee_amount).'.';
+        }
+
+        if ($bits === []) {
+            return $sw
+                ? 'Fungua kadi ya bidhaa kwa ada na viwango vilivyosanidiwa sasa.'
+                : 'Open the product card for currently configured fees and rates.';
+        }
+
+        return implode(' ', $bits);
     }
 
     /**

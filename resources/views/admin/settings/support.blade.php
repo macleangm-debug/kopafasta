@@ -12,6 +12,11 @@
     while (count($enClosings) < 5) {
         $enClosings[] = '';
     }
+    $personaNames = old('persona_names', $personaNames ?? ['Amani', 'Neema', 'Baraka', 'Rehema', 'Daniel']);
+    while (count($personaNames) < 5) {
+        $personaNames[] = '';
+    }
+    $personaNames = array_slice(array_values($personaNames), 0, 5);
 @endphp
 
 <x-admin.layout title="Support SLA & Priorities" heading="Support SLA & Priorities" subheading="Issue → default priority → target resolution → approaching threshold. Snapshotted onto each ticket at create.">
@@ -27,7 +32,7 @@
     <x-admin.settings-editor
         action="{{ route('admin.settings.support.save') }}"
         submit-label="Save Support settings"
-        :tabs="['issues' => 'Issues & SLA', 'priority' => 'Priority fallbacks', 'recurring' => 'Recurring flags', 'msaidizi' => 'Msaidizi closings']"
+        :tabs="['issues' => 'Issues & SLA', 'priority' => 'Priority fallbacks', 'recurring' => 'Recurring flags', 'msaidizi' => 'Automated assistant']"
         default-tab="issues"
     >
         <div x-show="tab === 'issues'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
@@ -126,7 +131,28 @@
             </div>
         </div>
 
-        <div x-show="tab === 'msaidizi'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-5">
+        <div x-show="tab === 'msaidizi'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-8">
+            <div class="space-y-4">
+                <div>
+                    <p class="text-xs uppercase tracking-widest text-brand font-semibold">Automated assistant personas</p>
+                    <p class="text-sm text-gray-600 mt-1">
+                        Up to <strong>5</strong> named digital assistants. Empty slots are ignored.
+                        Conversations pick one of the active names at start. Leave all blank to restore built-in defaults.
+                    </p>
+                </div>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    @foreach ($personaNames as $i => $name)
+                        <label class="block text-sm">
+                            <span class="font-semibold text-gray-700">Persona {{ $i + 1 }}</span>
+                            <input type="text" name="persona_names[{{ $i }}]" maxlength="40"
+                                   value="{{ $name }}"
+                                   class="mt-1 w-full rounded-lg border-gray-200 text-sm"
+                                   placeholder="Name">
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
             <div>
                 <p class="text-xs uppercase tracking-widest text-brand font-semibold">Guest conversion closings</p>
                 <p class="text-sm text-gray-600 mt-1">

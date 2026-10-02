@@ -39,7 +39,12 @@ class SupportAutomationFeatureTest extends TestCase
         ], $this->guestIdentity()));
         $start->assertOk()->assertJsonPath('ok', true);
         $start->assertJsonPath('handling_state', SupportAutomationService::STATE_WAITING_CUSTOMER);
+        $start->assertJsonPath('phase', 'audience_route');
         $this->assertNotEmpty($start->json('choices'));
+        $this->assertTrue(
+            collect($start->json('choices'))->contains(fn ($c) => ($c['action'] ?? '') === 'audience'),
+            'Guest must choose Borrower/Member vs Partner before categories'
+        );
         $this->assertNotEmpty($start->json('persona_name'));
         $this->assertStringContainsString('Msaidizi wa Kopafasta', (string) $start->json('persona_display')
             ?: (string) $start->json('handling_label'));
@@ -59,7 +64,16 @@ class SupportAutomationFeatureTest extends TestCase
         $this->assertStringNotContainsString('bot', strtolower((string) $greeting));
         $this->assertStringNotContainsString('automated', strtolower((string) $greeting));
 
-        $categoryKey = collect($start->json('choices'))->firstWhere('action', 'category')['key'] ?? null;
+        $audience = $this->postJson(route('site.support.chat.automation'), array_merge([
+            'action' => 'audience',
+            'key' => 'member',
+            'conversation_id' => $conversationId,
+        ], $this->guestIdentity()));
+        $audience->assertOk();
+        $this->assertSame('category', $audience->json('phase'));
+        $this->assertSame($persona, $audience->json('persona_name'));
+
+        $categoryKey = collect($audience->json('choices'))->firstWhere('action', 'category')['key'] ?? null;
         $this->assertNotEmpty($categoryKey);
 
         $cat = $this->postJson(route('site.support.chat.automation'), array_merge([
@@ -104,6 +118,7 @@ class SupportAutomationFeatureTest extends TestCase
         $this->assertFalse((bool) $conversation->needs_human);
         $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
         $this->assertSame($persona, $meta['persona_name'] ?? null);
+        $this->assertSame('member', $meta['audience'] ?? null);
         $this->assertSame('Resolved by Msaidizi', $conversation->resolution_note);
         $this->assertNotEmpty($yes->json('join_cta.url'));
         $this->assertStringContainsString('register', (string) $yes->json('join_cta.url'));
@@ -115,6 +130,70 @@ class SupportAutomationFeatureTest extends TestCase
             || str_contains(mb_strtolower((string) $closing), 'akaunti')
             || str_contains(mb_strtolower((string) $closing), 'account'),
             'Guest closing should invite registration'
+        );
+    }
+
+    public function test_guest_partner_routes_to_workspace_then_categories(): void
+    {
+        $start = $this->postJson(route('site.support.chat.automation'), array_merge([
+            'action' => 'start',
+        ], $this->guestIdentity()));
+        $start->assertOk()->assertJsonPath('phase', 'audience_route');
+        $conversationId = (int) $start->json('conversation_id');
+
+        $partner = $this->postJson(route('site.support.chat.automation'), array_merge([
+            'action' => 'audience',
+            'key' => 'partner',
+            'conversation_id' => $conversationId,
+        ], $this->guestIdentity()));
+        $partner->assertOk()->assertJsonPath('phase', 'workspace_route');
+        $this->assertTrue(
+            collect($partner->json('choices'))->contains(fn ($c) => ($c['key'] ?? '') === 'affiliate')
+        );
+
+        $ws = $this->postJson(route('site.support.chat.automation'), array_merge([
+            'action' => 'workspace',
+            'key' => 'affiliate',
+            'conversation_id' => $conversationId,
+        ], $this->guestIdentity()));
+        $ws->assertOk()->assertJsonPath('phase', 'category');
+        $keys = collect($ws->json('choices'))->pluck('key');
+        $this->assertTrue($keys->contains('affiliate'));
+        $this->assertFalse($keys->contains('apply-loan'));
+    }
+
+    public function test_personas_are_settings_backed_max_five(): void
+    {
+        \App\Models\Setting::set(SupportAutomationService::PERSONAS_SETTING_KEY, [
+            ['key' => 'zuri', 'name' => 'Zuri'],
+            ['key' => 'taji', 'name' => 'Taji'],
+        ]);
+        $names = collect(app(SupportAutomationService::class)->personas())->pluck('name')->all();
+        $this->assertSame(['Zuri', 'Taji'], $names);
+        $this->assertLessThanOrEqual(5, count(app(SupportAutomationService::class)->personas()));
+    }
+
+    public function test_affiliate_public_copy_does_not_advertise_premium_self_registration(): void
+    {
+        $help = app(SupportHelpLibraryService::class);
+        $article = $help->article('partner-account', 'become-partner', 'partner');
+        $this->assertNotNull($article);
+        $blob = strtolower(($article['a_en'] ?? '').' '.($article['a_sw'] ?? ''));
+        $this->assertStringContainsString('standard', $blob);
+        $this->assertStringContainsString('premium', $blob);
+        $this->assertTrue(
+            str_contains($blob, 'not a public') || str_contains($blob, 'si chaguo'),
+            'Premium must not be presented as public self-registration'
+        );
+    }
+
+    public function test_loan_products_category_uses_live_catalogue_key(): void
+    {
+        $cats = app(SupportHelpLibraryService::class)->categories('member');
+        $this->assertTrue(collect($cats)->contains(fn ($c) => ($c['key'] ?? '') === 'products'));
+        $this->assertTrue(
+            collect($cats)->contains(fn ($c) => str_contains(strtolower((string) ($c['label'] ?? '')), 'loan')
+                || str_contains(strtolower((string) ($c['label'] ?? '')), 'bidhaa')),
         );
     }
 

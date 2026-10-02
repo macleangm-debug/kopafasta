@@ -2632,6 +2632,10 @@ class SettingsController extends Controller
                 ? array_values($storedClosings['en'])
                 : $automation->defaultGuestConversionVariants(false),
         ];
+        $personaNames = collect($automation->personas())
+            ->pluck('name')
+            ->values()
+            ->all();
 
         return view('admin.settings.support', [
             'taxonomy' => $taxonomy,
@@ -2640,6 +2644,7 @@ class SettingsController extends Controller
             'recurringCount' => \App\Support\SupportTaxonomy::recurringIssueCount(),
             'recurringWindowHours' => \App\Support\SupportTaxonomy::recurringWindowHours(),
             'guestConversionClosings' => $guestConversionClosings,
+            'personaNames' => $personaNames,
         ]);
     }
 
@@ -2662,6 +2667,8 @@ class SettingsController extends Controller
             'conversion_sw.*' => ['nullable', 'string', 'max:500'],
             'conversion_en' => ['nullable', 'array', 'max:5'],
             'conversion_en.*' => ['nullable', 'string', 'max:500'],
+            'persona_names' => ['nullable', 'array', 'max:5'],
+            'persona_names.*' => ['nullable', 'string', 'max:40'],
         ];
         foreach ($categories as $key) {
             $rules["default_priority.{$key}"] = ['required', 'in:low,normal,high,urgent'];
@@ -2706,6 +2713,22 @@ class SettingsController extends Controller
             'en' => $enLines,
         ]);
 
-        return back()->with('status', 'Support settings saved. New tickets use SLA targets; Guest conversion closings rotate on resolve.');
+        $personaRows = [];
+        foreach (array_slice(array_values($data['persona_names'] ?? []), 0, 5) as $i => $raw) {
+            $name = trim((string) $raw);
+            if ($name === '') {
+                continue;
+            }
+            $personaRows[] = [
+                'key' => \Illuminate\Support\Str::slug($name) ?: ('persona_'.($i + 1)),
+                'name' => $name,
+            ];
+        }
+        Setting::set(
+            \App\Services\Support\SupportAutomationService::PERSONAS_SETTING_KEY,
+            $personaRows !== [] ? $personaRows : \App\Services\Support\SupportAutomationService::PERSONAS
+        );
+
+        return back()->with('status', 'Support settings saved. Personas, SLA targets, and Guest conversion closings updated.');
     }
 }
