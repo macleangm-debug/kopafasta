@@ -1399,31 +1399,109 @@ class SettingsController extends Controller
         $values['turnstile_secret_key'] = \App\Models\Setting::get('security.turnstile_secret_key')
             ?? config('security.turnstile_secret_key', '');
 
+        $roles = app(\App\Services\RoleService::class);
+        $staffRoleOptions = [];
+        foreach (array_values(array_unique(array_merge($roles->staffRoles(), $roles->consoleRoles()))) as $code) {
+            $staffRoleOptions[$code] = $roles->label($code);
+        }
+
+        $kba = app(\App\Services\PinRecoveryChallengeService::class);
+        $defaults = config('pin_recovery.bank', []);
+        $storedBank = \App\Models\Setting::get('auth_portal.security_question_bank');
+        $questionBank = [];
+        foreach ($defaults as $key => $meta) {
+            $override = is_array($storedBank[$key] ?? null) ? $storedBank[$key] : [];
+            $questionBank[] = [
+                'key' => $key,
+                'active' => array_key_exists('active', $override) ? (bool) $override['active'] : true,
+                'prompt_en' => (string) ($override['prompt_en'] ?? __($meta['prompt_key'] ?? '', [], 'en')),
+                'prompt_sw' => (string) ($override['prompt_sw'] ?? __($meta['prompt_key'] ?? '', [], 'sw')),
+                'input' => (string) ($meta['input'] ?? 'text'),
+            ];
+        }
+
         return view('admin.settings.auth-portal', [
             'values' => $values,
+            'staffRoleOptions' => $staffRoleOptions,
+            'questionBank' => $questionBank,
         ]);
     }
 
     public function saveAuthPortal(Request $request)
     {
+        $roles = app(\App\Services\RoleService::class);
+        $allowedRoleCodes = array_values(array_unique(array_merge($roles->staffRoles(), $roles->consoleRoles())));
+
         $data = $request->validate([
             'require_2fa_admin'        => ['nullable', 'boolean'],
             'require_2fa_staff'        => ['nullable', 'boolean'],
             'require_2fa_partner'      => ['nullable', 'boolean'],
             'staff_allow_authenticator' => ['nullable', 'boolean'],
             'staff_allow_security_questions' => ['nullable', 'boolean'],
-            'privileged_require_authenticator' => ['nullable', 'boolean'],
+            'authenticator_required_roles' => ['nullable', 'array'],
+            'authenticator_required_roles.*' => ['string', 'in:'.implode(',', $allowedRoleCodes)],
+            'security_questions_enroll_count' => ['nullable', 'integer', 'min:2', 'max:5'],
+            'question_bank' => ['nullable', 'array'],
+            'question_bank.*.active' => ['nullable', 'boolean'],
+            'question_bank.*.prompt_en' => ['nullable', 'string', 'max:180'],
+            'question_bank.*.prompt_sw' => ['nullable', 'string', 'max:180'],
             'two_factor_session_hours' => ['required', 'integer', 'min:1', 'max:168'],
             'pin_recovery_session_seconds' => ['required', 'integer', 'min:30', 'max:900'],
             'turnstile_site_key'       => ['nullable', 'string', 'max:255'],
             'turnstile_secret_key'     => ['nullable', 'string', 'max:255'],
         ]);
 
-        // Never allow disabling every Staff verification method while Staff 2FA is required.
         $allowAuth = $request->boolean('staff_allow_authenticator');
         $allowKba = $request->boolean('staff_allow_security_questions');
         if ($request->boolean('require_2fa_staff') && ! $allowAuth && ! $allowKba) {
-            $allowAuth = true;
+            return back()
+                ->withInput()
+                ->withErrors(['staff_allow_authenticator' => 'When Staff verification is required, enable Authenticator app and/or Security questions.']);
+        }
+
+        $authRoles = collect($data['authenticator_required_roles'] ?? [])
+            ->map(fn ($c) => strtolower(trim((string) $c)))
+            ->filter(fn ($c) => in_array($c, $allowedRoleCodes, true))
+            ->unique()
+            ->values()
+            ->all();
+        if ($authRoles === []) {
+            $authRoles = \App\Services\ConsoleSecondFactorService::DEFAULT_AUTHENTICATOR_ROLES;
+        }
+
+        // Invalid: authenticator-required roles but authenticator method unavailable while Staff verification is on.
+        if ($request->boolean('require_2fa_staff') && $authRoles !== [] && ! $allowAuth) {
+            return back()
+                ->withInput()
+                ->withErrors(['staff_allow_authenticator' => 'Authenticator app must stay enabled while any role requires authenticator MFA.']);
+        }
+
+        $defaults = config('pin_recovery.bank', []);
+        $bankOut = [];
+        foreach ($defaults as $key => $meta) {
+            $row = is_array($data['question_bank'][$key] ?? null) ? $data['question_bank'][$key] : [];
+            $bankOut[$key] = [
+                'active' => array_key_exists('active', $row) ? (bool) $row['active'] : $request->boolean("question_bank.{$key}.active"),
+                'prompt_en' => trim((string) ($row['prompt_en'] ?? '')),
+                'prompt_sw' => trim((string) ($row['prompt_sw'] ?? '')),
+                'prompt_key' => (string) ($meta['prompt_key'] ?? ''),
+                'input' => (string) ($meta['input'] ?? 'text'),
+                'digits' => $meta['digits'] ?? null,
+            ];
+            // Checkbox with hidden 0: prefer request boolean when present.
+            if ($request->has("question_bank.{$key}.active")) {
+                $bankOut[$key]['active'] = $request->boolean("question_bank.{$key}.active");
+            }
+        }
+        $activeCount = collect($bankOut)->filter(fn ($r) => ! empty($r['active']))->count();
+        $enrollCount = max(2, min(5, (int) ($data['security_questions_enroll_count'] ?? 3)));
+        if ($enrollCount < 2) {
+            $enrollCount = 3;
+        }
+        if ($allowKba && $activeCount < $enrollCount) {
+            return back()
+                ->withInput()
+                ->withErrors(['question_bank' => "Keep at least {$enrollCount} active security questions in the bank."]);
         }
 
         Setting::setMany([
@@ -1432,14 +1510,17 @@ class SettingsController extends Controller
             'auth_portal.require_2fa_partner'      => $request->boolean('require_2fa_partner'),
             'auth_portal.staff_allow_authenticator' => $allowAuth,
             'auth_portal.staff_allow_security_questions' => $allowKba,
-            'auth_portal.privileged_require_authenticator' => $request->boolean('privileged_require_authenticator'),
+            'auth_portal.authenticator_required_roles' => $authRoles,
+            'auth_portal.privileged_require_authenticator' => true, // legacy flag — roles list is source of truth
+            'auth_portal.security_questions_enroll_count' => $enrollCount,
+            'auth_portal.security_question_bank' => $bankOut,
             'auth_portal.two_factor_session_hours' => (int) $data['two_factor_session_hours'],
             'auth_portal.pin_recovery_session_seconds' => (int) $data['pin_recovery_session_seconds'],
             'security.turnstile_site_key'          => trim((string) ($data['turnstile_site_key'] ?? '')),
             'security.turnstile_secret_key'        => trim((string) ($data['turnstile_secret_key'] ?? '')),
         ]);
 
-        return back()->with('status', 'Authentication settings saved.');
+        return back()->with('status', 'Verification settings saved.');
     }
 
     public function loanProducts()

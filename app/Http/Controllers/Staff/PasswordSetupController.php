@@ -32,11 +32,18 @@ class PasswordSetupController extends Controller
                 ->withErrors(['email' => 'This password setup link is invalid.']);
         }
 
+        $first = trim((string) ($user->first_name ?? ''));
+        if ($first === '') {
+            $parts = preg_split('/\s+/', trim((string) $user->name), 2) ?: [];
+            $first = trim((string) ($parts[0] ?? ''));
+        }
+
         return view('staff.auth.password-setup', [
             'token' => $token,
             'uid' => $user->id,
             'email' => (string) $request->query('email', app(UserAccountService::class)->passwordBrokerKey($user)),
             'name' => $user->name,
+            'firstName' => $first !== '' ? $first : null,
         ]);
     }
 
@@ -83,12 +90,13 @@ class PasswordSetupController extends Controller
 
         DB::table($table)->where('email', $brokerKey)->delete();
 
-        $context = $roles->hasConsoleAccess($user) ? 'admin' : 'staff';
-        $home = $context === 'admin'
-            ? route($roles->homeRoute($user))
-            : route('staff.dashboard');
+        $context = 'staff';
+        $home = route('staff.dashboard');
+        if ($roles->hasConsoleAccess($user)) {
+            $home = route($roles->homeRoute($user));
+        }
 
-        // Continue the same secure-access journey into second-step enrollment.
+        // Continue the same secure-access journey into second-step enrollment per Settings policy.
         if ($secondFactor->mustEnroll($user, $context)) {
             $twoFactor->storePendingLogin($request, $user, 'admin', $context, $home, false);
 

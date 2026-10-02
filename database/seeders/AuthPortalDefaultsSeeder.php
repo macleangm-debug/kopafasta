@@ -14,5 +14,7 @@ class AuthPortalDefaultsSeeder extends Seeder
         Setting::set('auth_portal.staff_allow_authenticator', true);
         Setting::set('auth_portal.staff_allow_security_questions', true);
         Setting::set('auth_portal.privileged_require_authenticator', true);
+        Setting::set('auth_portal.authenticator_required_roles', ['admin', 'super_admin']);
+        Setting::set('auth_portal.security_questions_enroll_count', 3);
     }
 }

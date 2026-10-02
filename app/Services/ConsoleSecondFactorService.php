@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Orchestrates Staff/Admin second-step verification (TOTP and/or security questions).
+ * Single authoritative resolver for Staff/Admin second-step verification.
  * Reuses WebTwoFactorAuthService + PinRecoveryChallengeService — no new KBA engine.
  */
 class ConsoleSecondFactorService
@@ -22,6 +22,11 @@ class ConsoleSecondFactorService
     public const METHOD_SECURITY_QUESTIONS = 'security_questions';
 
     public const STAFF_KBA_CACHE = 'staff_kba_login:';
+
+    public const AUTHENTICATOR_ROLES_KEY = 'auth_portal.authenticator_required_roles';
+
+    /** @var list<string> */
+    public const DEFAULT_AUTHENTICATOR_ROLES = ['admin', 'super_admin'];
 
     public function __construct(
         private WebTwoFactorAuthService $totp,
@@ -35,45 +40,133 @@ class ConsoleSecondFactorService
         return $this->totp->isRequired($context);
     }
 
-    public function isPrivilegedUser(User $user): bool
+    /**
+     * Roles that must use authenticator MFA (Settings Hub — not hard-coded forever).
+     *
+     * @return list<string>
+     */
+    public function authenticatorRequiredRoles(): array
     {
-        $roles = collect($user->roles ?? [])->merge([$user->role])->filter()->unique()->values();
+        $stored = Setting::get(self::AUTHENTICATOR_ROLES_KEY);
+        if (is_array($stored) && $stored !== []) {
+            $allowed = array_merge($this->roles->staffRoles(), $this->roles->consoleRoles());
+            $out = [];
+            foreach ($stored as $code) {
+                $code = strtolower(trim((string) $code));
+                if ($code !== '' && in_array($code, $allowed, true)) {
+                    $out[] = $code;
+                }
+            }
+            if ($out !== []) {
+                return array_values(array_unique($out));
+            }
+        }
 
-        return $roles->intersect(['admin', 'super_admin'])->isNotEmpty();
+        return self::DEFAULT_AUTHENTICATOR_ROLES;
     }
 
-    /** @return list<string> */
+    public function roleRequiresAuthenticator(User $user): bool
+    {
+        $required = $this->authenticatorRequiredRoles();
+
+        return collect($user->roleCodes())->intersect($required)->isNotEmpty();
+    }
+
+    /** @deprecated Prefer roleRequiresAuthenticator() */
+    public function isPrivilegedUser(User $user): bool
+    {
+        return $this->roleRequiresAuthenticator($user);
+    }
+
+    /**
+     * Effective methods for this user on this portal context.
+     *
+     * @return list<string>
+     */
     public function allowedMethodsFor(User $user, string $context): array
     {
         if (! $this->isSecondFactorRequired($context)) {
             return [];
         }
 
-        $methods = [];
-
-        if ($this->settings->staffAllowAuthenticator() || $context === 'admin' || $this->isPrivilegedUser($user)) {
-            $methods[] = self::METHOD_AUTHENTICATOR;
+        if ($context === 'partner') {
+            return [self::METHOD_AUTHENTICATOR];
         }
 
-        $questionsOk = $this->settings->staffAllowSecurityQuestions()
-            && $context === 'staff'
-            && ! ($this->settings->privilegedRequireAuthenticator() && $this->isPrivilegedUser($user));
-
-        if ($questionsOk) {
-            $methods[] = self::METHOD_SECURITY_QUESTIONS;
+        // Authenticator-required roles never fall back to weaker verification.
+        if ($this->roleRequiresAuthenticator($user)) {
+            return [self::METHOD_AUTHENTICATOR];
         }
 
-        // Privileged admin minimum: authenticator must remain available and preferred.
-        if ($this->settings->privilegedRequireAuthenticator() && $this->isPrivilegedUser($user)) {
-            $methods = [self::METHOD_AUTHENTICATOR];
+        // Ordinary Staff (including console desks) use Staff method Settings.
+        if ($this->roles->isStaffUser($user)) {
+            $methods = [];
+            if ($this->settings->staffAllowAuthenticator()) {
+                $methods[] = self::METHOD_AUTHENTICATOR;
+            }
+            if ($this->settings->staffAllowSecurityQuestions()) {
+                $methods[] = self::METHOD_SECURITY_QUESTIONS;
+            }
+
+            return array_values(array_unique($methods));
         }
 
-        // Admin console context: keep authenticator as the stronger path by default.
-        if ($context === 'admin' && $this->settings->privilegedRequireAuthenticator()) {
-            $methods = [self::METHOD_AUTHENTICATOR];
+        // Non-staff Admin console identities: authenticator only.
+        return [self::METHOD_AUTHENTICATOR];
+    }
+
+    /**
+     * Full policy snapshot every auth entry point should consume.
+     *
+     * @return array{
+     *   context: string,
+     *   required: bool,
+     *   role_requires_authenticator: bool,
+     *   methods: list<string>,
+     *   enrolled: string|null,
+     *   must_enroll: bool,
+     *   needs_challenge: bool,
+     *   setup_url: string|null,
+     *   challenge_url: string|null,
+     *   next: string
+     * }
+     */
+    public function effectivePolicy(User $user, string $context, ?Request $request = null): array
+    {
+        $required = $this->isSecondFactorRequired($context);
+        $methods = $this->allowedMethodsFor($user, $context);
+        $enrolled = $this->enrolledMethod($user, $context);
+        $mustEnroll = $required && $enrolled === null && $methods !== [];
+        $needsChallenge = false;
+        if ($required && $enrolled !== null && $request) {
+            $needsChallenge = ! $this->totp->sessionVerified($request);
         }
 
-        return array_values(array_unique($methods));
+        $next = 'continue';
+        $setupUrl = null;
+        $challengeUrl = null;
+        if ($mustEnroll) {
+            $next = 'enroll';
+            $setupUrl = $this->setupRedirect($user, $context);
+        } elseif ($needsChallenge) {
+            $next = 'challenge';
+            $challengeUrl = $this->challengeRedirect($user, $context);
+        } elseif (! $required) {
+            $next = 'skip';
+        }
+
+        return [
+            'context' => $context,
+            'required' => $required,
+            'role_requires_authenticator' => $this->roleRequiresAuthenticator($user),
+            'methods' => $methods,
+            'enrolled' => $enrolled,
+            'must_enroll' => $mustEnroll,
+            'needs_challenge' => $needsChallenge,
+            'setup_url' => $setupUrl,
+            'challenge_url' => $challengeUrl,
+            'next' => $next,
+        ];
     }
 
     public function hasAuthenticator(User $user): bool
@@ -103,28 +196,12 @@ class ConsoleSecondFactorService
 
     public function mustEnroll(User $user, string $context): bool
     {
-        if (! $this->isSecondFactorRequired($context)) {
-            return false;
-        }
-
-        return $this->enrolledMethod($user, $context) === null;
+        return $this->effectivePolicy($user, $context)['must_enroll'];
     }
 
     public function needsChallenge(User $user, Request $request, string $context): bool
     {
-        if (! $this->isSecondFactorRequired($context)) {
-            return false;
-        }
-
-        if ($this->mustEnroll($user, $context)) {
-            return false;
-        }
-
-        if ($this->totp->sessionVerified($request)) {
-            return false;
-        }
-
-        return true;
+        return $this->effectivePolicy($user, $context, $request)['needs_challenge'];
     }
 
     public function challengeMethod(User $user, string $context): ?string
@@ -136,11 +213,16 @@ class ConsoleSecondFactorService
     {
         $allowed = $this->allowedMethodsFor($user, $context);
 
+        if ($allowed === []) {
+            // No methods configured — should be blocked at Settings save; never invent TOTP.
+            return route('auth.secure.questions.setup', ['context' => $context]);
+        }
+
         if (count($allowed) > 1) {
             return route('auth.secure.choose', ['context' => $context]);
         }
 
-        if (($allowed[0] ?? null) === self::METHOD_SECURITY_QUESTIONS) {
+        if ($allowed[0] === self::METHOD_SECURITY_QUESTIONS) {
             return route('auth.secure.questions.setup', ['context' => $context]);
         }
 

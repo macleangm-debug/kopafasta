@@ -1,13 +1,16 @@
 <x-site.console-auth-shell
     title="{{ brand_title('Choose your password') }}"
     aside-eyebrow="Staff activation"
-    aside-title="Choose a password, then set up security verification."
-    aside-body="This link is single-use and expires soon. Next you will enroll authenticator or security questions."
+    aside-title="{{ $firstName ? 'Hello, '.$firstName.'.' : 'Welcome.' }} Choose your password."
+    aside-body="Create a password for your Kopafasta Staff account. Next, we'll set up your security verification."
     error-title="Could not save password"
 >
     <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Kopafasta Staff</p>
+    @if ($firstName)
+        <p class="mt-3 text-sm font-semibold text-gray-900">Hello, {{ $firstName }}</p>
+    @endif
     <h2 class="mt-1 text-2xl font-bold tracking-tight text-gray-900">Choose your password</h2>
-    <p class="mt-2 text-sm text-gray-500">Hi {{ $name }}. This link is single-use and expires soon.</p>
+    <p class="mt-2 text-sm text-gray-500">Create a password for your Kopafasta Staff account. Next, we'll set up your security verification.</p>
 
     <form method="POST" action="{{ route('staff.password-setup.store') }}" class="mt-6 space-y-4" x-data="{ show: false, show2: false }">
         @csrf
@@ -27,7 +30,7 @@
             <button type="button" @click="show2 = !show2" class="absolute right-3 bottom-2.5 text-xs font-semibold text-brand">Show</button>
         </div>
         <button type="submit" data-loading-label="Saving…"
-                class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3">
+                class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3 disabled:opacity-60">
             Save password
         </button>
     </form>

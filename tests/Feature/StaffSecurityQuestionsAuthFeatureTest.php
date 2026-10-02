@@ -128,8 +128,106 @@ class StaffSecurityQuestionsAuthFeatureTest extends TestCase
             'primary_school' => 'Uhuru',
         ]);
 
-        // Even with KBA enrolled, privileged admin still must enroll authenticator.
+        // Even with KBA enrolled, authenticator-required role still must enroll authenticator.
         $this->assertTrue($second->mustEnroll($admin->fresh(), 'admin'));
+    }
+
+    public function test_questions_only_never_redirects_console_staff_to_totp(): void
+    {
+        config([
+            'auth_portal.require_2fa_staff' => true,
+            'auth_portal.require_2fa_admin' => true,
+            'auth_portal.staff_allow_authenticator' => false,
+            'auth_portal.staff_allow_security_questions' => true,
+        ]);
+        \App\Models\Setting::set('auth_portal.staff_allow_authenticator', false);
+        \App\Models\Setting::set('auth_portal.staff_allow_security_questions', true);
+        \App\Models\Setting::set('auth_portal.authenticator_required_roles', ['admin', 'super_admin']);
+
+        // Agent has console_access — previously forced admin/TOTP context.
+        $staff = User::factory()->create([
+            'role' => 'agent',
+            'roles' => ['agent'],
+            'name' => 'Neema Support',
+            'email' => 'neema.agent@example.com',
+            'password' => 'StaffPass99',
+            'is_active' => true,
+            'two_factor_secret' => null,
+            'two_factor_confirmed_at' => null,
+        ]);
+
+        $second = app(ConsoleSecondFactorService::class);
+        $this->assertSame(
+            [ConsoleSecondFactorService::METHOD_SECURITY_QUESTIONS],
+            $second->allowedMethodsFor($staff, 'staff')
+        );
+        $this->assertStringContainsString(
+            'secure/questions/setup',
+            $second->setupRedirect($staff, 'staff')
+        );
+        $this->assertStringNotContainsString('two-factor/setup', $second->setupRedirect($staff, 'staff'));
+
+        $this->post(route('staff.login'), [
+            'login' => 'neema.agent@example.com',
+            'password' => 'StaffPass99',
+        ])->assertRedirect(route('auth.secure.questions.setup', ['context' => 'staff']));
+
+        // Hitting TOTP setup while questions-only must bounce to questions.
+        $this->get(route('auth.two-factor.setup', ['context' => 'staff']))
+            ->assertRedirect(route('auth.secure.questions.setup', ['context' => 'staff']));
+    }
+
+    public function test_setup_link_greets_first_name_and_routes_questions_only(): void
+    {
+        config([
+            'auth_portal.require_2fa_staff' => true,
+            'auth_portal.require_2fa_admin' => false,
+            'auth_portal.staff_allow_authenticator' => false,
+            'auth_portal.staff_allow_security_questions' => true,
+        ]);
+        \App\Models\Setting::set('auth_portal.staff_allow_authenticator', false);
+        \App\Models\Setting::set('auth_portal.staff_allow_security_questions', true);
+
+        $admin = User::factory()->create(['role' => 'admin', 'roles' => ['admin'], 'is_active' => true]);
+        $staff = User::factory()->create([
+            'role' => 'collector',
+            'roles' => ['collector'],
+            'name' => 'Asha Juma',
+            'email' => null,
+            'phone' => '255711000777',
+            'password' => 'old-secret',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin, 'admin')
+            ->withSession(['two_factor_verified_at' => now()->timestamp])
+            ->from(route('admin.users.show', $staff))
+            ->post(route('admin.users.password-setup-link', $staff));
+
+        $response->assertRedirect(route('admin.users.show', $staff).'#password-access')
+            ->assertSessionHas('password_setup_url');
+
+        $url = (string) session('password_setup_url');
+        $query = [];
+        parse_str(parse_url($url, PHP_URL_QUERY) ?: '', $query);
+        Auth::guard('admin')->logout();
+        $this->flushSession();
+
+        $this->get(route('staff.password-setup', [
+            'token' => $query['token'],
+            'uid' => $staff->id,
+            'email' => $query['email'],
+        ]))->assertOk()
+            ->assertSee('Hello, Asha', false)
+            ->assertSee('Choose your password', false);
+
+        $this->post(route('staff.password-setup.store'), [
+            'token' => $query['token'],
+            'uid' => $staff->id,
+            'email' => $query['email'],
+            'password' => 'SetupChosen99',
+            'password_confirmation' => 'SetupChosen99',
+        ])->assertRedirect(route('auth.secure.questions.setup', ['context' => 'staff']));
     }
 
     public function test_setup_link_continues_into_security_setup(): void

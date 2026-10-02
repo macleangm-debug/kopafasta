@@ -2,11 +2,14 @@
 
 namespace App\Http\Middleware;
 
-use App\Services\WebTwoFactorAuthService;
+use App\Services\ConsoleSecondFactorService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Consumes ConsoleSecondFactorService — never hard-forces TOTP independently.
+ */
 class EnsureTwoFactorVerified
 {
     public function handle(Request $request, Closure $next, string $context): Response
@@ -16,8 +19,6 @@ class EnsureTwoFactorVerified
             && (app(\App\Services\AdminRoleViewService::class)->active()['subject_type'] ?? null) === 'partner') {
             return $next($request);
         }
-
-        $twoFactor = app(WebTwoFactorAuthService::class);
 
         $user = $request->user('admin') ?? $request->user();
         if (! $user) {
@@ -34,16 +35,19 @@ class EnsureTwoFactorVerified
             $effectiveContext = 'staff';
         }
 
-        if (! $twoFactor->isRequired($effectiveContext)) {
+        $second = app(ConsoleSecondFactorService::class);
+        $policy = $second->effectivePolicy($user, $effectiveContext, $request);
+
+        if (! $policy['required']) {
             return $next($request);
         }
 
-        if ($twoFactor->mustEnroll($user, $effectiveContext)) {
-            return redirect()->route('auth.two-factor.setup', ['context' => $effectiveContext]);
+        if ($policy['must_enroll'] && filled($policy['setup_url'])) {
+            return redirect()->to($policy['setup_url']);
         }
 
-        if ($twoFactor->needsChallenge($user, $request, $effectiveContext)) {
-            return redirect()->route('auth.two-factor.challenge', ['context' => $effectiveContext]);
+        if ($policy['needs_challenge'] && filled($policy['challenge_url'])) {
+            return redirect()->to($policy['challenge_url']);
         }
 
         return $next($request);

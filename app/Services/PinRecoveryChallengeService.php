@@ -15,10 +15,42 @@ class PinRecoveryChallengeService
 {
     public const CACHE_PREFIX = 'pin_kba:';
 
-    /** @return array<string, array{prompt_key: string, input: string, digits?: int}> */
+    public function requiredQuestionCount(?User $user = null): int
+    {
+        return app(AuthPortalSettingsService::class)->securityQuestionsEnrollCount();
+    }
+
     public function bank(): array
     {
-        return config('pin_recovery.bank', []);
+        $defaults = config('pin_recovery.bank', []);
+        $stored = Setting::get('auth_portal.security_question_bank');
+        if (! is_array($stored) || $stored === []) {
+            return is_array($defaults) ? $defaults : [];
+        }
+
+        // Settings may enable/disable keys or override prompts; keep only known shapes.
+        $out = [];
+        foreach ($stored as $key => $meta) {
+            $key = is_string($key) ? $key : (string) ($meta['key'] ?? '');
+            if ($key === '' || ! is_array($meta)) {
+                continue;
+            }
+            if (($meta['active'] ?? true) === false) {
+                continue;
+            }
+            $out[$key] = [
+                'prompt_key' => (string) ($meta['prompt_key'] ?? ($defaults[$key]['prompt_key'] ?? '')),
+                'prompt_en' => (string) ($meta['prompt_en'] ?? ''),
+                'prompt_sw' => (string) ($meta['prompt_sw'] ?? ''),
+                'input' => (string) ($meta['input'] ?? ($defaults[$key]['input'] ?? 'text')),
+                'digits' => $meta['digits'] ?? ($defaults[$key]['digits'] ?? null),
+            ];
+            if ($out[$key]['prompt_key'] === '' && $out[$key]['prompt_en'] === '') {
+                unset($out[$key]);
+            }
+        }
+
+        return $out !== [] ? $out : (is_array($defaults) ? $defaults : []);
     }
 
     /**
@@ -48,7 +80,7 @@ class PinRecoveryChallengeService
     {
         $keys = array_keys($this->bank());
         shuffle($keys);
-        $count = $count ?? (int) config('pin_recovery.questions_to_ask', 3);
+        $count = $count ?? app(AuthPortalSettingsService::class)->securityQuestionsEnrollCount();
 
         return array_values(array_slice($keys, 0, max(1, min($count, count($keys)))));
     }
@@ -94,25 +126,33 @@ class PinRecoveryChallengeService
     public function questionsForKeys(array $keys): array
     {
         $out = [];
+        $locale = app()->getLocale();
+        $sw = str_starts_with(strtolower((string) $locale), 'sw');
         foreach ($keys as $key) {
             $meta = $this->bank()[$key] ?? null;
             if (! $meta) {
                 continue;
             }
+            $prompt = '';
+            if ($sw && filled($meta['prompt_sw'] ?? null)) {
+                $prompt = (string) $meta['prompt_sw'];
+            } elseif (filled($meta['prompt_en'] ?? null)) {
+                $prompt = (string) $meta['prompt_en'];
+            } elseif (filled($meta['prompt_key'] ?? null)) {
+                $prompt = (string) __($meta['prompt_key']);
+            }
+            if ($prompt === '') {
+                continue;
+            }
             $out[] = [
                 'key' => $key,
-                'prompt' => __($meta['prompt_key']),
+                'prompt' => $prompt,
                 'input' => $meta['input'] ?? 'text',
                 'digits' => $meta['digits'] ?? null,
             ];
         }
 
         return $out;
-    }
-
-    public function requiredQuestionCount(?User $user = null): int
-    {
-        return (int) config('pin_recovery.questions_to_ask', 3);
     }
 
     public function hasEnrolledAnswers(User $user): bool

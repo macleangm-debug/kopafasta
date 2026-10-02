@@ -19,4 +19,6 @@ return [
     'staff_allow_authenticator' => true,
     'staff_allow_security_questions' => true,
     'privileged_require_authenticator' => true,
+    'authenticator_required_roles' => ['admin', 'super_admin'],
+    'security_questions_enroll_count' => 3,
 ];

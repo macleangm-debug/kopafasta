@@ -77,17 +77,19 @@ class AuthController extends Controller
     {
         $home = route(app(RoleService::class)->homeRoute($user));
         $second = app(ConsoleSecondFactorService::class);
+        // Staff login portal always resolves Staff methods — console_access only affects landing desk.
+        $context = 'staff';
 
-        if ($second->mustEnroll($user, 'admin')) {
-            $twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
+        if ($second->mustEnroll($user, $context)) {
+            $twoFactor->storePendingLogin($request, $user, 'admin', $context, $home, $request->boolean('remember'));
 
-            return redirect()->to($second->setupRedirect($user, 'admin'));
+            return redirect()->to($second->setupRedirect($user, $context));
         }
 
-        if ($second->needsChallenge($user, $request, 'admin')) {
-            $twoFactor->storePendingLogin($request, $user, 'admin', 'admin', $home, $request->boolean('remember'));
+        if ($second->needsChallenge($user, $request, $context)) {
+            $twoFactor->storePendingLogin($request, $user, 'admin', $context, $home, $request->boolean('remember'));
 
-            return redirect()->to($second->challengeRedirect($user, 'admin'));
+            return redirect()->to($second->challengeRedirect($user, $context));
         }
 
         Auth::guard('admin')->login($user, $request->boolean('remember'));

@@ -69,9 +69,16 @@ class WebTwoFactorController extends Controller
             return redirect()->route($context === 'staff' ? 'staff.login' : 'admin.login');
         }
 
+        $second = app(\App\Services\ConsoleSecondFactorService::class);
+        $allowed = $second->allowedMethodsFor($user, $context);
+        if (! in_array(\App\Services\ConsoleSecondFactorService::METHOD_AUTHENTICATOR, $allowed, true)) {
+            // Authenticator not in effective policy — never begin TOTP enrollment.
+            return redirect()->to($second->setupRedirect($user, $context));
+        }
+
         if ($twoFactor->isEnabled($user)) {
             return redirect()->to($this->postSetupRedirect($context, $user))
-                ->with('status', 'Two-factor authentication is already enabled.');
+                ->with('status', 'Authenticator app is already enabled.');
         }
 
         $enrollment = $twoFactor->beginEnrollment($user, $request);
