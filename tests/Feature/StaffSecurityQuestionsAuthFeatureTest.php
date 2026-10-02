@@ -271,16 +271,23 @@ class StaffSecurityQuestionsAuthFeatureTest extends TestCase
 
     public function test_admin_and_staff_login_reuse_console_auth_shell(): void
     {
-        $this->get(route('staff.login'))
+        $this->withSession(['locale' => 'en'])
+            ->get(route('staff.login'))
             ->assertOk()
-            ->assertSee('Staff sign in', false);
+            ->assertSee('Welcome back', false)
+            ->assertSee('Secure staff access', false);
 
-        $staffHtml = $this->get(route('staff.login'))->getContent();
+        $staffHtml = $this->withSession(['locale' => 'en'])->get(route('staff.login'))->getContent();
         $this->assertStringContainsString('Operate loans, partners, and recoveries', $staffHtml);
+        $this->assertStringContainsString('kf-premium-panel', $staffHtml);
+        $this->assertStringContainsString('Show password', $staffHtml);
+        $this->assertStringContainsString('Signing in…', $staffHtml);
 
-        $adminHtml = $this->get(route('admin.login'))->getContent();
+        $adminHtml = $this->withSession(['locale' => 'en'])->get(route('admin.login'))->getContent();
         $this->assertStringContainsString('Operate loans, partners, and recoveries', $adminHtml);
         $this->assertStringContainsString('Welcome back', $adminHtml);
+        $this->assertStringContainsString('kf-premium-panel', $adminHtml);
+        $this->assertStringContainsString('Show password', $adminHtml);
     }
 
     public function test_failed_answer_does_not_rotate_question_within_attempt(): void

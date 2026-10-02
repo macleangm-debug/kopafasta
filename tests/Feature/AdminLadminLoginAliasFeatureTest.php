@@ -12,18 +12,23 @@ class AdminLadminLoginAliasFeatureTest extends TestCase
 
     public function test_ladmin_login_renders_admin_login_for_guests(): void
     {
-        $this->get('/ladmin/login')
+        $this->withSession(['locale' => 'en'])
+            ->get('/ladmin/login')
             ->assertOk()
             ->assertSee('Welcome back', false)
+            ->assertSee('kf-premium-panel', false)
             ->assertSee('name="email"', false)
-            ->assertSee('name="password"', false);
+            ->assertSee('name="password"', false)
+            ->assertSee('Show password', false);
     }
 
     public function test_canonical_admin_login_still_renders(): void
     {
-        $this->get(route('admin.login'))
+        $this->withSession(['locale' => 'en'])
+            ->get(route('admin.login'))
             ->assertOk()
-            ->assertSee('Welcome back', false);
+            ->assertSee('Welcome back', false)
+            ->assertSee('kf-premium-panel', false);
     }
 
     public function test_invalid_ladmin_credentials_show_validation_error(): void

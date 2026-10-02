@@ -1,5 +1,6 @@
 {{-- Set up two-factor with scannable QR. Expects: $secret, $provisioning_uri, $recovery_codes, $context --}}
 @php
+    $isSw = str_starts_with(app()->getLocale(), 'sw');
     $recoveryLines = collect(array_values($recovery_codes))
         ->map(fn ($code, $i) => ($i + 1).'. '.$code)
         ->implode("\n");
@@ -8,18 +9,17 @@
         .$recoveryLines;
 @endphp
 <x-site.console-auth-shell
-    title="{{ brand_title('Set up two-factor') }}"
-    aside-eyebrow="Secure access"
+    title="{{ brand_title($isSw ? 'Weka uthibitishaji wa hatua mbili' : 'Set up two-factor') }}"
+    :badge="$isSw ? 'Linda akaunti yako' : 'Secure your account'"
+    :heading="$isSw ? 'Weka authenticator' : 'Set up authenticator'"
+    :support="$isSw ? 'Changanua QR, kisha weka msimbo wa tarakimu 6 kutoka programu yako.' : 'Scan the QR, then enter a 6-digit code from your authenticator app.'"
+    :aside-eyebrow="$isSw ? 'Ufikiaji salama' : 'Secure access'"
     aside-title="Protect every staff sign-in with a second factor."
     aside-body="Scan once, confirm once. Your authenticator app will show a fresh 6-digit code every 30 seconds."
     card-class="max-w-lg"
-    error-title="Could not enable 2FA"
+    :error-title="$isSw ? 'Imeshindikana kuwasha 2FA' : 'Could not enable 2FA'"
 >
-    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">One-time setup</p>
-    <h2 class="mt-1 text-2xl font-bold tracking-tight text-gray-900">Set up two-factor authentication</h2>
-    <p class="mt-2 text-sm text-gray-500">Scan the QR with your authenticator app, then enter a code below.</p>
-
-    <div class="mt-6 flex flex-col sm:flex-row gap-4 items-center">
+    <div class="flex flex-col sm:flex-row gap-4 items-center">
         <div class="shrink-0 rounded-2xl bg-white ring-1 ring-brand/15 p-3 shadow-sm">
             <img
                 src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&ecc=M&data={{ urlencode($provisioning_uri) }}"
@@ -31,11 +31,11 @@
         </div>
         <div class="min-w-0 flex-1 w-full" x-data="{ copied: false }">
             <div class="flex items-center justify-between gap-2 mb-1.5">
-                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Or enter this key</p>
+                <p class="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">{{ $isSw ? 'Au weka ufunguo huu' : 'Or enter this key' }}</p>
                 <button type="button"
                         @click="navigator.clipboard.writeText(@js($secret)); copied = true; setTimeout(() => copied = false, 1600)"
                         class="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:text-brand-light">
-                    <span x-text="copied ? 'Copied' : 'Copy'"></span>
+                    <span x-text="copied ? (@js($isSw ? 'Imenakiliwa' : 'Copied')) : (@js($isSw ? 'Nakili' : 'Copy'))"></span>
                 </button>
             </div>
             <p class="font-mono text-sm break-all bg-brand-muted/40 rounded-xl px-3 py-2.5 ring-1 ring-brand/10 text-gray-900">{{ $secret }}</p>
@@ -54,12 +54,12 @@
          }">
         <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-                <p class="text-xs font-bold text-amber-950">Recovery codes</p>
-                <p class="text-[11px] text-amber-900/80 mt-0.5">Shown once. Use one if you lose your phone — each code works once.</p>
+                <p class="text-xs font-bold text-amber-950">{{ $isSw ? 'Misimbo ya urejesho' : 'Recovery codes' }}</p>
+                <p class="text-[11px] text-amber-900/80 mt-0.5">{{ $isSw ? 'Inaonyeshwa mara moja. Tumia moja ukipoteza simu — kila msimbo hutumika mara moja.' : 'Shown once. Use one if you lose your phone — each code works once.' }}</p>
             </div>
             <button type="button" @click="copyAll()"
                     class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-amber-950 ring-1 ring-amber-200 hover:bg-amber-100 transition">
-                <span x-text="copied ? 'Copied' : 'Copy all'"></span>
+                <span x-text="copied ? (@js($isSw ? 'Imenakiliwa' : 'Copied')) : (@js($isSw ? 'Nakili zote' : 'Copy all'))"></span>
             </button>
         </div>
         <ol class="mt-3 text-xs font-mono grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-amber-950 list-none">
@@ -72,13 +72,14 @@
         </ol>
     </div>
 
-    <form method="POST" action="{{ route('auth.two-factor.confirm-setup') }}" class="mt-6 space-y-5">
+    <form method="POST" action="{{ route('auth.two-factor.confirm-setup') }}" class="kf-auth-form mt-6">
         @csrf
         <input type="hidden" name="context" value="{{ $context }}">
-        <x-auth.otp-digits name="code" :length="6" :autofocus="true" label="Enter the 6-digit code from your app" />
+        <x-auth.otp-digits name="code" :length="6" :autofocus="true" :label="$isSw ? 'Weka msimbo wa tarakimu 6 kutoka programu yako' : 'Enter the 6-digit code from your app'" />
         <button type="submit"
-                class="w-full bg-brand-gold hover:bg-yellow-400 text-brand font-bold rounded-xl py-3 shadow-sm transition">
-            Enable 2FA
+                data-loading-label="{{ $isSw ? 'Inawezesha…' : 'Enabling…' }}"
+                class="kf-auth-btn-gold">
+            {{ $isSw ? 'Wezesha 2FA' : 'Enable 2FA' }}
         </button>
     </form>
 </x-site.console-auth-shell>

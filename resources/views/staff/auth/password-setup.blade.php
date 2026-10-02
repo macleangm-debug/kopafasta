@@ -1,37 +1,44 @@
+@php
+    $isSw = str_starts_with(app()->getLocale(), 'sw');
+    $hello = $firstName
+        ? ($isSw ? 'Habari, '.$firstName : 'Hello, '.$firstName)
+        : ($isSw ? 'Habari' : 'Hello');
+@endphp
 <x-site.console-auth-shell
-    title="{{ brand_title('Choose your password') }}"
-    aside-eyebrow="Staff activation"
-    aside-title="{{ $firstName ? 'Hello, '.$firstName.'.' : 'Welcome.' }} Choose your password."
-    aside-body="Create a password for your Kopafasta Staff account. Next, we'll set up your security verification."
-    error-title="Could not save password"
+    title="{{ brand_title($isSw ? 'Chagua nenosiri' : 'Choose your password') }}"
+    :badge="$isSw ? 'Uanzishaji wa wafanyakazi' : 'Staff activation'"
+    :heading="$hello"
+    :support="$isSw ? 'Unda nenosiri lako ili uamilishe akaunti yako ya Wafanyakazi.' : 'Create your password to activate your Staff account.'"
+    :aside-eyebrow="$isSw ? 'Uanzishaji wa wafanyakazi' : 'Staff activation'"
+    :aside-title="$firstName ? ($isSw ? 'Habari, '.$firstName.'.' : 'Hello, '.$firstName.'.').' '.($isSw ? 'Chagua nenosiri lako.' : 'Choose your password.') : ($isSw ? 'Chagua nenosiri lako.' : 'Choose your password.')"
+    :aside-body="$isSw ? 'Unda nenosiri la akaunti yako ya Kopafasta. Ifuatayo, tutaweka uthibitishaji wa usalama.' : 'Create a password for your Kopafasta Staff account. Next, we will set up your security verification.'"
+    :error-title="$isSw ? 'Imeshindikana kuhifadhi nenosiri' : 'Could not save password'"
 >
-    <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Kopafasta Staff</p>
-    @if ($firstName)
-        <p class="mt-3 text-sm font-semibold text-gray-900">Hello, {{ $firstName }}</p>
-    @endif
-    <h2 class="mt-1 text-2xl font-bold tracking-tight text-gray-900">Choose your password</h2>
-    <p class="mt-2 text-sm text-gray-500">Create a password for your Kopafasta Staff account. Next, we'll set up your security verification.</p>
-
-    <form method="POST" action="{{ route('staff.password-setup.store') }}" class="mt-6 space-y-4" x-data="{ show: false, show2: false }">
+    <form method="POST" action="{{ route('staff.password-setup.store') }}" class="kf-auth-form">
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
         <input type="hidden" name="uid" value="{{ $uid }}">
         <input type="hidden" name="email" value="{{ $email }}">
-        <div class="relative">
-            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">New password</label>
-            <input :type="show ? 'text' : 'password'" name="password" required minlength="8"
-                   class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-base px-3.5 py-2.5 pr-14 bg-white" autocomplete="new-password">
-            <button type="button" @click="show = !show" class="absolute right-3 bottom-2.5 text-xs font-semibold text-brand">Show</button>
-        </div>
-        <div class="relative">
-            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">Confirm password</label>
-            <input :type="show2 ? 'text' : 'password'" name="password_confirmation" required minlength="8"
-                   class="block w-full rounded-xl border-0 ring-1 ring-gray-200 focus:ring-2 focus:ring-brand text-base px-3.5 py-2.5 pr-14 bg-white" autocomplete="new-password">
-            <button type="button" @click="show2 = !show2" class="absolute right-3 bottom-2.5 text-xs font-semibold text-brand">Show</button>
-        </div>
-        <button type="submit" data-loading-label="Saving…"
-                class="w-full rounded-xl bg-brand text-white font-bold text-sm py-3 disabled:opacity-60">
-            Save password
+        <x-site.password-field
+            name="password"
+            :label="$isSw ? 'Nenosiri jipya' : 'New password'"
+            autocomplete="new-password"
+            :minlength="8"
+            :show-label="$isSw ? 'Onyesha nenosiri' : 'Show password'"
+            :hide-label="$isSw ? 'Ficha nenosiri' : 'Hide password'"
+        />
+        <x-site.password-field
+            name="password_confirmation"
+            :label="$isSw ? 'Thibitisha nenosiri' : 'Confirm password'"
+            autocomplete="new-password"
+            :minlength="8"
+            :show-label="$isSw ? 'Onyesha nenosiri' : 'Show password'"
+            :hide-label="$isSw ? 'Ficha nenosiri' : 'Hide password'"
+        />
+        <button type="submit"
+                data-loading-label="{{ $isSw ? 'Inahifadhi nenosiri…' : 'Saving password…' }}"
+                class="kf-auth-btn">
+            {{ $isSw ? 'Hifadhi nenosiri' : 'Save password' }}
         </button>
     </form>
 </x-site.console-auth-shell>

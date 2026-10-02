@@ -66,6 +66,7 @@ class ConsoleSecureAccessController extends Controller
             'questions' => $kba->questionsForKeys($keys),
             'questionKeys' => $keys,
             'bank' => $kba->bank(),
+            'enrollCount' => count($keys),
         ]);
     }
 
