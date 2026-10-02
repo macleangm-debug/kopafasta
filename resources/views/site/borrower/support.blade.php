@@ -123,7 +123,13 @@
                     <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
-                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $supportConversation->publicNumber() }}</p>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $supportConversation->publicNumber() }}</p>
+                                    @php $activeUnread = app(\App\Services\Support\SupportConversationService::class)->unreadForCustomer($supportConversation); @endphp
+                                    @if ($activeUnread > 0)
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-brand text-white text-[10px] font-bold px-1.5 py-0.5">● {{ $activeUnread }}</span>
+                                    @endif
+                                </div>
                                 <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $topicLabel }}</p>
                                 <p class="text-xs text-gray-500 mt-1">
                                     {{ $desk }}

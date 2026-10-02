@@ -55,8 +55,8 @@ class PublicUiRhythmFeatureTest extends TestCase
         $this->assertGreaterThanOrEqual(2, substr_count($html, 'data-kf-glass-hero'));
 
         $css = file_get_contents(resource_path('css/app.css'));
-        $this->assertStringContainsString('padding-block: 2.5rem', $css);
-        $this->assertStringContainsString('padding-block: 3.75rem', $css);
+        $this->assertStringContainsString('padding-block: 2rem', $css);
+        $this->assertStringContainsString('padding-block: 3rem', $css);
         $this->assertStringNotContainsString('padding-block: 5rem', $css);
         $this->assertStringContainsString('kf-glass-glare', $css);
         $this->assertStringContainsString('prefers-reduced-motion: reduce', $css);

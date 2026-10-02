@@ -75,6 +75,9 @@ class SupportQuickReplyService
             ['confirm', 'closing', 'Thibitisha', 'Confirmation',
              'Je, tumekusaidia? Thibitisha kama suala limetatuliwa, au niambie kama bado kuna kitu.',
              'Have we helped? Confirm if resolved, or tell us if something still needs attention.'],
+            ['issue_resolved_check', 'resolution', 'Tatizo limetatuliwa?', 'Issue resolved?',
+             'Je, tatizo lako limetatuliwa?',
+             'Has your issue been resolved?'],
             ['thanks', 'closing', 'Asante', 'Thank you',
              'Asante kwa kuwasiliana na Kopafasta. Tuko hapa unapohitaji. Simu: {support_phone}. Tovuti: {support_website}',
              'Thank you for contacting Kopafasta. We are here when you need us. Phone: {support_phone}. Website: {support_website}'],
@@ -238,7 +241,7 @@ class SupportQuickReplyService
     {
         return array_map(static function (array $row) {
             $row['kind'] = 'message';
-            $row['one_click'] = in_array($row['key'], ['received', 'queue_wait', 'apology_delay', 'thanks', 'confirm'], true);
+            $row['one_click'] = in_array($row['key'], ['received', 'queue_wait', 'apology_delay', 'thanks', 'confirm', 'issue_resolved_check'], true);
 
             return $row;
         }, $this->all());

@@ -379,6 +379,7 @@ class SupportWorkspaceController extends Controller
     {
         $data = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
+            'template_key' => ['nullable', 'string', 'max:80'],
         ]);
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
@@ -429,6 +430,18 @@ class SupportWorkspaceController extends Controller
             false,
             true,
         );
+
+        $templateKey = (string) ($data['template_key'] ?? '');
+        $bodyTrim = trim($data['body']);
+        if ($templateKey === 'issue_resolved_check'
+            || str_starts_with($bodyTrim, 'Je, tatizo lako limetatuliwa')
+            || str_starts_with($bodyTrim, 'Has your issue been resolved')
+        ) {
+            $meta = is_array($supportConversation->automation_meta) ? $supportConversation->automation_meta : [];
+            $meta['awaiting_customer_resolution'] = true;
+            $meta['awaiting_customer_resolution_at'] = now()->toIso8601String();
+            $supportConversation->update(['automation_meta' => $meta]);
+        }
 
         $supportConversation->loadMissing('customer');
         if ($supportConversation->customer) {

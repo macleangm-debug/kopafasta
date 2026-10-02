@@ -570,20 +570,69 @@ class SupportAccountDiagnosticService
                 : 'This is a guest conversation — account diagnostics require an authenticated Member/Partner.';
         }
 
-        $result = $this->diagnose(
-            $customer,
-            $user,
-            $audience,
-            $categoryKey,
-            $slug,
-            $locale,
-            $workspace,
-            null,
-        );
+        try {
+            $result = $this->diagnose(
+                $customer,
+                $user,
+                $audience,
+                $categoryKey,
+                $slug,
+                $locale,
+                $workspace,
+                null,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('support.diagnostic.service_failed', [
+                'audience' => $audience,
+                'category' => $categoryKey,
+                'slug' => $slug,
+                'customer_id' => $customer?->id,
+                'user_id' => $user?->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->isSw($locale)
+                ? 'Sijaweza kuandaa muhtasari wa diagnostiki sasa. Angalia Member/Partner 360 kwa maelezo.'
+                : 'I could not prepare a diagnostic summary right now. Check Member/Partner 360 for details.';
+        }
+
+        // null = no diagnostic applies for this audience/template — honest no-data, not a failure.
+        if ($result === null) {
+            $walletish = str_contains($slug, 'wallet')
+                || str_contains($slug, 'earnings')
+                || str_contains($slug, 'commission')
+                || str_contains($categoryKey, 'affiliate')
+                || str_contains($categoryKey, 'wallet');
+
+            if ($walletish && $audience === 'member') {
+                return $this->isSw($locale)
+                    ? 'Akaunti hii ni ya Mwanachama — hakuna pochi/mapato ya Mshirika (Affiliate/Supplier) yaliyopatikana hapa. Kwa malipo ya mkopo, tumia kiolezo cha Hali ya malipo au Fungua Malipo kwenye akaunti.'
+                    : 'This is a Member account — no Partner wallet/earnings (Affiliate/Supplier) apply here. For loan payments, use the Repayment status template or Open Payments in the account.';
+            }
+
+            if ($walletish && $audience === 'partner') {
+                return $this->isSw($locale)
+                    ? 'Hakuna salio au mapato yaliyopatikana kwenye akaunti hii kwa sasa.'
+                    : 'No wallet balance or earnings were found on this account right now.';
+            }
+
+            return $this->isSw($locale)
+                ? 'Hakuna taarifa za diagnostiki zinazotumika kwa kiolezo hiki kwenye akaunti hii kwa sasa.'
+                : 'No diagnostic information applies for this template on this account right now.';
+        }
 
         $body = is_array($result) ? ($result['body'] ?? null) : null;
         $safe = app(SupportConversationService::class)->safeChatText($body, $locale);
-        if ($safe === '' || $safe === app(SupportConversationService::class)->unsafePayloadFallback($locale)) {
+        $fallback = app(SupportConversationService::class)->unsafePayloadFallback($locale);
+        if ($safe === '' || $safe === $fallback) {
+            \Illuminate\Support\Facades\Log::warning('support.diagnostic.draft_failed', [
+                'audience' => $audience,
+                'category' => $categoryKey,
+                'slug' => $slug,
+                'customer_id' => $customer?->id,
+                'user_id' => $user?->id,
+            ]);
+
             return $this->isSw($locale)
                 ? 'Sijaweza kuandaa muhtasari wa diagnostiki sasa. Angalia Member/Partner 360 kwa maelezo.'
                 : 'I could not prepare a diagnostic summary right now. Check Member/Partner 360 for details.';

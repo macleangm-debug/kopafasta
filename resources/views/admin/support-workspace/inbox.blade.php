@@ -557,11 +557,11 @@
                             this.templateBusy = qr.key;
                             this.error = '';
                             try {
+                                this.draft = this.bodies[qr.key] || '';
                                 if (qr.one_click) {
-                                    this.draft = this.bodies[qr.key] || '';
-                                    await this.sendReply();
+                                    await this.sendReply(qr.key);
                                 } else {
-                                    this.insertQuick(qr.key);
+                                    this.$refs.composer?.focus();
                                 }
                             } finally {
                                 this.templateBusy = null;
@@ -687,7 +687,7 @@
                                 this.sending = false;
                             }
                         },
-                        async sendReply() {
+                        async sendReply(templateKey) {
                             var body = (this.draft || '').trim();
                             if (!body || !this.replyUrl || this.sending) return;
                             this.sending = true;
@@ -697,6 +697,8 @@
                             this.draft = '';
                             this.scrollBottom();
                             try {
+                                var payload = { body: body };
+                                if (templateKey) payload.template_key = templateKey;
                                 var res = await fetch(this.replyUrl, {
                                     method: 'POST',
                                     headers: {
@@ -706,7 +708,7 @@
                                         'X-Requested-With': 'XMLHttpRequest',
                                     },
                                     credentials: 'same-origin',
-                                    body: JSON.stringify({ body: body }),
+                                    body: JSON.stringify(payload),
                                 });
                                 var data = await res.json().catch(function () { return {}; });
                                 if (!res.ok || !data.ok) {

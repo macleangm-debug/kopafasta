@@ -192,6 +192,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
     Route::post('/support/chat/speak', [SupportCenterController::class, 'speak'])->name('support.chat.speak');
     Route::get('/support/chat/thread', [SupportCenterController::class, 'thread'])->name('support.chat.thread');
     Route::post('/support/chat/automation', [\App\Http\Controllers\Site\SupportAutomationController::class, 'publicStep'])->name('support.chat.automation');
+    Route::post('/support/chat/conversations/{supportConversation}/rate', [\App\Http\Controllers\Site\SupportAutomationController::class, 'publicRate'])->name('support.chat.rate');
     Route::get('/feedback', [FeedbackController::class, 'index'])->name('feedback');
     Route::post('/feedback', [FeedbackController::class, 'store'])->name('feedback.post');
     Route::get('/contact', fn () => redirect()->route('site.support'))->name('contact');
@@ -548,6 +549,7 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::post('/borrower/support/speak', [BorrowerController::class, 'speakToSupport'])->name('borrower.support.speak');
             Route::get('/borrower/support/thread', [BorrowerController::class, 'supportThread'])->name('borrower.support.thread');
             Route::post('/borrower/support/automation', [\App\Http\Controllers\Site\SupportAutomationController::class, 'borrowerStep'])->name('borrower.support.automation');
+            Route::post('/borrower/support/conversations/{supportConversation}/resolution', [BorrowerController::class, 'confirmSupportResolution'])->name('borrower.support.conversation.resolution');
             Route::get('/borrower/support/history/{supportConversation}', [BorrowerController::class, 'supportHistory'])->name('borrower.support.history');
             Route::get('/borrower/support/tickets/{support_ticket}', [BorrowerController::class, 'showSupportTicket'])->name('borrower.support.ticket.show');
             Route::post('/borrower/support/conversations/{supportConversation}/rate', [BorrowerController::class, 'rateSupportConversation'])->name('borrower.support.conversation.rate');

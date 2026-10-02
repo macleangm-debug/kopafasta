@@ -13,6 +13,7 @@
     'backToFaqsLabel' => null,
     'showRating' => false,
     'ratingUrl' => null,
+    'resolutionUrl' => null,
     'guestName' => null,
     'guestFirstName' => null,
     'guestLastName' => null,
@@ -135,6 +136,8 @@
          'personaDisplay' => null,
          'showRating' => (bool) $showRating,
          'ratingUrl' => $ratingUrl,
+         'resolutionUrl' => $resolutionUrl,
+         'isSw' => (bool) $isSw,
          'composerLocked' => (bool) $composerLocked || (bool) ($presence['composer_locked'] ?? false),
          'ratingThanks' => $isSw ? 'Asante kwa tathmini yako.' : 'Thank you for your rating.',
          'ratingPrompt' => $isSw ? 'Tathmini huduma yetu' : 'Rate our support',
@@ -163,7 +166,14 @@
                         </span>
                         <span class="text-[10px] sm:text-[11px] text-white/70 font-semibold" x-show="config.conversationNumber" x-text="config.conversationNumber"></span>
                     </div>
-                    <p class="text-[11px] sm:text-xs text-white/75 mt-0.5 truncate" x-text="config.tagline"></p>
+                    <p class="text-[11px] sm:text-xs text-white/75 mt-0.5 truncate"
+                       x-text="humanMode
+                            ? (agentFirstName
+                                ? ((config.isSw ? 'Mtoa huduma · ' : 'Support agent · ') + agentFirstName)
+                                : (config.supportTeamTitle || config.tagline))
+                            : (config.personaDisplay
+                                ? ((config.isSw ? 'Msaidizi wa kidijitali · ' : 'Digital assistant · ') + config.personaDisplay)
+                                : config.tagline)"></p>
                 </div>
                 @if ($showBackToFaqs)
                     <button type="button" @click="$dispatch('support-back-to-faqs')"
@@ -268,7 +278,15 @@
         </template>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips && !showRating">
+    <div class="flex flex-wrap gap-2 mb-4" x-show="humanMode && resolutionChoices.length && !showRating && !ratingDone" x-cloak>
+        <template x-for="choice in resolutionChoices" :key="'res-'+choice.key">
+            <button type="button" @click="confirmResolution(choice.key)" :disabled="typing || resolutionSending"
+                    class="text-sm px-4 py-2 rounded-full bg-brand text-white hover:bg-brand-light transition disabled:opacity-50 font-semibold"
+                    x-text="choice.label"></button>
+        </template>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips && !showRating && !resolutionChoices.length">
         <template x-for="suggestion in config.suggestions" :key="suggestion">
             <button type="button" @click="askSuggestion(suggestion)" :disabled="typing"
                     class="text-sm px-3 py-1.5 rounded-full bg-brand-muted/80 text-brand hover:bg-brand/10 transition disabled:opacity-50"
@@ -287,7 +305,7 @@
         </div>
     </div>
 
-    <form @submit.prevent="ask" class="flex gap-2 items-end" x-show="!(showRating || ratingDone || composerLocked || needsGuestGate || (automationMode && !humanMode && choices.length))">
+    <form @submit.prevent="ask" class="flex gap-2 items-end" x-show="!(showRating || ratingDone || composerLocked || needsGuestGate || (automationMode && !humanMode && choices.length) || (humanMode && resolutionChoices.length))">
         <textarea x-model="input" :disabled="typing" x-ref="composer" rows="1"
                @input="growComposer()"
                placeholder="{{ __('site.support.chat_placeholder') }}"
@@ -298,7 +316,7 @@
         </button>
     </form>
 
-    <div x-show="joinCta && joinCta.url" x-cloak class="mt-3 rounded-2xl bg-gradient-to-br from-brand-muted/70 to-white ring-1 ring-brand/15 shadow-sm p-4 sm:p-5">
+    <div x-show="joinCta && joinCta.url && (!showRating || ratingDone)" x-cloak class="mt-3 rounded-2xl bg-gradient-to-br from-brand-muted/70 to-white ring-1 ring-brand/15 shadow-sm p-4 sm:p-5">
         <p class="text-[10px] uppercase tracking-[0.18em] font-bold text-brand">Kopafasta</p>
         <h3 class="mt-1 text-sm sm:text-base font-bold text-gray-900 leading-snug"
             x-text="joinCta.title || ''"></h3>
@@ -367,6 +385,9 @@
                         presence: config.presence || 'online',
                         showRating: !!config.showRating,
                         ratingUrl: config.ratingUrl || null,
+                        resolutionUrl: config.resolutionUrl || null,
+                        resolutionChoices: [],
+                        resolutionSending: false,
                         composerLocked: !!config.composerLocked,
                         joinCta: null,
                         actionCta: null,
@@ -686,6 +707,53 @@
                             if (data.status && ['closed', 'resolved'].indexOf(data.status) !== -1) {
                                 this.composerLocked = true;
                             }
+                            if (data.resolution_choices && data.resolution_choices.length) {
+                                this.resolutionChoices = data.resolution_choices;
+                                if (data.resolution_url) this.resolutionUrl = data.resolution_url;
+                            } else if (data.resolution_prompt === false || data.resolved === false) {
+                                this.resolutionChoices = [];
+                            }
+                            if (data.show_rating) {
+                                this.showRating = true;
+                                this.resolutionChoices = [];
+                                this.composerLocked = true;
+                                if (data.rating_url) this.ratingUrl = data.rating_url;
+                                if (data.rating_prompt) this.config.ratingPrompt = data.rating_prompt;
+                            }
+                        },
+                        async confirmResolution(key) {
+                            if (!this.resolutionUrl || !key || this.resolutionSending) return;
+                            this.resolutionSending = true;
+                            this.sendError = '';
+                            var self = this;
+                            try {
+                                var res = await fetch(this.resolutionUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': this.csrfToken(),
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify({ resolved: key }),
+                                });
+                                var data = await res.json().catch(function () { return {}; });
+                                if (!res.ok || data.ok === false) {
+                                    self.sendError = data.message || data.error || 'Could not confirm.';
+                                    return;
+                                }
+                                self.resolutionChoices = [];
+                                if (data.messages && data.messages.length) {
+                                    self.messages = self.mapThread(data.messages);
+                                }
+                                self.applyPresence(data);
+                                self.scrollBottom();
+                            } catch (e) {
+                                self.sendError = 'Could not confirm. Try again.';
+                            } finally {
+                                self.resolutionSending = false;
+                            }
                         },
                         mapThread(rows) {
                             return (rows || []).map(function (m) {
@@ -746,6 +814,20 @@
                                 self.showRating = false;
                                 self.composerLocked = true;
                                 if (data.thanks) self.config.ratingThanks = data.thanks;
+                                if (data.show_join_cta && self.joinCta && self.joinCta.url) {
+                                    /* keep join CTA visible after Guest rating */
+                                } else if (data.show_join_cta && !self.joinCta) {
+                                    self.joinCta = {
+                                        title: '',
+                                        body: '',
+                                        label: config.isSw ? 'Anza Sasa' : 'Get started',
+                                        url: config.registerUrl,
+                                        key: 'register',
+                                        secondary_label: config.isSw ? 'Ingia' : 'Sign in',
+                                        secondary_url: '/login',
+                                        secondary_key: 'login',
+                                    };
+                                }
                                 var go = data.redirect || null;
                                 if (go) {
                                     setTimeout(function () { window.location = go; }, 1100);

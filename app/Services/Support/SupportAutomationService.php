@@ -184,13 +184,13 @@ class SupportAutomationService
         $name = trim((string) $firstName);
         if ($this->isSw($locale)) {
             return $name !== ''
-                ? "Je, {$name}, tatizo limetatuliwa?"
-                : 'Je, tatizo limetatuliwa?';
+                ? "Je, {$name}, tatizo lako limetatuliwa?"
+                : 'Je, tatizo lako limetatuliwa?';
         }
 
         return $name !== ''
-            ? "{$name}, was the issue resolved?"
-            : 'Was the issue resolved?';
+            ? "{$name}, has your issue been resolved?"
+            : 'Has your issue been resolved?';
     }
 
     public function humanOfferLabel(?string $locale = null): string
@@ -465,17 +465,11 @@ class SupportAutomationService
                     ->values()
                     ->all();
             } elseif ($phase === 'confirm') {
+                // Resolution template: Yes/No only — same engine for Member/Partner/Guest.
                 $choices = [
                     ['action' => 'resolved_yes', 'key' => 'yes', 'label' => $this->isSw($locale) ? 'Ndiyo' : 'Yes'],
                     ['action' => 'resolved_no', 'key' => 'no', 'label' => $this->isSw($locale) ? 'Hapana' : 'No'],
                 ];
-                if (! blank($conversation->customer_id) || ! blank($conversation->user_id)) {
-                    $choices[] = [
-                        'action' => 'another_issue',
-                        'key' => 'another',
-                        'label' => $this->isSw($locale) ? 'Nina tatizo jingine' : 'I have another issue',
-                    ];
-                }
             } elseif ($phase === 'escalate_offer') {
                 $choices = [
                     ['action' => 'escalate', 'key' => 'human', 'label' => $this->humanOfferLabel($locale)],
@@ -941,13 +935,31 @@ class SupportAutomationService
             'closed_at' => now(),
             'resolution_category' => 'msaidizi',
             'resolution_note' => 'Resolved by Msaidizi',
-            'rating_requested_at' => ($conversation->customer_id || $conversation->user_id) ? now() : $conversation->rating_requested_at,
+            // Guest CSAT counts toward persona performance (same conversation + persona_key).
+            'rating_requested_at' => now(),
         ]);
 
         $fresh = $conversation->fresh(['messages', 'tickets']) ?? $conversation;
         $payload = $this->payload($fresh, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
+        if ($fresh->awaitsRating()) {
+            $persona = $this->personaFromMeta($meta);
+            $sw = $this->isSw($locale);
+            $payload['show_rating'] = true;
+            $payload['rating_prompt'] = $sw
+                ? "Uzoefu wako na {$persona['name']} ulikuwaje?"
+                : "How was your experience with {$persona['name']}?";
+            if ($isGuest && \Illuminate\Support\Facades\Route::has('site.support.chat.rate')) {
+                $payload['rating_url'] = route('site.support.chat.rate', $fresh);
+            } elseif ($fresh->customer_id && \Illuminate\Support\Facades\Route::has('site.borrower.support.conversation.rate')) {
+                $payload['rating_url'] = route('site.borrower.support.conversation.rate', $fresh);
+            } elseif ($fresh->user_id && \Illuminate\Support\Facades\Route::has('site.partner.support.conversation.rate')) {
+                $payload['rating_url'] = route('site.partner.support.conversation.rate', $fresh);
+            }
+            $payload['composer_locked'] = true;
+        }
         if ($isGuest) {
             $sw = $this->isSw($locale);
+            // Conversion CTA after rating (frontend shows join after ratingDone).
             $payload['join_cta'] = [
                 'title' => $sw ? 'Pata huduma zote za mwanachama' : 'Get the full member experience',
                 'body' => $sw
@@ -958,20 +970,10 @@ class SupportAutomationService
                 'prompt' => $sw
                     ? 'Jiunge na Kopafasta ili upate huduma zote kwenye akaunti yako.'
                     : 'Join Kopafasta to access every member service in one place.',
+                'secondary_label' => $sw ? 'Ingia' : 'Sign in',
+                'secondary_url' => route('login'),
+                'secondary_key' => 'login',
             ];
-        } elseif ($fresh->awaitsRating()) {
-            $persona = $this->personaFromMeta($meta);
-            $sw = $this->isSw($locale);
-            $payload['show_rating'] = true;
-            $payload['rating_prompt'] = $sw
-                ? "Uzoefu wako na {$persona['name']} ulikuwaje?"
-                : "How was your experience with {$persona['name']}?";
-            if ($fresh->customer_id && \Illuminate\Support\Facades\Route::has('site.borrower.support.conversation.rate')) {
-                $payload['rating_url'] = route('site.borrower.support.conversation.rate', $fresh);
-            } elseif ($fresh->user_id && \Illuminate\Support\Facades\Route::has('site.partner.support.conversation.rate')) {
-                $payload['rating_url'] = route('site.partner.support.conversation.rate', $fresh);
-            }
-            $payload['composer_locked'] = true;
         }
 
         return $payload;
@@ -1414,6 +1416,7 @@ class SupportAutomationService
         }
 
         // Safe account context — never invent eligibility/fees/payment status.
+        // Never dump raw internal status codes into customer-visible text.
         if ($customer) {
             $ctx = [];
             $openApps = \App\Models\LoanApplication::query()
@@ -1423,7 +1426,21 @@ class SupportAutomationService
                 ->limit(2)
                 ->get(['application_number', 'status', 'current_stage']);
             foreach ($openApps as $app) {
-                $ctx[] = trim(($app->application_number ?: 'APP').' · '.$app->status.($app->current_stage ? ' / '.$app->current_stage : ''));
+                $raw = (string) ($app->status ?: $app->current_stage ?: '');
+                $statusLabel = $this->conversations->customerFacingStatusLabel($raw, $locale);
+                try {
+                    $borrower = app(\App\Services\ApplicationBorrowerStatusService::class)->forApplication($app);
+                    $candidate = trim((string) ($borrower['label'] ?? ''));
+                    // Reject raw snake_case / slash-joined internal codes leaking into chat.
+                    if ($candidate !== ''
+                        && ! preg_match('/^[a-z0-9_]+(\s*\/\s*[a-z0-9_]+)?$/i', $candidate)
+                        && ! str_contains($candidate, '_')
+                    ) {
+                        $statusLabel = $candidate;
+                    }
+                } catch (\Throwable) {
+                }
+                $ctx[] = trim(($app->application_number ?: 'APP').' · '.$statusLabel);
             }
             if ($ctx !== []) {
                 $parts[] = $isSw

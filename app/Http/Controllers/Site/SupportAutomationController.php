@@ -193,7 +193,7 @@ class SupportAutomationController extends Controller
                 app()->getLocale(),
             );
 
-            // Resolved Guest thread is final — clear session so next visit starts a new conversation.
+            // Resolved Guest thread: keep conversation id + phone for CSAT, clear identity fluff later on rate.
             if (
                 ! $requireAuth
                 && $request->hasSession()
@@ -206,15 +206,70 @@ class SupportAutomationController extends Controller
                     'support_guest_first_name',
                     'support_guest_last_name',
                     'support_guest_name',
-                    'support_guest_phone',
-                    'support_automation_conversation_id',
                 ]);
+                // Keep guest_phone + conversation_id until publicRate so Guest CSAT can post.
+                if (! empty($payload['show_rating'])) {
+                    $request->session()->put('support_automation_conversation_id', (int) ($payload['conversation_id'] ?? 0));
+                } else {
+                    $request->session()->forget([
+                        'support_guest_phone',
+                        'support_automation_conversation_id',
+                    ]);
+                }
             }
 
             return response()->json($payload);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
         }
+    }
+
+    public function publicRate(Request $request, SupportConversation $supportConversation): JsonResponse
+    {
+        abort_unless(
+            blank($supportConversation->customer_id) && blank($supportConversation->user_id),
+            403
+        );
+        abort_unless(in_array((string) $supportConversation->status, ['resolved', 'closed'], true), 422);
+
+        $sessionId = $request->hasSession()
+            ? (int) $request->session()->get('support_automation_conversation_id', 0)
+            : 0;
+        $sessionPhone = $request->hasSession()
+            ? PhoneNumber::canonicalDigits((string) $request->session()->get('support_guest_phone', ''))
+            : '';
+        $cnvPhone = PhoneNumber::canonicalDigits((string) ($supportConversation->guest_phone ?? ''));
+        $allowed = ($sessionId > 0 && $sessionId === (int) $supportConversation->id)
+            || ($sessionPhone !== '' && $cnvPhone !== '' && $sessionPhone === $cnvPhone);
+        abort_unless($allowed, 403);
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $svc = app(\App\Services\Support\SupportConversationService::class);
+        $svc->recordConversationRating($supportConversation, (int) $data['rating'], $data['comment'] ?? null);
+
+        if ($request->hasSession()) {
+            $request->session()->forget([
+                'support_guest_phone',
+                'support_automation_conversation_id',
+            ]);
+        }
+
+        $meta = is_array($supportConversation->automation_meta) ? $supportConversation->automation_meta : [];
+        $persona = (string) ($meta['persona_name'] ?? '');
+        $sw = str_starts_with(app()->getLocale(), 'sw');
+        $thanks = $sw
+            ? ($persona !== '' ? "Asante kwa tathmini yako ya {$persona}." : 'Asante kwa tathmini yako.')
+            : ($persona !== '' ? "Thank you for rating {$persona}." : 'Thank you for your rating.');
+
+        return response()->json([
+            'ok' => true,
+            'thanks' => $thanks,
+            'show_join_cta' => true,
+        ]);
     }
 
     private function resolveConversation(

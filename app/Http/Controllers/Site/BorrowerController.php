@@ -4000,9 +4000,10 @@ class BorrowerController extends Controller
     {
         $customer = $this->customer();
         $conversations = app(\App\Services\Support\SupportConversationService::class);
-        $openConversations = $conversations->listOpenConversationsFor($customer, null)
-            ->load(['assignedTo:id,name'])
-            ->each(fn ($c) => $conversations->ensureAlphanumericReference($c));
+        $canonical = $conversations->reconcileOpenConversationsFor($customer, null);
+        $openConversations = $canonical
+            ? collect([$canonical->loadMissing(['assignedTo:id,name'])])->each(fn ($c) => $conversations->ensureAlphanumericReference($c))
+            : collect();
 
         $requestedId = (int) request('conversation', 0);
         $conversation = $requestedId > 0
@@ -4147,14 +4148,92 @@ class BorrowerController extends Controller
         }
 
         $service->normalizeLegacyStatus($conversation);
+        $service->markReadForCustomer($conversation);
+        $presence = $service->memberChatPresence($conversation);
+        $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+        $sw = str_starts_with(app()->getLocale(), 'sw');
+        if (! empty($meta['awaiting_customer_resolution'])
+            && ! in_array((string) $conversation->status, ['closed', 'resolved'], true)
+        ) {
+            $presence['resolution_choices'] = [
+                ['key' => 'yes', 'label' => $sw ? 'Ndiyo' : 'Yes'],
+                ['key' => 'no', 'label' => $sw ? 'Hapana' : 'No'],
+            ];
+            $presence['resolution_prompt'] = true;
+            $presence['resolution_url'] = route('site.borrower.support.conversation.resolution', $conversation);
+        }
+
+        $rating = $service->ratingPayload(
+            $conversation,
+            route('site.borrower.support.conversation.rate', $conversation),
+        );
 
         return response()->json(array_merge([
             'ok' => true,
             'conversation_id' => $conversation->id,
+            'conversation_number' => $conversation->publicNumber(),
             'status' => $conversation->status,
             'needs_human' => $conversation->needs_human,
             'messages' => $service->serializeMessages($conversation),
-        ], $service->memberChatPresence($conversation)));
+        ], $presence, $rating));
+    }
+
+    public function confirmSupportResolution(Request $request, \App\Models\SupportConversation $supportConversation): JsonResponse
+    {
+        $customer = $this->customer();
+        abort_unless((int) $supportConversation->customer_id === (int) $customer->id, 403);
+
+        $data = $request->validate([
+            'resolved' => ['required', 'in:yes,no'],
+        ]);
+
+        $service = app(\App\Services\Support\SupportConversationService::class);
+        $meta = is_array($supportConversation->automation_meta) ? $supportConversation->automation_meta : [];
+        abort_unless(! empty($meta['awaiting_customer_resolution']), 422);
+
+        $sw = str_starts_with(app()->getLocale(), 'sw');
+        $yes = $data['resolved'] === 'yes';
+
+        $service->appendMessage(
+            $supportConversation,
+            'customer',
+            $yes ? ($sw ? 'Ndiyo' : 'Yes') : ($sw ? 'Hapana' : 'No'),
+            auth()->id(),
+            false,
+            true,
+        );
+
+        unset($meta['awaiting_customer_resolution'], $meta['awaiting_customer_resolution_at']);
+        $supportConversation->update(['automation_meta' => $meta]);
+
+        if ($yes) {
+            $resolved = $service->resolve($supportConversation, null, null, 'customer_confirmed');
+            $rating = $service->ratingPayload(
+                $resolved,
+                route('site.borrower.support.conversation.rate', $resolved),
+            );
+
+            return response()->json(array_merge([
+                'ok' => true,
+                'resolved' => true,
+                'conversation_id' => $resolved->id,
+                'status' => $resolved->status,
+                'messages' => $service->serializeMessages($resolved),
+                'composer_locked' => true,
+            ], $service->memberChatPresence($resolved), $rating));
+        }
+
+        $fresh = $supportConversation->fresh(['messages', 'assignedTo']) ?? $supportConversation;
+
+        return response()->json(array_merge([
+            'ok' => true,
+            'resolved' => false,
+            'conversation_id' => $fresh->id,
+            'status' => $fresh->status,
+            'messages' => $service->serializeMessages($fresh),
+            'resolution_choices' => [],
+            'resolution_prompt' => false,
+        ], $service->memberChatPresence($fresh)));
     }
 
     public function supportHistory(\App\Models\SupportConversation $supportConversation): View

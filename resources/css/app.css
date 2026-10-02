@@ -1312,15 +1312,15 @@ html.dark .kf-receipt--paper::after {
     @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
 }
 .kf-public-section {
-    padding-block: 2.5rem; /* 40px mobile — mid of 36–44 */
+    padding-block: 2rem; /* 32px mobile — tighter public rhythm */
 }
 @media (min-width: 1024px) {
     .kf-public-section {
-        padding-block: 3.75rem; /* 60px desktop — mid of 52–64 */
+        padding-block: 3rem; /* 48px desktop */
     }
 }
 .kf-public-section__intro {
-    @apply flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-7 lg:mb-8;
+    @apply flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5 lg:mb-6;
 }
 .kf-public-section__eyebrow {
     @apply text-[11px] uppercase tracking-[0.2em] text-brand font-semibold;

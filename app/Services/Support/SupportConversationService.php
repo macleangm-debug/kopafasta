@@ -244,17 +244,11 @@ class SupportConversationService
             return $created;
         }
 
-        // Member / Partner: never create a second open CNV; never retire/merge siblings.
+        // Member / Partner: never create a second open CNV; reconcile any historical duplicates first.
         return DB::transaction(function () use ($customer, $user, $channel) {
-            $open = $this->listOpenConversationsFor($customer, $user);
-            if ($open->isNotEmpty()) {
-                return $this->normalizeLegacyStatus($open->first());
-            }
-
-            // Lock identity rows lightly via re-check under transaction to beat double-click races.
-            $again = $this->listOpenConversationsFor($customer, $user);
-            if ($again->isNotEmpty()) {
-                return $this->normalizeLegacyStatus($again->first());
+            $canonical = $this->reconcileOpenConversationsFor($customer, $user);
+            if ($canonical) {
+                return $this->normalizeLegacyStatus($canonical);
             }
 
             return SupportConversation::query()->create([
@@ -267,6 +261,73 @@ class SupportConversationService
                 'last_message_at' => now(),
             ]);
         });
+    }
+
+    /**
+     * Keep at most one unresolved Member/Partner conversation. Soft-close older duplicates
+     * as resolved (history retained under Historia) — never delete.
+     */
+    public function reconcileOpenConversationsFor(?Customer $customer, ?User $user): ?SupportConversation
+    {
+        if (! $customer && ! $user) {
+            return null;
+        }
+
+        $open = $this->listOpenConversationsFor($customer, $user);
+        if ($open->isEmpty()) {
+            return null;
+        }
+
+        $keep = $open
+            ->sortByDesc(fn (SupportConversation $c) => $c->last_message_at?->timestamp
+                ?? $c->updated_at?->timestamp
+                ?? $c->id)
+            ->first();
+
+        if ($open->count() === 1) {
+            return $keep;
+        }
+
+        foreach ($open as $cnv) {
+            if ((int) $cnv->id === (int) $keep->id) {
+                continue;
+            }
+            $meta = is_array($cnv->automation_meta) ? $cnv->automation_meta : [];
+            $meta['reconciled_duplicate_of'] = $keep->id;
+            $meta['reconciled_at'] = now()->toIso8601String();
+            $cnv->update([
+                'status' => self::STATUS_RESOLVED,
+                'needs_human' => false,
+                'assigned_to' => $cnv->assigned_to,
+                'resolved_at' => $cnv->resolved_at ?: now(),
+                'closed_at' => $cnv->closed_at ?: now(),
+                'resolution_category' => $cnv->resolution_category ?: 'duplicate_reconcile',
+                'resolution_note' => $cnv->resolution_note ?: 'Duplicate open conversation reconciled; history retained.',
+                'automation_meta' => $meta,
+                'rating_requested_at' => null,
+            ]);
+        }
+
+        return $keep->fresh(['assignedTo', 'messages']) ?? $keep;
+    }
+
+    /**
+     * Unread inbound for the Member/Partner side (staff/bot messages not yet read).
+     */
+    public function unreadForCustomer(SupportConversation $conversation): int
+    {
+        return $conversation->messages()
+            ->whereNull('read_at')
+            ->whereIn('sender_type', ['staff', 'bot'])
+            ->count();
+    }
+
+    public function markReadForCustomer(SupportConversation $conversation): void
+    {
+        $conversation->messages()
+            ->whereNull('read_at')
+            ->whereIn('sender_type', ['staff', 'bot'])
+            ->update(['read_at' => now()]);
     }
 
     /**
@@ -647,6 +708,14 @@ class SupportConversationService
             'escalated' => $sw ? 'Imepelekwa' : 'Escalated',
             'resolved' => $sw ? 'Imetatuliwa' : 'Resolved',
             'closed' => $sw ? 'Imefungwa' : 'Closed',
+            'awaiting_guarantor', 'guarantor_pending' => $sw ? 'Inasubiri mdhamini' : 'Awaiting guarantor',
+            'pending_documents', 'documents_requested' => $sw ? 'Inasubiri nyaraka' : 'Documents requested',
+            'screening', 'under_review' => $sw ? 'Inachunguzwa' : 'Under review',
+            'offer_issued', 'offer_ready' => $sw ? 'Ofa iko tayari' : 'Offer ready',
+            'approved' => $sw ? 'Imeidhinishwa' : 'Approved',
+            'rejected' => $sw ? 'Imekataliwa' : 'Rejected',
+            'submitted' => $sw ? 'Imewasilishwa' : 'Submitted',
+            'draft' => $sw ? 'Rasimu' : 'Draft',
             default => $sw ? 'Inaendelea' : 'In progress',
         };
     }
