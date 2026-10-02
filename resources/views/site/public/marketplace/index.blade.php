@@ -1,12 +1,12 @@
 <x-site.layout :title="brand_title(__('borrower.marketplace.title'))">
     <section class="relative overflow-hidden bg-brand text-white">
         <div class="absolute inset-0 opacity-15 bg-[radial-gradient(circle_at_top_right,_#f5c842,_transparent_50%)]"></div>
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-16">
+        <div class="relative kf-public-container py-14 lg:py-16">
             <div class="flex flex-wrap items-end justify-between gap-6">
                 <div class="max-w-2xl">
-                    <p class="text-xs uppercase tracking-widest text-brand-gold mb-2">{{ __('site.marketplace.browse') }}</p>
-                    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">{{ __('borrower.marketplace.title') }}</h1>
-                    <p class="text-white/80 mt-3 max-w-xl">{{ __('borrower.marketplace.subtitle') }}</p>
+                    <p class="text-xs uppercase tracking-widest text-brand-gold mb-2">{{ __('site.marketplace.title') }}</p>
+                    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">{{ __('site.marketplace.subtitle') }}</h1>
+                    <p class="text-white/80 mt-3 max-w-xl">{{ __('site.marketplace.body') }}</p>
                 </div>
                 @guest
                     <a href="{{ route('site.login', ['redirect' => route('site.marketplace')]) }}" class="glass-card-dark text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-white/10 transition">
@@ -21,7 +21,7 @@
         </div>
     </section>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <x-site.public-section>
         @guest
         <div class="mb-8 kf-premium-panel rounded-2xl overflow-hidden" x-data="{ requestOpen: false }">
             <button type="button" @click="requestOpen = !requestOpen" class="relative w-full text-left p-5 sm:p-6 flex items-center justify-between gap-4">
@@ -73,5 +73,5 @@
                 @endforeach
             </div>
         @endif
-    </div>
+    </x-site.public-section>
 </x-site.layout>

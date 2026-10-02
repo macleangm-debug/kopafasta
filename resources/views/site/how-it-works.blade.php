@@ -14,14 +14,18 @@
     <x-site.public-hero
         variant="feature"
         :eyebrow="__('site.how_it_works.title')"
-        :title="__('site.how_it_works.title')"
+        :title="__('site.how_it_works.headline')"
         :body="__('site.how_it_works.subtitle')"
         :primary-href="route('site.register.borrower')"
         :primary-label="__('site.how_it_works.cta')"
     />
 
-    <x-site.public-section>
-        <x-site.public-carousel :title="__('site.how_it_works.journey_title')" :subtitle="__('site.how_it_works.journey_subtitle')">
+    <x-site.public-section
+        :eyebrow="__('site.how_it_works.title')"
+        :title="__('site.how_it_works.journey_title')"
+        :body="__('site.how_it_works.journey_subtitle')"
+    >
+        <x-site.public-carousel>
             @foreach ($journey as $i => $step)
                 <div data-public-slide class="snap-start shrink-0 w-[min(100%,calc(100vw-3rem))] sm:w-[260px] lg:w-[calc(25%-12px)]">
                     <x-site.public-card :eyebrow="__('site.how_it_works.step_label', ['num' => $i + 1])" :title="$step['title']">

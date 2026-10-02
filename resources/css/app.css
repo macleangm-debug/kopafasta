@@ -1304,3 +1304,77 @@ html.dark .kf-receipt--paper::after {
         }
     }
 }
+
+/* Public marketing section grammar — one rhythm across Home / Products / Marketplace / Plus / Support */
+.kf-public-container {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+.kf-public-section {
+    padding-block: 3rem; /* 48px mobile */
+}
+@media (min-width: 1024px) {
+    .kf-public-section {
+        padding-block: 5rem; /* 80px desktop — mid of 72–88 */
+    }
+}
+.kf-public-section__intro {
+    @apply flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-7 lg:mb-8;
+}
+.kf-public-section__eyebrow {
+    @apply text-[11px] uppercase tracking-[0.2em] text-brand font-semibold;
+}
+.kf-public-section__title {
+    @apply mt-2 text-2xl sm:text-3xl lg:text-[2rem] font-bold tracking-tight text-gray-900 leading-tight;
+}
+.kf-public-section__body {
+    @apply mt-2 text-sm sm:text-base text-gray-600 max-w-2xl leading-relaxed;
+}
+.kf-public-section__action {
+    @apply text-sm font-semibold text-brand hover:underline underline-offset-2;
+}
+.kf-public-section__content {
+    @apply relative;
+}
+
+/* Shared public carousel controls — gutter-edge, never over card copy */
+.kf-carousel-shell {
+    @apply relative;
+}
+.kf-carousel-track {
+    @apply overflow-x-auto pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory scroll-smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.kf-carousel-track::-webkit-scrollbar {
+    display: none;
+}
+.kf-carousel-ctrl {
+    @apply absolute top-1/2 z-10 size-9 sm:size-10 -translate-y-1/2 place-items-center rounded-full
+        bg-white/90 text-brand ring-1 ring-brand/15 shadow-[0_4px_14px_rgba(0,77,64,0.1)]
+        backdrop-blur-sm transition hover:bg-white hover:ring-brand/30 hover:shadow-[0_6px_18px_rgba(0,77,64,0.14)]
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand;
+}
+.kf-carousel-ctrl--prev {
+    left: 0.25rem;
+}
+.kf-carousel-ctrl--next {
+    right: 0.25rem;
+}
+@media (min-width: 640px) {
+    .kf-carousel-ctrl--prev {
+        left: -0.35rem;
+    }
+    .kf-carousel-ctrl--next {
+        right: -0.35rem;
+    }
+}
+@media (max-width: 639px) {
+    .kf-carousel-ctrl {
+        display: none !important; /* swipe-primary on phones */
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .kf-carousel-ctrl {
+        transition: none !important;
+    }
+}

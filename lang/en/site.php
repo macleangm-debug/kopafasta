@@ -436,11 +436,12 @@ return [
         'missing_declaration' => 'Application declaration',
     ],
     'products' => [
-        'all_title' => 'Financial solutions for every need',
-        'all_subtitle' => 'Compare rates and limits. One account, one simple apply flow.',
+        'all_title' => 'Financial solutions for every need.',
+        'all_subtitle' => 'Compare products and choose what works for you.',
         'picker_help_title' => 'Not sure which product fits?',
         'picker_help_body' => 'Open any product to see rates, calculator, and requirements — then apply when you are ready.',
         'featured_title' => 'Featured products',
+        'view_all' => 'All loan products →',
         'carousel_prev' => 'Previous products',
         'carousel_next' => 'Next products',
         'see_more' => 'See more products',
@@ -458,7 +459,8 @@ return [
     ],
     'how_it_works' => [
         'title' => 'How it works',
-        'subtitle' => 'From sign-up to disbursement in four clear steps.',
+        'headline' => 'Simple steps from choosing to applying.',
+        'subtitle' => 'Choose a solution that fits, complete your details and track your application directly from your phone.',
 
         'journey_title' => 'Your lending journey',
         'journey_subtitle' => 'The real Kopafasta flow from registration to repayment.',
@@ -483,10 +485,10 @@ return [
         ],
         'cta' => 'Start your journey',
         'steps' => [
-            ['title' => 'Register', 'body' => 'Create your account in under a minute with your phone number and a secure PIN.', 'icon' => '📱'],
-            ['title' => 'Choose a product', 'body' => 'Browse our loan catalogue — individual, business, asset-backed and more. Rates are shown upfront.', 'icon' => '📋'],
-            ['title' => 'Apply online', 'body' => 'Complete our guided wizard: personal details, income, and any guarantors or collateral.', 'icon' => '✅'],
-            ['title' => 'Get funded', 'body' => 'Once approved, funds are disbursed to your mobile money or bank account within hours.', 'icon' => '💸'],
+            ['title' => 'Register', 'body' => 'Create your account with your phone number and a secure PIN.', 'icon' => '📱'],
+            ['title' => 'Choose a product', 'body' => 'Compare products and pick what fits — rates are shown upfront.', 'icon' => '📋'],
+            ['title' => 'Apply online', 'body' => 'Complete your details and track your application directly from your phone.', 'icon' => '✅'],
+            ['title' => 'Receive a decision', 'body' => 'We will notify you of the outcome — approval or decline — in your account.', 'icon' => '📨'],
         ],
         'details' => [
             ['title' => 'Transparent pricing', 'body' => 'Every rate, fee and charge is disclosed before you sign. No hidden costs.', 'icon' => '🔍'],
@@ -820,8 +822,9 @@ return [
 
     'marketplace' => [
         'title' => 'Asset marketplace',
-        'subtitle' => 'Finance vehicles, equipment and more with clear financing terms and flexible instalments.',
-        'view_all' => 'View all assets',
+        'subtitle' => 'Finance vehicles, equipment and more through a loan.',
+        'body' => 'Choose an asset that fits from our partner network.',
+        'view_all' => 'View all assets →',
         'guest_cta' => 'Sign in or register to apply for an asset.',
         'browse' => 'Browse assets',
         'specifications' => 'Specifications',
@@ -2768,7 +2771,7 @@ return [
         'see_how' => 'See how it works',
         'optional' => 'Kopafasta Plus is optional. You do not need Plus to apply for or manage a normal Kopafasta loan.',
         'teaser_kicker' => 'Kopafasta Plus',
-        'teaser_title' => 'We understand you better',
+        'teaser_title' => 'We understand you better.',
         'teaser_body' => 'Plus helps Kopafasta understand your money habits so we can provide more useful financial insights, guidance, tools and relevant opportunities. It is optional — not a loan, and not a guarantee of approval.',
         'teaser_benefit_1' => 'Money insights',
         'teaser_benefit_2' => 'Business clarity',

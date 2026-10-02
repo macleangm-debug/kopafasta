@@ -8,16 +8,16 @@
         :primary-label="auth()->check() ? __('site.rewards.see') : __('site.rewards.cta')"
     />
 
-    <section class="py-10 lg:py-14">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-            <div class="max-w-3xl">
-                <h2 class="text-xl font-bold text-gray-900">{{ __('site.rewards.how_title') }}</h2>
-                <p class="mt-3 text-sm sm:text-[15px] text-gray-600 leading-relaxed">{{ __('site.rewards.how_body') }}</p>
-                <p class="mt-3 text-sm text-gray-600 leading-relaxed">{{ __('site.rewards.signin_note') }}</p>
-            </div>
+    <x-site.public-section
+        :eyebrow="__('site.rewards.title')"
+        :title="__('site.rewards.how_title')"
+        :body="__('site.rewards.how_body')"
+    >
+        <p class="text-sm text-gray-600 leading-relaxed -mt-2 mb-8">{{ __('site.rewards.signin_note') }}</p>
 
+        <div class="space-y-10">
             <div>
-                <h2 class="text-xl font-bold text-gray-900">{{ __('site.rewards.qualify_title') }}</h2>
+                <h3 class="text-lg font-bold text-gray-900">{{ __('site.rewards.qualify_title') }}</h3>
                 <p class="mt-2 text-sm text-gray-500">{{ __('site.rewards.not_every') }}</p>
                 @if (count($earn) === 0)
                     <p class="mt-4 text-sm text-gray-500">{{ __('site.rewards.earn_empty') }}</p>
@@ -34,7 +34,7 @@
             </div>
 
             <div>
-                <h2 class="text-xl font-bold text-gray-900">{{ __('site.rewards.catalog_title') }}</h2>
+                <h3 class="text-lg font-bold text-gray-900">{{ __('site.rewards.catalog_title') }}</h3>
                 <p class="mt-2 text-sm text-gray-500">{{ __('site.rewards.redeem_how') }}</p>
                 @if (count($catalog) === 0)
                     <p class="mt-4 text-sm text-gray-500">{{ __('site.rewards.catalog_empty') }}</p>
@@ -56,5 +56,5 @@
                 @endif
             </div>
         </div>
-    </section>
+    </x-site.public-section>
 </x-site.layout>

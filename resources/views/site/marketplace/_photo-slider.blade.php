@@ -60,18 +60,18 @@
             >
 
             @if ($count > 1)
-                <button
-                    type="button"
+                <x-site.carousel-control
+                    direction="prev"
+                    label="Previous photo"
+                    class="!left-2"
                     @click.stop="prev()"
-                    class="absolute left-2 top-1/2 -translate-y-1/2 z-20 size-10 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-2xl font-black leading-none hover:bg-brand-light"
-                    aria-label="Previous photo"
-                >‹</button>
-                <button
-                    type="button"
+                />
+                <x-site.carousel-control
+                    direction="next"
+                    label="Next photo"
+                    class="!right-2"
                     @click.stop="next()"
-                    class="absolute right-2 top-1/2 -translate-y-1/2 z-20 size-10 rounded-full bg-brand text-white shadow-lg ring-2 ring-white/90 grid place-items-center text-2xl font-black leading-none hover:bg-brand-light"
-                    aria-label="Next photo"
-                >›</button>
+                />
                 <div
                     class="absolute top-2 right-2 z-20 rounded-full bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 tabular-nums pointer-events-none"
                     x-text="(index + 1) + ' / ' + photos.length"

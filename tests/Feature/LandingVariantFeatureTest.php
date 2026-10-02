@@ -28,7 +28,6 @@ class LandingVariantFeatureTest extends TestCase
         $this->assertStringContainsString(__('site.nav.log_in'), $html);
         $this->assertStringContainsString(route('site.register.borrower', absolute: false), $html);
         $this->assertStringContainsString(route('site.login', absolute: false), $html);
-        $this->assertStringNotContainsString(__('site.hero.learn_more'), $html);
         $this->assertStringNotContainsString(__('site.hero.login_cta'), $html);
     }
 

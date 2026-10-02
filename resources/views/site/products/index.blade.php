@@ -6,7 +6,7 @@
         :body="__('site.products.all_subtitle')"
     />
 
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
+    <x-site.public-section>
         @if ($products->isEmpty())
             <x-site.empty-state
                 icon="📋"
@@ -37,7 +37,7 @@
                 @endforeach
             </div>
 
-            <div class="mt-12 glass-card p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="mt-10 glass-card p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 class="text-lg font-bold text-gray-900">{{ __('site.products.picker_help_title') }}</h2>
                     <p class="text-sm text-gray-600 mt-1 max-w-xl">{{ __('site.products.picker_help_body') }}</p>
@@ -55,5 +55,5 @@
                 @endauth
             </div>
         @endif
-    </section>
+    </x-site.public-section>
 </x-site.layout>

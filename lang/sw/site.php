@@ -436,11 +436,12 @@ return [
         'missing_declaration' => 'Tamko la ombi',
     ],
     'products' => [
-        'all_title' => 'Suluhisho za kifedha kwa kila hitaji',
-        'all_subtitle' => 'Linganisha viwango, kikomo na muda. Bidhaa zote zinatumia akaunti salama na simu.',
+        'all_title' => 'Suluhisho za kifedha kwa kila hitaji.',
+        'all_subtitle' => 'Linganisha bidhaa na uchague inayokufaa.',
         'picker_help_title' => 'Huna uhakika bidhaa ipi inafaa?',
         'picker_help_body' => 'Fungua bidhaa yoyote kuona viwango, kikokotoo, na mahitaji — kisha omba ukiwa tayari.',
         'featured_title' => 'Bidhaa zilizochaguliwa',
+        'view_all' => 'Bidhaa zote za mkopo →',
         'carousel_prev' => 'Bidhaa zilizotangulia',
         'carousel_next' => 'Bidhaa zinazofuata',
         'see_more' => 'Ona bidhaa zaidi',
@@ -458,7 +459,8 @@ return [
     ],
     'how_it_works' => [
         'title' => 'Jinsi inavyofanya kazi',
-        'subtitle' => 'Kutoka usajili hadi utoaji wa fedha kwa hatua nne.',
+        'headline' => 'Hatua rahisi kutoka kuchagua hadi kuomba.',
+        'subtitle' => 'Chagua suluhisho linalokufaa, jaza maelezo yako na fuatilia ombi lako moja kwa moja kutoka kwenye simu yako.',
 
         'journey_title' => 'Safari yako ya mkopo',
         'journey_subtitle' => 'Mtiririko halisi wa Kopafasta kutoka usajili hadi marejesho.',
@@ -483,10 +485,10 @@ return [
         ],
         'cta' => 'Anza safari yako',
         'steps' => [
-            ['title' => 'Jisajili', 'body' => 'Unda akaunti yako kwa chini ya dakika moja kwa nambari ya simu na PIN salama.', 'icon' => '📱'],
-            ['title' => 'Chagua bidhaa', 'body' => 'Vinjari katalogi yetu — binafsi, biashara, mali na zaidi. Viwango vinaonyeshwa mapema.', 'icon' => '📋'],
-            ['title' => 'Omba mtandaoni', 'body' => 'Kamilisha mwongozo wetu: maelezo binafsi, mapato, na mdhamini au dhamana.', 'icon' => '✅'],
-            ['title' => 'Pata fedha', 'body' => 'Ukishaidhinishwa, fedha zinatolewa kwenye simu yako au benki ndani ya masaa.', 'icon' => '💸'],
+            ['title' => 'Jisajili', 'body' => 'Unda akaunti yako kwa nambari ya simu na PIN salama.', 'icon' => '📱'],
+            ['title' => 'Chagua bidhaa', 'body' => 'Linganisha bidhaa na uchague inayokufaa — viwango vinaonyeshwa mapema.', 'icon' => '📋'],
+            ['title' => 'Omba mtandaoni', 'body' => 'Jaza maelezo yako na fuatilia ombi moja kwa moja kutoka kwenye simu yako.', 'icon' => '✅'],
+            ['title' => 'Pokea uamuzi', 'body' => 'Tutakujulisha matokeo ya ombi lako — idhini au kukataa — kupitia akaunti yako.', 'icon' => '📨'],
         ],
         'details' => [
             ['title' => 'Bei wazi', 'body' => 'Kila kiwango, ada na gharama inafichuliwa kabla ya kusaini. Hakuna gharama zilizofichwa.', 'icon' => '🔍'],
@@ -820,8 +822,9 @@ return [
 
     'marketplace' => [
         'title' => 'Soko la mali',
-        'subtitle' => 'Pata magari, vifaa na zaidi kupitia mkopo na marejesho rafiki.',
-        'view_all' => 'Tazama mali zote',
+        'subtitle' => 'Pata magari, vifaa na zaidi kupitia mkopo.',
+        'body' => 'Chagua mali inayokufaa kutoka kwa washirika wetu.',
+        'view_all' => 'Tazama mali zote →',
         'guest_cta' => 'Ingia au jisajili ili kuomba mali.',
         'browse' => 'Vinjari mali',
         'specifications' => 'Maelezo',
@@ -2753,7 +2756,7 @@ return [
         'see_how' => 'Angalia inavyofanya kazi',
         'optional' => 'Kopafasta Plus ni hiari. Huhitaji Plus kuomba au kusimamia mkopo wa kawaida wa Kopafasta.',
         'teaser_kicker' => 'Kopafasta Plus',
-        'teaser_title' => 'Tunakufahamu vizuri zaidi',
+        'teaser_title' => 'Tunakufahamu vizuri zaidi.',
         'teaser_body' => 'Plus inatusaidia kukufahamu vizuri ili tukupe maarifa, mwongozo, zana na fursa muhimu zaidi za kifedha. Ni hiari — si mkopo, wala haihakikishi idhini.',
         'teaser_benefit_1' => 'Maarifa ya pesa',
         'teaser_benefit_2' => 'Uelewa wa biashara',
