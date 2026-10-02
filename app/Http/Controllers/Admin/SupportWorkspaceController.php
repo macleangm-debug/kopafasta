@@ -83,7 +83,7 @@ class SupportWorkspaceController extends Controller
                     }
                 });
             })
-            ->when($filter === 'waiting', fn ($query) => $query->orderByRaw('COALESCE(waiting_since, created_at) asc'))
+            ->when($filter === 'waiting', fn ($query) => $query->orderByRaw('COALESCE(waiting_since, last_message_at, created_at) desc'))
             ->when($filter !== 'waiting', function ($query) {
                 $query->orderByRaw("CASE WHEN needs_human = 1 AND assigned_to IS NULL THEN 0 WHEN needs_human = 1 THEN 1 ELSE 2 END")
                     ->latest('last_message_at');
@@ -167,7 +167,7 @@ class SupportWorkspaceController extends Controller
                     }
                 });
             })
-            ->when($filter === 'waiting', fn ($query) => $query->orderByRaw('COALESCE(waiting_since, created_at) asc'))
+            ->when($filter === 'waiting', fn ($query) => $query->orderByRaw('COALESCE(waiting_since, last_message_at, created_at) desc'))
             ->when($filter !== 'waiting', function ($query) {
                 $query->orderByRaw("CASE WHEN needs_human = 1 AND assigned_to IS NULL THEN 0 WHEN needs_human = 1 THEN 1 ELSE 2 END")
                     ->latest('last_message_at');
@@ -289,9 +289,17 @@ class SupportWorkspaceController extends Controller
             filled($fromDate) ? (string) $fromDate : null,
             filled($toDate) ? (string) $toDate : null,
         );
+        $volume = $this->workspace->supportVolumeSnapshot(
+            $range,
+            filled($fromDate) ? (string) $fromDate : null,
+            filled($toDate) ? (string) $toDate : null,
+        );
+        $focusKey = trim((string) $request->query('persona', ''));
 
         return view('admin.support-workspace.assistants', [
             'assistants' => $assistants,
+            'volume' => $volume,
+            'focusKey' => $focusKey,
             'range' => $range,
             'from' => $fromDate,
             'to' => $toDate,

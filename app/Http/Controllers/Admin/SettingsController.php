@@ -2726,6 +2726,10 @@ class SettingsController extends Controller
             'recurringWindowHours' => \App\Support\SupportTaxonomy::recurringWindowHours(),
             'guestConversionClosings' => $guestConversionClosings,
             'personaNames' => $personaNames,
+            'personasMax' => $automation->personasMax(),
+            'guestConversionEnabled' => (bool) Setting::get(\App\Services\Support\SupportAutomationService::GUEST_CONVERSION_ENABLED_KEY, true),
+            'guestRepeatThreshold' => (int) Setting::get(\App\Services\Support\SupportAutomationService::GUEST_REPEAT_THRESHOLD_KEY, 3),
+            'guestConversionCooldownHours' => (int) Setting::get(\App\Services\Support\SupportAutomationService::GUEST_CONVERSION_COOLDOWN_HOURS_KEY, 72),
         ]);
     }
 
@@ -2748,8 +2752,12 @@ class SettingsController extends Controller
             'conversion_sw.*' => ['nullable', 'string', 'max:500'],
             'conversion_en' => ['nullable', 'array', 'max:5'],
             'conversion_en.*' => ['nullable', 'string', 'max:500'],
-            'persona_names' => ['nullable', 'array', 'max:5'],
+            'personas_max' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'persona_names' => ['nullable', 'array', 'max:20'],
             'persona_names.*' => ['nullable', 'string', 'max:40'],
+            'guest_conversion_enabled' => ['nullable', 'boolean'],
+            'guest_repeat_threshold' => ['nullable', 'integer', 'min:2', 'max:20'],
+            'guest_conversion_cooldown_hours' => ['nullable', 'integer', 'min:1', 'max:720'],
         ];
         foreach ($categories as $key) {
             $rules["default_priority.{$key}"] = ['required', 'in:low,normal,high,urgent'];
@@ -2794,8 +2802,23 @@ class SettingsController extends Controller
             'en' => $enLines,
         ]);
 
+        $max = max(1, min(20, (int) ($data['personas_max'] ?? \App\Services\Support\SupportAutomationService::PERSONAS_MAX_DEFAULT)));
+        Setting::set(\App\Services\Support\SupportAutomationService::PERSONAS_MAX_SETTING_KEY, $max);
+        Setting::set(
+            \App\Services\Support\SupportAutomationService::GUEST_CONVERSION_ENABLED_KEY,
+            $request->boolean('guest_conversion_enabled')
+        );
+        Setting::set(
+            \App\Services\Support\SupportAutomationService::GUEST_REPEAT_THRESHOLD_KEY,
+            max(2, min(20, (int) ($data['guest_repeat_threshold'] ?? 3)))
+        );
+        Setting::set(
+            \App\Services\Support\SupportAutomationService::GUEST_CONVERSION_COOLDOWN_HOURS_KEY,
+            max(1, min(720, (int) ($data['guest_conversion_cooldown_hours'] ?? 72)))
+        );
+
         $personaRows = [];
-        foreach (array_slice(array_values($data['persona_names'] ?? []), 0, 5) as $i => $raw) {
+        foreach (array_slice(array_values($data['persona_names'] ?? []), 0, $max) as $i => $raw) {
             $name = trim((string) $raw);
             if ($name === '') {
                 continue;
@@ -2807,9 +2830,9 @@ class SettingsController extends Controller
         }
         Setting::set(
             \App\Services\Support\SupportAutomationService::PERSONAS_SETTING_KEY,
-            $personaRows !== [] ? $personaRows : \App\Services\Support\SupportAutomationService::PERSONAS
+            $personaRows !== [] ? $personaRows : array_slice(\App\Services\Support\SupportAutomationService::PERSONAS, 0, $max)
         );
 
-        return back()->with('status', 'Support settings saved. Personas, SLA targets, and Guest conversion closings updated.');
+        return back()->with('status', 'Support settings saved. Digital Assistants, SLA targets, and Guest conversion updated.');
     }
 }

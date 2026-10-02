@@ -299,9 +299,17 @@
             x-text="joinCta.title || ''"></h3>
         <p class="mt-1 text-xs sm:text-sm text-gray-600 leading-relaxed"
            x-text="joinCta.body || joinCta.prompt || ''"></p>
-        <a :href="joinCta.url"
-           class="mt-3 inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold text-sm px-5 py-2.5 shadow-sm transition"
-           x-text="joinCta.label || 'Anza Sasa'"></a>
+        <div class="mt-3 flex flex-col sm:flex-row gap-2">
+            <a :href="joinCta.url"
+               @click="trackGuestCta(joinCta.key || 'register')"
+               class="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-brand-gold hover:bg-yellow-400 text-brand font-bold text-sm px-5 py-2.5 shadow-sm transition"
+               x-text="joinCta.label || 'Anza Sasa'"></a>
+            <a x-show="joinCta.secondary_url" x-cloak
+               :href="joinCta.secondary_url"
+               @click="trackGuestCta(joinCta.secondary_key || 'login')"
+               class="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-white ring-1 ring-brand/20 hover:bg-brand-muted text-brand font-bold text-sm px-5 py-2.5 transition"
+               x-text="joinCta.secondary_label || 'Ingia'"></a>
+        </div>
     </div>
 
     <div x-show="actionCta && actionCta.url" x-cloak class="mt-3">
@@ -442,6 +450,27 @@
                             var el = this.$refs.scroll;
                             if (el) this.$nextTick(function () { el.scrollTop = el.scrollHeight; });
                         },
+                        trackGuestCta(key) {
+                            if (!config.automationUrl || !this.conversationId) return;
+                            try {
+                                fetch(config.automationUrl, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': this.csrfToken(),
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                    credentials: 'same-origin',
+                                    keepalive: true,
+                                    body: JSON.stringify({
+                                        action: 'cta_click',
+                                        key: key || 'register',
+                                        conversation_id: this.conversationId,
+                                    }),
+                                });
+                            } catch (e) { /* navigation proceeds */ }
+                        },
 
                         applyAutomation(data) {
                             if (!data) return;
@@ -454,10 +483,23 @@
                             if (data.composer_locked) this.composerLocked = true;
                             if (data.join_cta && data.join_cta.url) {
                                 this.joinCta = data.join_cta;
+                            } else if (data.show_join_cta && data.ctas && data.ctas.length) {
+                                var primary = data.ctas.find(function (c) { return c.key === 'register'; }) || data.ctas[0];
+                                var secondary = data.ctas.find(function (c) { return c.key === 'login'; }) || data.ctas[1] || null;
+                                this.joinCta = {
+                                    title: '',
+                                    body: '',
+                                    label: primary.label,
+                                    url: primary.href || primary.url,
+                                    key: primary.key || 'register',
+                                    secondary_label: secondary ? secondary.label : null,
+                                    secondary_url: secondary ? (secondary.href || secondary.url) : null,
+                                    secondary_key: secondary ? (secondary.key || 'login') : null,
+                                };
                             }
                             if (data.cta && data.cta.url) {
                                 this.actionCta = data.cta;
-                            } else if (! data.join_cta) {
+                            } else if (! data.join_cta && ! data.show_join_cta) {
                                 this.actionCta = null;
                             }
                             if (data.persona_display) {

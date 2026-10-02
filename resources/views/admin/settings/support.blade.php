@@ -12,11 +12,15 @@
     while (count($enClosings) < 5) {
         $enClosings[] = '';
     }
+    $personasMax = (int) old('personas_max', $personasMax ?? 5);
     $personaNames = old('persona_names', $personaNames ?? ['Amani', 'Neema', 'Baraka', 'Rehema', 'Daniel']);
-    while (count($personaNames) < 5) {
+    while (count($personaNames) < $personasMax) {
         $personaNames[] = '';
     }
-    $personaNames = array_slice(array_values($personaNames), 0, 5);
+    $personaNames = array_slice(array_values($personaNames), 0, $personasMax);
+    $guestConversionEnabled = old('guest_conversion_enabled', $guestConversionEnabled ?? true);
+    $guestRepeatThreshold = (int) old('guest_repeat_threshold', $guestRepeatThreshold ?? 3);
+    $guestConversionCooldownHours = (int) old('guest_conversion_cooldown_hours', $guestConversionCooldownHours ?? 72);
 @endphp
 
 <x-admin.layout title="Support SLA & Priorities" heading="Support SLA & Priorities" subheading="Issue → default priority → target resolution → approaching threshold. Snapshotted onto each ticket at create.">
@@ -32,7 +36,7 @@
     <x-admin.settings-editor
         action="{{ route('admin.settings.support.save') }}"
         submit-label="Save Support settings"
-        :tabs="['issues' => 'Issues & SLA', 'priority' => 'Priority fallbacks', 'recurring' => 'Recurring flags', 'msaidizi' => 'Automated assistant']"
+        :tabs="['issues' => 'Issues & SLA', 'priority' => 'Priority fallbacks', 'recurring' => 'Recurring flags', 'msaidizi' => 'Digital Assistants']"
         default-tab="issues"
     >
         <div x-show="tab === 'issues'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-4">
@@ -134,16 +138,23 @@
         <div x-show="tab === 'msaidizi'" x-cloak class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 space-y-8">
             <div class="space-y-4">
                 <div>
-                    <p class="text-xs uppercase tracking-widest text-brand font-semibold">Automated assistant personas</p>
+                    <p class="text-xs uppercase tracking-widest text-brand font-semibold">Digital Assistants</p>
                     <p class="text-sm text-gray-600 mt-1">
-                        Up to <strong>5</strong> named digital assistants. Empty slots are ignored.
-                        Conversations pick one of the active names at start. Leave all blank to restore built-in defaults.
+                        Settings-backed personas (not Staff users). Empty slots are ignored.
+                        Conversations pick one active name at start. Leave all blank to restore built-in defaults.
                     </p>
                 </div>
-                <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div class="grid sm:grid-cols-3 gap-3 max-w-xl">
+                    <label class="block text-sm sm:col-span-1">
+                        <span class="font-semibold text-gray-700">Maximum assistants</span>
+                        <input type="number" name="personas_max" min="1" max="20" value="{{ $personasMax }}"
+                               class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                    </label>
+                </div>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     @foreach ($personaNames as $i => $name)
                         <label class="block text-sm">
-                            <span class="font-semibold text-gray-700">Persona {{ $i + 1 }}</span>
+                            <span class="font-semibold text-gray-700">Assistant {{ $i + 1 }}</span>
                             <input type="text" name="persona_names[{{ $i }}]" maxlength="40"
                                    value="{{ $name }}"
                                    class="mt-1 w-full rounded-lg border-gray-200 text-sm"
@@ -153,10 +164,32 @@
                 </div>
             </div>
 
+            <div class="rounded-xl bg-brand-muted/40 ring-1 ring-brand/10 p-4 space-y-3">
+                <p class="text-xs uppercase tracking-widest text-brand font-semibold">Guest conversion</p>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                    <input type="checkbox" name="guest_conversion_enabled" value="1" @checked($guestConversionEnabled) class="rounded border-gray-300 text-brand focus:ring-brand">
+                    Enable gentle Guest conversion nudges
+                </label>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <label class="block text-sm">
+                        <span class="font-semibold text-gray-700">Repeat-Guest threshold</span>
+                        <input type="number" name="guest_repeat_threshold" min="2" max="20" value="{{ $guestRepeatThreshold }}"
+                               class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                        <span class="text-xs text-gray-500">Separate visits before a nudge may show</span>
+                    </label>
+                    <label class="block text-sm">
+                        <span class="font-semibold text-gray-700">Nudge cooldown (hours)</span>
+                        <input type="number" name="guest_conversion_cooldown_hours" min="1" max="720" value="{{ $guestConversionCooldownHours }}"
+                               class="mt-1 w-full rounded-lg border-gray-200 text-sm">
+                        <span class="text-xs text-gray-500">Do not repeat the nudge more often than this</span>
+                    </label>
+                </div>
+            </div>
+
             <div>
                 <p class="text-xs uppercase tracking-widest text-brand font-semibold">Guest conversion closings</p>
                 <p class="text-sm text-gray-600 mt-1">
-                    After a Guest resolves with <strong>Ndiyo</strong>, one of these variants rotates naturally.
+                    After a Guest resolves with <strong>Ndiyo</strong>, or at configured repeat-Guest moments, one of these variants rotates naturally.
                     Use <code class="text-xs bg-gray-100 px-1 rounded">{name}</code> for the first name.
                     Leave blank to use built-in defaults. Members/Partners never see these Join invitations.
                 </p>

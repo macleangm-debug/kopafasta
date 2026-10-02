@@ -479,9 +479,11 @@ class SupportOpsUxFeatureTest extends TestCase
         $first = $svc->requestHuman($customer, $user, 'First ping');
         $since = $first->waiting_since?->copy();
         $this->assertNotNull($since);
-        $this->assertStringContainsString('Unaweza kuongeza maelezo mengine hapa wakati unasubiri', $svc->waitingAcknowledgement());
+        $this->assertStringContainsString('Tumepokea ujumbe wako', $svc->waitingAcknowledgement());
+        $this->assertStringContainsString('Tafadhali subiri kidogo', $svc->waitingAcknowledgement());
         app()->setLocale('en');
-        $this->assertStringContainsString('You can add more details here while you wait', $svc->waitingAcknowledgement());
+        $this->assertStringContainsString('We’ve received your message', $svc->waitingAcknowledgement());
+        $this->assertStringContainsString('Support team will assist you shortly', $svc->waitingAcknowledgement());
 
         \Illuminate\Support\Carbon::setTestNow($frozen->copy()->addMinutes(2));
         $second = $svc->requestHuman($customer, $user, 'More detail while waiting');

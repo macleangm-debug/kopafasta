@@ -111,6 +111,13 @@ class SupportConversationService
             }
             RateLimiter::hit($throttleKey, 60);
 
+            $enteringWaiting = ! ($conversation->assigned_to && in_array($conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true));
+            $freshHandoverClock = $enteringWaiting && (
+                ! $conversation->needs_human
+                || ! in_array((string) $conversation->status, [self::STATUS_WAITING], true)
+                || ! $conversation->waiting_since
+            );
+
             $conversation->update([
                 'needs_human' => true,
                 // Fresh member contact never inherits a historical agent claim while waiting.
@@ -125,13 +132,17 @@ class SupportConversationService
                 'last_message_at' => now(),
                 'waiting_since' => ($conversation->assigned_to && in_array($conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true))
                     ? $conversation->waiting_since
-                    : ($conversation->waiting_since ?: now()),
+                    : ($freshHandoverClock ? now() : ($conversation->waiting_since ?: now())),
             ]);
 
             $sender = ($customer || $user) ? 'customer' : 'guest';
             $this->appendMessage($conversation, $sender, $body, $user?->id, false, true);
 
-            if ($isWaitingHuman || (bool) ($meta['waiting_followup_allowed'] ?? false)) {
+            // Consume the single optional follow-up only when this is truly a follow-up:
+            // automation handover flag, or already waiting with a prior customer message.
+            // (openConversationFor seeds status=waiting, so the first Speak must not lock.)
+            $hadPriorCustomerWhileWaiting = $isWaitingHuman && $lastCustomer !== null;
+            if ((bool) ($meta['waiting_followup_allowed'] ?? false) || $hadPriorCustomerWhileWaiting) {
                 $meta['waiting_followup_used'] = true;
                 $meta['waiting_followup_allowed'] = false;
                 $conversation->update(['automation_meta' => $meta]);
@@ -142,7 +153,9 @@ class SupportConversationService
                 ->where(function ($q) {
                     $q->where('body', 'like', 'Tumepokea ujumbe wako%')
                         ->orWhere('body', 'like', 'Ujumbe wako umepokelewa%')
-                        ->orWhere('body', 'like', 'We received your message%');
+                        ->orWhere('body', 'like', 'We received your message%')
+                        ->orWhere('body', 'like', 'We’ve received your message%')
+                        ->orWhere('body', 'like', "We've received your message%");
                 })
                 ->exists();
             if (! $hasWaitingAck) {
@@ -513,10 +526,86 @@ class SupportConversationService
     public function waitingAcknowledgement(): string
     {
         if (str_starts_with(app()->getLocale(), 'en')) {
-            return 'We received your message. Our Support team will help you shortly.';
+            return 'We’ve received your message. Please wait a moment — our Support team will assist you shortly.';
         }
 
-        return 'Tumepokea ujumbe wako. Timu yetu ya Usaidizi itakusaidia hivi karibuni.';
+        return 'Tumepokea ujumbe wako. Tafadhali subiri kidogo — timu yetu ya Usaidizi itakuhudumia hivi karibuni.';
+    }
+
+    /**
+     * Place an existing conversation into the human Waiting queue in place.
+     * Does not open/create another conversation — preserves reference, history, and automation meta.
+     */
+    public function placeInWaitingQueue(
+        SupportConversation $conversation,
+        string $body,
+        ?string $topic = null,
+        bool $consumeOptionalFollowup = false,
+        bool $sendWaitingAck = false,
+    ): SupportConversation {
+        $body = trim($body);
+        $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+
+        if ($consumeOptionalFollowup) {
+            if ((bool) ($meta['waiting_followup_used'] ?? false)) {
+                throw new \InvalidArgumentException('composer_locked');
+            }
+            $meta['waiting_followup_used'] = true;
+            $meta['waiting_followup_allowed'] = false;
+            $sendWaitingAck = true;
+        }
+
+        $wasAlreadyWaiting = (bool) $conversation->needs_human
+            && in_array((string) $conversation->status, [self::STATUS_WAITING], true)
+            && ! $conversation->assigned_to;
+
+        $conversation->update([
+            'needs_human' => true,
+            'assigned_to' => null,
+            'status' => self::STATUS_WAITING,
+            // Fresh escalation time so the row sorts as a current handover (not the old CNV created_at).
+            'waiting_since' => $wasAlreadyWaiting && $conversation->waiting_since
+                ? $conversation->waiting_since
+                : now(),
+            'topic' => $topic ?: $conversation->topic,
+            'last_message_at' => now(),
+            'automation_meta' => $meta,
+        ]);
+
+        if ($body !== '') {
+            $sender = ($conversation->customer_id || $conversation->user_id) ? 'customer' : 'guest';
+            $this->appendMessage($conversation, $sender, $body, $conversation->user_id, false, true);
+        }
+
+        // Waiting ack is for the optional follow-up (or explicit request), not the escalate hop itself.
+        if ($sendWaitingAck) {
+            $hasWaitingAck = $conversation->messages()
+                ->where('is_automated', true)
+                ->where(function ($q) {
+                    $q->where('body', 'like', 'Tumepokea ujumbe wako%')
+                        ->orWhere('body', 'like', 'Ujumbe wako umepokelewa%')
+                        ->orWhere('body', 'like', 'We received your message%')
+                        ->orWhere('body', 'like', 'We’ve received your message%')
+                        ->orWhere('body', 'like', "We've received your message%");
+                })
+                ->exists();
+
+            if (! $hasWaitingAck) {
+                $this->appendMessage(
+                    $conversation,
+                    'staff',
+                    $this->waitingAcknowledgement(),
+                    null,
+                    true,
+                    false,
+                );
+                $conversation->update([
+                    'waiting_nudge_level' => max(1, (int) ($conversation->waiting_nudge_level ?? 0)),
+                ]);
+            }
+        }
+
+        return $conversation->fresh(['customer', 'user', 'messages', 'assignedTo']) ?? $conversation;
     }
 
     /**

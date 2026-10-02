@@ -27,7 +27,7 @@ class SupportAutomationService
 
     public const STATE_RESOLVED_SUPPORT = 'resolved_support';
 
-    /** Fallback named digital assistants — Settings Hub overrides (max 5). */
+    /** Fallback named digital assistants — Settings Hub overrides (configurable max). */
     public const PERSONAS = [
         ['key' => 'amani', 'name' => 'Amani'],
         ['key' => 'neema', 'name' => 'Neema'],
@@ -38,26 +38,44 @@ class SupportAutomationService
 
     public const PERSONAS_SETTING_KEY = 'support.msaidizi.personas';
 
+    public const PERSONAS_MAX_SETTING_KEY = 'support.msaidizi.personas_max';
+
+    public const PERSONAS_MAX_DEFAULT = 5;
+
+    public const GUEST_CONVERSION_ENABLED_KEY = 'support.msaidizi.guest_conversion_enabled';
+
+    public const GUEST_REPEAT_THRESHOLD_KEY = 'support.msaidizi.guest_repeat_threshold';
+
+    public const GUEST_CONVERSION_COOLDOWN_HOURS_KEY = 'support.msaidizi.guest_conversion_cooldown_hours';
+
     public function __construct(
         private readonly SupportHelpLibraryService $help,
         private readonly SupportConversationService $conversations,
         private readonly SupportTicketService $tickets,
     ) {}
 
+    public function personasMax(): int
+    {
+        $max = (int) Setting::get(self::PERSONAS_MAX_SETTING_KEY, self::PERSONAS_MAX_DEFAULT);
+
+        return max(1, min(20, $max > 0 ? $max : self::PERSONAS_MAX_DEFAULT));
+    }
+
     /**
-     * Active automated persona names (max 5). Settings Hub is source of truth.
+     * Active automated persona names. Settings Hub is source of truth.
      *
      * @return list<array{key: string, name: string}>
      */
     public function personas(): array
     {
         $stored = Setting::get(self::PERSONAS_SETTING_KEY);
+        $max = $this->personasMax();
         if (! is_array($stored) || $stored === []) {
-            return self::PERSONAS;
+            return array_slice(self::PERSONAS, 0, $max);
         }
 
         $out = [];
-        foreach (array_slice(array_values($stored), 0, 5) as $i => $row) {
+        foreach (array_slice(array_values($stored), 0, $max) as $i => $row) {
             if (is_string($row)) {
                 $name = trim($row);
                 $key = Str::slug($name) ?: ('persona_'.($i + 1));
@@ -73,7 +91,7 @@ class SupportAutomationService
             $out[] = ['key' => $key, 'name' => $name];
         }
 
-        return $out !== [] ? $out : self::PERSONAS;
+        return $out !== [] ? $out : array_slice(self::PERSONAS, 0, $max);
     }
 
     /**
@@ -235,12 +253,132 @@ class SupportAutomationService
                     true,
                     false,
                 );
+                $nudge = $this->maybeGuestRepeatConversionNudge($conversation, $guestPhone, $locale, $firstName, $meta);
+                if ($nudge !== null) {
+                    $this->conversations->appendMessage($conversation, 'bot', $nudge, null, true, false);
+                    $meta['guest_repeat'] = true;
+                    $meta['guest_cta_shown'] = true;
+                    $meta['guest_conversion_nudged_at'] = now()->toIso8601String();
+                }
             }
         }
 
         $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
 
-        return $this->payload($conversation->fresh(['messages', 'assignedTo', 'tickets']) ?? $conversation, $audience, $locale, $workspace);
+        $payload = $this->payload($conversation->fresh(['messages', 'assignedTo', 'tickets']) ?? $conversation, $audience, $locale, $workspace);
+        if ($isGuest && (bool) ($meta['guest_cta_shown'] ?? false)) {
+            $payload = array_merge($payload, $this->guestJoinCtaPayload($locale, true));
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Compact Guest registration CTA payload for the chat surface.
+     *
+     * @return array{join_cta: array<string, mixed>, show_join_cta: bool}
+     */
+    private function guestJoinCtaPayload(?string $locale, bool $repeatNudge = false): array
+    {
+        $sw = $this->isSw($locale);
+
+        return [
+            'show_join_cta' => true,
+            'join_cta' => [
+                'title' => $sw ? 'Jiunge na familia ya Kopafasta' : 'Join the Kopafasta family',
+                'body' => $repeatNudge
+                    ? ($sw
+                        ? 'Umekuwa nasi mara kadhaa. Fungua akaunti ili upate huduma zaidi na msaada unaohusiana na akaunti yako.'
+                        : 'You’ve been with us a few times. Open an account for more services and account-specific help.')
+                    : ($sw
+                        ? 'Ili tukusaidie zaidi kuhusu hali yako binafsi, jiunge na Kopafasta au ingia kama tayari una akaunti.'
+                        : 'To help further with your personal situation, join Kopafasta or sign in if you already have an account.'),
+                'label' => $sw ? 'Anza Sasa' : 'Get started',
+                'url' => route('site.register.borrower'),
+                'key' => 'register',
+                'secondary_label' => $sw ? 'Tayari nina akaunti — Ingia' : 'I already have an account — Sign in',
+                'secondary_url' => route('site.login'),
+                'secondary_key' => 'login',
+                'prompt' => $sw
+                    ? 'Jiunge na Kopafasta ili upate huduma zote kwenye akaunti yako.'
+                    : 'Join Kopafasta to access every member service in one place.',
+            ],
+        ];
+    }
+
+    /**
+     * Record Registration CTA click for Digital Assistant reporting (no invented registration attribution).
+     *
+     * @return array<string, mixed>
+     */
+    private function recordGuestCtaClick(SupportConversation $conversation, string $key): array
+    {
+        $meta = $this->meta($conversation);
+        $meta['guest_cta_clicked'] = true;
+        $meta['guest_cta_clicked_key'] = $key !== '' ? $key : 'register';
+        $meta['guest_cta_clicked_at'] = now()->toIso8601String();
+        $conversation->update(['automation_meta' => $meta]);
+
+        return [
+            'ok' => true,
+            'conversation_id' => $conversation->id,
+            'guest_cta_clicked' => true,
+        ];
+    }
+
+    /**
+     * Frequency-capped repeat-Guest conversion nudge (canonical phone identity).
+     *
+     * @param  array<string, mixed>  $meta
+     */
+    private function maybeGuestRepeatConversionNudge(
+        SupportConversation $conversation,
+        ?string $guestPhone,
+        ?string $locale,
+        ?string $firstName,
+        array &$meta,
+    ): ?string {
+        if (! (bool) Setting::get(self::GUEST_CONVERSION_ENABLED_KEY, true)) {
+            return null;
+        }
+        $phone = trim((string) $guestPhone);
+        if ($phone === '') {
+            return null;
+        }
+
+        $threshold = max(2, (int) Setting::get(self::GUEST_REPEAT_THRESHOLD_KEY, 3));
+        $cooldownHours = max(1, (int) Setting::get(self::GUEST_CONVERSION_COOLDOWN_HOURS_KEY, 72));
+
+        $visitCount = SupportConversation::query()
+            ->whereNull('customer_id')
+            ->whereNull('user_id')
+            ->where('guest_phone', $phone)
+            ->count();
+
+        if ($visitCount < $threshold) {
+            return null;
+        }
+
+        $meta['guest_visit_count'] = $visitCount;
+
+        $recentNudge = SupportConversation::query()
+            ->whereNull('customer_id')
+            ->whereNull('user_id')
+            ->where('guest_phone', $phone)
+            ->where('automation_meta->guest_conversion_nudged_at', '!=', null)
+            ->where('updated_at', '>=', now()->subHours($cooldownHours))
+            ->exists();
+
+        if ($recentNudge) {
+            return null;
+        }
+
+        $sw = $this->isSw($locale);
+        if ($sw) {
+            return 'Umekuwa nasi mara kadhaa 😊 Jiunge na familia ya Kopafasta ili upate huduma zaidi na msaada unaohusiana moja kwa moja na akaunti yako.';
+        }
+
+        return 'You’ve visited us a few times 😊 Join the Kopafasta family for more help that connects directly to your account.';
     }
 
     /**
@@ -271,6 +409,7 @@ class SupportAutomationService
             'another_issue' => $this->restartIssuePath($conversation, $locale),
             'resolved_no' => $this->continueOrEscalate($conversation, $customer, $user, $audience, $workspace, $locale),
             'escalate' => $this->escalateToHuman($conversation, $customer, $user, $input, $locale),
+            'cta_click' => $this->recordGuestCtaClick($conversation, (string) ($input['key'] ?? 'register')),
             'start' => $this->start(
                 $customer,
                 $user,
@@ -672,6 +811,15 @@ class SupportAutomationService
         }
 
         if (is_array($diagnostic) && ! empty($diagnostic['handover'])) {
+            if ($audience === 'guest' || (! $customer && ! $user)) {
+                return $this->guestHumanBoundary(
+                    $conversation,
+                    (string) ($conversation->guest_name ?? ''),
+                    (string) ($conversation->guest_phone ?? ''),
+                    $locale,
+                    $meta,
+                );
+            }
             $offer = $this->isSw($locale)
                 ? 'Ikiwa hali haiko wazi, Ongea na Usaidizi — tutaendelea na muktadha huu.'
                 : 'If this state is unclear, Talk to Support — we will continue with this context.';
@@ -885,6 +1033,17 @@ class SupportAutomationService
             return $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, $audience, $locale, is_string($workspace) ? $workspace : null);
         }
 
+        // Guests never get a human escalate offer.
+        if ($audience === 'guest' || (! $customer && ! $user)) {
+            return $this->guestHumanBoundary(
+                $conversation,
+                (string) ($conversation->guest_name ?? ''),
+                (string) ($conversation->guest_phone ?? ''),
+                $locale,
+                $meta,
+            );
+        }
+
         $offer = $this->handoverOfferCopy($locale, $firstName !== '' ? $firstName : null);
         $this->conversations->appendMessage($conversation, 'bot', $offer, null, true, false);
         $meta['phase'] = 'escalate_offer';
@@ -905,22 +1064,18 @@ class SupportAutomationService
         ?string $locale,
     ): array {
         $meta = $this->meta($conversation);
+        $audience = (string) ($meta['audience'] ?? 'member');
         $guestName = trim((string) ($input['guest_name'] ?? $conversation->guest_name ?? ''));
         $guestPhone = trim((string) ($input['guest_phone'] ?? $conversation->guest_phone ?? ''));
 
+        // Guests never enter the human Waiting queue — Digital Assistant + join/login only.
         if (! $customer && ! $user) {
-            if ($guestName === '' || $guestPhone === '') {
-                throw new \InvalidArgumentException('Guest identity required to talk to support.');
-            }
-            $conversation->update([
-                'guest_name' => $guestName,
-                'guest_phone' => $guestPhone,
-            ]);
+            return $this->guestHumanBoundary($conversation, $guestName, $guestPhone, $locale, $meta);
         }
 
         $firstName = trim((string) ($input['guest_first_name'] ?? $meta['customer_first_name'] ?? ''));
         if ($firstName === '') {
-            $firstName = $this->resolveFirstName($customer, null, $guestName, $conversation) ?? '';
+            $firstName = $this->resolveFirstName($customer, $user, $guestName, $conversation) ?? '';
         }
         $meta['customer_first_name'] = $firstName;
 
@@ -936,13 +1091,14 @@ class SupportAutomationService
             'diagnostic' => $meta['diagnostic_context'] ?? null,
             'at' => now()->toIso8601String(),
         ];
-        $this->persistState($conversation, self::STATE_ESCALATED, $meta);
+        // One optional customer follow-up allowed after handover, then composer locks.
+        $meta['waiting_followup_allowed'] = true;
+        $meta['waiting_followup_used'] = false;
 
         $diag = is_array($meta['diagnostic_context'] ?? null) ? $meta['diagnostic_context'] : [];
         $statusLabel = null;
         if (filled($diag['status_code'] ?? null)) {
             $code = (string) $diag['status_code'];
-            // Prefer approved customer-facing application labels when this looks like a journey status.
             $statusLabel = __('borrower.applications_list.statuses.'.$code, [], $this->isSw($locale) ? 'sw' : 'en');
             if ($statusLabel === 'borrower.applications_list.statuses.'.$code) {
                 $statusLabel = $this->conversations->customerFacingStatusLabel($code, $locale);
@@ -955,7 +1111,7 @@ class SupportAutomationService
 
         $topicLabel = $this->customerFacingTopicLabel(
             (string) ($meta['issue_slug'] ?? $meta['category_key'] ?? ''),
-            (string) ($meta['audience'] ?? 'member'),
+            $audience,
             $locale,
             is_string($meta['workspace'] ?? null) ? (string) $meta['workspace'] : null,
         );
@@ -964,20 +1120,7 @@ class SupportAutomationService
             ? 'Nahitaji Ongea na mtoa huduma.'.($diagBits !== '' ? "\nMuktadha: {$diagBits}" : '')
             : 'I need to talk to a support agent.'.($diagBits !== '' ? "\nContext: {$diagBits}" : '');
 
-        $conversation = $this->conversations->requestHuman(
-            $customer,
-            $user,
-            $body,
-            $topicLabel !== '' ? $topicLabel : ($this->isSw($locale) ? 'Usaidizi' : 'Support'),
-            $guestName !== '' ? $guestName : null,
-            $guestPhone !== '' ? $guestPhone : null,
-            'web_chat',
-        );
-
-        // One optional customer follow-up allowed after handover, then composer locks.
-        $meta['waiting_followup_allowed'] = true;
-        $meta['waiting_followup_used'] = false;
-
+        // Persist escalated meta on THIS conversation first, then place it in Waiting in place.
         $conversation->update([
             'handling_state' => self::STATE_ESCALATED,
             'automation_meta' => $meta,
@@ -985,9 +1128,95 @@ class SupportAutomationService
             'topic' => $topicLabel !== '' ? $topicLabel : $conversation->topic,
         ]);
 
-        $payload = $this->payload($conversation->fresh(['messages', 'tickets', 'assignedTo']) ?? $conversation, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
+        $conversation = $this->conversations->placeInWaitingQueue(
+            $conversation->fresh() ?? $conversation,
+            $body,
+            $topicLabel !== '' ? $topicLabel : ($this->isSw($locale) ? 'Usaidizi' : 'Support'),
+            false,
+        );
 
-        return array_merge($payload, ['mode' => 'human', 'automation' => false, 'composer_locked' => false]);
+        // Re-stamp escalated handling + follow-up flags after placeInWaitingQueue (keeps same CNV).
+        $meta = $this->meta($conversation);
+        $meta['waiting_followup_allowed'] = true;
+        $meta['waiting_followup_used'] = false;
+        $meta['phase'] = 'human';
+        $conversation->update([
+            'handling_state' => self::STATE_ESCALATED,
+            'automation_meta' => $meta,
+            'needs_human' => true,
+            'status' => SupportConversationService::STATUS_WAITING,
+            'assigned_to' => null,
+            'waiting_since' => now(),
+        ]);
+
+        $payload = $this->payload(
+            $conversation->fresh(['messages', 'tickets', 'assignedTo']) ?? $conversation,
+            $audience,
+            $locale,
+            $meta['workspace'] ?? null
+        );
+
+        return array_merge($payload, [
+            'mode' => 'human',
+            'automation' => false,
+            'composer_locked' => false,
+            'desk_label' => $this->isSw($locale) ? 'Inasubiri mtoa huduma' : 'Waiting for support',
+        ]);
+    }
+
+    /**
+     * Guest unresolved / Talk to Support: never enter human Waiting. Invite join/login.
+     *
+     * @param  array<string, mixed>  $meta
+     * @return array<string, mixed>
+     */
+    private function guestHumanBoundary(
+        SupportConversation $conversation,
+        string $guestName,
+        string $guestPhone,
+        ?string $locale,
+        array $meta,
+    ): array {
+        if ($guestName !== '' || $guestPhone !== '') {
+            $conversation->update([
+                'guest_name' => $guestName !== '' ? $guestName : $conversation->guest_name,
+                'guest_phone' => $guestPhone !== '' ? $guestPhone : $conversation->guest_phone,
+            ]);
+        }
+
+        $firstName = trim((string) ($meta['customer_first_name'] ?? ''));
+        if ($firstName === '' && $guestName !== '') {
+            $firstName = $this->resolveFirstName(null, null, $guestName, $conversation) ?? '';
+        }
+
+        $label = $this->humanOfferLabel($locale);
+        $this->conversations->appendMessage($conversation, 'guest', $label, null, false, false);
+
+        $sw = $this->isSw($locale);
+        $msg = $sw
+            ? 'Ili tukusaidie zaidi kuhusu hali yako binafsi, jiunge na Kopafasta au ingia kama tayari una akaunti.'
+            : 'To help further with your personal situation, join Kopafasta or sign in if you already have an account.';
+        $this->conversations->appendMessage($conversation, 'bot', $msg, null, true, false);
+
+        $meta['phase'] = 'guest_join';
+        $meta['guest_human_boundary_at'] = now()->toIso8601String();
+        $meta['guest_cta_shown'] = true;
+        // Stay automated — never needs_human / waiting for Guests.
+        $this->persistState($conversation, self::STATE_WAITING_CUSTOMER, $meta);
+        $conversation->update(['needs_human' => false, 'status' => SupportConversationService::STATUS_ACTIVE]);
+
+        $payload = $this->payload(
+            $conversation->fresh(['messages', 'tickets']) ?? $conversation,
+            'guest',
+            $locale,
+            null
+        );
+
+        return array_merge($payload, [
+            'mode' => 'automation',
+            'automation' => true,
+            'composer_locked' => false,
+        ], $this->guestJoinCtaPayload($locale, false));
     }
 
     /**

@@ -468,6 +468,16 @@ class CustomerSupportWorkspaceService
             'agent' => $agent,
             'team_view' => $team || $agentId === null,
             'staff_options' => $this->staffOptions(),
+            'digital_assistants' => collect(app(SupportAutomationService::class)->personas())
+                ->map(fn (array $p) => [
+                    'key' => (string) $p['key'],
+                    'name' => (string) $p['name'],
+                    'kind' => 'digital_assistant',
+                    'badge' => 'Digital Assistant',
+                    'url' => route('admin.support.assistants', ['persona' => $p['key']]),
+                ])
+                ->values()
+                ->all(),
             'selected_staff_id' => $agentId,
             'availability' => $agent ? $this->availability($agent) : null,
             'agents_online' => $this->agentsOnlineCount(),
@@ -792,7 +802,7 @@ class CustomerSupportWorkspaceService
                     });
             })
             ->whereNotIn('status', ['closed', 'resolved'])
-            ->orderByRaw('COALESCE(waiting_since, created_at) asc')
+            ->orderByRaw('COALESCE(waiting_since, last_message_at, created_at) desc')
             ->limit(40)
             ->get();
     }
@@ -898,7 +908,16 @@ class CustomerSupportWorkspaceService
 
         $preview = preg_replace('/\s+/', ' ', (string) ($last?->body ?? '')) ?? '';
         $desk = app(SupportConversationService::class)->deskState($conversation);
-        $isWaiting = $desk === 'Waiting' && ! $conversation->assigned_to;
+        $isWaiting = ! $conversation->assigned_to
+            && ! in_array((string) $conversation->status, ['closed', 'resolved'], true)
+            && (
+                (bool) $conversation->needs_human
+                || in_array((string) $conversation->status, ['waiting'], true)
+                || in_array((string) ($conversation->handling_state ?? ''), [
+                    SupportAutomationService::STATE_ESCALATED,
+                    SupportAutomationService::STATE_HUMAN,
+                ], true)
+            );
 
         return [
             'id' => $conversation->id,
@@ -992,6 +1011,15 @@ class CustomerSupportWorkspaceService
                 ->where('automation_meta->persona_key', $key);
 
             $handled = (clone $base)->count();
+            $guestHandled = (clone $base)
+                ->whereNull('customer_id')
+                ->whereNull('user_id')
+                ->count();
+            $memberHandled = (clone $base)->whereNotNull('customer_id')->count();
+            $partnerHandled = (clone $base)
+                ->whereNull('customer_id')
+                ->whereNotNull('user_id')
+                ->count();
             $resolvedAuto = (clone $base)
                 ->whereIn('status', ['resolved', 'closed'])
                 ->where(function ($q) {
@@ -1008,6 +1036,21 @@ class CustomerSupportWorkspaceService
                         ->orWhere('resolution_kind', 'support');
                 })
                 ->count();
+            $guestRepeats = (clone $base)
+                ->whereNull('customer_id')
+                ->whereNull('user_id')
+                ->whereNotNull('guest_phone')
+                ->where('automation_meta->guest_repeat', true)
+                ->count();
+            $ctaShown = (clone $base)
+                ->where(function ($q) {
+                    $q->where('automation_meta->guest_cta_shown', true)
+                        ->orWhere('automation_meta->show_join_cta', true);
+                })
+                ->count();
+            $ctaClicked = (clone $base)
+                ->where('automation_meta->guest_cta_clicked', true)
+                ->count();
 
             $ratings = SupportConversation::query()
                 ->whereNotNull('rating')
@@ -1020,16 +1063,84 @@ class CustomerSupportWorkspaceService
                 'key' => $key,
                 'name' => $name,
                 'conversations_handled' => $handled,
+                'guests_handled' => $guestHandled,
+                'members_handled' => $memberHandled,
+                'partners_handled' => $partnerHandled,
                 'resolved_without_human' => $resolvedAuto,
                 'handed_over' => $handedOver,
+                'guest_repeat_conversations' => $guestRepeats,
+                'registration_cta_shown' => $ctaShown,
+                'registration_cta_clicked' => $ctaClicked,
                 'resolution_rate' => $handled > 0 ? (int) round(($resolvedAuto / $handled) * 100) : null,
                 'handover_rate' => $handled > 0 ? (int) round(($handedOver / $handled) * 100) : null,
                 'avg_rating' => $ratings->isNotEmpty() ? round((float) $ratings->avg(), 1) : null,
                 'ratings_count' => $ratings->count(),
                 'range_label' => $label,
+                'profile_url' => route('admin.support.assistants', ['persona' => $key, 'range' => $range ?? '30d']),
             ];
         }
 
         return $out;
+    }
+
+    /**
+     * Overall Support report strip: Guest / Member / Partner + digital vs human outcomes.
+     *
+     * @return array<string, mixed>
+     */
+    public function supportVolumeSnapshot(?string $range = '30d', ?string $fromDate = null, ?string $toDate = null): array
+    {
+        [$from, $label, $to] = $this->rangeBounds($range ?? '30d', $fromDate, $toDate);
+        $base = SupportConversation::query()
+            ->where('created_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('created_at', '<=', $to));
+
+        $total = (clone $base)->count();
+        $guest = (clone $base)->whereNull('customer_id')->whereNull('user_id')->count();
+        $member = (clone $base)->whereNotNull('customer_id')->count();
+        $partner = (clone $base)->whereNull('customer_id')->whereNotNull('user_id')->count();
+        $digitalResolved = (clone $base)
+            ->whereIn('status', ['resolved', 'closed'])
+            ->where(function ($q) {
+                $q->where('resolution_kind', 'msaidizi')
+                    ->orWhere('handling_state', SupportAutomationService::STATE_RESOLVED_AUTOMATED);
+            })
+            ->count();
+        $humanHandovers = (clone $base)
+            ->where(function ($q) {
+                $q->where('needs_human', true)
+                    ->orWhereIn('handling_state', [
+                        SupportAutomationService::STATE_ESCALATED,
+                        SupportAutomationService::STATE_HUMAN,
+                        SupportAutomationService::STATE_RESOLVED_SUPPORT,
+                    ]);
+            })
+            ->count();
+        $humanResolved = (clone $base)
+            ->whereIn('status', ['resolved', 'closed'])
+            ->where(function ($q) {
+                $q->where('resolution_kind', 'support')
+                    ->orWhere('handling_state', SupportAutomationService::STATE_RESOLVED_SUPPORT)
+                    ->orWhereNotNull('assigned_to');
+            })
+            ->count();
+        $ratings = SupportConversation::query()
+            ->whereNotNull('rating')
+            ->where('rated_at', '>=', $from)
+            ->when($to, fn ($q) => $q->where('rated_at', '<=', $to))
+            ->pluck('rating');
+
+        return [
+            'range_label' => $label,
+            'total_conversations' => $total,
+            'guest_conversations' => $guest,
+            'member_conversations' => $member,
+            'partner_conversations' => $partner,
+            'digital_resolved' => $digitalResolved,
+            'human_handovers' => $humanHandovers,
+            'human_resolved' => $humanResolved,
+            'avg_csat' => $ratings->isNotEmpty() ? round((float) $ratings->avg(), 1) : null,
+            'csat_count' => $ratings->count(),
+        ];
     }
 }
