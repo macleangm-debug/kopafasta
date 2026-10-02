@@ -1094,7 +1094,7 @@ class CustomerSupportWorkspaceService
                         ->orWhere('resolution_category', '!=', 'duplicate_reconcile');
                 })
                 ->with(['messages' => fn ($q) => $q->orderBy('id')->select(['id', 'support_conversation_id', 'created_at'])])
-                ->get(['id', 'created_at', 'resolved_at', 'resolution_kind', 'handling_state', 'assigned_to', 'resolution_category']);
+                ->get(['id', 'status', 'created_at', 'resolved_at', 'resolution_kind', 'handling_state', 'assigned_to', 'resolution_category']);
 
             $resolutionSamples = [];
             foreach ($digitalResolvedRows as $row) {
