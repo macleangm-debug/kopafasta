@@ -3,7 +3,7 @@
      data-kf-glass-hero
      x-data
      x-init="
-        const key = 'kf-glass-glare:' + window.location.pathname + ':home-b';
+        const key = 'kf-glass-glare:v2:' + window.location.pathname + ':home-b';
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         try {
             if (sessionStorage.getItem(key) === '1') return;

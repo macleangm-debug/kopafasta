@@ -56,6 +56,13 @@ class NotificationCtaService
             return $empty;
         }
 
+        // Resolved / rating notices are informational only — never open a conversation CTA.
+        if (in_array($template, ['support_rating_request', 'support_resolved'], true)
+            || ! empty($meta['informational_only'])
+        ) {
+            return $empty;
+        }
+
         $actionUrl = ($notification->channel === 'in_app'
             && filled($notification->recipient)
             && str_starts_with((string) $notification->recipient, '/'))

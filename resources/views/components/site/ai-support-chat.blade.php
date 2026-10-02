@@ -40,12 +40,14 @@
         }
     }
     $automationMode = (bool) $automationMode;
+    // Digital Assistant CNVs also use status=active — do NOT treat that alone as human desk.
     $humanConversationActive = $conversation instanceof \App\Models\SupportConversation
         && ! in_array((string) $conversation->status, ['closed', 'resolved'], true)
         && (
             (bool) ($conversation->needs_human ?? false)
-            || in_array((string) $conversation->status, ['waiting', 'assigned', 'active'], true)
+            || in_array((string) $conversation->status, ['waiting', 'assigned'], true)
             || in_array((string) ($conversation->handling_state ?? ''), ['escalated', 'human'], true)
+            || filled($conversation->assigned_to)
         );
     $startHuman = ($forceHuman && ! $automationMode) || (
         count($seedMessages) > 0 && $humanConversationActive

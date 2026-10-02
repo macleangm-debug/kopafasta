@@ -351,14 +351,14 @@ return [
             'home' => 'Nyumbani',
             'inbox' => 'Kikasha',
             'tickets' => 'Tiketi',
-            'members' => 'Mawasiliano',
+            'members' => 'Wateja',
             'reports' => 'Ripoti',
         ],
         'contacts' => [
             'members' => 'Wanachama',
             'partners' => 'Washirika',
             'guests' => 'Wageni',
-            'hint' => 'Wageni wanabaki Wageni — hawaingizwi kwenye Wanachama. Fungua safu kwa 360, simu na tiketi.',
+            'hint' => 'Wanachama · Wageni · Washirika — wanaopokea usaidizi. Wageni wanabaki Wageni.',
         ],
         'inbox' => [
             'title' => 'Kikasha cha Usaidizi',

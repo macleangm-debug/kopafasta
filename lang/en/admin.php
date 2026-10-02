@@ -480,14 +480,14 @@ return [
             'home' => 'Home',
             'inbox' => 'Inbox',
             'tickets' => 'Tickets',
-            'members' => 'Contacts',
+            'members' => 'Customers',
             'reports' => 'Reports',
         ],
         'contacts' => [
             'members' => 'Members',
             'partners' => 'Partners',
             'guests' => 'Guests',
-            'hint' => 'Guests stay Guests — never mixed into Members. Open a row for 360, calls and tickets.',
+            'hint' => 'Members · Guests · Partners — people receiving support. Guests stay Guests.',
         ],
         'inbox' => [
             'title' => 'Support Inbox',

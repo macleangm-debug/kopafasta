@@ -215,26 +215,56 @@ class SupportAutomationService
         ?string $locale = null,
         ?string $guestFirstName = null,
     ): array {
-        $conversation = $this->openAutomated($customer, $user, $guestName, $guestPhone);
+        // Member/Partner: always resume the single open CNV (including waiting/human) — never spawn a second bot CNV.
+        if ($customer || $user) {
+            $open = $this->conversations->reconcileOpenConversationsFor($customer, $user);
+            $conversation = $open ?: $this->openAutomated($customer, $user, $guestName, $guestPhone);
+        } else {
+            $conversation = $this->openAutomated($customer, $user, $guestName, $guestPhone);
+        }
+
+        // Never restart Digital category flow on a human/waiting/accepted CNV.
+        if ((bool) $conversation->needs_human
+            || in_array((string) $conversation->handling_state, [
+                self::STATE_ESCALATED,
+                self::STATE_HUMAN,
+                self::STATE_RESOLVED_SUPPORT,
+            ], true)
+            || filled($conversation->assigned_to)
+            || in_array((string) $conversation->status, [
+                SupportConversationService::STATUS_WAITING,
+                SupportConversationService::STATUS_ASSIGNED,
+            ], true)
+        ) {
+            $payload = $this->payload($conversation->fresh(['messages', 'assignedTo', 'tickets']) ?? $conversation, $audience, $locale, $workspace);
+            $payload['mode'] = 'human';
+            $payload['needs_human'] = true;
+            $payload['choices'] = [];
+
+            return $payload;
+        }
 
         $meta = $this->meta($conversation);
         $meta['audience'] = $audience;
         $meta['workspace'] = $workspace;
         $isGuest = ! $customer && ! $user;
-        // Guests must route Borrower vs Partner before categories. Authenticated users already have audience.
-        $meta['phase'] = $isGuest ? 'audience_route' : 'category';
-        $meta['tried_slugs'] = [];
-        $meta['category_key'] = null;
-        $meta['issue_slug'] = null;
+        $hasBot = $conversation->messages()->where('is_automated', true)->exists()
+            || $conversation->messages()->where('sender_type', 'bot')->exists();
+        $hasMessages = $conversation->messages()->count() > 0;
+
+        // Fresh Digital CNV: greeting + category/audience choices. Resume mid-flow without wiping phase.
+        if (! $hasMessages || empty($meta['phase'])) {
+            $meta['phase'] = $isGuest ? 'audience_route' : 'category';
+            $meta['tried_slugs'] = [];
+            $meta['category_key'] = null;
+            $meta['issue_slug'] = null;
+        }
         $meta['steps_attempted'] = $meta['steps_attempted'] ?? [];
         $persona = $this->ensurePersona($meta);
         $firstName = $this->resolveFirstName($customer, $guestFirstName, $guestName, $conversation);
         $meta['customer_first_name'] = $this->conversations->safePersonFirstName($firstName);
 
-        $hasBot = $conversation->messages()->where('is_automated', true)->exists()
-            || $conversation->messages()->where('sender_type', 'bot')->exists();
-
-        if (! $hasBot && $conversation->messages()->count() === 0) {
+        if (! $hasBot && ! $hasMessages) {
             $this->conversations->appendMessage(
                 $conversation,
                 'bot',
@@ -1812,16 +1842,11 @@ class SupportAutomationService
 
     private function handoverConfirmedCopy(?string $locale, ?string $firstName): string
     {
-        $name = trim((string) $firstName);
         if ($this->isSw($locale)) {
-            return $name !== ''
-                ? "Sawa {$name}. Hili linahitaji msaada zaidi. Nitakupitisha kwa mmoja wa watoa huduma wetu ili akusaidie."
-                : 'Sawa. Hili linahitaji msaada zaidi. Nitakupitisha kwa mmoja wa watoa huduma wetu ili akusaidie.';
+            return 'Tunatafuta mtoa huduma anayefaa kukusaidia. Tafadhali subiri kidogo.';
         }
 
-        return $name !== ''
-            ? "Alright {$name}. This needs more help. I’ll connect you with one of our support agents."
-            : 'Alright. This needs more help. I’ll connect you with one of our support agents.';
+        return "We're finding the right support agent for your case. Please wait a moment.";
     }
 
     private function closeResolvedCopy(?string $locale, ?string $firstName, bool $guestConversion = false): string

@@ -500,7 +500,7 @@ class SupportConversationService
         return $fresh;
     }
 
-    /** In-app CTA so the member can open Help Center and rate with stars. */
+    /** In-app notice only — never a CTA into a conversation (avoids opening the wrong CNV). */
     public function notifyRatingRequest(SupportConversation $conversation): void
     {
         if (! $conversation->customer_id || ! $conversation->awaitsRating()) {
@@ -512,19 +512,35 @@ class SupportConversationService
             return;
         }
 
-        $url = route('site.borrower.support', ['section' => 'history', 'chat' => 1]);
+        $ref = $conversation->publicNumber();
+        $topic = trim((string) ($conversation->topic ?? ''));
+        $sw = str_starts_with(app()->getLocale(), 'sw');
+        $body = $sw
+            ? 'Suala lako la msaada limekamilishwa.'.($ref !== '' ? " ({$ref})" : '')
+                .($topic !== '' ? " · {$topic}" : '')
+                .' Tafadhali tathmini huduma yetu ukifungua Kituo cha Usaidizi.'
+            : 'Your support issue has been resolved.'.($ref !== '' ? " ({$ref})" : '')
+                .($topic !== '' ? " · {$topic}" : '')
+                .' Please rate your experience when you open the Support Centre.';
+
         app(\App\Services\NotificationService::class)->notifyInApp(
             $customer,
-            __('borrower.notifications.support_resolved_body'),
+            $body,
             'support',
-            'support_rating_request',
-            __('borrower.notifications.support_resolved_title'),
-            $url,
+            'support_resolved',
+            $sw ? 'Suala lako la msaada limekamilishwa' : 'Your support issue has been resolved',
+            null,
             null,
             [
                 'title_key' => 'borrower.notifications.support_resolved_title',
                 'body_key' => 'borrower.notifications.support_resolved_body',
-                'params' => [],
+                'params' => [
+                    'reference' => $ref,
+                    'topic' => $topic,
+                ],
+                'conversation_id' => $conversation->id,
+                'conversation_number' => $ref,
+                'informational_only' => true,
             ],
         );
     }
@@ -588,10 +604,10 @@ class SupportConversationService
     public function waitingAcknowledgement(): string
     {
         if (str_starts_with(app()->getLocale(), 'en')) {
-            return 'We’ve received your message. Please wait a moment — our Support team will assist you shortly.';
+            return "We're finding the right support agent for your case. Please wait a moment.";
         }
 
-        return 'Tumepokea ujumbe wako. Tafadhali subiri kidogo — timu yetu ya Usaidizi itakuhudumia hivi karibuni.';
+        return 'Tunatafuta mtoa huduma anayefaa kukusaidia. Tafadhali subiri kidogo.';
     }
 
     /**

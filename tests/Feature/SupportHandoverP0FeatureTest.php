@@ -67,7 +67,7 @@ class SupportHandoverP0FeatureTest extends TestCase
         $this->assertNotNull($serialized['waiting_label']);
 
         $ack = app(SupportConversationService::class)->waitingAcknowledgement();
-        $this->assertStringContainsString('Tumepokea ujumbe wako', $ack);
+        $this->assertStringContainsString('Tunatafuta mtoa huduma', $ack);
         $this->assertStringContainsString('Tafadhali subiri kidogo', $ack);
     }
 
@@ -136,7 +136,7 @@ class SupportHandoverP0FeatureTest extends TestCase
         $service = app(SupportConversationService::class);
         $first = $service->requestHuman($customer, $user, 'Here is one more detail.');
         $this->assertSame($conversation->id, $first->id);
-        $acks = $first->messages()->where('is_automated', true)->where('body', 'like', 'Tumepokea ujumbe wako%')->count();
+        $acks = $first->messages()->where('is_automated', true)->where('body', 'like', 'Tunatafuta mtoa huduma%')->count();
         $this->assertSame(1, $acks);
 
         $this->expectExceptionMessage('composer_locked');

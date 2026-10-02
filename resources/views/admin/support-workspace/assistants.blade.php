@@ -35,7 +35,16 @@
     </x-admin.letterhead>
 
     @if ($focus)
-        {{-- Digital Assistant 360 — same visual language as Human profile cards --}}
+        @php
+            $avgSec = $focus['avg_resolution_seconds'] ?? null;
+            $avgLabel = $avgSec === null
+                ? '—'
+                : ($avgSec >= 3600
+                    ? sprintf('%dh %dm', intdiv($avgSec, 3600), intdiv($avgSec % 3600, 60))
+                    : sprintf('%dm %ds', intdiv($avgSec, 60), $avgSec % 60));
+            $recent = $focus['recent_conversations'] ?? [];
+        @endphp
+        {{-- Digital Assistant performance profile — not a Staff workspace --}}
         <article class="mb-6 rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm overflow-hidden">
             <div class="px-5 py-5 sm:px-6 bg-gradient-to-br from-brand via-[#0f6b54] to-[#082f27] text-white">
                 <div class="flex items-center gap-4">
@@ -44,43 +53,55 @@
                         <div class="flex flex-wrap items-center gap-2">
                             <h2 class="text-xl font-bold tracking-tight">{{ $focus['name'] }}</h2>
                             <span class="inline-flex rounded-full bg-brand-gold text-brand text-[10px] font-bold px-2.5 py-0.5 uppercase tracking-wide">Digital Assistant</span>
-                            <span class="inline-flex rounded-full bg-white/15 text-white text-[10px] font-bold px-2.5 py-0.5">Configured · Active</span>
                         </div>
-                        <p class="mt-1 text-sm text-white/75">Settings persona · no Staff account · no login</p>
+                        <p class="mt-1 text-sm text-white/75">Performance profile · Settings persona · no Staff login · no Online/Offline</p>
                     </div>
                 </div>
             </div>
             <div class="p-5 sm:p-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
                 @foreach ([
-                    ['Total handled', $focus['conversations_handled'] ?? 0],
-                    ['Guests', $focus['guests_handled'] ?? 0],
-                    ['Members / Partners', ($focus['members_handled'] ?? 0) + ($focus['partners_handled'] ?? 0)],
+                    ['Handled', $focus['conversations_handled'] ?? 0],
+                    ['Active now', $focus['active_now'] ?? 0],
                     ['Auto-resolved', $focus['resolved_without_human'] ?? 0],
                     ['Human handovers', $focus['handed_over'] ?? 0],
+                    ['Resolution rate', ($focus['resolution_rate'] ?? null) !== null ? ($focus['resolution_rate'].'%') : '—'],
+                    ['Avg resolution', $avgLabel],
+                    ['Guests', $focus['guests_handled'] ?? 0],
+                    ['Members / Partners', ($focus['members_handled'] ?? 0) + ($focus['partners_handled'] ?? 0)],
                     ['Guest repeats', $focus['guest_repeat_conversations'] ?? 0],
                     ['CTA shown', $focus['registration_cta_shown'] ?? 0],
                     ['CTA clicked', $focus['registration_cta_clicked'] ?? 0],
+                    ['CSAT', ($focus['avg_rating'] ?? null) !== null ? ($focus['avg_rating'].' ★') : '—'],
                 ] as [$label, $value])
                     <div class="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5">
                         <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{{ $label }}</p>
-                        <p class="text-lg font-bold text-slate-900 tabular-nums">{{ format_number($value) }}</p>
+                        <p class="text-lg font-bold text-slate-900 tabular-nums">{{ is_numeric($value) ? format_number($value) : $value }}</p>
                     </div>
                 @endforeach
-                <div class="rounded-xl bg-amber-50 ring-1 ring-amber-100 px-3 py-2.5 col-span-2 lg:col-span-4">
-                    <p class="text-[10px] uppercase tracking-widest text-amber-800 font-semibold">CSAT ★</p>
-                    <p class="text-lg font-bold text-amber-950 tabular-nums">
-                        {{ ($focus['avg_rating'] ?? null) !== null ? $focus['avg_rating'].' / 5' : '—' }}
-                        <span class="text-xs font-medium text-amber-800/80">({{ format_number($focus['ratings_count'] ?? 0) }} ratings)</span>
-                    </p>
-                </div>
             </div>
+            @if (count($recent) > 0)
+                <div class="px-5 sm:px-6 pb-5">
+                    <h3 class="text-xs uppercase tracking-widest text-slate-500 font-semibold mb-2">Recent conversations</h3>
+                    <ul class="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-100 overflow-hidden">
+                        @foreach ($recent as $row)
+                            <li>
+                                <a href="{{ $row['url'] }}"
+                                   class="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm hover:bg-slate-50"
+                                   title="Read-only audit — open conversation for review">
+                                    <span class="font-semibold text-brand tabular-nums">{{ $row['number'] }}</span>
+                                    <span class="text-gray-700 truncate max-w-[12rem]">{{ $row['topic'] }}</span>
+                                    <span class="text-xs text-slate-500">{{ $row['audience'] }} · {{ $row['status'] }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
             <div class="px-5 pb-5 sm:px-6 flex flex-wrap gap-2">
                 <a href="{{ route('admin.settings.support') }}?tab=msaidizi"
                    class="inline-flex rounded-xl bg-brand text-white text-sm font-semibold px-4 py-2.5">Configure</a>
                 <a href="{{ route('admin.support.assistants', ['range' => $range]) }}"
-                   class="inline-flex rounded-xl ring-1 ring-brand/20 text-brand text-sm font-semibold px-4 py-2.5 hover:bg-brand-muted/40">All assistants</a>
-                <a href="{{ route('admin.support.performance') }}"
-                   class="inline-flex rounded-xl ring-1 ring-brand/20 text-brand text-sm font-semibold px-4 py-2.5 hover:bg-brand-muted/40">Human performance →</a>
+                   class="inline-flex rounded-xl ring-1 ring-brand/20 text-brand text-sm font-semibold px-4 py-2.5 hover:bg-brand-muted/40">Digital Overview</a>
             </div>
         </article>
     @else

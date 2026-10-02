@@ -1059,10 +1059,53 @@ class CustomerSupportWorkspaceService
                 ->where('automation_meta->persona_key', $key)
                 ->pluck('rating');
 
+            $activeNow = SupportConversation::query()
+                ->where('automation_meta->persona_key', $key)
+                ->whereNotIn('status', ['resolved', 'closed'])
+                ->where(function ($q) {
+                    $q->where('needs_human', false)
+                        ->orWhereNull('needs_human');
+                })
+                ->whereNotIn('handling_state', [
+                    SupportAutomationService::STATE_ESCALATED,
+                    SupportAutomationService::STATE_HUMAN,
+                    SupportAutomationService::STATE_RESOLVED_SUPPORT,
+                ])
+                ->count();
+
+            $resolvedRows = (clone $base)
+                ->whereIn('status', ['resolved', 'closed'])
+                ->whereNotNull('resolved_at')
+                ->whereNotNull('created_at')
+                ->get(['created_at', 'resolved_at']);
+            $avgResolutionSeconds = null;
+            if ($resolvedRows->isNotEmpty()) {
+                $avgResolutionSeconds = (int) round($resolvedRows->avg(function ($row) {
+                    return max(0, $row->created_at->diffInSeconds($row->resolved_at));
+                }));
+            }
+
+            $recent = SupportConversation::query()
+                ->where('automation_meta->persona_key', $key)
+                ->latest('last_message_at')
+                ->limit(8)
+                ->get(['id', 'conversation_number', 'topic', 'status', 'handling_state', 'last_message_at', 'customer_id', 'user_id', 'guest_name'])
+                ->map(fn (SupportConversation $c) => [
+                    'id' => $c->id,
+                    'number' => $c->publicNumber(),
+                    'topic' => (string) ($c->topic ?: '—'),
+                    'status' => app(SupportConversationService::class)->customerFacingStatusLabel((string) $c->status),
+                    'audience' => $c->customer_id ? 'Member' : ($c->user_id ? 'Partner' : 'Guest'),
+                    'at' => optional($c->last_message_at)->toIso8601String(),
+                    'url' => route('admin.support.inbox.show', $c),
+                ])
+                ->all();
+
             $out[] = [
                 'key' => $key,
                 'name' => $name,
                 'conversations_handled' => $handled,
+                'active_now' => $activeNow,
                 'guests_handled' => $guestHandled,
                 'members_handled' => $memberHandled,
                 'partners_handled' => $partnerHandled,
@@ -1073,8 +1116,10 @@ class CustomerSupportWorkspaceService
                 'registration_cta_clicked' => $ctaClicked,
                 'resolution_rate' => $handled > 0 ? (int) round(($resolvedAuto / $handled) * 100) : null,
                 'handover_rate' => $handled > 0 ? (int) round(($handedOver / $handled) * 100) : null,
+                'avg_resolution_seconds' => $avgResolutionSeconds,
                 'avg_rating' => $ratings->isNotEmpty() ? round((float) $ratings->avg(), 1) : null,
                 'ratings_count' => $ratings->count(),
+                'recent_conversations' => $recent,
                 'range_label' => $label,
                 'profile_url' => route('admin.support.assistants', ['persona' => $key, 'range' => $range ?? '30d']),
             ];
