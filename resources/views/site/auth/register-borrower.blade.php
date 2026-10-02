@@ -169,16 +169,18 @@
 
                         {{-- Step 1: Country & phone --}}
                         <div x-show="step === 1">
-                            <div class="kf-auth-form" x-data="{ countryOpen: false }">
+                            <div class="kf-auth-form" x-data="{ countryOpen: false, countrySheet: false }">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __('borrower.register.country') }}</label>
-                                    <button type="button" @click="countryOpen = true"
+                                    {{-- Mobile: bottom sheet only --}}
+                                    <button type="button" @click="countrySheet = true"
                                             class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition lg:hidden">
                                         <span class="text-xl leading-none" x-text="activeCountry.emoji || '🌍'"></span>
                                         <span class="flex-1 text-left truncate" x-text="activeCountry.label"></span>
                                         <span class="text-xs text-gray-400" x-text="activeCountry.prefix"></span>
                                         <svg class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8l5 5 5-5z"/></svg>
                                     </button>
+                                    {{-- Desktop: popover only — never open the bottom sheet --}}
                                     <div class="hidden lg:block relative" @click.outside="countryOpen = false">
                                         <button type="button" @click="countryOpen = !countryOpen"
                                                 class="w-full inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 hover:border-brand/30 transition">
@@ -203,22 +205,24 @@
                                             </template>
                                         </div>
                                     </div>
-                                    <x-site.bottom-sheet title="Country" open="countryOpen">
-                                        <div class="space-y-1">
-                                            <template x-for="country in countries" :key="country.code">
-                                                <button type="button" @click="chooseCountry(country); countryOpen = false"
-                                                        class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm transition"
-                                                        :class="form.country === country.code ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'hover:bg-gray-50 text-gray-700'">
-                                                    <span class="text-xl" x-text="country.emoji || '🌍'"></span>
-                                                    <span class="flex-1">
-                                                        <span class="block font-medium" x-text="country.label"></span>
-                                                        <span class="block text-[10px] uppercase tracking-wider text-gray-400" x-text="country.code"></span>
-                                                    </span>
-                                                    <span class="text-xs text-gray-500" x-text="country.prefix"></span>
-                                                </button>
-                                            </template>
-                                        </div>
-                                    </x-site.bottom-sheet>
+                                    <div class="lg:hidden">
+                                        <x-site.bottom-sheet title="Country" open="countrySheet">
+                                            <div class="space-y-1">
+                                                <template x-for="country in countries" :key="'m-'+country.code">
+                                                    <button type="button" @click="chooseCountry(country); countrySheet = false"
+                                                            class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm transition"
+                                                            :class="form.country === country.code ? 'bg-brand-muted text-brand font-semibold ring-1 ring-brand/20' : 'hover:bg-gray-50 text-gray-700'">
+                                                        <span class="text-xl" x-text="country.emoji || '🌍'"></span>
+                                                        <span class="flex-1">
+                                                            <span class="block font-medium" x-text="country.label"></span>
+                                                            <span class="block text-[10px] uppercase tracking-wider text-gray-400" x-text="country.code"></span>
+                                                        </span>
+                                                        <span class="text-xs text-gray-500" x-text="country.prefix"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </x-site.bottom-sheet>
+                                    </div>
                                 </div>
 
                                 <div>

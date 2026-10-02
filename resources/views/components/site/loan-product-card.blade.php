@@ -27,7 +27,7 @@
     $assetRate = rtrim(rtrim(format_number((float) config('asset_lending.default_monthly_rate', 0.12) * 100, 1), '0'), '.');
 @endphp
 
-<article class="snap-start shrink-0 w-[min(85vw,300px)] self-stretch glass-card overflow-hidden flex flex-col hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] transition-shadow {{ ! $isAvailable ? 'opacity-90' : '' }}">
+<article class="loan-product-card kf-surface-card snap-start shrink-0 w-[min(85vw,300px)] self-stretch glass-card overflow-hidden flex flex-col hover:shadow-[0_16px_48px_rgba(0,77,64,0.12)] transition-shadow {{ ! $isAvailable ? 'opacity-90' : '' }}">
     <div class="relative shrink-0">
         <x-site.product-illustration :code="$product->code" :image-path="$product->image_path" size="sm" class="!rounded-none !size-auto w-full !aspect-[2/1] !max-w-none" />
         <div class="absolute top-2 left-2">

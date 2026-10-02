@@ -333,6 +333,14 @@ class SupportWorkspaceController extends Controller
 
     public function diagnosticDraft(Request $request, SupportConversation $supportConversation): \Illuminate\Http\JsonResponse
     {
+        if (in_array((string) $supportConversation->status, ['resolved', 'closed'], true)) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'This conversation is resolved. It is read-only history.',
+                'read_only' => true,
+            ], 422);
+        }
+
         $data = $request->validate([
             'key' => ['required', 'string', 'max:80'],
         ]);
@@ -377,6 +385,17 @@ class SupportWorkspaceController extends Controller
 
     public function reply(Request $request, SupportConversation $supportConversation): RedirectResponse|\Illuminate\Http\JsonResponse
     {
+        if (in_array((string) $supportConversation->status, ['resolved', 'closed'], true)) {
+            $message = __('admin.support.errors.conversation_read_only') !== 'admin.support.errors.conversation_read_only'
+                ? __('admin.support.errors.conversation_read_only')
+                : 'This conversation is resolved. It is read-only history.';
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'error' => $message, 'read_only' => true], 422);
+            }
+
+            return back()->with('error', $message);
+        }
+
         $data = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
             'template_key' => ['nullable', 'string', 'max:80'],
@@ -508,6 +527,15 @@ class SupportWorkspaceController extends Controller
 
     public function accept(Request $request, SupportConversation $supportConversation): RedirectResponse|\Illuminate\Http\JsonResponse
     {
+        if (in_array((string) $supportConversation->status, ['resolved', 'closed'], true)) {
+            $message = 'This conversation is resolved. It is read-only history.';
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'error' => $message, 'read_only' => true], 422);
+            }
+
+            return back()->with('error', $message);
+        }
+
         $data = $request->validate([
             'agent_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
@@ -957,6 +985,10 @@ class SupportWorkspaceController extends Controller
 
     public function createCase(Request $request, SupportConversation $supportConversation): RedirectResponse
     {
+        if (in_array((string) $supportConversation->status, ['resolved', 'closed'], true)) {
+            return back()->with('error', 'This conversation is resolved. It is read-only history.');
+        }
+
         $taxonomy = \App\Support\SupportTaxonomy::all();
         $categoryKeys = array_keys($taxonomy['categories'] ?? []);
 

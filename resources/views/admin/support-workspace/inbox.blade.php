@@ -17,6 +17,8 @@
     $similarSearchUrl = $similarSearchUrl ?? route('admin.support-tickets.similar');
     $isWaitingDesk = $conversation && ! $conversation->assigned_to
         && ! in_array($conversation->status, ['closed', 'resolved'], true);
+    $isResolvedHistory = $conversation
+        && in_array((string) $conversation->status, ['closed', 'resolved'], true);
     $seedMessages = [];
     if ($conversation) {
         foreach ($conversation->messages as $message) {
@@ -356,7 +358,12 @@
                         <p class="text-sm text-slate-500 text-center py-10" x-show="!messages.length">{{ __('admin.support.inbox.no_messages') }}</p>
                     </div>
 
-                    @if ($isWaitingDesk)
+                    @if ($isResolvedHistory)
+                        <div class="border-t border-slate-200/80 p-4 bg-slate-50">
+                            <p class="text-sm font-bold text-brand">{{ str_starts_with(app()->getLocale(), 'sw') ? 'Imekamilishwa' : 'Resolved' }}</p>
+                            <p class="text-xs text-slate-600 mt-1">{{ str_starts_with(app()->getLocale(), 'sw') ? 'Historia tu. Hakuna composer, templates, wala ujumbe mpya.' : 'Read-only history. No composer, templates, or new messages.' }}</p>
+                        </div>
+                    @elseif ($isWaitingDesk)
                         <div class="border-t border-amber-200/80 p-4 bg-amber-50/80">
                             <p class="text-sm font-semibold text-amber-950">{{ __('admin.support.inbox.waiting_queue') }}</p>
                             <p class="text-xs text-amber-900/80 mt-1">{{ __('admin.support.inbox.waiting_queue_hint') }}</p>

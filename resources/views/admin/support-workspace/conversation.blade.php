@@ -50,18 +50,27 @@
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('admin.support.inbox.reply', $conversation) }}" class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 space-y-3">
+            <form method="POST" action="{{ route('admin.support.inbox.reply', $conversation) }}" class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 space-y-3"
+                  @if (in_array((string) $conversation->status, ['resolved', 'closed'], true)) style="display:none" @endif>
                 @csrf
                 <label class="block text-sm font-semibold text-gray-900">{{ __('admin.support.conversation.reply') }}</label>
-                <textarea name="body" rows="4" required maxlength="5000" class="w-full rounded-xl border-gray-300 text-sm focus:ring-brand/40"></textarea>
+                <textarea name="body" rows="4" required maxlength="5000" class="w-full rounded-xl border-gray-300 text-sm focus:ring-brand/40"
+                          @disabled(in_array((string) $conversation->status, ['resolved', 'closed'], true))></textarea>
                 <div class="flex flex-wrap gap-2">
-                    <button type="submit" class="inline-flex rounded-xl bg-brand-gold text-brand font-semibold text-sm px-5 py-2.5 hover:brightness-95">{{ __('admin.support.conversation.send_reply') }}</button>
-                    @if (! $conversation->assigned_to)
+                    <button type="submit" class="inline-flex rounded-xl bg-brand-gold text-brand font-semibold text-sm px-5 py-2.5 hover:brightness-95"
+                            @disabled(in_array((string) $conversation->status, ['resolved', 'closed'], true))>{{ __('admin.support.conversation.send_reply') }}</button>
+                    @if (! $conversation->assigned_to && ! in_array((string) $conversation->status, ['resolved', 'closed'], true))
                         <button form="accept-form" type="submit" class="inline-flex rounded-xl ring-1 ring-brand/20 text-brand font-semibold text-sm px-5 py-2.5 hover:bg-brand-muted/40">{{ __('admin.support.conversation.accept') }}</button>
                     @endif
                 </div>
             </form>
-            @if (! $conversation->assigned_to)
+            @if (in_array((string) $conversation->status, ['resolved', 'closed'], true))
+                <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <span class="font-bold text-brand">{{ str_starts_with(app()->getLocale(), 'sw') ? 'Imekamilishwa' : 'Resolved' }}</span>
+                    — {{ str_starts_with(app()->getLocale(), 'sw') ? 'Historia tu. Hakuna ujumbe mpya.' : 'Read-only history. No new messages.' }}
+                </div>
+            @endif
+            @if (! $conversation->assigned_to && ! in_array((string) $conversation->status, ['resolved', 'closed'], true))
                 <form id="accept-form" method="POST" action="{{ route('admin.support.inbox.accept', $conversation) }}" class="hidden">@csrf</form>
             @endif
         </div>
@@ -113,12 +122,16 @@
 
             <div class="rounded-2xl bg-white ring-1 ring-brand/10 shadow-sm p-5 space-y-3">
                 <p class="text-[10px] uppercase tracking-widest text-brand font-semibold">Case</p>
-                <p class="text-xs text-gray-500">Not every chat needs a ticket. Create a case only when investigation is required.</p>
-                <form method="POST" action="{{ route('admin.support.inbox.create-case', $conversation) }}" class="space-y-2">
-                    @csrf
-                    <input type="text" name="subject" placeholder="Case subject (optional)" class="w-full rounded-xl border-gray-300 text-sm">
-                    <button type="submit" class="w-full inline-flex justify-center rounded-xl bg-brand text-white text-xs font-semibold px-4 py-2.5 hover:brightness-95">Create case</button>
-                </form>
+                @if (! in_array((string) $conversation->status, ['resolved', 'closed'], true))
+                    <p class="text-xs text-gray-500">Not every chat needs a ticket. Create a case only when investigation is required.</p>
+                    <form method="POST" action="{{ route('admin.support.inbox.create-case', $conversation) }}" class="space-y-2">
+                        @csrf
+                        <input type="text" name="subject" placeholder="Case subject (optional)" class="w-full rounded-xl border-gray-300 text-sm">
+                        <button type="submit" class="w-full inline-flex justify-center rounded-xl bg-brand text-white text-xs font-semibold px-4 py-2.5 hover:brightness-95">Create case</button>
+                    </form>
+                @else
+                    <p class="text-xs text-gray-500">{{ str_starts_with(app()->getLocale(), 'sw') ? 'Historia tu — hakuna hatua mpya.' : 'History only — no new actions.' }}</p>
+                @endif
                 @if ($openCases->isNotEmpty())
                     <ul class="pt-2 space-y-2 border-t border-gray-100">
                         @foreach ($openCases as $case)

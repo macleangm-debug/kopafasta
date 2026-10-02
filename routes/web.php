@@ -521,6 +521,9 @@ Route::name('site.')->middleware(SetLocale::class)->group(function () {
             Route::post('/borrower/notifications/{notification}/read', [BorrowerController::class, 'markNotificationRead'])->name('borrower.notifications.item.read');
             Route::delete('/borrower/notifications/{notification}', [BorrowerController::class, 'clearNotification'])->name('borrower.notifications.item.clear');
             Route::post('/borrower/notifications/clear-all', [BorrowerController::class, 'clearAllNotifications'])->name('borrower.notifications.clear-all');
+            Route::get('/borrower/messages', [BorrowerController::class, 'messages'])->name('borrower.messages');
+            Route::post('/borrower/messages/read', [BorrowerController::class, 'markMessagesRead'])->name('borrower.messages.read');
+            Route::post('/borrower/messages/{notification}/read', [BorrowerController::class, 'markMessageRead'])->name('borrower.messages.item.read');
             Route::get('/borrower/profile/wizard', [BorrowerController::class, 'profileWizard'])->name('borrower.profile.wizard');
             Route::get('/borrower/settings', [BorrowerController::class, 'settings'])->name('borrower.settings');
             Route::put('/borrower/settings/preferences', [BorrowerController::class, 'updateSettingsPreferences'])->name('borrower.settings.preferences');

@@ -1566,6 +1566,35 @@ class BorrowerController extends Controller
         return view('site.borrower.notifications', compact('customer', 'groups', 'categories', 'category', 'unreadCount', 'center'));
     }
 
+    public function messages(Request $request): View
+    {
+        $customer = $this->customer();
+        $messagesService = app(\App\Services\MemberMessagesService::class);
+        $filter = in_array($request->query('filter'), ['all', 'unread'], true)
+            ? (string) $request->query('filter')
+            : 'all';
+        $messages = $messagesService->list($customer, $filter);
+        $unreadCount = $messagesService->unreadCount($customer);
+
+        return view('site.borrower.messages', compact('customer', 'messages', 'filter', 'unreadCount', 'messagesService'));
+    }
+
+    public function markMessagesRead(Request $request): RedirectResponse
+    {
+        $customer = $this->customer();
+        app(\App\Services\MemberMessagesService::class)->markAllRead($customer);
+
+        return back();
+    }
+
+    public function markMessageRead(NotificationLog $notification): RedirectResponse
+    {
+        $customer = $this->customer();
+        app(\App\Services\MemberMessagesService::class)->markRead($notification, $customer);
+
+        return back();
+    }
+
     public function guarantorNotifications(): View
     {
         $customer = $this->customer();

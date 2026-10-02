@@ -934,6 +934,44 @@ html.kf-account-shell[data-theme="dark"] .glass-card {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
 }
 
+/* Contrast-token pass: actionable cards/icons separate from dark page without going bright. */
+html.kf-account-shell[data-theme="dark"] {
+    --kf-line: rgba(255, 255, 255, 0.18);
+    --kf-card-border: rgba(255, 255, 255, 0.16);
+    --kf-card-surface: #1a221f;
+}
+html.kf-account-shell[data-theme="dark"] .glass-card,
+html.kf-account-shell[data-theme="dark"] .kf-action-tile,
+html.kf-account-shell[data-theme="dark"] .kf-surface-card {
+    background-color: var(--kf-card-surface) !important;
+    border-color: var(--kf-card-border) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35) !important;
+}
+html.kf-account-shell[data-theme="dark"] .kf-action-tile .text-gray-800,
+html.kf-account-shell[data-theme="dark"] .kf-surface-card .text-gray-800,
+html.kf-account-shell[data-theme="dark"] .kf-surface-card .text-gray-900 {
+    color: var(--kf-ink) !important;
+}
+html.kf-account-shell[data-theme="dark"] .ring-gray-200\/80,
+html.kf-account-shell[data-theme="dark"] .ring-gray-200,
+html.kf-account-shell[data-theme="dark"] .ring-brand\/10 {
+    --tw-ring-color: var(--kf-card-border) !important;
+}
+
+/* Light mode: subtle neutral separators matching dark structural clarity. */
+html.kf-account-shell:not([data-theme="dark"]) {
+    --kf-card-border: rgba(15, 23, 42, 0.08);
+}
+html.kf-account-shell:not([data-theme="dark"]) .kf-surface-card,
+html.kf-account-shell:not([data-theme="dark"]) .loan-product-card {
+    border-color: var(--kf-card-border) !important;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04), 0 8px 24px rgba(0, 77, 64, 0.05) !important;
+}
+html.kf-account-shell:not([data-theme="dark"]) .loan-product-card .border-gray-100\/80,
+html.kf-account-shell:not([data-theme="dark"]) .kf-surface-card .border-gray-100\/80 {
+    border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
 html.kf-account-shell[data-theme="dark"] .glass-nav {
     background-color: rgba(12, 17, 16, 0.86);
     border-color: rgba(255, 255, 255, 0.08);

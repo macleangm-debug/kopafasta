@@ -50,7 +50,19 @@
         :open-count="$dashOpenSupport->count()"
     />
 
-    <x-site.borrower-dashboard-quick-actions :active-loan="$activeLoan ?? null" />
+    @php
+        $dashSupportUnread = 0;
+        $dashSupportSvc = app(\App\Services\Support\SupportConversationService::class);
+        foreach ($dashOpenSupport as $dashCnv) {
+            $dashSupportUnread += $dashSupportSvc->unreadForCustomer($dashCnv);
+        }
+        $dashMessagesUnread = app(\App\Services\MemberMessagesService::class)->unreadCount($customer);
+    @endphp
+    <x-site.borrower-dashboard-quick-actions
+        :active-loan="$activeLoan ?? null"
+        :support-unread="$dashSupportUnread"
+        :messages-unread="$dashMessagesUnread"
+    />
 
     @if (! empty($financialSnapshot['next_payment']) || ! empty($financialSnapshot['outstanding']))
         <section class="mb-8 rounded-2xl bg-white ring-1 ring-brand/10 p-5 sm:p-6">

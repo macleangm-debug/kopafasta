@@ -166,7 +166,10 @@
                                   :class="presence === 'assigned' ? 'bg-brand-gold' : 'bg-emerald-300'"></span>
                             <span x-text="presence === 'assigned' ? config.statusAssigned : (config.deskLabel || config.statusOnline)"></span>
                         </span>
-                        <span class="text-[10px] sm:text-[11px] text-white/70 font-semibold" x-show="config.conversationNumber" x-text="config.conversationNumber"></span>
+                        <span class="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide"
+                              x-show="composerLocked && !showRating" x-cloak>
+                            <span x-text="config.isSw ? 'Imekamilishwa' : 'Resolved'"></span>
+                        </span>
                     </div>
                     <p class="text-[11px] sm:text-xs text-white/75 mt-0.5 truncate"
                        x-text="humanMode
@@ -300,7 +303,7 @@
     </div>
 
 
-    <div class="flex flex-wrap gap-2 mb-4" x-show="automationMode && !humanMode && choices.length && !showRating && !needsGuestGate" x-cloak>
+    <div class="flex flex-wrap gap-2 mb-4" x-show="automationMode && !humanMode && choices.length && !showRating && !ratingDone && !composerLocked && !needsGuestGate" x-cloak>
         <template x-for="choice in choices" :key="(choice.action||'')+'-'+(choice.key||choice.label)">
             <button type="button" @click="pickChoice(choice)" :disabled="typing"
                     class="text-sm px-3 py-1.5 rounded-full bg-brand-muted/80 text-brand hover:bg-brand/10 transition disabled:opacity-50 text-left"
@@ -308,7 +311,7 @@
         </template>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4" x-show="humanMode && resolutionChoices.length && !showRating && !ratingDone" x-cloak>
+    <div class="flex flex-wrap gap-2 mb-4" x-show="humanMode && resolutionChoices.length && !showRating && !ratingDone && !composerLocked" x-cloak>
         <template x-for="choice in resolutionChoices" :key="'res-'+choice.key">
             <button type="button" @click="confirmResolution(choice.key)" :disabled="typing || resolutionSending"
                     class="text-sm px-4 py-2 rounded-full bg-brand text-white hover:bg-brand-light transition disabled:opacity-50 font-semibold"
@@ -316,7 +319,7 @@
         </template>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips && !showRating && !resolutionChoices.length">
+    <div class="flex flex-wrap gap-2 mb-4" x-show="!humanMode && !showProductChips && !showRating && !ratingDone && !composerLocked && !resolutionChoices.length">
         <template x-for="suggestion in config.suggestions" :key="suggestion">
             <button type="button" @click="askSuggestion(suggestion)" :disabled="typing"
                     class="text-sm px-3 py-1.5 rounded-full bg-brand-muted/80 text-brand hover:bg-brand/10 transition disabled:opacity-50"
@@ -324,7 +327,7 @@
         </template>
     </div>
 
-    <div class="mb-4 space-y-2" x-show="!humanMode && showProductChips" x-cloak>
+    <div class="mb-4 space-y-2" x-show="!humanMode && showProductChips && !composerLocked && !showRating && !ratingDone" x-cloak>
         <p class="text-sm font-semibold text-gray-600" x-text="config.chooseProductPrompt"></p>
         <div class="flex flex-wrap gap-2">
             <template x-for="product in config.products" :key="product.code">
