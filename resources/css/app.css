@@ -227,18 +227,20 @@ html.kf-auth-lock body {
     z-index: 1;
 }
 
-/* Restrained glass hero surface + one-time glare (not a loading shimmer) */
+/* Restrained glass hero surface + one-time glare (not a loading shimmer).
+   Premium public heroes / featured panels only — not ordinary product/info cards. */
 .kf-glass-hero {
     isolation: isolate;
 }
 .kf-glass-hero__surface {
+    z-index: 0;
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 42%, rgba(255, 255, 255, 0.08) 100%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 55%);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0.1) 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 55%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .kf-glass-hero--glare::after {
     content: '';
@@ -1310,11 +1312,11 @@ html.dark .kf-receipt--paper::after {
     @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
 }
 .kf-public-section {
-    padding-block: 3rem; /* 48px mobile */
+    padding-block: 2.5rem; /* 40px mobile — mid of 36–44 */
 }
 @media (min-width: 1024px) {
     .kf-public-section {
-        padding-block: 5rem; /* 80px desktop — mid of 72–88 */
+        padding-block: 3.75rem; /* 60px desktop — mid of 52–64 */
     }
 }
 .kf-public-section__intro {

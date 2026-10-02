@@ -45,6 +45,21 @@ class PublicUiRhythmFeatureTest extends TestCase
         $this->assertStringContainsString('Tazama mali zote →', $html);
         $this->assertStringContainsString('Tunakufahamu vizuri zaidi.', $html);
         $this->assertStringNotContainsString('rounded-full bg-brand text-white shadow-md', $html);
+
+        // Premium glass + glare remain on hero / Plus featured surfaces only.
+        $this->assertStringContainsString('kf-glass-hero', $html);
+        $this->assertStringContainsString('data-kf-glass-hero', $html);
+        $this->assertStringContainsString('kf-glass-hero--glare', $html);
+        $this->assertStringContainsString('kf-glass-hero__surface', $html);
+        $this->assertStringContainsString('kf-hero-enter', $html);
+        $this->assertGreaterThanOrEqual(2, substr_count($html, 'data-kf-glass-hero'));
+
+        $css = file_get_contents(resource_path('css/app.css'));
+        $this->assertStringContainsString('padding-block: 2.5rem', $css);
+        $this->assertStringContainsString('padding-block: 3.75rem', $css);
+        $this->assertStringNotContainsString('padding-block: 5rem', $css);
+        $this->assertStringContainsString('kf-glass-glare', $css);
+        $this->assertStringContainsString('prefers-reduced-motion: reduce', $css);
     }
 
     public function test_english_how_it_works_and_products_copy(): void
