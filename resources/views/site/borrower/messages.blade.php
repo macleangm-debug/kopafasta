@@ -8,7 +8,7 @@
     <x-site.account-shell-hero
         mode="contextual"
         :title="$isSw ? 'Ujumbe' : 'Messages'"
-        :body="$isSw ? 'Ujumbe wa kudumu kutoka Kopafasta. Arifa ni tofauti — hii ni kituo cha ujumbe.' : 'Persistent messages from Kopafasta. Separate from short alerts and Support chat.'"
+        :body="$isSw ? 'Ujumbe wa kudumu kutoka Kopafasta.' : 'Messages from Kopafasta.'"
     />
 
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">

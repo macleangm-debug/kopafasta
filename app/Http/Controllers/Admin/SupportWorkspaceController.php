@@ -452,14 +452,8 @@ class SupportWorkspaceController extends Controller
 
         $templateKey = (string) ($data['template_key'] ?? '');
         $bodyTrim = trim($data['body']);
-        if ($templateKey === 'issue_resolved_check'
-            || str_starts_with($bodyTrim, 'Je, tatizo lako limetatuliwa')
-            || str_starts_with($bodyTrim, 'Has your issue been resolved')
-        ) {
-            $meta = is_array($supportConversation->automation_meta) ? $supportConversation->automation_meta : [];
-            $meta['awaiting_customer_resolution'] = true;
-            $meta['awaiting_customer_resolution_at'] = now()->toIso8601String();
-            $supportConversation->update(['automation_meta' => $meta]);
+        if ($this->conversations->isHumanConfirmationTemplate($templateKey, $bodyTrim)) {
+            $this->conversations->markAwaitingCustomerResolution($supportConversation);
         }
 
         $supportConversation->loadMissing('customer');
@@ -632,6 +626,10 @@ class SupportWorkspaceController extends Controller
 
     public function resolveConversation(Request $request, SupportConversation $supportConversation): RedirectResponse
     {
+        if (in_array((string) $supportConversation->status, ['resolved', 'closed'], true)) {
+            return back()->with('error', 'This conversation is resolved. It is read-only history.');
+        }
+
         $data = $request->validate([
             'resolution_category' => ['required', 'string', 'max:64'],
             'note' => ['nullable', 'string', 'max:2000'],
@@ -640,24 +638,41 @@ class SupportWorkspaceController extends Controller
 
         $actor = $this->roleView->actorForAudit($request->user('admin'));
         $agent = $this->workspace->actingAgent() ?? $actor;
-        $this->conversations->resolve(
+        $sw = str_starts_with(app()->getLocale(), 'sw');
+        $prompt = $sw ? 'Je, tatizo lako limetatuliwa?' : 'Has your issue been resolved?';
+
+        $senderId = $agent?->id ?? $supportConversation->assigned_to;
+        $this->conversations->appendMessage(
             $supportConversation,
-            $agent,
-            $data['note'] ?? null,
+            'staff',
+            $prompt,
+            $senderId ? (int) $senderId : null,
+            false,
+            true,
+        );
+        $this->conversations->markAwaitingCustomerResolution(
+            $supportConversation,
             $data['resolution_category'],
-            $request->boolean('ask_rating', true),
+            $data['note'] ?? null,
         );
 
         if ($actor) {
-            $this->audit->logAdminAction($actor, 'admin.support.conversation.resolve', $supportConversation, [
+            $this->audit->logAdminAction($actor, 'admin.support.conversation.resolve_confirm_sent', $supportConversation, [
                 'conversation_id' => $supportConversation->id,
                 'resolution_category' => $data['resolution_category'],
             ]);
         }
 
+        $supportConversation->loadMissing('customer');
+        if ($supportConversation->customer) {
+            $this->notifyMemberSupportReply($supportConversation, $prompt);
+        }
+
         return redirect()
-            ->route('admin.support.inbox', ['filter' => 'waiting'])
-            ->with('status', 'Conversation closed. Member can rate and start a fresh thread next time.');
+            ->route('admin.support.inbox.show', $supportConversation)
+            ->with('status', $sw
+                ? 'Uthibitisho umetumwa kwa mteja (Ndiyo / Hapana / Nina tatizo lingine).'
+                : 'Confirmation sent to the customer (Yes / No / I have another issue).');
     }
 
     public function newInteraction(Request $request): View

@@ -148,16 +148,7 @@ class SupportConversationService
                 $conversation->update(['automation_meta' => $meta]);
             }
 
-            $hasWaitingAck = $conversation->messages()
-                ->where('is_automated', true)
-                ->where(function ($q) {
-                    $q->where('body', 'like', 'Tumepokea ujumbe wako%')
-                        ->orWhere('body', 'like', 'Ujumbe wako umepokelewa%')
-                        ->orWhere('body', 'like', 'We received your message%')
-                        ->orWhere('body', 'like', 'We’ve received your message%')
-                        ->orWhere('body', 'like', "We've received your message%");
-                })
-                ->exists();
+            $hasWaitingAck = $this->hasWaitingAcknowledgement($conversation);
             if (! $hasWaitingAck) {
                 $this->appendMessage(
                     $conversation,
@@ -622,6 +613,213 @@ class SupportConversationService
         return 'Tunatafuta mtoa huduma anayefaa kukusaidia. Tafadhali subiri kidogo.';
     }
 
+    /** True when a searching/waiting acknowledgement was already posted (never emit twice). */
+    public function hasWaitingAcknowledgement(SupportConversation $conversation): bool
+    {
+        return $conversation->messages()
+            ->where('is_automated', true)
+            ->where(function ($q) {
+                $q->where('body', 'like', 'Tunatafuta mtoa huduma%')
+                    ->orWhere('body', 'like', "We're finding the right support agent%")
+                    ->orWhere('body', 'like', 'We are finding the right support agent%')
+                    ->orWhere('body', 'like', 'Tumepokea ujumbe wako%')
+                    ->orWhere('body', 'like', 'Ujumbe wako umepokelewa%')
+                    ->orWhere('body', 'like', 'We received your message%')
+                    ->orWhere('body', 'like', 'We’ve received your message%')
+                    ->orWhere('body', 'like', "We've received your message%");
+            })
+            ->exists();
+    }
+
+    /**
+     * Explicit confirmation templates only — not every question-shaped message.
+     * Keys: confirm (Thibitisha), issue_resolved_check (Tatizo limetatuliwa?).
+     */
+    public function isHumanConfirmationTemplate(?string $templateKey, string $body = ''): bool
+    {
+        $key = trim((string) $templateKey);
+        if (in_array($key, ['confirm', 'issue_resolved_check'], true)) {
+            return true;
+        }
+
+        $body = trim($body);
+
+        return str_starts_with($body, 'Je, tatizo lako limetatuliwa')
+            || str_starts_with($body, 'Has your issue been resolved');
+    }
+
+    public function markAwaitingCustomerResolution(
+        SupportConversation $conversation,
+        ?string $resolutionCategory = null,
+        ?string $note = null,
+    ): SupportConversation {
+        $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+        $meta['awaiting_customer_resolution'] = true;
+        $meta['awaiting_customer_resolution_at'] = now()->toIso8601String();
+        if ($resolutionCategory !== null && $resolutionCategory !== '') {
+            $meta['pending_resolution_category'] = $resolutionCategory;
+        }
+        if ($note !== null && trim($note) !== '') {
+            $meta['pending_resolution_note'] = trim($note);
+        }
+        $conversation->update(['automation_meta' => $meta]);
+
+        return $conversation->fresh() ?? $conversation;
+    }
+
+    /** @return list<array{key: string, label: string}> */
+    public function humanResolutionChoices(?string $locale = null): array
+    {
+        $sw = str_starts_with(strtolower((string) ($locale ?? app()->getLocale())), 'sw');
+
+        return [
+            ['key' => 'yes', 'label' => $sw ? 'Ndiyo' : 'Yes'],
+            ['key' => 'no', 'label' => $sw ? 'Hapana' : 'No'],
+            ['key' => 'another', 'label' => $sw ? 'Nina tatizo lingine' : 'I have another issue'],
+        ];
+    }
+
+    public function isAwaitingCustomerResolution(SupportConversation $conversation): bool
+    {
+        $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+
+        return ! empty($meta['awaiting_customer_resolution'])
+            && ! in_array((string) $conversation->status, [self::STATUS_CLOSED, self::STATUS_RESOLVED], true);
+    }
+
+    /**
+     * One closure engine for Thibitisha / Tatizo limetatuliwa? / Human Resolve.
+     *
+     * @return array<string, mixed>
+     */
+    public function confirmHumanResolution(
+        SupportConversation $conversation,
+        string $choice,
+        ?User $actor = null,
+        ?string $ratingUrl = null,
+        ?Customer $customer = null,
+        ?User $user = null,
+    ): array {
+        $choice = strtolower(trim($choice));
+        if (! in_array($choice, ['yes', 'no', 'another'], true)) {
+            throw new \InvalidArgumentException('invalid_resolution_choice');
+        }
+
+        $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+        if (empty($meta['awaiting_customer_resolution'])) {
+            throw new \InvalidArgumentException('not_awaiting_resolution');
+        }
+
+        $sw = str_starts_with(app()->getLocale(), 'sw');
+        $label = match ($choice) {
+            'yes' => $sw ? 'Ndiyo' : 'Yes',
+            'no' => $sw ? 'Hapana' : 'No',
+            default => $sw ? 'Nina tatizo lingine' : 'I have another issue',
+        };
+
+        $this->appendMessage(
+            $conversation,
+            ($customer || $user || $conversation->customer_id || $conversation->user_id) ? 'customer' : 'guest',
+            $label,
+            $actor?->id ?? $user?->id,
+            false,
+            true,
+        );
+
+        $pendingCategory = is_string($meta['pending_resolution_category'] ?? null)
+            ? (string) $meta['pending_resolution_category']
+            : null;
+        $pendingNote = is_string($meta['pending_resolution_note'] ?? null)
+            ? (string) $meta['pending_resolution_note']
+            : null;
+
+        unset(
+            $meta['awaiting_customer_resolution'],
+            $meta['awaiting_customer_resolution_at'],
+            $meta['pending_resolution_category'],
+            $meta['pending_resolution_note'],
+        );
+        $conversation->update(['automation_meta' => $meta]);
+
+        if ($choice === 'no') {
+            $this->appendMessage(
+                $conversation,
+                'staff',
+                $sw
+                    ? 'Sawa. Niambie bado kuna nini ili nikusaidie.'
+                    : 'Alright. Tell me what still needs help.',
+                null,
+                true,
+                false,
+            );
+            $fresh = $conversation->fresh(['messages', 'assignedTo']) ?? $conversation;
+
+            return array_merge([
+                'ok' => true,
+                'resolved' => false,
+                'choice' => 'no',
+                'conversation_id' => $fresh->id,
+                'status' => $fresh->status,
+                'messages' => $this->serializeMessages($fresh),
+                'resolution_choices' => [],
+                'resolution_prompt' => false,
+                'mode' => 'human',
+            ], $this->memberChatPresence($fresh));
+        }
+
+        $category = $pendingCategory ?: ($choice === 'another' ? 'another_issue' : 'customer_confirmed');
+        // Another issue: close this human CNV (rating requested for history), then Digital owns the next issue.
+        $askRating = $choice === 'yes';
+        $resolved = $this->resolve($conversation, null, $pendingNote, $category, $askRating);
+
+        if ($choice === 'yes') {
+            $rating = $ratingUrl
+                ? $this->ratingPayload($resolved, $ratingUrl)
+                : ['show_rating' => false, 'rating_done' => false, 'rating' => null, 'rating_url' => null];
+
+            return array_merge([
+                'ok' => true,
+                'resolved' => true,
+                'choice' => 'yes',
+                'conversation_id' => $resolved->id,
+                'status' => $resolved->status,
+                'messages' => $this->serializeMessages($resolved),
+                'composer_locked' => true,
+                'mode' => 'human',
+            ], $this->memberChatPresence($resolved), $rating);
+        }
+
+        // another → start a fresh Digital Assistant conversation (one active CNV invariant).
+        $audience = 'member';
+        if ($customer) {
+            $audience = 'member';
+        } elseif ($user) {
+            $audience = 'partner';
+        }
+        $digital = app(SupportAutomationService::class)->start(
+            $customer,
+            $user,
+            $audience,
+            null,
+            null,
+            null,
+            app()->getLocale(),
+        );
+
+        return array_merge($digital, [
+            'ok' => true,
+            'resolved' => true,
+            'choice' => 'another',
+            'previous_conversation_id' => $resolved->id,
+            'mode' => 'automation',
+            'automation' => true,
+            'resolution_choices' => [],
+            'resolution_prompt' => false,
+            'composer_locked' => false,
+            'show_rating' => false,
+        ]);
+    }
+
     /**
      * Place an existing conversation into the human Waiting queue in place.
      * Does not open/create another conversation — preserves reference, history, and automation meta.
@@ -668,31 +866,18 @@ class SupportConversationService
         }
 
         // Waiting ack is for the optional follow-up (or explicit request), not the escalate hop itself.
-        if ($sendWaitingAck) {
-            $hasWaitingAck = $conversation->messages()
-                ->where('is_automated', true)
-                ->where(function ($q) {
-                    $q->where('body', 'like', 'Tumepokea ujumbe wako%')
-                        ->orWhere('body', 'like', 'Ujumbe wako umepokelewa%')
-                        ->orWhere('body', 'like', 'We received your message%')
-                        ->orWhere('body', 'like', 'We’ve received your message%')
-                        ->orWhere('body', 'like', "We've received your message%");
-                })
-                ->exists();
-
-            if (! $hasWaitingAck) {
-                $this->appendMessage(
-                    $conversation,
-                    'staff',
-                    $this->waitingAcknowledgement(),
-                    null,
-                    true,
-                    false,
-                );
-                $conversation->update([
-                    'waiting_nudge_level' => max(1, (int) ($conversation->waiting_nudge_level ?? 0)),
-                ]);
-            }
+        if ($sendWaitingAck && ! $this->hasWaitingAcknowledgement($conversation)) {
+            $this->appendMessage(
+                $conversation,
+                'staff',
+                $this->waitingAcknowledgement(),
+                null,
+                true,
+                false,
+            );
+            $conversation->update([
+                'waiting_nudge_level' => max(1, (int) ($conversation->waiting_nudge_level ?? 0)),
+            ]);
         }
 
         return $conversation->fresh(['customer', 'user', 'messages', 'assignedTo']) ?? $conversation;

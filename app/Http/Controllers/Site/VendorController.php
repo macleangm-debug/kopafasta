@@ -1157,6 +1157,30 @@ class VendorController extends Controller
         ]);
 
         $service = app(\App\Services\Support\SupportConversationService::class);
+        $open = $service->listOpenConversationsFor(null, $user)->first();
+        if ($open && $service->isAwaitingCustomerResolution($open)) {
+            $sw = str_starts_with(app()->getLocale(), 'sw');
+            $presence = $service->memberChatPresence($open);
+            $presence['resolution_choices'] = $service->humanResolutionChoices();
+            $presence['resolution_prompt'] = true;
+            $presence['resolution_url'] = $request->routeIs('site.vendor.*')
+                ? route('site.vendor.support.conversation.resolution', $open)
+                : route('site.partner.support.conversation.resolution', $open);
+            $supportPage = $request->routeIs('site.vendor.*') ? 'site.vendor.support' : 'site.partner.support';
+
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json(array_merge([
+                    'ok' => false,
+                    'message' => $sw
+                        ? 'Tafadhali chagua Ndiyo, Hapana, au Nina tatizo lingine.'
+                        : 'Please choose Yes, No, or I have another issue.',
+                    'messages' => $service->serializeMessages($open),
+                ], $presence), 422);
+            }
+
+            return redirect()->route($supportPage, ['chat' => 1]);
+        }
+
         $conversation = $service->requestHuman(
             null,
             $user,
@@ -1205,15 +1229,8 @@ class VendorController extends Controller
         $service->normalizeLegacyStatus($conversation);
         $service->markReadForCustomer($conversation);
         $presence = $service->memberChatPresence($conversation);
-        $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
-        $sw = str_starts_with(app()->getLocale(), 'sw');
-        if (! empty($meta['awaiting_customer_resolution'])
-            && ! in_array((string) $conversation->status, ['closed', 'resolved'], true)
-        ) {
-            $presence['resolution_choices'] = [
-                ['key' => 'yes', 'label' => $sw ? 'Ndiyo' : 'Yes'],
-                ['key' => 'no', 'label' => $sw ? 'Hapana' : 'No'],
-            ];
+        if ($service->isAwaitingCustomerResolution($conversation)) {
+            $presence['resolution_choices'] = $service->humanResolutionChoices();
             $presence['resolution_prompt'] = true;
             $presence['resolution_url'] = request()->routeIs('site.vendor.*')
                 ? route('site.vendor.support.conversation.resolution', $conversation)
@@ -1241,59 +1258,33 @@ class VendorController extends Controller
         abort_unless((int) $supportConversation->user_id === (int) $user->id && ! $supportConversation->customer_id, 403);
 
         $data = $request->validate([
-            'resolved' => ['required', 'in:yes,no'],
+            'resolved' => ['required', 'in:yes,no,another'],
         ]);
 
         $service = app(\App\Services\Support\SupportConversationService::class);
-        $meta = is_array($supportConversation->automation_meta) ? $supportConversation->automation_meta : [];
-        abort_unless(! empty($meta['awaiting_customer_resolution']), 422);
-
-        $sw = str_starts_with(app()->getLocale(), 'sw');
-        $yes = $data['resolved'] === 'yes';
-
-        $service->appendMessage(
-            $supportConversation,
-            'customer',
-            $yes ? ($sw ? 'Ndiyo' : 'Yes') : ($sw ? 'Hapana' : 'No'),
-            $user->id,
-            false,
-            true,
-        );
-
-        unset($meta['awaiting_customer_resolution'], $meta['awaiting_customer_resolution_at']);
-        $supportConversation->update(['automation_meta' => $meta]);
-
         $rateRoute = $request->routeIs('site.vendor.*')
             ? 'site.vendor.support.conversation.rate'
             : 'site.partner.support.conversation.rate';
 
-        if ($yes) {
-            $resolved = $service->resolve($supportConversation, null, null, 'customer_confirmed');
-
-            return response()->json(array_merge([
-                'ok' => true,
-                'resolved' => true,
-                'conversation_id' => $resolved->id,
-                'status' => $resolved->status,
-                'messages' => $service->serializeMessages($resolved),
-                'composer_locked' => true,
-            ], $service->memberChatPresence($resolved), $service->ratingPayload(
-                $resolved,
-                route($rateRoute, $resolved),
-            )));
+        try {
+            $payload = $service->confirmHumanResolution(
+                $supportConversation,
+                (string) $data['resolved'],
+                $user,
+                route($rateRoute, $supportConversation),
+                null,
+                $user,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage() === 'not_awaiting_resolution'
+                    ? 'Confirmation is not pending.'
+                    : 'Invalid confirmation choice.',
+            ], 422);
         }
 
-        $fresh = $supportConversation->fresh(['messages', 'assignedTo']) ?? $supportConversation;
-
-        return response()->json(array_merge([
-            'ok' => true,
-            'resolved' => false,
-            'conversation_id' => $fresh->id,
-            'status' => $fresh->status,
-            'messages' => $service->serializeMessages($fresh),
-            'resolution_choices' => [],
-            'resolution_prompt' => false,
-        ], $service->memberChatPresence($fresh)));
+        return response()->json($payload);
     }
 
     public function rateSupportConversation(

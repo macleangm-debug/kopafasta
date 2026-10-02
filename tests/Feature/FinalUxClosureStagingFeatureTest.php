@@ -23,7 +23,7 @@ class FinalUxClosureStagingFeatureTest extends TestCase
         $this->assertStringContainsString('No composer, templates, or new messages', $inbox);
 
         $controller = File::get(app_path('Http/Controllers/Admin/SupportWorkspaceController.php'));
-        $this->assertSame(4, substr_count($controller, "in_array((string) \$supportConversation->status, ['resolved', 'closed'], true)"));
+        $this->assertSame(5, substr_count($controller, "in_array((string) \$supportConversation->status, ['resolved', 'closed'], true)"));
     }
 
     public function test_registration_country_uses_separate_desktop_and_mobile_state(): void
@@ -43,6 +43,7 @@ class FinalUxClosureStagingFeatureTest extends TestCase
         $this->assertStringContainsString('Ujumbe', $html);
         $this->assertStringContainsString('Taarifa', $html);
         $this->assertStringContainsString('site.borrower.messages', $html);
+        $this->assertStringContainsString('kf-action-tile__icon', $html);
         $this->assertStringNotContainsString('Collateral', $html);
         $this->assertStringNotContainsString('Dhamana', $html);
         $this->assertStringContainsString('kf-action-tile', $html);
@@ -55,6 +56,8 @@ class FinalUxClosureStagingFeatureTest extends TestCase
         $this->assertTrue(File::exists(resource_path('views/site/borrower/messages.blade.php')));
         $routes = File::get(base_path('routes/web.php'));
         $this->assertStringContainsString("name('borrower.messages')", $routes);
+        $messages = File::get(resource_path('views/site/borrower/messages.blade.php'));
+        $this->assertStringNotContainsString('Arifa ni tofauti', $messages);
     }
 
     public function test_theme_contrast_tokens_cover_action_tiles_and_loan_cards(): void

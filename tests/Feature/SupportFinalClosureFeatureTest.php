@@ -179,6 +179,93 @@ class SupportFinalClosureFeatureTest extends TestCase
         $cnv->refresh();
         $this->assertNotContains($cnv->status, ['resolved', 'closed']);
         $this->assertNull($cnv->rating_requested_at);
+        $this->assertTrue(
+            $cnv->messages()->where('body', 'like', 'Sawa. Niambie bado kuna nini%')->exists()
+            || $cnv->messages()->where('body', 'like', 'Alright. Tell me what still needs help%')->exists()
+        );
+    }
+
+    public function test_human_resolution_another_closes_and_returns_to_digital(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower', 'phone' => '255715222199', 'name' => 'Resolve Another']);
+        $customer = Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-RES-ANOTHER',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Resolve',
+            'last_name' => 'Another',
+            'phone' => '255715222199',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+        $cnv = SupportConversation::query()->create([
+            'conversation_number' => 'KPF-CNV-RES003',
+            'customer_id' => $customer->id,
+            'user_id' => $user->id,
+            'channel' => 'web_chat',
+            'status' => SupportConversationService::STATUS_ACTIVE,
+            'needs_human' => true,
+            'assigned_to' => $user->id,
+            'automation_meta' => ['awaiting_customer_resolution' => true],
+        ]);
+
+        $res = $this->actingAs($user)->postJson(
+            route('site.borrower.support.conversation.resolution', $cnv),
+            ['resolved' => 'another']
+        )->assertOk()->json();
+
+        $this->assertTrue($res['ok']);
+        $this->assertTrue($res['resolved']);
+        $this->assertSame('another', $res['choice'] ?? null);
+        $this->assertSame('automation', $res['mode'] ?? null);
+        $this->assertNotEmpty($res['choices'] ?? []);
+        $cnv->refresh();
+        $this->assertContains($cnv->status, ['resolved', 'closed']);
+        $this->assertNotSame((int) $cnv->id, (int) ($res['conversation_id'] ?? 0));
+    }
+
+    public function test_human_confirmation_templates_are_explicit_only(): void
+    {
+        $svc = app(SupportConversationService::class);
+        $this->assertTrue($svc->isHumanConfirmationTemplate('confirm', ''));
+        $this->assertTrue($svc->isHumanConfirmationTemplate('issue_resolved_check', ''));
+        $this->assertTrue($svc->isHumanConfirmationTemplate(null, 'Je, tatizo lako limetatuliwa?'));
+        $this->assertFalse($svc->isHumanConfirmationTemplate('follow_up', 'Tunakufuatilia kuhusu suala lako. Je, bado unahitaji msaada?'));
+        $this->assertCount(3, $svc->humanResolutionChoices('sw'));
+    }
+
+    public function test_waiting_ack_is_not_repeated_after_speak_follow_up(): void
+    {
+        $user = User::factory()->create(['role' => 'borrower', 'phone' => '255715222188', 'name' => 'Wait Ack']);
+        $customer = Customer::create([
+            'user_id' => $user->id,
+            'customer_number' => 'CU-WAIT-ACK',
+            'type' => 'individual',
+            'status' => 'active',
+            'first_name' => 'Wait',
+            'last_name' => 'Ack',
+            'phone' => '255715222188',
+            'membership_status' => 'active',
+            'membership_expires_at' => now()->addYear(),
+        ]);
+        $svc = app(SupportConversationService::class);
+        app()->setLocale('sw');
+        $first = $svc->requestHuman($customer, $user, 'Ongea na mtoa huduma');
+        $this->assertTrue($svc->hasWaitingAcknowledgement($first));
+        $acks = $first->messages()->where('is_automated', true)->where(function ($q) {
+            $q->where('body', 'like', 'Tunatafuta mtoa huduma%')
+                ->orWhere('body', 'like', "We're finding the right support agent%");
+        })->count();
+        $this->assertSame(1, $acks);
+
+        $second = $svc->requestHuman($customer, $user, 'ok');
+        $acks2 = $second->messages()->where('is_automated', true)->where(function ($q) {
+            $q->where('body', 'like', 'Tunatafuta mtoa huduma%')
+                ->orWhere('body', 'like', "We're finding the right support agent%");
+        })->count();
+        $this->assertSame(1, $acks2);
+        $this->assertTrue($svc->hasWaitingAcknowledgement($second));
     }
 
     public function test_digital_assistant_confirm_choices_are_yes_no_only(): void

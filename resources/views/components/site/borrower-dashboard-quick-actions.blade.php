@@ -12,7 +12,7 @@
             'key' => 'apply',
             'label' => $isSw ? 'Omba Mkopo' : 'Apply for Loan',
             'route' => route('site.borrower.loan-products'),
-            'icon' => '➕',
+            'icon' => '+',
             'badge' => null,
         ],
         [
@@ -64,7 +64,7 @@
                 @if (! empty($action['badge']))
                     <span class="absolute top-1.5 right-1.5 min-w-[1.15rem] h-5 px-1 rounded-full bg-brand-gold text-brand text-[10px] font-bold grid place-items-center tabular-nums">{{ $action['badge'] }}</span>
                 @endif
-                <span class="text-2xl leading-none group-hover:scale-110 transition-transform" aria-hidden="true">{{ $action['icon'] }}</span>
+                <span class="kf-action-tile__icon group-hover:scale-110 transition-transform" aria-hidden="true">{{ $action['icon'] }}</span>
                 <span class="text-[11px] sm:text-xs font-semibold text-gray-800 leading-tight">{{ $action['label'] }}</span>
             </a>
         @endforeach

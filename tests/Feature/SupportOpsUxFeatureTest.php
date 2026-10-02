@@ -175,19 +175,23 @@ class SupportOpsUxFeatureTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->post(route('admin.role-view.enter'), ['workspace_key' => 'support']);
         $this->post(route('admin.role-view.select-staff'), ['staff_id' => $agent->id]);
+        $this->post(route('admin.support.inbox.accept', $conversation))->assertRedirect();
 
         $this->post(route('admin.support.inbox.resolve', $conversation), [
             'resolution_category' => 'answered',
             'ask_rating' => 1,
         ])
-            ->assertRedirect(route('admin.support.inbox', ['filter' => 'waiting']));
+            ->assertRedirect(route('admin.support.inbox.show', $conversation));
 
         $fresh = $conversation->fresh();
-        $this->assertSame('closed', $fresh->status);
-        $this->assertNotNull($fresh->closed_at);
-        $this->assertNotNull($fresh->resolved_at);
-        $this->assertNotNull($fresh->rating_requested_at);
-        $this->assertSame('answered', $fresh->resolution_category);
+        $this->assertNotContains($fresh->status, ['closed', 'resolved']);
+        $meta = is_array($fresh->automation_meta) ? $fresh->automation_meta : [];
+        $this->assertTrue((bool) ($meta['awaiting_customer_resolution'] ?? false));
+        $this->assertSame('answered', $meta['pending_resolution_category'] ?? null);
+        $this->assertTrue(
+            $fresh->messages()->where('body', 'like', 'Je, tatizo lako limetatuliwa%')->exists()
+            || $fresh->messages()->where('body', 'like', 'Has your issue been resolved%')->exists()
+        );
         $this->assertSame(0, SupportTicket::query()->where('support_conversation_id', $conversation->id)->count());
     }
 
@@ -479,11 +483,11 @@ class SupportOpsUxFeatureTest extends TestCase
         $first = $svc->requestHuman($customer, $user, 'First ping');
         $since = $first->waiting_since?->copy();
         $this->assertNotNull($since);
-        $this->assertStringContainsString('Tumepokea ujumbe wako', $svc->waitingAcknowledgement());
+        $this->assertStringContainsString('Tunatafuta mtoa huduma', $svc->waitingAcknowledgement());
         $this->assertStringContainsString('Tafadhali subiri kidogo', $svc->waitingAcknowledgement());
         app()->setLocale('en');
-        $this->assertStringContainsString('We’ve received your message', $svc->waitingAcknowledgement());
-        $this->assertStringContainsString('Support team will assist you shortly', $svc->waitingAcknowledgement());
+        $this->assertStringContainsString("We're finding the right support agent", $svc->waitingAcknowledgement());
+        $this->assertStringContainsString('Please wait a moment', $svc->waitingAcknowledgement());
 
         \Illuminate\Support\Carbon::setTestNow($frozen->copy()->addMinutes(2));
         $second = $svc->requestHuman($customer, $user, 'More detail while waiting');

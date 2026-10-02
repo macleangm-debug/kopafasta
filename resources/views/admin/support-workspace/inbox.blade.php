@@ -244,7 +244,7 @@
                                             class="rounded-lg ring-1 ring-emerald-200 text-emerald-800 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-50">Resolve</button>
                                     <div x-show="resolveOpen" x-cloak @click.outside="resolveOpen = false"
                                          class="absolute right-0 top-full mt-2 z-20 w-72 rounded-xl bg-white ring-1 ring-emerald-200 shadow-lg p-3 space-y-2">
-                                        <p class="text-[11px] text-emerald-900/80">Closes this conversation. Member gets a short resolution message and can rate with stars. Next Talk to Support starts a new thread.</p>
+                                        <p class="text-[11px] text-emerald-900/80">Sends confirmation to the member: Yes / No / I have another issue. Does not close until they confirm.</p>
                                         <form method="POST" action="{{ route('admin.support.inbox.resolve', $conversation) }}">
                                             @csrf
                                             <label class="block text-[11px] font-semibold text-gray-700">Resolution category
@@ -261,7 +261,7 @@
                                                 <textarea name="note" rows="2" maxlength="2000" class="mt-1 w-full rounded-lg border-gray-200 text-xs"></textarea>
                                             </label>
                                             <input type="hidden" name="ask_rating" value="1">
-                                            <button type="submit" class="mt-2 w-full rounded-lg bg-emerald-700 text-white text-xs font-semibold px-3 py-2">Confirm resolve</button>
+                                            <button type="submit" class="mt-2 w-full rounded-lg bg-emerald-700 text-white text-xs font-semibold px-3 py-2">Ask member to confirm</button>
                                         </form>
                                     </div>
                                 </div>

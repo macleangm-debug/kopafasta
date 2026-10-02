@@ -818,7 +818,21 @@
                                 if (data.messages && data.messages.length) {
                                     self.messages = self.mapThread(data.messages);
                                 }
-                                self.applyPresence(data);
+                                if (data.mode === 'automation' || data.automation === true || (data.choices && data.choices.length)) {
+                                    self.humanMode = false;
+                                    self.automationMode = true;
+                                    self.choices = Array.isArray(data.choices) ? data.choices : [];
+                                    self.composerLocked = false;
+                                    self.showRating = false;
+                                    if (self._timer) { clearInterval(self._timer); self._timer = null; }
+                                    if (data.conversation_id) self.conversationId = data.conversation_id;
+                                    if (data.conversation_number) self.config.conversationNumber = data.conversation_number;
+                                    if (data.persona_display || data.persona_name) {
+                                        self.config.personaDisplay = data.persona_display || data.persona_name;
+                                    }
+                                } else {
+                                    self.applyPresence(data);
+                                }
                                 self.scrollBottom();
                             } catch (e) {
                                 self.sendError = 'Could not confirm. Try again.';
@@ -943,6 +957,12 @@
                         ask() {
                             var q = this.input.trim();
                             if (!q || this.typing) return;
+                            if (this.resolutionChoices && this.resolutionChoices.length) {
+                                this.sendError = config.isSw
+                                    ? 'Tafadhali chagua Ndiyo, Hapana, au Nina tatizo lingine.'
+                                    : 'Please choose Yes, No, or I have another issue.';
+                                return;
+                            }
                             if (this.needsGuestGate) {
                                 this.sendError = config.guestIdentityHint || '';
                                 return;

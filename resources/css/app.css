@@ -937,20 +937,26 @@ html.kf-account-shell[data-theme="dark"] .glass-card {
 /* Contrast-token pass: actionable cards/icons separate from dark page without going bright. */
 html.kf-account-shell[data-theme="dark"] {
     --kf-line: rgba(255, 255, 255, 0.18);
-    --kf-card-border: rgba(255, 255, 255, 0.16);
+    --kf-card-border: rgba(255, 255, 255, 0.18);
     --kf-card-surface: #1a221f;
+    --kf-icon-ink: #f3f4f6;
 }
 html.kf-account-shell[data-theme="dark"] .glass-card,
 html.kf-account-shell[data-theme="dark"] .kf-action-tile,
 html.kf-account-shell[data-theme="dark"] .kf-surface-card {
     background-color: var(--kf-card-surface) !important;
-    border-color: var(--kf-card-border) !important;
+    border: 1px solid var(--kf-card-border) !important;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35) !important;
 }
 html.kf-account-shell[data-theme="dark"] .kf-action-tile .text-gray-800,
 html.kf-account-shell[data-theme="dark"] .kf-surface-card .text-gray-800,
 html.kf-account-shell[data-theme="dark"] .kf-surface-card .text-gray-900 {
     color: var(--kf-ink) !important;
+}
+html.kf-account-shell[data-theme="dark"] .kf-action-tile__icon {
+    color: var(--kf-icon-ink);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.22);
 }
 html.kf-account-shell[data-theme="dark"] .ring-gray-200\/80,
 html.kf-account-shell[data-theme="dark"] .ring-gray-200,
@@ -960,16 +966,35 @@ html.kf-account-shell[data-theme="dark"] .ring-brand\/10 {
 
 /* Light mode: subtle neutral separators matching dark structural clarity. */
 html.kf-account-shell:not([data-theme="dark"]) {
-    --kf-card-border: rgba(15, 23, 42, 0.08);
+    --kf-card-border: rgba(15, 23, 42, 0.1);
+    --kf-icon-ink: #0f172a;
 }
 html.kf-account-shell:not([data-theme="dark"]) .kf-surface-card,
-html.kf-account-shell:not([data-theme="dark"]) .loan-product-card {
-    border-color: var(--kf-card-border) !important;
+html.kf-account-shell:not([data-theme="dark"]) .loan-product-card,
+html.kf-account-shell:not([data-theme="dark"]) .kf-action-tile {
+    border: 1px solid var(--kf-card-border) !important;
     box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04), 0 8px 24px rgba(0, 77, 64, 0.05) !important;
 }
 html.kf-account-shell:not([data-theme="dark"]) .loan-product-card .border-gray-100\/80,
 html.kf-account-shell:not([data-theme="dark"]) .kf-surface-card .border-gray-100\/80 {
     border-color: rgba(15, 23, 42, 0.08) !important;
+}
+html.kf-account-shell:not([data-theme="dark"]) .kf-action-tile__icon {
+    color: var(--kf-icon-ink);
+    background: rgba(15, 23, 42, 0.04);
+    border-color: rgba(15, 23, 42, 0.12);
+}
+
+.kf-action-tile__icon {
+    display: inline-grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    font-size: 1.15rem;
+    line-height: 1;
+    font-weight: 700;
 }
 
 html.kf-account-shell[data-theme="dark"] .glass-nav {
