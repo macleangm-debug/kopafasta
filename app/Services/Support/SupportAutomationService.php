@@ -368,13 +368,24 @@ class SupportAutomationService
                 || in_array((string) $conversation->status, [
                     SupportConversationService::STATUS_CLOSED,
                     SupportConversationService::STATUS_RESOLVED,
-                ], true),
+                ], true)
+                || (
+                    $handling === self::STATE_ESCALATED
+                    && (bool) ($meta['waiting_followup_used'] ?? false)
+                ),
             'needs_human' => (bool) $conversation->needs_human,
             'ticket_number' => $ticket?->publicNumber(),
             'messages' => $this->conversations->serializeMessages($conversation),
             'automation' => true,
+            'show_rating' => $conversation->awaitsRating(),
+            'rating_prompt' => $conversation->awaitsRating()
+                ? ($this->isSw($locale)
+                    ? "Uzoefu wako na {$persona['name']} ulikuwaje?"
+                    : "How was your experience with {$persona['name']}?")
+                : null,
         ], $this->conversations->memberChatPresence(
-            in_array($handling, [self::STATE_HUMAN, self::STATE_ESCALATED], true) ? $conversation : null
+            in_array($handling, [self::STATE_HUMAN, self::STATE_ESCALATED], true) ? $conversation : null,
+            $locale,
         ));
     }
 
@@ -775,9 +786,11 @@ class SupportAutomationService
             'closed_at' => now(),
             'resolution_category' => 'msaidizi',
             'resolution_note' => 'Resolved by Msaidizi',
+            'rating_requested_at' => ($conversation->customer_id || $conversation->user_id) ? now() : $conversation->rating_requested_at,
         ]);
 
-        $payload = $this->payload($conversation->fresh(['messages', 'tickets']) ?? $conversation, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
+        $fresh = $conversation->fresh(['messages', 'tickets']) ?? $conversation;
+        $payload = $this->payload($fresh, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
         if ($isGuest) {
             $sw = $this->isSw($locale);
             $payload['join_cta'] = [
@@ -791,6 +804,19 @@ class SupportAutomationService
                     ? 'Jiunge na Kopafasta ili upate huduma zote kwenye akaunti yako.'
                     : 'Join Kopafasta to access every member service in one place.',
             ];
+        } elseif ($fresh->awaitsRating()) {
+            $persona = $this->personaFromMeta($meta);
+            $sw = $this->isSw($locale);
+            $payload['show_rating'] = true;
+            $payload['rating_prompt'] = $sw
+                ? "Uzoefu wako na {$persona['name']} ulikuwaje?"
+                : "How was your experience with {$persona['name']}?";
+            if ($fresh->customer_id && \Illuminate\Support\Facades\Route::has('site.borrower.support.conversation.rate')) {
+                $payload['rating_url'] = route('site.borrower.support.conversation.rate', $fresh);
+            } elseif ($fresh->user_id && \Illuminate\Support\Facades\Route::has('site.partner.support.conversation.rate')) {
+                $payload['rating_url'] = route('site.partner.support.conversation.rate', $fresh);
+            }
+            $payload['composer_locked'] = true;
         }
 
         return $payload;
@@ -913,11 +939,26 @@ class SupportAutomationService
         $this->persistState($conversation, self::STATE_ESCALATED, $meta);
 
         $diag = is_array($meta['diagnostic_context'] ?? null) ? $meta['diagnostic_context'] : [];
+        $statusLabel = null;
+        if (filled($diag['status_code'] ?? null)) {
+            $code = (string) $diag['status_code'];
+            // Prefer approved customer-facing application labels when this looks like a journey status.
+            $statusLabel = __('borrower.applications_list.statuses.'.$code, [], $this->isSw($locale) ? 'sw' : 'en');
+            if ($statusLabel === 'borrower.applications_list.statuses.'.$code) {
+                $statusLabel = $this->conversations->customerFacingStatusLabel($code, $locale);
+            }
+        }
         $diagBits = collect([
-            $diag['kind'] ?? null,
-            isset($diag['application_number']) ? 'APP '.$diag['application_number'] : null,
-            isset($diag['status_code']) ? 'status '.$diag['status_code'] : null,
+            isset($diag['application_number']) ? (string) $diag['application_number'] : null,
+            $statusLabel,
         ])->filter()->implode(' · ');
+
+        $topicLabel = $this->customerFacingTopicLabel(
+            (string) ($meta['issue_slug'] ?? $meta['category_key'] ?? ''),
+            (string) ($meta['audience'] ?? 'member'),
+            $locale,
+            is_string($meta['workspace'] ?? null) ? (string) $meta['workspace'] : null,
+        );
 
         $body = $this->isSw($locale)
             ? 'Nahitaji Ongea na mtoa huduma.'.($diagBits !== '' ? "\nMuktadha: {$diagBits}" : '')
@@ -927,22 +968,26 @@ class SupportAutomationService
             $customer,
             $user,
             $body,
-            $meta['issue_slug'] ?? $meta['category_key'] ?? 'Support escalation',
+            $topicLabel !== '' ? $topicLabel : ($this->isSw($locale) ? 'Usaidizi' : 'Support'),
             $guestName !== '' ? $guestName : null,
             $guestPhone !== '' ? $guestPhone : null,
             'web_chat',
         );
 
+        // One optional customer follow-up allowed after handover, then composer locks.
+        $meta['waiting_followup_allowed'] = true;
+        $meta['waiting_followup_used'] = false;
+
         $conversation->update([
             'handling_state' => self::STATE_ESCALATED,
             'automation_meta' => $meta,
             'needs_human' => true,
+            'topic' => $topicLabel !== '' ? $topicLabel : $conversation->topic,
         ]);
 
-        return array_merge(
-            $this->payload($conversation->fresh(['messages', 'tickets', 'assignedTo']) ?? $conversation, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null),
-            ['mode' => 'human', 'automation' => false]
-        );
+        $payload = $this->payload($conversation->fresh(['messages', 'tickets', 'assignedTo']) ?? $conversation, (string) ($meta['audience'] ?? 'member'), $locale, $meta['workspace'] ?? null);
+
+        return array_merge($payload, ['mode' => 'human', 'automation' => false, 'composer_locked' => false]);
     }
 
     /**
@@ -1349,11 +1394,55 @@ class SupportAutomationService
         }
 
         $pool = $this->personas();
-        $persona = $pool[array_rand($pool)];
+        $rrKey = 'support.msaidizi.persona_rr';
+        $idx = (int) Setting::get($rrKey, 0);
+        if ($idx < 0) {
+            $idx = 0;
+        }
+        $persona = $pool[$idx % count($pool)];
+        Setting::set($rrKey, ($idx + 1) % max(1, count($pool)));
         $meta['persona_key'] = $persona['key'];
         $meta['persona_name'] = $persona['name'];
 
         return $persona;
+    }
+
+    /**
+     * Localized display topic for lists/headers — never raw slugs like cannot-login.
+     */
+    public function customerFacingTopicLabel(
+        string $keyOrSlug,
+        string $audience = 'member',
+        ?string $locale = null,
+        ?string $workspace = null,
+    ): string {
+        $keyOrSlug = trim($keyOrSlug);
+        if ($keyOrSlug === '') {
+            return $this->isSw($locale) ? 'Suala la msaada' : 'Support issue';
+        }
+
+        $sw = $this->isSw($locale);
+        foreach ($this->help->groups($audience, $workspace) as $cat) {
+            if (($cat['key'] ?? '') === $keyOrSlug) {
+                return (string) ($sw
+                    ? ($cat['label_sw'] ?? $cat['label_en'] ?? $keyOrSlug)
+                    : ($cat['label_en'] ?? $cat['label_sw'] ?? $keyOrSlug));
+            }
+            foreach ($cat['articles'] ?? [] as $article) {
+                if (($article['slug'] ?? '') === $keyOrSlug) {
+                    return (string) ($sw
+                        ? ($article['q_sw'] ?? $article['title_sw'] ?? $article['q_en'] ?? $article['title_en'] ?? $keyOrSlug)
+                        : ($article['q_en'] ?? $article['title_en'] ?? $article['q_sw'] ?? $article['title_sw'] ?? $keyOrSlug));
+                }
+            }
+        }
+
+        // Already a human sentence / product name — keep; never echo snake_case keys.
+        if (! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)+$/', $keyOrSlug) && ! preg_match('/^[a-z0-9_]+$/', $keyOrSlug)) {
+            return $keyOrSlug;
+        }
+
+        return $sw ? 'Suala la msaada' : 'Support issue';
     }
 
     /**

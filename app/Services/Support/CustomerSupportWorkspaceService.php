@@ -969,4 +969,67 @@ class CustomerSupportWorkspaceService
             default => [now()->startOfDay(), 'Today', null],
         };
     }
+
+    /**
+     * Digital Support Assistant profiles — Settings personas, not Staff users.
+     * Metrics from SupportConversation / CSAT only (no invented numbers).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function digitalAssistantPerformance(?string $range = '30d', ?string $fromDate = null, ?string $toDate = null): array
+    {
+        [$from, $label, $to] = $this->rangeBounds($range ?? '30d', $fromDate, $toDate);
+        $personas = app(SupportAutomationService::class)->personas();
+        $out = [];
+
+        foreach ($personas as $persona) {
+            $key = (string) $persona['key'];
+            $name = (string) $persona['name'];
+
+            $base = SupportConversation::query()
+                ->where('created_at', '>=', $from)
+                ->when($to, fn ($q) => $q->where('created_at', '<=', $to))
+                ->where('automation_meta->persona_key', $key);
+
+            $handled = (clone $base)->count();
+            $resolvedAuto = (clone $base)
+                ->whereIn('status', ['resolved', 'closed'])
+                ->where(function ($q) {
+                    $q->where('resolution_kind', 'msaidizi')
+                        ->orWhere('handling_state', SupportAutomationService::STATE_RESOLVED_AUTOMATED);
+                })
+                ->count();
+            $handedOver = (clone $base)
+                ->where(function ($q) {
+                    $q->where('needs_human', true)
+                        ->orWhere('handling_state', SupportAutomationService::STATE_ESCALATED)
+                        ->orWhere('handling_state', SupportAutomationService::STATE_HUMAN)
+                        ->orWhere('handling_state', SupportAutomationService::STATE_RESOLVED_SUPPORT)
+                        ->orWhere('resolution_kind', 'support');
+                })
+                ->count();
+
+            $ratings = SupportConversation::query()
+                ->whereNotNull('rating')
+                ->where('rated_at', '>=', $from)
+                ->when($to, fn ($q) => $q->where('rated_at', '<=', $to))
+                ->where('automation_meta->persona_key', $key)
+                ->pluck('rating');
+
+            $out[] = [
+                'key' => $key,
+                'name' => $name,
+                'conversations_handled' => $handled,
+                'resolved_without_human' => $resolvedAuto,
+                'handed_over' => $handedOver,
+                'resolution_rate' => $handled > 0 ? (int) round(($resolvedAuto / $handled) * 100) : null,
+                'handover_rate' => $handled > 0 ? (int) round(($handedOver / $handled) * 100) : null,
+                'avg_rating' => $ratings->isNotEmpty() ? round((float) $ratings->avg(), 1) : null,
+                'ratings_count' => $ratings->count(),
+                'range_label' => $label,
+            ];
+        }
+
+        return $out;
+    }
 }

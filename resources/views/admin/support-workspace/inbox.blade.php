@@ -142,7 +142,7 @@
                                 <p class="text-xs {{ ($item['waiting_label'] ?? null) ? 'text-amber-800 font-semibold' : 'text-slate-500' }} mt-0.5">
                                     <span @if (($activeId ?? null) === $item['id']) x-text="deskState || @js($item['desk_state'] ?? ucfirst($item['status']))" @endif>{{ $item['desk_state'] ?? ucfirst($item['status']) }}</span>
                                     @if ($item['waiting_label'] ?? null) · {{ $item['waiting_label'] }} @endif
-                                    <span class="text-slate-400 font-normal"> · {{ $item['conversation_number'] ?? ('#'.$item['id']) }}</span>
+                                    <span class="text-slate-400 font-normal"> · {{ $item['conversation_number'] ?? '' }}</span>
                                 </p>
                             </a>
                         </li>

@@ -32,10 +32,10 @@
                     <div class="min-w-0">
                         <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $cnv->publicNumber() }}</p>
                         <p class="text-sm font-bold text-gray-900 mt-0.5 truncate">
-                            {{ $cnv->topic ?: ($isSw ? 'Suala la msaada' : 'Support issue') }}
+                            {{ app(\App\Services\Support\SupportAutomationService::class)->customerFacingTopicLabel((string) ($cnv->topic ?? ''), 'member', app()->getLocale()) }}
                         </p>
                         <p class="text-xs text-gray-500 mt-1">
-                            {{ ucfirst((string) $cnv->status) }}
+                            {{ app(\App\Services\Support\SupportConversationService::class)->customerFacingStatusLabel((string) $cnv->status, app()->getLocale()) }}
                             · {{ format_app_datetime($cnv->last_message_at ?? $cnv->updated_at, 'd M Y · H:i') }}
                         </p>
                     </div>

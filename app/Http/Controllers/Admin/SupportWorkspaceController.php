@@ -271,6 +271,34 @@ class SupportWorkspaceController extends Controller
         ]);
     }
 
+    public function assistants(Request $request): View
+    {
+        $range = (string) $request->query('range', '30d');
+        if (! in_array($range, ['today', '7d', '30d', 'custom'], true)) {
+            $range = '30d';
+        }
+
+        $fromDate = $request->query('from');
+        $toDate = $request->query('to');
+        if ($range === 'custom' && ! filled($fromDate)) {
+            $range = '30d';
+        }
+
+        $assistants = $this->workspace->digitalAssistantPerformance(
+            $range,
+            filled($fromDate) ? (string) $fromDate : null,
+            filled($toDate) ? (string) $toDate : null,
+        );
+
+        return view('admin.support-workspace.assistants', [
+            'assistants' => $assistants,
+            'range' => $range,
+            'from' => $fromDate,
+            'to' => $toDate,
+            'supportShell' => true,
+        ]);
+    }
+
     public function availability(Request $request): RedirectResponse
     {
         $data = $request->validate([

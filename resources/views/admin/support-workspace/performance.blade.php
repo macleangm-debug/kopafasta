@@ -25,6 +25,7 @@
         subtitle="Canonical Support metrics from accepted_at, sla_due_at, resolved_at and ratings. Empty ranges show — not invented numbers.">
         <x-slot:actions>
             <div class="flex flex-col items-end gap-2">
+                <a href="{{ route('admin.support.assistants') }}" class="text-xs font-semibold text-brand-gold hover:underline">Digital Assistants →</a>
                 <div class="inline-flex rounded-xl bg-white/15 ring-1 ring-white/20 p-1 text-sm font-semibold">
                     @foreach (['today' => 'Today', '7d' => '7 days', '30d' => '30 days', 'custom' => 'Custom'] as $key => $label)
                         <a href="{{ $key === 'custom'

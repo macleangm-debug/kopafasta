@@ -51,7 +51,7 @@ class SupportTicket extends Model
         return $this->hasOne(SupportTicketRating::class);
     }
 
-    /** Public ticket reference — prefer KPF-TKT; never substitute conversation SUP-* ids. */
+    /** Public ticket reference — prefer alphanumeric KPF-TKT; never bare #id. */
     public function publicNumber(): string
     {
         $n = trim((string) ($this->ticket_number ?? ''));
@@ -59,7 +59,18 @@ class SupportTicket extends Model
             return $n;
         }
 
-        return 'KPF-TKT-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+        return 'KPF-TKT-'.strtoupper(substr(hash('crc32b', 'tkt:'.$this->id), 0, 6));
+    }
+
+    public function needsAlphanumericReference(): bool
+    {
+        $n = trim((string) ($this->ticket_number ?? ''));
+        if ($n === '') {
+            return true;
+        }
+        $padded = 'KPF-TKT-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+
+        return $n === $padded || (bool) preg_match('/^KPF-TKT-\d{4,}$/', $n);
     }
 
     public function contactLabel(): string

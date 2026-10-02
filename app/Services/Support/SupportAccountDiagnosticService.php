@@ -201,7 +201,7 @@ class SupportAccountDiagnosticService
         $code = (string) ($status['code'] ?? $application->status);
         $label = (string) ($status['label'] ?? $application->status);
         $ref = $application->application_number ?: ('#'.$application->id);
-        $product = $application->product?->name;
+        $product = $application->product?->localizedName() ?: $application->product?->name;
         $amount = (int) ($application->requested_amount ?? $application->recommended_amount ?? 0);
         $amountLabel = $amount > 0 ? format_money($amount) : null;
 

@@ -1265,6 +1265,7 @@ Route::prefix('admin')->name('admin.')->middleware(SetLocale::class)->group(func
             Route::get('members', [SupportWorkspaceController::class, 'members'])->name('members');
             Route::get('notifications', [SupportWorkspaceController::class, 'notifications'])->name('notifications');
             Route::get('performance', [SupportWorkspaceController::class, 'performance'])->name('performance');
+            Route::get('assistants', [SupportWorkspaceController::class, 'assistants'])->name('assistants');
             Route::get('reports', fn () => redirect()->route('admin.support.performance'))->name('reports');
             Route::post('availability', [SupportWorkspaceController::class, 'availability'])->name('availability');
         });

@@ -114,21 +114,21 @@
          'conversationNumber' => $conversation instanceof \App\Models\SupportConversation ? $conversation->publicNumber() : null,
          'agentFirstName' => $presence['agent_first_name'],
          'presence' => $presence['presence'],
-         'statusOnline' => 'Waiting for support',
-         'statusAssigned' => 'Agent assigned',
+         'statusOnline' => $isSw ? 'Inasubiri mtoa huduma' : 'Waiting for support',
+         'statusAssigned' => $isSw ? 'Mtoa huduma ameteuliwa' : 'Agent assigned',
          'tagline' => $automationMode
              ? ($isSw ? 'Msaidizi wa kidijitali · Digital assistant' : 'Digital assistant · Here to help')
-             : 'Kwa ajili yako · Here to help',
+             : ($isSw ? 'Kwa ajili yako · Here to help' : 'Here to help'),
          'brandTitle' => $automationMode
              ? ($isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant')
              : 'Kopafasta Support',
-         'assignedSuffix' => 'Customer Support',
-         'deskLabel' => $presence['desk_label'] ?? 'Waiting for support',
+         'assignedSuffix' => $isSw ? 'Usaidizi kwa Wateja' : 'Customer Support',
+         'deskLabel' => $presence['desk_label'] ?? ($isSw ? 'Inasubiri mtoa huduma' : 'Waiting for support'),
          'automationDesk' => $isSw ? 'Msaidizi wa Kopafasta' : 'Kopafasta Assistant',
          'personaDisplay' => null,
          'showRating' => (bool) $showRating,
          'ratingUrl' => $ratingUrl,
-         'composerLocked' => (bool) $composerLocked,
+         'composerLocked' => (bool) $composerLocked || (bool) ($presence['composer_locked'] ?? false),
          'ratingThanks' => $isSw ? 'Asante kwa tathmini yako.' : 'Thank you for your rating.',
          'ratingPrompt' => $isSw ? 'Tathmini huduma yetu' : 'Rate our support',
          'ratingCommentPh' => $isSw ? 'Maoni (si lazima)' : 'Comment (optional)',
@@ -467,11 +467,19 @@
                             if (data.handling_label) {
                                 this.config.deskLabel = data.handling_label;
                             }
+                            if (data.show_rating) {
+                                this.showRating = true;
+                                this.composerLocked = true;
+                                this.choices = [];
+                                if (data.rating_url) this.ratingUrl = data.rating_url;
+                                if (data.rating_prompt) this.config.ratingPrompt = data.rating_prompt;
+                            }
                             if (data.mode === 'human' || data.needs_human) {
                                 this.humanMode = true;
                                 this.automationMode = false;
                                 this.choices = [];
                                 this.applyPresence(data);
+                                if (data.composer_locked) this.composerLocked = true;
                                 if (config.threadUrl && !this._timer) {
                                     this.pollThread();
                                     var self = this;
@@ -605,6 +613,8 @@
                             } else if (data.assigned_to && !this.agentFirstName) {
                                 this.presence = 'assigned';
                             }
+                            if (data.desk_label) this.config.deskLabel = data.desk_label;
+                            if (data.composer_locked) this.composerLocked = true;
                             if (data.status && ['closed', 'resolved'].indexOf(data.status) !== -1) {
                                 this.composerLocked = true;
                             }
@@ -747,10 +757,17 @@
                                         self.messages = self.messages.filter(function (m) { return m.id !== optimistic.id; });
                                         self.input = q;
                                         self.sendError = data.message || data.error || 'Imeshindikana kutuma. Jaribu tena.';
+                                        if (data.composer_locked) {
+                                            self.composerLocked = true;
+                                            if (data.messages && data.messages.length) {
+                                                self.messages = self.mapThread(data.messages);
+                                            }
+                                        }
                                         self.typing = false;
                                         return;
                                     }
                                     self.applyPresence(data);
+                                    if (data.composer_locked) self.composerLocked = true;
                                     if (data.messages && data.messages.length) {
                                         self.messages = self.mapThread(data.messages);
                                     } else if (data.ack) {

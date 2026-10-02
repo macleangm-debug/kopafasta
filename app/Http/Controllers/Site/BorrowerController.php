@@ -4001,13 +4001,14 @@ class BorrowerController extends Controller
         $customer = $this->customer();
         $conversations = app(\App\Services\Support\SupportConversationService::class);
         $openConversations = $conversations->listOpenConversationsFor($customer, null)
-            ->load(['assignedTo:id,name']);
+            ->load(['assignedTo:id,name'])
+            ->each(fn ($c) => $conversations->ensureAlphanumericReference($c));
 
         $requestedId = (int) request('conversation', 0);
         $conversation = $requestedId > 0
             ? $openConversations->firstWhere('id', $requestedId)
             : null;
-        if (! $conversation && $openConversations->count() === 1) {
+        if (! $conversation && $openConversations->count() >= 1) {
             $conversation = $openConversations->first();
         }
 
@@ -4017,21 +4018,18 @@ class BorrowerController extends Controller
             ->with('assignedTo:id,name')
             ->latest('last_message_at')
             ->limit(12)
-            ->get(['id', 'conversation_number', 'topic', 'status', 'rating', 'rating_requested_at', 'last_message_at', 'created_at', 'closed_at', 'resolved_at', 'resolution_category', 'assigned_to']);
+            ->get(['id', 'conversation_number', 'topic', 'status', 'rating', 'rating_requested_at', 'last_message_at', 'created_at', 'closed_at', 'resolved_at', 'resolution_category', 'assigned_to', 'automation_meta']);
 
-        $openTickets = \App\Models\SupportTicket::query()
+        // Open tickets live under History — Active shows at most one ongoing conversation.
+        $openTickets = collect();
+
+        $historyTickets = \App\Models\SupportTicket::query()
             ->where('customer_id', $customer->id)
-            ->whereIn('status', ['open', 'in_progress', 'waiting'])
             ->latest('updated_at')
-            ->limit(8)
-            ->get(['id', 'ticket_number', 'subject', 'status', 'updated_at', 'priority']);
+            ->limit(12)
+            ->get(['id', 'ticket_number', 'subject', 'status', 'resolved_at', 'updated_at', 'priority']);
 
-        $resolvedTickets = \App\Models\SupportTicket::query()
-            ->where('customer_id', $customer->id)
-            ->whereIn('status', ['resolved', 'closed'])
-            ->latest('resolved_at')
-            ->limit(8)
-            ->get(['id', 'ticket_number', 'subject', 'status', 'resolved_at', 'updated_at']);
+        $resolvedTickets = $historyTickets;
 
         $help = app(\App\Services\Support\SupportHelpLibraryService::class);
         $q = trim((string) request('q', ''));
@@ -4079,27 +4077,50 @@ class BorrowerController extends Controller
         ]);
 
         $service = app(\App\Services\Support\SupportConversationService::class);
-        $conversation = $service->requestHuman(
-            $customer,
-            $request->user(),
-            trim($data['body']),
-            $data['topic'] ?? null,
-        );
+        try {
+            $conversation = $service->requestHuman(
+                $customer,
+                $request->user(),
+                trim($data['body']),
+                $data['topic'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            if ($e->getMessage() === 'composer_locked') {
+                if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                    $open = $service->listOpenConversationsFor($customer, null)->first();
+
+                    return response()->json(array_merge([
+                        'ok' => false,
+                        'composer_locked' => true,
+                        'message' => $service->waitingAcknowledgement(),
+                        'messages' => $open ? $service->serializeMessages($open) : [],
+                    ], $service->memberChatPresence($open)), 422);
+                }
+
+                return redirect()
+                    ->route('site.borrower.support', ['chat' => 1])
+                    ->with('status', $service->waitingAcknowledgement());
+            }
+            throw $e;
+        }
 
         $this->auditBorrower('support.speak_to_human', $customer, [
             'conversation_id' => $conversation->id,
         ]);
 
         $ack = $service->waitingAcknowledgement();
+        $presence = $service->memberChatPresence($conversation);
 
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
             return response()->json(array_merge([
                 'ok' => true,
                 'conversation_id' => $conversation->id,
+                'conversation_number' => $conversation->publicNumber(),
                 'status' => $conversation->status,
                 'ack' => $ack,
                 'messages' => $service->serializeMessages($conversation),
-            ], $service->memberChatPresence($conversation)));
+                'composer_locked' => (bool) ($presence['composer_locked'] ?? false),
+            ], $presence));
         }
 
         return redirect()
@@ -4175,16 +4196,25 @@ class BorrowerController extends Controller
             ->recordConversationRating($supportConversation, (int) $data['rating'], $data['comment'] ?? null);
 
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            $isSw = str_starts_with(app()->getLocale(), 'sw');
+            $meta = is_array($supportConversation->automation_meta) ? $supportConversation->automation_meta : [];
+            $persona = (string) ($meta['persona_name'] ?? '');
+            $thanks = $isSw
+                ? ($persona !== '' ? "Asante kwa tathmini yako ya {$persona}." : 'Asante kwa tathmini yako.')
+                : ($persona !== '' ? "Thank you for rating {$persona}." : 'Thank you for your rating.');
+
             return response()->json([
                 'ok' => true,
-                'thanks' => 'Asante kwa tathmini yako.',
-                'redirect' => route('site.borrower.support', ['section' => 'history']),
+                'thanks' => $thanks,
+                'redirect' => route('site.borrower.support'),
             ]);
         }
 
         return redirect()
-            ->route('site.borrower.support', ['section' => 'history'])
-            ->with('status', 'Asante kwa tathmini yako.');
+            ->route('site.borrower.support')
+            ->with('status', str_starts_with(app()->getLocale(), 'sw')
+                ? 'Asante kwa tathmini yako.'
+                : 'Thank you for your rating.');
     }
 
     public function rateSupportTicket(Request $request, \App\Models\SupportTicket $support_ticket): JsonResponse|\Illuminate\Http\RedirectResponse

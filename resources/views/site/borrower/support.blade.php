@@ -18,8 +18,7 @@
         $helpSection = $helpSection ?? 'help';
         $isSw = str_starts_with(app()->getLocale(), 'sw');
         $hasActive = (bool) ($supportConversation ?? null)
-            || (($openSupportConversations ?? collect())->isNotEmpty())
-            || $openTickets->isNotEmpty();
+            || (($openSupportConversations ?? collect())->isNotEmpty());
         $rateUrl = $supportConversation && $supportConversation->awaitsRating()
             ? route('site.borrower.support.conversation.rate', $supportConversation)
             : null;
@@ -106,24 +105,26 @@
                 ])
             </div>
 
-            {{-- ACTIVE --}}
+            {{-- ACTIVE — at most one ongoing conversation (legacy multi → chooser only) --}}
             <div x-show="section === 'active'" x-cloak class="space-y-4">
                 <x-site.support-open-conversations
                     :conversations="$openSupportConversations ?? []"
                     continue-route="site.borrower.support"
                     :is-sw="$isSw"
                 />
-                @if ($supportConversation)
+                @if ($supportConversation && ($openSupportConversations ?? collect())->count() <= 1)
                     @php
                         $agentName = app(\App\Services\Support\SupportConversationService::class)
                             ->personFirstName((string) ($supportConversation->assignedTo?->name ?? '')) ?: null;
-                        $desk = app(\App\Services\Support\SupportConversationService::class)->deskState($supportConversation);
+                        $desk = app(\App\Services\Support\SupportConversationService::class)->deskState($supportConversation, app()->getLocale());
+                        $topicLabel = app(\App\Services\Support\SupportAutomationService::class)
+                            ->customerFacingTopicLabel((string) ($supportConversation->topic ?? ''), 'member', app()->getLocale());
                     @endphp
                     <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $supportConversation->publicNumber() }}</p>
-                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $supportConversation->topic ?: ($isSw ? 'Suala la msaada' : 'Support issue') }}</p>
+                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $topicLabel }}</p>
                                 <p class="text-xs text-gray-500 mt-1">
                                     {{ $desk }}
                                     @if ($agentName) · {{ $agentName }} @endif
@@ -137,22 +138,6 @@
                         </div>
                     </div>
                 @endif
-
-                @foreach ($openTickets as $t)
-                    <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $t->publicNumber() }}</p>
-                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $t->subject }}</p>
-                                <p class="text-xs text-gray-500 mt-1">{{ ucfirst($t->status) }} · {{ format_app_datetime($t->updated_at, 'd M Y · H:i') }}</p>
-                            </div>
-                            <a href="{{ route('site.borrower.support.ticket.show', $t) }}"
-                               class="shrink-0 rounded-xl ring-1 ring-brand/25 text-brand text-xs font-bold px-3.5 py-2 hover:bg-brand-muted/40">
-                                {{ $isSw ? 'Angalia tiketi' : 'View ticket' }}
-                            </a>
-                        </div>
-                    </div>
-                @endforeach
 
                 @if (! $hasActive)
                     <div class="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center space-y-3">
@@ -171,16 +156,22 @@
                     @php
                         $hAgent = app(\App\Services\Support\SupportConversationService::class)
                             ->personFirstName((string) ($h->assignedTo?->name ?? '')) ?: null;
+                        $hMeta = is_array($h->automation_meta) ? $h->automation_meta : [];
+                        $hPersona = (string) ($hMeta['persona_name'] ?? '');
+                        $hTopic = app(\App\Services\Support\SupportAutomationService::class)
+                            ->customerFacingTopicLabel((string) ($h->topic ?? ''), 'member', app()->getLocale());
                     @endphp
                     <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $h->publicNumber() }}</p>
-                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $h->topic ?: ($isSw ? 'Suala la msaada' : 'Support issue') }}</p>
+                                <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $hTopic }}</p>
                                 <p class="text-xs text-gray-500 mt-1">
                                     {{ $isSw ? 'Imekamilishwa' : 'Resolved' }}
                                     · {{ format_app_datetime($h->closed_at ?? $h->resolved_at ?? $h->last_message_at ?? $h->created_at, 'd M Y · H:i') }}
-                                    @if ($hAgent) · {{ $hAgent }} @endif
+                                    @if ($hPersona) · {{ $hPersona }}
+                                    @elseif ($hAgent) · {{ $hAgent }}
+                                    @endif
                                     @if ($h->rating) · ★{{ $h->rating }} @endif
                                 </p>
                             </div>
@@ -199,12 +190,16 @@
                 @endforeach
 
                 @foreach ($resolvedTickets as $t)
+                    @php
+                        $tStatus = app(\App\Services\Support\SupportConversationService::class)
+                            ->customerFacingStatusLabel((string) $t->status, app()->getLocale());
+                    @endphp
                     <div class="rounded-2xl bg-white ring-1 ring-brand/15 shadow-sm px-4 py-4">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="text-[11px] uppercase tracking-widest text-brand font-semibold">{{ $t->publicNumber() }}</p>
                                 <p class="text-sm font-bold text-gray-900 mt-1 truncate">{{ $t->subject }}</p>
-                                <p class="text-xs text-gray-500 mt-1">{{ $isSw ? 'Imekamilishwa' : 'Resolved' }} · {{ format_app_datetime($t->resolved_at ?? $t->updated_at, 'd M Y · H:i') }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ $tStatus }} · {{ format_app_datetime($t->resolved_at ?? $t->updated_at, 'd M Y · H:i') }}</p>
                             </div>
                             <a href="{{ route('site.borrower.support.ticket.show', $t) }}"
                                class="shrink-0 rounded-xl ring-1 ring-brand/25 text-brand text-xs font-bold px-3.5 py-2 hover:bg-brand-muted/40">

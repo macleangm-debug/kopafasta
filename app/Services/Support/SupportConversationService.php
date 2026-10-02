@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Setting;
 use App\Models\SupportConversation;
 use App\Models\SupportMessage;
+use App\Models\SupportTicket;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\DB;
@@ -79,6 +80,17 @@ class SupportConversationService
 
         return DB::transaction(function () use ($customer, $user, $body, $topic, $guestName, $guestPhone, $channel) {
             $conversation = $this->openConversationFor($customer, $user, $guestName, $guestPhone, $channel);
+            $conversation = $this->ensureAlphanumericReference($conversation);
+
+            $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+            $isWaitingHuman = (bool) $conversation->needs_human
+                && in_array((string) $conversation->status, [self::STATUS_WAITING], true)
+                && ! $conversation->assigned_to;
+
+            // After handover: at most ONE optional customer follow-up, then lock.
+            if ($isWaitingHuman && (bool) ($meta['waiting_followup_used'] ?? false)) {
+                throw new \InvalidArgumentException('composer_locked');
+            }
 
             // Lightweight anti-spam: rapid duplicate / burst sends stay in the same
             // conversation but do not append another customer message.
@@ -119,6 +131,12 @@ class SupportConversationService
             $sender = ($customer || $user) ? 'customer' : 'guest';
             $this->appendMessage($conversation, $sender, $body, $user?->id, false, true);
 
+            if ($isWaitingHuman || (bool) ($meta['waiting_followup_allowed'] ?? false)) {
+                $meta['waiting_followup_used'] = true;
+                $meta['waiting_followup_allowed'] = false;
+                $conversation->update(['automation_meta' => $meta]);
+            }
+
             $hasWaitingAck = $conversation->messages()
                 ->where('is_automated', true)
                 ->where(function ($q) {
@@ -142,8 +160,6 @@ class SupportConversationService
                     'waiting_nudge_level' => max(1, (int) ($conversation->waiting_nudge_level ?? 0)),
                     'waiting_since' => $conversation->waiting_since ?: now(),
                 ]);
-            } else {
-                $this->maybeSendWaitingNudge($conversation->fresh() ?? $conversation);
             }
 
             // Presence is operational metadata — never inject offline bubbles into customer chat.
@@ -497,10 +513,111 @@ class SupportConversationService
     public function waitingAcknowledgement(): string
     {
         if (str_starts_with(app()->getLocale(), 'en')) {
-            return 'We received your message. Our Support team will help you shortly. You can add more details here while you wait.';
+            return 'We received your message. Our Support team will help you shortly.';
         }
 
-        return 'Tumepokea ujumbe wako. Timu yetu ya Usaidizi itakuhudumia hivi karibuni. Unaweza kuongeza maelezo mengine hapa wakati unasubiri.';
+        return 'Tumepokea ujumbe wako. Timu yetu ya Usaidizi itakusaidia hivi karibuni.';
+    }
+
+    /**
+     * Re-stamp legacy sequential / missing conversation numbers to alphanumeric (PK unchanged).
+     */
+    public function ensureAlphanumericReference(SupportConversation $conversation): SupportConversation
+    {
+        if (! $conversation->needsAlphanumericReference()) {
+            return $conversation;
+        }
+
+        $conversation->update(['conversation_number' => $this->nextConversationNumber()]);
+
+        return $conversation->fresh() ?? $conversation;
+    }
+
+    public function ensureTicketAlphanumericReference(SupportTicket $ticket): SupportTicket
+    {
+        if (! $ticket->needsAlphanumericReference()) {
+            return $ticket;
+        }
+
+        $tickets = app(SupportTicketService::class);
+        $ticket->update(['ticket_number' => $tickets->nextTicketNumber()]);
+
+        return $ticket->fresh() ?? $ticket;
+    }
+
+    /** Localized customer-facing conversation/ticket status (never raw open/escalated keys). */
+    public function customerFacingStatusLabel(string $status, ?string $locale = null): string
+    {
+        $sw = str_starts_with(strtolower((string) ($locale ?? app()->getLocale())), 'sw');
+
+        return match (strtolower(trim($status))) {
+            'open' => $sw ? 'Imefunguliwa' : 'Open',
+            'waiting' => $sw ? 'Inasubiri' : 'Waiting',
+            'assigned', 'active', 'in_progress' => $sw ? 'Inaendelea' : 'In progress',
+            'escalated' => $sw ? 'Imepelekwa' : 'Escalated',
+            'resolved' => $sw ? 'Imetatuliwa' : 'Resolved',
+            'closed' => $sw ? 'Imefungwa' : 'Closed',
+            default => $sw ? 'Inaendelea' : 'In progress',
+        };
+    }
+
+    /**
+     * Member/Partner chat header presence (does not affect message delivery).
+     * Agent identity is shown only after Accept (assigned/active), never on waiting queue.
+     *
+     * @return array{assigned_to:?int, agent_first_name:?string, status:string, presence:string, desk_label:string, composer_locked?:bool}
+     */
+    public function memberChatPresence(?SupportConversation $conversation, ?string $locale = null): array
+    {
+        $sw = str_starts_with(strtolower((string) ($locale ?? app()->getLocale())), 'sw');
+        $waitingLabel = $sw ? 'Inasubiri mtoa huduma' : 'Waiting for support';
+        $assignedLabel = $sw ? 'Mtoa huduma ameteuliwa' : 'Agent assigned';
+
+        if (! $conversation) {
+            return [
+                'assigned_to' => null,
+                'agent_first_name' => null,
+                'status' => self::STATUS_WAITING,
+                'presence' => 'online',
+                'desk_label' => $waitingLabel,
+                'composer_locked' => false,
+            ];
+        }
+
+        $conversation->loadMissing('assignedTo');
+        $accepted = $conversation->assigned_to
+            && in_array($conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true);
+        $agentFirst = $accepted
+            ? ($this->personFirstName((string) ($conversation->assignedTo?->name ?? '')) ?: null)
+            : null;
+
+        $meta = is_array($conversation->automation_meta) ? $conversation->automation_meta : [];
+        $waitingLock = in_array((string) $conversation->status, [self::STATUS_WAITING], true)
+            && (bool) ($conversation->needs_human)
+            && (bool) ($meta['waiting_followup_used'] ?? false)
+            && ! $accepted;
+
+        return [
+            'assigned_to' => $accepted ? (int) $conversation->assigned_to : null,
+            'agent_first_name' => $agentFirst,
+            'status' => (string) $conversation->status,
+            'presence' => $agentFirst ? 'assigned' : 'online',
+            'desk_label' => $agentFirst ? $assignedLabel : $waitingLabel,
+            'composer_locked' => $waitingLock
+                || in_array((string) $conversation->status, [self::STATUS_CLOSED, self::STATUS_RESOLVED], true),
+        ];
+    }
+
+    /** Human-readable desk state for staff UI. */
+    public function deskState(SupportConversation $conversation, ?string $locale = null): string
+    {
+        $locale = $locale ?? app()->getLocale();
+        $handling = (string) ($conversation->handling_state ?? '');
+        if ($handling !== '') {
+            return app(SupportAutomationService::class)->handlingLabel($handling, $locale);
+        }
+
+        return $this->customerFacingStatusLabel((string) $conversation->status, $locale);
     }
 
     public function assignedAgentOfflineAcknowledgement(): string
@@ -767,56 +884,5 @@ class SupportConversationService
                 'at' => $m->created_at?->toIso8601String(),
                 'time' => $m->created_at ? format_app_datetime($m->created_at, 'H:i') : null,
             ])->all();
-    }
-
-    /**
-     * Member/Partner chat header presence (does not affect message delivery).
-     * Agent identity is shown only after Accept (assigned/active), never on waiting queue.
-     *
-     * @return array{assigned_to:?int, agent_first_name:?string, status:string, presence:string, desk_label:string}
-     */
-    public function memberChatPresence(?SupportConversation $conversation): array
-    {
-        if (! $conversation) {
-            return [
-                'assigned_to' => null,
-                'agent_first_name' => null,
-                'status' => self::STATUS_WAITING,
-                'presence' => 'online',
-                'desk_label' => 'Waiting for support',
-            ];
-        }
-
-        $conversation->loadMissing('assignedTo');
-        $accepted = $conversation->assigned_to
-            && in_array($conversation->status, [self::STATUS_ASSIGNED, self::STATUS_ACTIVE], true);
-        $agentFirst = $accepted
-            ? ($this->personFirstName((string) ($conversation->assignedTo?->name ?? '')) ?: null)
-            : null;
-
-        return [
-            'assigned_to' => $accepted ? (int) $conversation->assigned_to : null,
-            'agent_first_name' => $agentFirst,
-            'status' => (string) $conversation->status,
-            'presence' => $agentFirst ? 'assigned' : 'online',
-            'desk_label' => $agentFirst ? 'Agent assigned' : 'Waiting for support',
-        ];
-    }
-
-    /** Human-readable desk state for staff UI. */
-    public function deskState(SupportConversation $conversation): string
-    {
-        $handling = (string) ($conversation->handling_state ?? '');
-        if ($handling !== '') {
-            return app(SupportAutomationService::class)->handlingLabel($handling, 'en');
-        }
-
-        return match (true) {
-            $conversation->status === self::STATUS_CLOSED => 'Closed',
-            $conversation->status === self::STATUS_RESOLVED => 'Resolved',
-            $conversation->status === self::STATUS_ACTIVE => 'Active',
-            (bool) $conversation->assigned_to => 'Assigned',
-            default => 'Waiting',
-        };
     }
 }
